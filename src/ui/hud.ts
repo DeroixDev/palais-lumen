@@ -9,6 +9,7 @@ import { coinDataUrl } from '../core/fx';
 import { ACHIEVEMENTS, type Achievement, type AchievementIcon } from '../core/achievements';
 import { stoneDataUrl } from './stone';
 import { installHudArt } from './hudArt';
+import { debugPanel } from './debug';
 
 const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋' };
 
@@ -20,6 +21,7 @@ export interface HudActions {
   endEvening(): void;
   leaveGame(): void;
   newGame(): void;
+  debugDay(day: number): void;
 }
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -94,6 +96,7 @@ export class Hud {
       syncMusic();
     });
     $('#btn-help').addEventListener('click', () => this.help());
+    $('#btn-debug').addEventListener('click', () => this.openDebug());
     state.onChange(() => this.render());
     // Brand coin in the purse, and a little bump whenever a coin lands in it.
     const coinUrl = coinDataUrl(96);
@@ -449,6 +452,17 @@ export class Hud {
         },
       ],
     );
+  }
+
+  /** Test panel: money, Mondsteine and day jumps for playing a season through quickly. */
+  openDebug() {
+    const body = debugPanel(this.state, {
+      jumpToDay: (day) => this.actions.debugDay(day),
+      endDay: () => this.actions.endEvening(),
+      toast: (t) => this.toast(t),
+      close: () => this.closeModal(),
+    });
+    this.modal('Debug', body, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
   }
 
   openSaves() {

@@ -584,6 +584,17 @@ async function boot() {
     }, bonus > 0 ? 900 : 300);
   }
 
+  /** Debug: start `day` fresh with the current money and walk out of the elevator in the foyer. */
+  async function debugDay(day: number) {
+    if (mode === 'title' || mode === 'transition') return;
+    if (game) await closeGame();
+    if (overlay) closeOverlay();
+    state.data.evening = { number: day, startBalance: state.data.balance, quota: state.quotaToday(day, state.data.balance) };
+    state.emit();
+    dayCardFor = -1;
+    await toFoyer(0, 0);
+  }
+
   // ---- Loading ----------------------------------------------------------
 
   function loadSave(data: SaveData) {
@@ -622,6 +633,7 @@ async function boot() {
       loadSave(newSave());
       if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
     },
+    debugDay: (day) => void debugDay(day),
   });
 
   window.addEventListener('keydown', (e) => {
