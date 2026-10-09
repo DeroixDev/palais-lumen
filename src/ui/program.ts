@@ -4,7 +4,7 @@
 
 import { Container, Sprite, Text, type Texture } from 'pixi.js';
 import { FONT_BODY } from '../core/fx';
-import { allGames, allRooms } from '../core/registry';
+import { allGames, allRooms, mainRoomOf } from '../core/registry';
 import { closedGames } from '../core/events';
 import type { GameState } from '../core/state';
 import { fillInk, paint, rrect } from '../world/painted/brush';
@@ -174,7 +174,7 @@ export class ProgramPanel extends Panel {
       where = 'Heute nicht im Haus';
       col = 0x9a8a78;
     } else {
-      const names = e.floors.map((f) => (allRooms().find((r) => r.floor === f)?.name ?? `Etage ${f}`));
+      const names = e.floors.map((f) => (mainRoomOf(f)?.name ?? `Etage ${f}`));
       const floors = e.floors.length === 1 ? `Etage ${e.floors[0]} · ${names[0]}` : `Etagen ${e.floors.join(', ')}`;
       const locked = e.floors.every((f) => f > topFloor);
       if (e.closed) {

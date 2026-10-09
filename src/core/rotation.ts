@@ -65,6 +65,9 @@ const SLOT_THEMES = ['classic', 'diamond', 'gold'];
 /** Today's games for a room, placed on its spots. */
 export function todaysStations(def: RoomDefinition, season: number, day: number, salt: number): StationPlacement[] {
   if (!def.stations.length) return def.stations;
+  // Special machines stay where the room file puts them; only the rest rotates.
+  const pinned = def.stations.filter((s) => s.pinned);
+  if (pinned.length) return [...pinned, ...todaysStations({ ...def, stations: def.stations.filter((s) => !s.pinned) }, season, day, salt)];
   const rand = rng(hash(`${season}:${day}:${salt}:${def.id}`));
   const pools: Record<'cabinet' | 'table', GameDefinition[]> = {
     cabinet: shuffle(allGames().filter((g) => g.size === 'cabinet'), rand),

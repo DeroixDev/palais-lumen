@@ -2,7 +2,7 @@
 // a small wish. Talk to them to accept it; finished rounds count towards it by their report
 // tags. Rewards are small: 1–3 Mondsteine, sometimes a stamp. Never touches the odds.
 
-import { allRooms } from './registry';
+import { floorRooms } from './registry';
 import { floorForDay, type GameState, type Quest, type RoundReport, type SaveData } from './state';
 import { isClosed, onEventSwitch } from './events';
 import { addStamps, floorOfDay } from './stamps';
@@ -79,8 +79,7 @@ const shuffle = <T,>(a: T[]) => {
 /** Two or three tasks for today's floor, each for a different game where possible. */
 export function makeQuests(d: SaveData): Quest[] {
   const day = d.evening.number;
-  const room = allRooms().find((r) => r.floor === floorForDay(day));
-  const games = new Set((room?.stations ?? []).map((s) => s.game).filter((g) => !isClosed(d, g)));
+  const games = new Set(floorRooms(floorForDay(day)).flatMap((r) => r.stations.map((s) => s.game)).filter((g) => !isClosed(d, g)));
   const pool = shuffle(TEMPLATES.filter((t) => !t.game || games.has(t.game)));
   const count = Math.random() < 0.5 ? 2 : 3;
   const picked: Template[] = [];

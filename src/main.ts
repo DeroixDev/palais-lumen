@@ -3,7 +3,7 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Filter, Graphics, Sprite, Texture } from 'pixi.js';
 import './games';
 import './rooms';
-import { allRooms, getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
+import { getGame, getRoom, mainRoomOf, type GameInstance, type StationPlacement } from './core/registry';
 import { BOSS_DAY, GameState, formatChips, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
 import { COLORS, Particles, purse, rewardLevel, setRenderer, shake } from './core/fx';
@@ -207,7 +207,7 @@ async function boot() {
     room.resize(app.screen.width, app.screen.height);
   }
 
-  const roomForFloor = (f: number) => allRooms().find((r) => r.floor === f) ?? getRoom('f1');
+  const roomForFloor = (f: number) => mainRoomOf(f) ?? getRoom('f1');
 
   /** A floor that opened at the last settlement; the elevator marks it until you go there. */
   let newFloorHint: number | null = null;
@@ -713,6 +713,12 @@ async function boot() {
         layout();
       },
       room: () => room,
+      // Jumps straight into any room (side rooms too), for testing.
+      toRoom: (id: string) => {
+        state.data.position = { x: -1, y: -1 };
+        enterRoom(id);
+        layout();
+      },
       toFoyer: () => {
         state.data.position = { x: -1, y: -1 };
         enterRoom('foyer');

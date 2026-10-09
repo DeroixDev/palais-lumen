@@ -1,7 +1,7 @@
 // HTML overlay: top bar, toasts and dialogs. Pixi draws the game, the DOM draws the menus.
 
 import { BOSS_DAY, floorForDay, formatChips, type GameState } from '../core/state';
-import { allRooms } from '../core/registry';
+import { mainRoomOf } from '../core/registry';
 import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '../core/save';
 import type { SaveData } from '../core/state';
 import { sfx } from '../core/audio';
@@ -189,7 +189,7 @@ export class Hud {
     const day = d.evening.number;
     const floor = floorForDay(day);
     const boss = day >= BOSS_DAY;
-    const floorName = allRooms().find((r) => r.floor === floor)?.name ?? '';
+    const floorName = mainRoomOf(floor)?.name ?? '';
     $('#ev-num').textContent = this.inFoyer ? `Foyer · Tag ${day} auf Etage ${floor}` : boss ? `Tag ${day} · Boss` : `Tag ${day} · Etage ${floor}`;
     $('#ev-num').title = `Saison ${d.season.number} · Etage ${floor}: ${floorName}`;
     $('#ev-bar').classList.toggle('boss', boss);

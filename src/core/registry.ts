@@ -79,6 +79,8 @@ export interface RoomTheme {
 
 export interface StationPlacement {
   game: string;
+  /** Stays put: the daily rotation leaves this game on this spot (special machines in side rooms). */
+  pinned?: boolean;
   x: number;
   y: number;
   label?: string;
@@ -115,8 +117,26 @@ export interface DecorPlacement {
   r?: number;
 }
 
+/**
+ * A doorway to another room on the same floor. (x, y) is where the player steps through,
+ * in this room's world pixels; `side` says which wall it is in. Walking into it (or tapping
+ * it) moves the player to the door in `to` whose `to` points back here.
+ */
+export interface DoorDef {
+  x: number;
+  y: number;
+  to: string;
+  side: 'back' | 'left' | 'right' | 'front';
+  /** Sign over the door, e.g. "Hinterzimmer". */
+  label?: string;
+}
+
 export interface RoomDefinition {
   id: string;
+  /** Side room: id of the floor's main room. Side rooms have no elevator (elevatorX is ignored). */
+  parent?: string;
+  /** Doorways to the other rooms of this floor. */
+  doors?: DoorDef[];
   name: string;
   /** Floor number: 0 is the foyer, 1–5 the casino floors. The elevator goes between them. */
   floor: number;
@@ -182,6 +202,18 @@ export function getRoom(id: string) {
 
 export function allRooms() {
   return [...rooms.values()].map(today);
+}
+
+/** The main room of a floor (the one with the elevator). */
+export function mainRoomOf(floor: number) {
+  return allRooms().find((r) => r.floor === floor && !r.parent);
+}
+
+/** Every room of a floor, main room first. */
+export function floorRooms(floor: number) {
+  return allRooms()
+    .filter((r) => r.floor === floor)
+    .sort((a, b) => (a.parent ? 1 : 0) - (b.parent ? 1 : 0));
 }
 
 /** The room as written in its file, before the daily rotation. */

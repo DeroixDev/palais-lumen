@@ -2,7 +2,7 @@
 // Events only touch the economy — goal, stake size, bonus Mondsteine, stamps, which games
 // are open — never the odds. Every game keeps its true house edge.
 
-import { allRooms } from './registry';
+import { floorRooms } from './registry';
 import { BOSS_DAY, floorForDay, type GameState, type RoundReport, type SaveData } from './state';
 import { bossClosedGame } from './boss';
 
@@ -166,8 +166,7 @@ export function currentEvent(d: SaveData) {
 
 /** Games on the floor of a day. */
 function gamesOnDay(day: number) {
-  const room = allRooms().find((r) => r.floor === floorForDay(day));
-  return new Set(room?.stations.map((s) => s.game) ?? []);
+  return new Set(floorRooms(floorForDay(day)).flatMap((r) => r.stations.map((s) => s.game)));
 }
 
 /** Events that fit a day (their games exist on that floor). */
