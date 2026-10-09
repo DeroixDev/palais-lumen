@@ -4,7 +4,7 @@
 import { ACHIEVEMENTS, type Achievement } from './achievements';
 import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -82,6 +82,20 @@ export interface SaveData {
   /** Boss phase today (0 off, 1..3). */
   bossPhase: number;
   settings: { haptics: boolean };
+  // ---- v7: modifier items (src/core/modifiers.ts) -------------------------
+  /** Items in the bag, by id: how many of each. Bought with Mondsteine; kept across days and seasons. */
+  bag: Record<string, number>;
+  /** Items working right now (used from the bag). Day items end with the day. */
+  active: ActiveItem[];
+}
+
+/** A used item that is still working. */
+export interface ActiveItem {
+  id: string;
+  /** Rounds left, or -1 while it lasts the whole day. */
+  left: number;
+  /** Game it was used in, for items bound to one game; '' for any game. */
+  game: string;
 }
 
 /** A small task a guest gives you for today. Progress is counted from round reports. */
@@ -230,6 +244,8 @@ export function newSave(): SaveData {
     houseExpected: 0,
     bossPhase: 0,
     settings: { haptics: true },
+    bag: {},
+    active: [],
   };
 }
 

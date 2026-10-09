@@ -65,6 +65,8 @@ export function migrate(raw: unknown): SaveData | null {
     draft: Array.isArray(d.draft) ? d.draft : null,
     history: Array.isArray(d.history) && d.history.length ? d.history : [d.balance],
     settings: { ...base.settings, ...d.settings },
+    bag: d.bag && typeof d.bag === 'object' ? { ...d.bag } : {},
+    active: Array.isArray(d.active) ? d.active : [],
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
