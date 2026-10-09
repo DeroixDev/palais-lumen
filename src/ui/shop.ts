@@ -1,17 +1,21 @@
-// The souvenir shop in the foyer. Everything costs Mondsteine, which are only earned by
-// playing; nothing here can be bought with money. Charms never touch the odds.
+// The souvenir shop in the foyer: a glass display case. Every article sits on velvet in its
+// own lit compartment, with a brass price plate that is also the buy button. Everything
+// costs Mondsteine, which are only earned by playing; charms never touch the odds.
 
-import { Container, Graphics, Sprite } from 'pixi.js';
-import { COLORS, mothTexture, glowTexture } from '../core/fx';
+import { Container, Sprite, Text } from 'pixi.js';
+import { COLORS, FONT_DISPLAY, mothTexture, glowTexture } from '../core/fx';
 import { tween, ease } from '../core/tween';
 import { button } from '../core/ui';
 import { sfx } from '../core/audio';
 import { CHARMS, COMPANION_COLOR, WARDROBE, type Charm, type WardrobeOption } from '../core/items';
 import type { GameState } from '../core/state';
 import type { Particles } from '../core/fx';
-import { Player } from '../world/player';
+import { Chibi } from '../world/painted/chibi';
+import { fillInk, paint } from '../world/painted/brush';
+import { brass } from '../core/ui';
 import { Panel } from './panel';
 import { drawStone } from './stone';
+import { CREAM, MUTED, caseTexture, plateTexture } from './kit';
 
 const TABS: { label: string; items: () => (WardrobeOption | Charm)[] }[] = [
   { label: 'Farben', items: () => WARDROBE.filter((o) => o.slot === 'jacket' && o.price > 0) },
@@ -22,11 +26,58 @@ const TABS: { label: string; items: () => (WardrobeOption | Charm)[] }[] = [
 ];
 
 const CHARM_SIGN: Record<Charm['id'], string> = { startgeld: '+150', zinsen: '%', rabatt: '−10%', zweiteChance: '♥', bossbann: '♛' };
+const CHARM_VELVET: Record<Charm['id'], number> = { startgeld: 0x1f5a44, zinsen: 0x5a1630, rabatt: 0x2f3a7a, zweiteChance: 0x6b1a3e, bossbann: 0x4a2a6a };
 
 const isCharm = (x: WardrobeOption | Charm): x is Charm => !('slot' in x);
 
+/** A brass medallion for a charm, painted once per sign. */
+const medalCache = new Map<string, ReturnType<typeof paint>>();
+function charmMedal(id: Charm['id']) {
+  let t = medalCache.get(id);
+  if (!t) {
+    t = paint(84, 84, (c) => {
+      c.beginPath();
+      c.arc(43, 45, 36, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(8,4,16,0.4)';
+      c.fill();
+      c.beginPath();
+      c.arc(42, 42, 36, 0, Math.PI * 2);
+      fillInk(c, brass(c, 6, 6, 70, 80), 2.4);
+      c.beginPath();
+      c.arc(42, 42, 28, 0, Math.PI * 2);
+      const g = c.createRadialGradient(34, 32, 2, 42, 42, 30);
+      g.addColorStop(0, '#ffe9a8');
+      g.addColorStop(1, '#b07a2a');
+      c.fillStyle = g;
+      c.fill();
+      c.strokeStyle = 'rgba(90,52,12,0.7)';
+      c.lineWidth = 1.5;
+      c.stroke();
+      for (let i = 0; i < 28; i++) {
+        const a = (i / 28) * Math.PI * 2;
+        c.beginPath();
+        c.arc(42 + Math.cos(a) * 32, 42 + Math.sin(a) * 32, 1.2, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(255,244,200,0.7)';
+        c.fill();
+      }
+      // Hanging loop.
+      c.beginPath();
+      c.arc(42, 4, 5, 0, Math.PI * 2);
+      c.strokeStyle = 'rgba(22,10,20,0.85)';
+      c.lineWidth = 4;
+      c.stroke();
+      c.strokeStyle = '#e6b85a';
+      c.lineWidth = 2;
+      c.stroke();
+    }, 2);
+    medalCache.set(id, t);
+  }
+  return t;
+}
+
 export class ShopPanel extends Panel {
   private tab = 0;
+  private fresh = true;
 
   constructor(
     private state: GameState,
@@ -39,141 +90,192 @@ export class ShopPanel extends Panel {
 
   protected build() {
     const n = this.narrow;
-    const cols = n ? 2 : 3;
-    const cw = n ? 250 : 280;
-    const ch = 214;
-    const gap = 18;
-    this.W = cols * cw + (cols + 1) * gap + (n ? 20 : 40);
-    const tabRows = n ? 2 : 1;
-    const top = 150 + tabRows * 52;
     const items = TABS[this.tab].items();
+    const charms = this.tab === 4;
+    const gap = n ? 10 : 16;
+    const cols = charms ? (n ? 1 : 2) : 3;
+    const cw = charms ? (n ? 376 : 470) : n ? 120 : 236;
+    const ch = charms ? (n ? 118 : 132) : n ? 206 : 262;
+    const side = n ? 14 : 34;
+    this.W = n ? 404 : cols * cw + (cols - 1) * gap + side * 2 + 20;
+    const tabRows = n ? 2 : 1;
+    const tabsY = n ? 112 : 124;
+    const top = tabsY + tabRows * 56 + (n ? 6 : 16);
     const rows = Math.ceil(items.length / cols) || 1;
-    this.H = top + Math.max(rows, n ? 3 : 2) * (ch + gap) + (n ? 185 : 150);
+    const minRows = charms ? (n ? 5 : 3) : 2;
+    const footer = n ? 112 : 112;
+    this.H = top + Math.max(rows, minRows) * (ch + gap) + footer;
     this.frame('ANDENKENLADEN', COLORS.cyan, this.onClose);
-    const st = this.stones(this.state.data.moonstones, this.W / 2 - 90, 98);
-    st.x = this.W / 2 - st.width / 2 + 16;
-    this.tabs(TABS.map((t) => t.label), this.tab, 150, (i) => {
+    this.stones(this.state.data.moonstones, this.W / 2, n ? 64 : 70, n ? 20 : 22);
+    const tabBtns = this.tabs(TABS.map((t) => t.label), this.tab, tabsY, (i) => {
       this.tab = i;
+      this.fresh = true;
+      sfx.rustle();
       this.rebuild();
-    }, n ? 3 : 5, n ? 160 : 158);
+    }, n ? 3 : 5, n ? 120 : 150);
 
     const x0 = (this.W - (cols * cw + (cols - 1) * gap)) / 2;
+    const cards: Container[] = [];
     items.forEach((it, i) => {
-      const card = this.card(it, cw, ch);
-      card.position.set(x0 + (i % cols) * (cw + gap), top + Math.floor(i / cols) * (ch + gap));
+      const card = charms ? this.charmRow(it as Charm, cw, ch) : this.card(it as WardrobeOption, cw, ch);
+      card.position.set(x0 + (i % cols) * (cw + gap) + cw / 2, top + Math.floor(i / cols) * (ch + gap) + ch / 2);
+      card.pivot.set(cw / 2, ch / 2);
       this.panel.addChild(card);
+      cards.push(card);
     });
+    if (this.fresh) this.popIn(cards);
+    this.fresh = false;
+    void tabBtns;
 
     const note = this.text(
-      this.tab === 4
-        ? 'Glücksbringer gelten bis zum Ende der Saison. Sie ändern nie die Gewinnchancen der Spiele.'
-        : 'Gekaufte Sachen ziehst du in der Umkleide an.',
-      17,
-      0xb69a6a,
+      charms
+        ? n
+          ? 'Gilt bis Saisonende. Ändert nie die Gewinnchancen.'
+          : 'Glücksbringer gelten bis zum Ende der Saison. Sie ändern nie die Gewinnchancen der Spiele.'
+        : n
+          ? 'Anziehen kannst du es in der Umkleide.'
+          : 'Gekaufte Sachen ziehst du in der Umkleide an. Mondsteine gibt es nur fürs Spielen, nie für Geld.',
+      n ? 15 : 16,
+      MUTED,
       false,
-      this.W - 80,
+      this.W - 60,
     );
     note.anchor.set(0.5, 0);
-    note.position.set(this.W / 2, this.H - (n ? 175 : 140));
+    note.position.set(this.W / 2, this.H - footer + 4);
     this.panel.addChild(note);
-    const note2 = this.text('Mondsteine gibt es nur fürs Spielen: Tagesmedaillen, Erfolge, die Mottenkönigin. Man kann sie nicht mit Geld kaufen.', 15, 0x8a7a6a, false, this.W - 80);
-    note2.anchor.set(0.5, 0);
-    note2.position.set(this.W / 2, this.H - (n ? 140 : 104));
-    this.panel.addChild(note2);
-    const close = button({ label: 'FERTIG', width: 220, height: 54, color: COLORS.brass, fontSize: 22, onClick: this.onClose });
+    const close = button({ label: 'FERTIG', width: n ? 200 : 220, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, onClick: this.onClose });
     close.position.set(this.W / 2, this.H - 46);
     this.panel.addChild(close);
   }
 
-  private card(it: WardrobeOption | Charm, w: number, h: number) {
-    const c = new Container();
-    const charm = isCharm(it);
-    const owned = charm ? this.state.hasCharm(it.id) : this.state.isOwned(it.id);
+  /** The buy plate: price with a stone; locked (with the reason) when it can't be paid. */
+  private buyButton(it: WardrobeOption | Charm, card: Container, w: number) {
     const afford = this.state.data.moonstones >= it.price;
-    const g = new Graphics();
-    g.roundRect(0, 0, w, h, 18).fill(owned ? 0x1d2a20 : 0x2a1630).stroke({ color: owned ? 0x7bd47b : COLORS.brassDark, width: 2 });
-    g.roundRect(10, 10, w - 20, 92, 12).fill({ color: 0x000000, alpha: 0.35 });
-    c.addChild(g);
-    // Preview.
+    const n = this.narrow;
+    const b = button({
+      label: w < 150 ? `${it.price}` : `${it.price} KAUFEN`,
+      width: w,
+      height: 48,
+      color: COLORS.brass,
+      fontSize: n ? 20 : 19,
+      onClick: () => this.buy(it, card),
+      icon: drawStone(11, false),
+      iconWidth: 25,
+    });
+    if (!afford) {
+      const need = it.price - this.state.data.moonstones;
+      b.setLocked(`Dir fehlen noch ${need} ${need === 1 ? 'Mondstein' : 'Mondsteine'}.`);
+      b.onLocked = (r) => this.toast(r);
+    }
+    return b;
+  }
+
+  private ownedPlate(text: string, w: number) {
+    const c = new Container();
+    const s = new Sprite(plateTexture(w, 40, 'green'));
+    s.anchor.set(0.5);
+    s.y = 1;
+    const t = this.text(text, 18, 0xe6ffe6, true);
+    t.anchor.set(0.5);
+    c.addChild(s, t);
+    return c;
+  }
+
+  private card(it: WardrobeOption, w: number, h: number) {
+    const c = new Container();
+    const n = this.narrow;
+    const owned = this.state.isOwned(it.id);
+    const caseH = n ? 124 : 172;
+    const velvet = it.slot === 'companion' ? 0x24204a : it.slot === 'hat' ? 0x1f4038 : 0x5a1630;
+    const box = new Sprite(caseTexture(w, caseH, velvet, owned));
+    box.position.set(-6, -4);
+    c.addChild(box);
+    // The article on the cushion.
+    const floorY = caseH * 0.64;
     const pv = new Container();
-    pv.position.set(w / 2, 56);
+    pv.position.set(w / 2, floorY);
     c.addChild(pv);
-    const halo = new Sprite(glowTexture());
-    halo.anchor.set(0.5);
-    halo.width = halo.height = 150;
-    halo.alpha = 0.25;
-    halo.blendMode = 'add';
-    pv.addChild(halo);
-    if (charm) {
-      halo.tint = COLORS.lamp;
-      const m = new Graphics().circle(0, 0, 32).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 3 });
-      m.circle(0, 0, 25).stroke({ color: 0xfff1c4, width: 1.5, alpha: 0.6 });
-      pv.addChild(m);
-      const t = this.text(CHARM_SIGN[it.id], it.id === 'rabatt' ? 18 : 24, 0x3a2008, true);
-      t.anchor.set(0.5);
-      pv.addChild(t);
-      this.tickers.push((time) => (m.rotation = Math.sin(time * 1.5 + w) * 0.12));
-    } else if (it.slot === 'companion') {
+    if (it.slot === 'companion') {
       const col = COMPANION_COLOR[it.set.companion as keyof typeof COMPANION_COLOR];
+      const halo = new Sprite(glowTexture());
+      halo.anchor.set(0.5);
+      halo.width = halo.height = n ? 90 : 130;
       halo.tint = col;
-      halo.alpha = 0.6;
+      halo.alpha = 0.55;
+      halo.blendMode = 'add';
       const m = new Sprite(mothTexture());
       m.anchor.set(0.5);
-      m.width = m.height = 54;
+      m.width = m.height = n ? 38 : 54;
       m.tint = col;
-      pv.addChild(m);
+      pv.addChild(halo, m);
       const base = m.scale.x;
+      const y0 = -(n ? 34 : 50);
       this.tickers.push((time) => {
-        m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(time * 9)));
-        m.y = Math.sin(time * 2) * 6;
+        m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(time * 9 + w)));
+        m.y = y0 + Math.sin(time * 2 + w) * 5;
+        halo.y = m.y;
       });
     } else {
-      halo.tint = it.swatch ?? COLORS.lamp;
-      const p = new Player(0xffcf7a, { ...this.state.look, ...it.set, skin: this.state.data.players.host?.skin });
-      p.view.scale.set(1.9);
+      const host = this.state.data.players.host;
+      const p = new Chibi(host?.color ?? COLORS.lamp, { ...this.state.look, ...it.set, skin: host?.skin });
+      const sc = (floorY - 14) / (it.slot === 'hat' ? 100 : 82);
+      p.view.scale.set(sc);
       pv.addChild(p.view);
+      const phase = w * 0.37 + c.x;
       this.tickers.push((time, dt) => {
-        p.faceTowards(Math.PI / 2 + Math.sin(time * 0.8 + w) * 0.6);
+        p.faceTowards(Math.PI / 2 + (Math.sin(time * 0.5 + phase) > 0.92 ? 1.6 : 0));
         p.update(dt, null);
       });
     }
-    const name = this.text(it.name, 21, 0xfff6e6, true);
+    const name = this.text(it.name, n ? 16 : 20, CREAM, true);
     name.anchor.set(0.5, 0);
-    name.position.set(w / 2, 108);
+    name.position.set(w / 2, caseH + (n ? 8 : 12));
+    if (name.width > w - 6) name.scale.set((w - 6) / name.width);
     c.addChild(name);
-    if (charm) {
-      const d = this.text(it.desc, 14, 0xd9c6a0, false, w - 24);
-      d.anchor.set(0.5, 0);
-      d.position.set(w / 2, 134);
-      c.addChild(d);
-    }
-    // Price and button.
-    const py = h - 30;
-    if (owned) {
-      const t = this.text(charm ? '✓ AKTIV' : '✓ GEKAUFT', 20, 0x7bd47b, true);
-      t.anchor.set(0.5);
-      t.position.set(w / 2, py);
-      c.addChild(t);
-    } else {
-      const s = drawStone(10, false);
-      s.position.set(28, py);
-      c.addChild(s);
-      const pt = this.text(String(it.price), 22, afford ? 0xdff6ff : 0x8a7a8a, true);
-      pt.anchor.set(0, 0.5);
-      pt.position.set(42, py);
-      c.addChild(pt);
-      const b = button({
-        label: 'KAUFEN',
-        width: 120,
-        height: 40,
-        color: afford ? COLORS.brass : 0x4a3a4a,
-        fontSize: 17,
-        onClick: () => this.buy(it, c),
-      });
-      b.position.set(w - 76, py);
-      if (!afford) b.alpha = 0.55;
-      c.addChild(b);
-    }
+    const py = h - 26;
+    const bw = n ? w - 4 : w - 28;
+    const slot = owned ? this.ownedPlate(n ? '✓ DEINS' : '✓ GEKAUFT', bw) : this.buyButton(it, c, bw);
+    slot.position.set(w / 2, py);
+    c.addChild(slot);
+    return c;
+  }
+
+  /** Charms: a row with the medallion in its case, name, exact effect and the buy plate. */
+  private charmRow(it: Charm, w: number, h: number) {
+    const c = new Container();
+    const n = this.narrow;
+    const owned = this.state.hasCharm(it.id);
+    const cw = n ? 96 : 116;
+    const box = new Sprite(caseTexture(cw, h, CHARM_VELVET[it.id], owned));
+    box.position.set(-6, -4);
+    c.addChild(box);
+    const m = new Container();
+    const ms = new Sprite(charmMedal(it.id));
+    ms.anchor.set(0.5);
+    const sign = new Text({ text: CHARM_SIGN[it.id], style: { fontFamily: FONT_DISPLAY, fontSize: it.id === 'rabatt' || it.id === 'startgeld' ? 15 : 22, fill: 0x4a2a08, dropShadow: { color: 0xfff4d0, alpha: 0.6, blur: 0, distance: 1, angle: Math.PI / 2 } } });
+    sign.anchor.set(0.5);
+    sign.y = 1;
+    m.addChild(ms, sign);
+    m.scale.set(n ? 0.82 : 0.95);
+    m.position.set(cw / 2, h * 0.5);
+    c.addChild(m);
+    this.tickers.push((time) => (m.rotation = Math.sin(time * 1.4 + w + h + it.price) * 0.1));
+    // Text block.
+    const tx = cw + 14;
+    const btnW = n ? 98 : 150;
+    const tw = w - tx - btnW - 10;
+    const name = this.text(it.name, n ? 18 : 20, CREAM, true);
+    name.position.set(tx, n ? 8 : 12);
+    c.addChild(name);
+    const d = this.text(it.desc.replace(/ %/g, '\u00a0%'), n ? 15 : 16, 0xd9c6a0, false, tw);
+    d.style.align = 'left';
+    d.position.set(tx, name.y + name.height + 2);
+    if (d.height > h - d.y - 4) d.scale.set((h - d.y - 4) / d.height);
+    c.addChild(d);
+    // Hairline under the row.
+    const slot = owned ? this.ownedPlate('✓ AKTIV', btnW) : this.buyButton(it, c, btnW);
+    slot.position.set(w - btnW / 2, h / 2);
+    c.addChild(slot);
     return c;
   }
 
@@ -187,9 +289,10 @@ export class ShopPanel extends Panel {
       return;
     }
     sfx.till();
-    const gp = card.toGlobal({ x: card.width / 2, y: 56 });
+    sfx.shimmer();
+    const gp = card.toGlobal({ x: card.pivot.x, y: card.pivot.y * 0.7 });
     this.particles.sparkle(gp.x, gp.y, 30, 0x9fe8ff, 200);
     this.toast(isCharm(it) ? `${it.name} ist aktiv, bis die Saison endet.` : `${it.name} gekauft. Zieh es in der Umkleide an.`);
-    void tween(card.scale, { x: 1.04, y: 1.04 }, 120, ease.outCubic).then(() => this.rebuild());
+    void tween(card.scale, { x: 1.05, y: 1.05 }, 140, ease.outCubic).then(() => this.rebuild());
   }
 }

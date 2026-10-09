@@ -1,12 +1,12 @@
 // Works under strict Content-Security-Policy (no eval), e.g. when embedded.
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Filter, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Container, Filter, Graphics, Sprite, Texture } from 'pixi.js';
 import './games';
 import './rooms';
 import { allRooms, getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
 import { BOSS_DAY, GameState, formatChips, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
-import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, banner, glowText, purse, setRenderer, shake, tierFor } from './core/fx';
+import { COLORS, Particles, purse, rewardLevel, setRenderer, shake } from './core/fx';
 import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
 import { sfx } from './core/audio';
 import { RoomScene, type Interactable } from './world/room';
@@ -15,10 +15,11 @@ import { Hud } from './ui/hud';
 import { Recap } from './ui/recap';
 import { Vitrine } from './ui/vitrine';
 import { Lobby } from './ui/lobby';
-import { Street } from './world/street';
+import { Street, type StreetMood } from './world/street';
 import { ShopPanel } from './ui/shop';
 import { WardrobePanel } from './ui/wardrobe';
 import { PianoPanel } from './ui/piano';
+import { dayCard } from './ui/dayCard';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -173,7 +174,8 @@ async function boot() {
     vignette.width = w;
     vignette.height = h;
     backdrop.clear().rect(0, 0, w, h).fill(0x0b0609);
-    fade.clear().rect(0, 0, w, h).fill(0x000000);
+    // Transitions fade through the velvet dark of the house, not flat black.
+    fade.clear().rect(0, 0, w, h).fill(0x0b0609);
     if (mode !== 'game' && mode !== 'transition') room?.resize(w, h);
     game?.resize(w, h - TOP);
     overlay?.resize(w, h);
@@ -228,7 +230,8 @@ async function boot() {
     if (f === newFloorHint) newFloorHint = null;
     if (f > 0 && dayCardFor !== state.data.evening.number) {
       dayCardFor = state.data.evening.number;
-      setTimeout(eveningCard, fresh ? 1500 : 200);
+      // After the floor title has gone, so the two plaques never overlap.
+      setTimeout(eveningCard, fresh ? 2500 : 200);
     }
     room.savePosition();
     autosave();
@@ -471,34 +474,42 @@ async function boot() {
     checkRescue();
   }
 
-  /** The shared win celebration, so every game feels like the same casino. */
+  /**
+   * The shared win celebration, so every game feels like the same casino. It follows the
+   * reward ladder of the UI guide: small = coins fly into the purse; medium (10×) = plus a
+   * wave of light at the table; big (20×) = plus the moth swarm (the game itself runs the
+   * stage moment with the title); jackpot (50×) = plus coin rain and the only shake.
+   */
   function celebrate(mult: number, x: number, y: number, orbit?: { x: number; y: number; r: number }) {
-    const tier = tierFor(mult);
-    if (!tier) return;
+    const level = rewardLevel(mult);
+    if (!level) return;
     const w = app.screen.width;
-    const h = app.screen.height;
-    if (tier === 'small') {
+    if (level === 1) {
       sfx.win();
-      particles.sparkle(x, y, 14, COLORS.lamp, 140);
-      particles.coinsToPurse(x, y, Math.min(10, 3 + Math.round(mult * 2)));
+      particles.sparkle(x, y, 10, COLORS.lamp, 120);
+      particles.coinsToPurse(x, y, Math.min(8, 3 + Math.round(mult * 1.5)));
       return;
     }
-    if (tier === 'big') {
-      sfx.bigWin();
-      void shake(gameLayer, 9);
-      particles.mothSwarm(x, y, 22, orbit ?? null, COLORS.lamp);
-      particles.coinBurst(x, y, 26);
-      particles.coinsToPurse(x, y, 16);
-      void banner(particles.view, 'GROSSER GEWINN', COLORS.neon, w / 2, h * 0.4, w);
+    if (level === 2) {
+      sfx.win();
+      particles.lightWave(x, y, COLORS.lamp, Math.min(w, app.screen.height) * 0.42);
+      particles.sparkle(x, y, 18, COLORS.lamp, 200);
+      particles.coinsToPurse(x, y, 12);
       return;
     }
     sfx.bigWin();
+    particles.lightWave(x, y, level === 4 ? 0xfff1c4 : COLORS.lamp, Math.min(w, app.screen.height) * 0.55);
+    if (level === 3) {
+      particles.mothSwarm(x, y, 20, orbit ?? null, COLORS.lamp);
+      particles.coinBurst(x, y, 22);
+      particles.coinsToPurse(x, y, 16);
+      return;
+    }
     setTimeout(() => sfx.bigWin(), 900);
-    void shake(gameLayer, 18, 700);
-    particles.mothSwarm(x, y, 48, orbit ?? null, 0xfff1c4, 4.5);
-    particles.coinRain(w, 140);
-    particles.coinsToPurse(x, y, 26);
-    void banner(particles.view, 'JACKPOT!', COLORS.lamp, w / 2, h * 0.4, w);
+    void shake(gameLayer, 8, 300);
+    particles.mothSwarm(x, y, 40, orbit ?? null, 0xfff1c4, 4.5);
+    particles.coinRain(w, 110);
+    particles.coinsToPurse(x, y, 24);
   }
 
   // ---- Overlays ---------------------------------------------------------
@@ -546,7 +557,7 @@ async function boot() {
         autosave();
         // A new day gets its title card, a new floor sends you to the elevator,
         // and a new season starts with a new arrival.
-        if (result.seasonWon || (!result.passed && !result.rescued)) void arrival();
+        if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
         else void toFoyer(result.newFloor, result.bonus);
       }),
     );
@@ -678,38 +689,22 @@ async function boot() {
     return street;
   }
 
-  /** "Tag 3 · Ziel heute +500 Falter" card at the start of every evening. */
+  /** "Tag 3 · Ziel heute 1.250 Falter" plaque at the start of every evening. */
   function eveningCard() {
     const d = state.data;
-    const w = app.screen.width;
-    const h = app.screen.height;
-    const c = new Container();
-    const t1 = glowText(`TAG ${d.evening.number}`, { fontFamily: FONT_DISPLAY, fontSize: 76, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.neon, distance: 20, outerStrength: 3 });
-    const t2 = new Text({
-      text: `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`,
-      style: { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: COLORS.lamp, stroke: { color: COLORS.ink, width: 5 } },
-    });
-    t2.anchor.set(0.5);
-    t2.y = 72;
-    c.addChild(t1, t2);
-    const s = Math.min(1, (w * 0.9) / Math.max(t1.width, t2.width));
-    c.scale.set(s * 0.6);
-    c.position.set(w / 2, h * 0.38);
-    c.alpha = 0;
+    const goal = `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`;
+    const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP);
     particles.view.addChild(c);
     sfx.win();
-    void Promise.all([tween(c, { alpha: 1 }, 400), tween(c.scale, { x: s, y: s }, 600, ease.outBack)])
-      .then(() => wait(2200))
-      .then(() => tween(c, { alpha: 0, y: c.y - 30 }, 600, ease.inCubic))
-      .then(() => c.destroy({ children: true }));
   }
 
   /** Taxi to the door, walk in, then the casino floor. Tap or any key speeds it up. */
-  async function arrival() {
+  async function arrival(mood: StreetMood = 'drizzle') {
     mode = 'transition';
     if (room) room.frozen = true;
     hud.show(false);
     const st = showStreet();
+    st.setMood(mood);
     roomLayer.visible = false;
     lobby.arriving(true);
     sfx.setScene('menu');
@@ -719,7 +714,7 @@ async function boot() {
     titleEl.addEventListener('pointerdown', skip);
     window.addEventListener('keydown', skip);
     const host = state.data.players.host;
-    await st.arrive({ color: host?.color ?? COLORS.lamp, skin: host?.skin });
+    await st.arrive({ ...state.look, color: host?.color ?? COLORS.lamp, skin: host?.skin });
     titleEl.removeEventListener('pointerdown', skip);
     window.removeEventListener('keydown', skip);
     await tween(fade, { alpha: 1 }, 300);
@@ -742,7 +737,7 @@ async function boot() {
     autosave();
     dayCardFor = -1;
     setTimeout(() => hud.toast(`Willkommen im Foyer! Tag ${state.data.evening.number} wartet auf Etage ${state.topFloor}. Der Aufzug ist hinten rechts.`), 1600);
-    if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => hud.help(), 3600);
+    if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => mode === 'room' && !hud.modalOpen && hud.help(), 3600);
   }
 
   function lobbyGo() {

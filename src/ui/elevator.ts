@@ -1,19 +1,16 @@
 // Inside the elevator: the brass floor panel. Pick a floor, the needle swings over,
 // the cabin hums and rattles, a ding, and the doors open on the new floor.
+// Painted like the world: brushed brass plate, a glass-domed dial, backlit glass buttons.
 
-import { Container, Graphics, Sprite, Text } from 'pixi.js';
+import { Container, Sprite, Text, type Texture } from 'pixi.js';
 import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, glowTexture } from '../core/fx';
 import { allRooms, type RoomDefinition } from '../core/registry';
 import { BOSS_DAY, DAYS_PER_FLOOR, type GameState } from '../core/state';
-import { animate, ease, tween, wait } from '../core/tween';
-import { button } from '../core/ui';
+import { animate, ease, wait } from '../core/tween';
+import { brass, button, lockTexture } from '../core/ui';
 import { sfx } from '../core/audio';
-
-const W = 640;
-const H = 790;
-const DIAL = { x: W / 2, y: 238, r: 150 };
-const ROW0 = 300;
-const ROW_H = 62;
+import { INK, fillInk, glowAt, paint, rrect, seeded, type Ctx } from '../world/painted/brush';
+import { enterMotion, leaveMotion, screw } from './kit';
 
 /** First day a floor can be reached. */
 export function floorOpensOnDay(floor: number) {
@@ -25,13 +22,276 @@ interface Row {
   room: RoomDefinition;
   locked: boolean;
   lamp: Sprite;
-  btn: Graphics;
   draw(lit: boolean): void;
+}
+
+const BOSS = 0xc9a0ff;
+const cache = new Map<string, Texture>();
+function once(key: string, make: () => Texture) {
+  let t = cache.get(key);
+  if (!t) cache.set(key, (t = make()));
+  return t;
+}
+
+/** Brushed brass plate with an engraved double border, screws and a deco crest. */
+function plateTex(W: number, H: number) {
+  return once(`elev-plate-${W}x${H}`, () =>
+    paint(W + 20, H + 24, (c) => {
+      c.translate(10, 8);
+      for (let i = 0; i < 6; i++) {
+        rrect(c, -i, 6 + i - i, W + i * 2, H + i, 36 + i);
+        c.fillStyle = `rgba(6,2,8,${0.16 - i * 0.022})`;
+        c.fill();
+      }
+      rrect(c, 0, 0, W, H, 36);
+      const g = c.createLinearGradient(0, 0, W * 0.6, H);
+      g.addColorStop(0, '#f6d58a');
+      g.addColorStop(0.35, '#d7a650');
+      g.addColorStop(0.7, '#b8863a');
+      g.addColorStop(1, '#8a5e22');
+      fillInk(c, g, 3);
+      c.save();
+      rrect(c, 0, 0, W, H, 36);
+      c.clip();
+      // Brushed grain.
+      const r = seeded(W + H);
+      for (let i = 0; i < H * 1.4; i++) {
+        const y = r() * H;
+        c.strokeStyle = r() < 0.5 ? `rgba(255,246,214,${0.05 + r() * 0.06})` : `rgba(90,52,12,${0.04 + r() * 0.05})`;
+        c.lineWidth = 0.6 + r();
+        c.beginPath();
+        c.moveTo(r() * W * 0.3, y);
+        c.lineTo(W * (0.6 + r() * 0.4), y + (r() - 0.5) * 2);
+        c.stroke();
+      }
+      glowAt(c, W * 0.25, H * 0.12, W * 0.6, H * 0.3, 0xfff4dc, 0.22);
+      c.strokeStyle = 'rgba(255,250,232,0.85)';
+      c.lineWidth = 2.5;
+      rrect(c, 2, 2, W + 8, H + 8, 36);
+      c.stroke();
+      c.restore();
+      for (const [k, a] of [[14, 0.55], [24, 0.45]] as const) {
+        rrect(c, k, k, W - k * 2, H - k * 2, 36 - k * 0.6);
+        c.strokeStyle = `rgba(90,52,12,${a})`;
+        c.lineWidth = 1.6;
+        c.stroke();
+        rrect(c, k + 1, k + 1.4, W - k * 2, H - k * 2, 36 - k * 0.6);
+        c.strokeStyle = 'rgba(255,246,214,0.4)';
+        c.lineWidth = 1;
+        c.stroke();
+      }
+      for (const [sx, sy] of [[44, 44], [W - 44, 44], [44, H - 44], [W - 44, H - 44]]) screw(c, sx, sy, 8);
+    }, Math.min(2, 1800 / H)),
+  );
+}
+
+/** The floor dial: dark enamel half-moon in a brass bezel, ticks, and a glass dome. */
+function dialTex(r: number) {
+  return once(`elev-dial-${r}`, () =>
+    paint(r * 2 + 60, r + 46, (c) => {
+      const cx = r + 30;
+      const cy = r + 22;
+      const half = (rad: number) => {
+        c.beginPath();
+        c.moveTo(cx - rad, cy);
+        c.arc(cx, cy, rad, Math.PI, 0);
+        c.closePath();
+      };
+      c.save();
+      c.translate(2, 5);
+      half(r + 18);
+      c.fillStyle = 'rgba(6,2,8,0.4)';
+      c.fill();
+      c.restore();
+      half(r + 18);
+      fillInk(c, brass(c, cx - r, cy - r, cx + r * 0.5, cy + 10), 2.4);
+      half(r + 10);
+      c.strokeStyle = 'rgba(90,52,12,0.6)';
+      c.lineWidth = 1.4;
+      c.stroke();
+      half(r);
+      const g = c.createRadialGradient(cx - r * 0.3, cy - r * 0.6, 4, cx, cy, r);
+      g.addColorStop(0, '#3a2a34');
+      g.addColorStop(1, '#100810');
+      fillInk(c, g, 2);
+      c.save();
+      half(r);
+      c.clip();
+      for (let k = 0; k <= 48; k++) {
+        const a = Math.PI + (k / 48) * Math.PI;
+        const big = k % 8 === 4;
+        const r1 = r - 10;
+        const r2 = r - (big ? 28 : 18);
+        c.strokeStyle = big ? 'rgba(255,236,190,0.85)' : 'rgba(255,236,190,0.45)';
+        c.lineWidth = big ? 2.6 : 1.1;
+        c.beginPath();
+        c.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+        c.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+        c.stroke();
+      }
+      c.beginPath();
+      c.arc(cx, cy, r - 6, Math.PI, 0);
+      c.strokeStyle = 'rgba(224,178,90,0.5)';
+      c.lineWidth = 1.2;
+      c.stroke();
+      // Glass dome reflection.
+      c.globalCompositeOperation = 'lighter';
+      const sg = c.createLinearGradient(0, cy - r, 0, cy - r * 0.3);
+      sg.addColorStop(0, 'rgba(255,255,255,0.14)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = sg;
+      c.beginPath();
+      c.ellipse(cx - r * 0.18, cy - r * 0.62, r * 0.62, r * 0.3, -0.2, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+      // Base bar.
+      rrect(c, cx - r - 18, cy - 2, r * 2 + 36, 14, 5);
+      fillInk(c, brass(c, cx - r, cy, cx + r, cy + 14), 2);
+    }, 2),
+  );
+}
+
+function needleTex(len: number) {
+  return once(`elev-needle-${len}`, () =>
+    paint(30, len + 30, (c) => {
+      const cx = 15;
+      const cy = len + 15;
+      c.beginPath();
+      c.moveTo(cx - 4, cy);
+      c.lineTo(cx, cy - len);
+      c.lineTo(cx + 4, cy);
+      c.closePath();
+      const g = c.createLinearGradient(cx - 4, 0, cx + 4, 0);
+      g.addColorStop(0, '#ff6a6a');
+      g.addColorStop(1, '#8a1020');
+      fillInk(c, g, 1.4);
+      c.beginPath();
+      c.arc(cx, cy, 11, 0, Math.PI * 2);
+      fillInk(c, brass(c, cx - 11, cy - 11, cx + 11, cy + 11, 0.1), 2);
+      c.beginPath();
+      c.arc(cx - 3, cy - 3, 3, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(255,255,255,0.6)';
+      c.fill();
+    }, 3),
+  );
+}
+
+/** Round floor button: brass bezel, glass cap. `lit` glows warm (or violet for the boss floor). */
+function knobTex(r: number, state: 'idle' | 'lit' | 'locked', boss: boolean) {
+  return once(`elev-knob-${r}-${state}-${boss}`, () =>
+    paint(r * 2 + 16, r * 2 + 18, (c) => {
+      const o = r + 8;
+      c.beginPath();
+      c.arc(o + 1, o + 4, r, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(40,20,6,0.5)';
+      c.fill();
+      c.beginPath();
+      c.arc(o, o, r, 0, Math.PI * 2);
+      fillInk(c, brass(c, o - r, o - r, o + r * 0.5, o + r, 0, state === 'locked'), 2);
+      c.beginPath();
+      c.arc(o, o, r - 6, 0, Math.PI * 2);
+      const g = c.createRadialGradient(o - r * 0.25, o - r * 0.3, 1, o, o, r - 6);
+      if (state === 'lit') {
+        const col = boss ? ['#fbf0ff', '#d6b0ff', '#7a4ac0'] : ['#fffbe8', '#ffd98a', '#c98a2a'];
+        g.addColorStop(0, col[0]);
+        g.addColorStop(0.55, col[1]);
+        g.addColorStop(1, col[2]);
+      } else if (state === 'locked') {
+        g.addColorStop(0, '#5a4a40');
+        g.addColorStop(1, '#2a1e18');
+      } else {
+        g.addColorStop(0, '#4a2a34');
+        g.addColorStop(1, '#140a10');
+      }
+      fillInk(c, g, 1.4);
+      c.save();
+      c.clip();
+      c.strokeStyle = 'rgba(6,2,8,0.5)';
+      c.lineWidth = 4;
+      c.beginPath();
+      c.arc(o, o + 2, r - 6, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+      c.beginPath();
+      c.ellipse(o - r * 0.22, o - r * 0.32, r * 0.36, r * 0.18, -0.5, 0, Math.PI * 2);
+      c.fillStyle = state === 'lit' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.22)';
+      c.fill();
+    }, 3),
+  );
+}
+
+/** Recessed strip behind a floor row. */
+function rowTex(w: number, h: number, current: boolean) {
+  return once(`elev-row-${w}x${h}-${current}`, () =>
+    paint(w + 4, h + 4, (c) => {
+      c.translate(2, 2);
+      rrect(c, 0, 0, w, h, 14);
+      c.fillStyle = current ? 'rgba(60,30,6,0.32)' : 'rgba(60,30,6,0.16)';
+      c.fill();
+      c.save();
+      rrect(c, 0, 0, w, h, 14);
+      c.clip();
+      c.strokeStyle = 'rgba(60,30,6,0.45)';
+      c.lineWidth = 4;
+      rrect(c, 0, 1.5, w, h, 14);
+      c.stroke();
+      c.restore();
+      rrect(c, 0.5, 1.5, w - 1, h - 1, 14);
+      c.strokeStyle = 'rgba(255,246,214,0.45)';
+      c.lineWidth = 1;
+      c.stroke();
+      c.strokeStyle = INK;
+    }, 2),
+  );
+}
+
+/** Cabin walls: mahogany panels with brass trim and a handrail. */
+function cabinTex(w: number, h: number) {
+  return (
+    paint(w, h, (c: Ctx) => {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#2a1410');
+      g.addColorStop(1, '#120806');
+      c.fillStyle = g;
+      c.fillRect(0, 0, w, h);
+      const pw = 120;
+      for (let x = -((pw - (w % pw)) / 2); x < w; x += pw) {
+        rrect(c, x + 10, 24, pw - 20, h * 0.58 - 40, 8);
+        const pg = c.createLinearGradient(x, 0, x + pw, 0);
+        pg.addColorStop(0, '#4a2418');
+        pg.addColorStop(0.5, '#5a2c1c');
+        pg.addColorStop(1, '#3a1a10');
+        c.fillStyle = pg;
+        c.fill();
+        c.strokeStyle = 'rgba(224,178,90,0.35)';
+        c.lineWidth = 1.5;
+        c.stroke();
+        rrect(c, x + 10, h * 0.66, pw - 20, h * 0.34 - 24, 8);
+        c.fillStyle = pg;
+        c.fill();
+        c.stroke();
+      }
+      glowAt(c, w / 2, 0, w * 0.6, h * 0.5, 0xffd8a0, 0.18);
+      // Handrail.
+      const y = h * 0.6;
+      c.fillStyle = 'rgba(6,2,8,0.5)';
+      c.fillRect(0, y + 8, w, 8);
+      const rg = c.createLinearGradient(0, y - 6, 0, y + 8);
+      rg.addColorStop(0, '#fff1c0');
+      rg.addColorStop(0.4, '#d9a548');
+      rg.addColorStop(1, '#6a4410');
+      c.fillStyle = rg;
+      c.fillRect(0, y - 6, w, 14);
+      c.fillStyle = 'rgba(6,2,8,0.35)';
+      c.fillRect(0, 0, w, h);
+    }, 1)
+  );
 }
 
 export class ElevatorPanel {
   readonly view = new Container();
-  private bg = new Graphics();
+  private bg = new Sprite();
+  private stage = new Container();
   private panel = new Container();
   private needle = new Container();
   private rows: Row[] = [];
@@ -39,6 +299,13 @@ export class ElevatorPanel {
   private riding = false;
   private dialFloor: number;
   private newBadge: Container | null = null;
+  private narrow: boolean | null = null;
+  private W = 640;
+  private H = 800;
+
+  private entered = false;
+  private cabinKey = '';
+  private ownCabin = false;
 
   /**
    * `current` is the floor the cabin is on. `highlight` marks a floor that just opened.
@@ -46,139 +313,153 @@ export class ElevatorPanel {
    * steps out again).
    */
   constructor(
-    state: GameState,
+    private state: GameState,
     private current: number,
     private onChoose: (floor: number) => void,
-    highlight: number | null = null,
+    private highlight: number | null = null,
   ) {
     this.dialFloor = current;
-    this.view.addChild(this.bg, this.panel);
+    this.stage.addChild(this.panel);
+    this.view.addChild(this.bg, this.stage);
     this.view.eventMode = 'static';
-    const p = this.panel;
-    const top = state.topFloor;
+    window.addEventListener('keydown', this.onKey);
+  }
 
-    // Brass plate with an engraved border and screws.
-    const plate = new Graphics();
-    plate.roundRect(6, 10, W, H, 36).fill({ color: 0x000000, alpha: 0.5 });
-    plate.roundRect(0, 0, W, H, 36).fill(0xb8893a).stroke({ color: COLORS.brassDark, width: 4 });
-    plate.roundRect(14, 14, W - 28, H - 28, 28).stroke({ color: 0xffe2a0, width: 2, alpha: 0.6 });
-    plate.roundRect(22, 22, W - 44, H - 44, 24).stroke({ color: COLORS.brassDark, width: 1.5, alpha: 0.7 });
-    for (let i = 0; i < 14; i++) plate.rect(0, 40 + i * 48, W, 1).fill({ color: 0xffffff, alpha: 0.04 });
-    for (const [sx, sy] of [[44, 44], [W - 44, 44], [44, H - 44], [W - 44, H - 44]]) {
-      plate.circle(sx, sy, 9).fill(0xd9b06a).stroke({ color: COLORS.brassDark, width: 2 });
-      plate.moveTo(sx - 6, sy - 2).lineTo(sx + 6, sy + 2).stroke({ color: COLORS.brassDark, width: 2 });
-    }
-    p.addChild(plate);
-    const title = new Text({ text: 'AUFZUG · NACHTFALTER', style: { fontFamily: FONT_DISPLAY, fontSize: 22, fill: 0x5a3a10, letterSpacing: 4 } });
+  private build(n: boolean) {
+    this.panel.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.rows = [];
+    this.newBadge = null;
+    this.needle = new Container();
+    const W = (this.W = n ? 404 : 640);
+    const rowH = n ? 70 : 64;
+    const dialR = n ? 116 : 150;
+    const dialY = n ? 206 : 232;
+    const row0 = dialY + (n ? 40 : 54);
+    const rooms = allRooms().sort((a, b) => b.floor - a.floor);
+    const H = (this.H = row0 + rooms.length * rowH + (n ? 92 : 100));
+
+    const p = this.panel;
+    const top = this.state.topFloor;
+    const current = this.current;
+
+    p.addChild(Object.assign(new Sprite(plateTex(W, H)), { x: -10, y: -8 }));
+    const title = new Text({ text: 'AUFZUG · NACHTFALTER', style: { fontFamily: FONT_DISPLAY, fontSize: n ? 17 : 21, fill: 0x4a2a08, letterSpacing: n ? 3 : 4, dropShadow: { color: 0xfff4d0, alpha: 0.6, blur: 0, distance: 1.4, angle: Math.PI / 2 } } });
     title.anchor.set(0.5);
-    title.position.set(W / 2, 52);
+    title.position.set(W / 2, n ? 44 : 50);
     p.addChild(title);
 
     // Floor dial.
-    const d = new Graphics();
-    d.moveTo(DIAL.x - DIAL.r - 14, DIAL.y).arc(DIAL.x, DIAL.y, DIAL.r + 14, Math.PI, 0).closePath().fill(COLORS.brassDark);
-    d.moveTo(DIAL.x - DIAL.r, DIAL.y).arc(DIAL.x, DIAL.y, DIAL.r, Math.PI, 0).closePath().fill(0x1b1013);
-    d.moveTo(DIAL.x - DIAL.r + 10, DIAL.y).arc(DIAL.x, DIAL.y, DIAL.r - 10, Math.PI, 0).stroke({ color: COLORS.brass, width: 2, alpha: 0.6 });
-    for (let k = 0; k <= 40; k++) {
-      const a = Math.PI + (k / 40) * Math.PI;
-      const r1 = DIAL.r - 14;
-      const r2 = DIAL.r - (k % 8 === 4 ? 30 : 20);
-      d.moveTo(DIAL.x + Math.cos(a) * r1, DIAL.y + Math.sin(a) * r1).lineTo(DIAL.x + Math.cos(a) * r2, DIAL.y + Math.sin(a) * r2).stroke({ color: 0xfff1c4, width: k % 8 === 4 ? 2.5 : 1, alpha: 0.7 });
-    }
-    d.rect(DIAL.x - DIAL.r - 14, DIAL.y, (DIAL.r + 14) * 2, 10).fill(COLORS.brassDark);
+    const d = new Sprite(dialTex(dialR));
+    d.position.set(W / 2 - dialR - 30, dialY - dialR - 22);
     p.addChild(d);
     for (let f = 0; f <= 5; f++) {
       const a = this.angle(f);
-      const n = new Text({ text: f === 0 ? 'F' : String(f), style: { fontFamily: FONT_DISPLAY, fontSize: 26, fill: f === 5 ? 0xc9a0ff : f > top ? 0x6a5a4a : 0xfff1c4 } });
-      n.anchor.set(0.5);
-      n.position.set(DIAL.x + Math.cos(a) * (DIAL.r - 54), DIAL.y + Math.sin(a) * (DIAL.r - 54));
-      p.addChild(n);
+      const lockedF = f > top;
+      const nt = new Text({ text: f === 0 ? 'F' : String(f), style: { fontFamily: FONT_DISPLAY, fontSize: n ? 21 : 26, fill: f === 5 ? BOSS : lockedF ? 0x7a6a5a : 0xfff1c4 } });
+      nt.anchor.set(0.5);
+      nt.position.set(W / 2 + Math.cos(a) * (dialR - (n ? 44 : 54)), dialY + Math.sin(a) * (dialR - (n ? 44 : 54)));
+      p.addChild(nt);
     }
-    const ng = new Graphics();
-    ng.poly([-4, 0, 0, -DIAL.r + 22, 4, 0]).fill(COLORS.red);
-    ng.circle(0, 0, 12).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 3 });
-    ng.circle(-3, -3, 3).fill({ color: 0xffffff, alpha: 0.5 });
-    this.needle.addChild(ng);
-    this.needle.position.set(DIAL.x, DIAL.y);
-    this.needle.rotation = this.angle(current) + Math.PI / 2;
+    const ns = new Sprite(needleTex(dialR - 22));
+    ns.anchor.set(0.5, (dialR - 22 + 15) / (dialR - 22 + 30));
+    this.needle.addChild(ns);
+    this.needle.position.set(W / 2, dialY);
+    this.needle.rotation = this.angle(this.dialFloor) + Math.PI / 2;
     p.addChild(this.needle);
 
     // Floor directory, top floor first.
-    const rooms = allRooms().sort((a, b) => b.floor - a.floor);
+    const kr = n ? 25 : 25;
+    const kx = n ? 52 : 92;
+    const rx = n ? 18 : 46;
+    const rw = W - rx * 2;
     rooms.forEach((room, i) => {
       const f = room.floor;
-      const y = ROW0 + i * ROW_H + ROW_H / 2;
+      const y = row0 + i * rowH + rowH / 2;
       const locked = f > top;
-      const label = f === 0 ? 'F' : String(f);
       const row = new Container();
       row.position.set(0, y);
-      const bgRow = new Graphics().roundRect(46, -ROW_H / 2 + 5, W - 92, ROW_H - 10, 14).fill({ color: 0x000000, alpha: f === current ? 0.28 : 0.14 });
-      row.addChild(bgRow);
+      const strip = new Sprite(rowTex(rw, rowH - 10, f === current));
+      strip.position.set(rx - 2, -(rowH - 10) / 2 - 2);
+      row.addChild(strip);
       const lamp = new Sprite(glowTexture());
       lamp.anchor.set(0.5);
-      lamp.position.set(96, 0);
-      lamp.width = lamp.height = 110;
-      lamp.tint = f === 5 ? 0xc9a0ff : COLORS.lamp;
+      lamp.position.set(kx, 0);
+      lamp.width = lamp.height = 120;
+      lamp.tint = f === 5 ? BOSS : COLORS.lamp;
       lamp.blendMode = 'add';
       lamp.alpha = 0;
-      const btn = new Graphics();
-      let num: Text | null = null;
-      const draw = (lit: boolean) => {
-        if (num) num.style.fill = lit ? 0x1b1013 : locked ? 0x6a5a4a : 0xfff1c4;
-        btn.clear();
-        btn.circle(96, 3, 25).fill({ color: 0x000000, alpha: 0.4 });
-        btn.circle(96, 0, 25).fill(COLORS.brassDark);
-        btn.circle(96, 0, 20).fill(lit ? 0xfff1c4 : locked ? 0x3a2a1e : 0x1b1013).stroke({ color: 0xffe2a0, width: 1.5, alpha: 0.7 });
-      };
-      draw(f === current);
-      num = new Text({ text: label, style: { fontFamily: FONT_DISPLAY, fontSize: 22, fill: f === current ? 0x1b1013 : locked ? 0x6a5a4a : 0xfff1c4 } });
+      const knob = new Sprite(knobTex(kr, locked ? 'locked' : f === current ? 'lit' : 'idle', f === 5));
+      knob.anchor.set(0.5, (kr + 8) / (kr * 2 + 18));
+      knob.position.set(kx, 0);
+      const num = new Text({ text: f === 0 ? 'F' : String(f), style: { fontFamily: FONT_DISPLAY, fontSize: 22, fill: f === current ? 0x2a1406 : locked ? 0x9a8a7a : 0xfff1c4 } });
       num.anchor.set(0.5);
-      num.position.set(96, 1);
-      row.addChild(lamp, btn, num);
-      const name = new Text({ text: room.name, style: { fontFamily: FONT_DISPLAY, fontSize: 21, fill: locked ? 0x6a4a20 : 0x2a1608 } });
-      name.anchor.set(0, 0.5);
-      name.position.set(136, -10);
-      const tag = new Text({ text: room.tagline, style: { fontFamily: FONT_BODY, fontSize: 18, fontWeight: '600', fill: locked ? 0x7a5a2a : 0x4a2a10 } });
-      tag.anchor.set(0, 0.5);
-      tag.position.set(136, 15);
-      row.addChild(name, tag);
+      num.position.set(kx, 1);
+      const draw = (lit: boolean) => {
+        knob.texture = knobTex(kr, locked ? 'locked' : lit ? 'lit' : 'idle', f === 5);
+        num.style.fill = lit ? 0x2a1406 : locked ? 0x9a8a7a : 0xfff1c4;
+      };
+      row.addChild(lamp, knob, num);
+      if (locked) {
+        const lk = new Sprite(lockTexture());
+        lk.anchor.set(0.5);
+        lk.scale.set(0.7);
+        lk.position.set(kx + kr * 0.75, kr * 0.6);
+        row.addChild(lk);
+      }
+      const tx = kx + kr + (n ? 14 : 20);
       const status = new Text({
-        text: f === current ? 'HIER' : locked ? `🔒 ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : f === top && f > 0 ? 'HEUTE' : '',
-        style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '700', fill: f === current ? 0x1b5a2a : locked ? 0x6a4a20 : 0x5a1a6a },
+        text: f === current ? 'HIER' : locked ? `ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : f === top && f > 0 ? 'HEUTE' : '',
+        style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '700', fill: f === current ? 0x14501e : locked ? 0x5a3a14 : 0x5a1a6a },
       });
       status.anchor.set(1, 0.5);
-      status.position.set(W - 62, -10);
+      status.position.set(W - rx - 14, -11);
       row.addChild(status);
-      if (f === highlight && !locked) {
+      const maxName = W - rx - 14 - tx - (status.text ? status.width + 10 : 0);
+      const name = new Text({ text: room.name, style: { fontFamily: FONT_DISPLAY, fontSize: n ? 19 : 21, fill: locked ? 0x6a4a20 : 0x2a1406, dropShadow: { color: 0xfff4d0, alpha: 0.5, blur: 0, distance: 1.2, angle: Math.PI / 2 } } });
+      name.anchor.set(0, 0.5);
+      name.position.set(tx, -11);
+      if (name.width > maxName) name.scale.set(maxName / name.width);
+      const tag = new Text({ text: room.tagline, style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '600', fill: locked ? 0x6a4a20 : 0x4a2a10 } });
+      tag.anchor.set(0, 0.5);
+      tag.position.set(tx, 14);
+      const maxTag = W - rx - 14 - tx;
+      if (tag.width > maxTag) tag.scale.set(maxTag / tag.width);
+      row.addChild(name, tag);
+      if (f === this.highlight && !locked) {
         const badge = new Container();
-        badge.addChild(new Graphics().roundRect(-34, -14, 68, 28, 14).fill(COLORS.red).stroke({ color: 0xfff1c4, width: 2 }));
-        const bt = new Text({ text: 'NEU', style: { fontFamily: FONT_DISPLAY, fontSize: 16, fill: 0xfff6e6 } });
-        bt.anchor.set(0.5);
+        const bt = button({ label: 'NEU', width: 64, height: 28, color: COLORS.red, textColor: 0xfff6e6, fontSize: 15, onClick: () => this.choose(f) });
         badge.addChild(bt);
-        badge.position.set(W - 96, 14);
+        badge.position.set(W - rx - 46, 14);
+        tag.scale.set(Math.min(tag.scale.x, (W - rx - 90 - tx) / (tag.width / tag.scale.x)));
         row.addChild(badge);
         this.newBadge = badge;
       }
       if (!locked) {
         row.eventMode = 'static';
         row.cursor = 'pointer';
-        row.hitArea = { contains: (x: number, yy: number) => x > 46 && x < W - 46 && yy > -ROW_H / 2 && yy < ROW_H / 2 };
-        row.on('pointerover', () => !this.riding && (bgRow.alpha = 1.8));
-        row.on('pointerout', () => (bgRow.alpha = 1));
+        row.hitArea = { contains: (x: number, yy: number) => x > rx && x < W - rx && yy > -rowH / 2 && yy < rowH / 2 };
+        row.on('pointerover', () => !this.riding && (strip.alpha = 1.8));
+        row.on('pointerout', () => (strip.alpha = 1));
+        row.on('pointerdown', () => !this.riding && (knob.scale.set(0.92), num.scale.set(0.92)));
+        row.on('pointerup', () => (knob.scale.set(1), num.scale.set(1)));
+        row.on('pointerupoutside', () => (knob.scale.set(1), num.scale.set(1)));
         row.on('pointertap', () => this.choose(f));
+      } else {
+        row.eventMode = 'static';
+        row.on('pointertap', () => {
+          if (this.riding) return;
+          sfx.tick();
+          const x0 = row.x;
+          void animate(240, (k) => !row.destroyed && (row.x = x0 + Math.sin(k * Math.PI * 4) * 4 * (1 - k)));
+        });
       }
       p.addChild(row);
-      this.rows.push({ floor: f, room, locked, lamp, btn, draw });
+      this.rows.push({ floor: f, room, locked, lamp, draw });
     });
 
-    const stay = button({ label: 'AUSSTEIGEN', width: 240, height: 54, color: 0x2a1608, textColor: 0xfff1c4, fontSize: 20, onClick: () => this.choose(this.current) });
-    stay.position.set(W / 2, H - 54);
+    const stay = button({ label: 'AUSSTEIGEN', width: 240, height: 56, color: 0x3a1428, textColor: 0xf2e6c9, fontSize: 20, onClick: () => this.choose(this.current) });
+    stay.position.set(W / 2, H - (n ? 48 : 52));
     p.addChild(stay);
-
-    window.addEventListener('keydown', this.onKey);
-    p.alpha = 0;
-    void tween(p, { alpha: 1 }, 250);
-    if (highlight) void this.pulseHint(highlight);
   }
 
   /** Dial angle of a floor: the foyer on the left, 5 on the right. */
@@ -193,11 +474,11 @@ export class ElevatorPanel {
   };
 
   private async pulseHint(f: number) {
-    const row = this.rows.find((r) => r.floor === f);
-    if (!row) return;
     await wait(400);
     for (let i = 0; i < 3 && !this.riding; i++) {
-      await animate(500, (k) => (row.lamp.alpha = Math.sin(k * Math.PI) * 0.8));
+      const row = this.rows.find((r) => r.floor === f);
+      if (!row) return;
+      await animate(500, (k) => !row.lamp.destroyed && (row.lamp.alpha = Math.sin(k * Math.PI) * 0.8));
     }
   }
 
@@ -207,7 +488,8 @@ export class ElevatorPanel {
     this.riding = true;
     window.removeEventListener('keydown', this.onKey);
     sfx.elevatorButton();
-    row.draw(true);
+    // The other lit button goes dark, the chosen one lights up.
+    for (const r of this.rows) r.draw(r === row);
     row.lamp.alpha = 0.9;
     if (f !== this.current) {
       const from = this.dialFloor;
@@ -237,18 +519,33 @@ export class ElevatorPanel {
     } else {
       await wait(200);
     }
-    await tween(this.panel, { alpha: 0 }, 250);
+    await leaveMotion(this.stage, 220);
     this.onChoose(f);
   }
 
   resize(w: number, h: number) {
-    this.bg.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: 0.9 });
-    // Cabin walls behind the panel: dark wood panels and a brass handrail.
-    for (let x = 0; x < w; x += 90) this.bg.rect(x + 6, 0, 78, h).fill({ color: 0x2a1608, alpha: 0.5 });
-    this.bg.rect(0, h * 0.62, w, 10).fill({ color: COLORS.brass, alpha: 0.55 });
-    const s = Math.min((w * 0.94) / W, (h * 0.94) / H, 1.05);
-    this.panel.scale.set(s);
-    this.panel.position.set((w - W * s) / 2, (h - H * s) / 2);
+    const n = w < 720;
+    if (n !== this.narrow && !this.riding) {
+      this.narrow = n;
+      this.build(n);
+    }
+    const key = `${Math.ceil(w)}x${Math.ceil(h)}`;
+    if (key !== this.cabinKey) {
+      const old = this.bg.texture;
+      this.cabinKey = key;
+      this.bg.texture = cabinTex(Math.ceil(w), Math.ceil(h));
+      if (this.ownCabin) old.destroy(true);
+      this.ownCabin = true;
+    }
+    const s = Math.min((w * 0.95) / this.W, (h * 0.95) / this.H, 1.05);
+    this.stage.scale.set(s);
+    this.stage.position.set(w / 2, h / 2);
+    this.panel.position.set(-this.W / 2, -this.H / 2);
+    if (!this.entered) {
+      this.entered = true;
+      void enterMotion(this.stage);
+      if (this.highlight) void this.pulseHint(this.highlight);
+    }
   }
 
   update(dtMs: number) {
@@ -258,7 +555,9 @@ export class ElevatorPanel {
 
   destroy() {
     window.removeEventListener('keydown', this.onKey);
+    const t = this.ownCabin ? this.bg.texture : null;
     this.view.destroy({ children: true });
+    t?.destroy(true);
   }
 }
 

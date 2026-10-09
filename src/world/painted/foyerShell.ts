@@ -1,7 +1,8 @@
 // The painted foyer: marble floor, lacquered back wall, sign and elevator, all painted once.
 
 import { Container, Graphics, Sprite } from 'pixi.js';
-import type { RoomDefinition } from '../../core/registry';
+import type { RoomDefinition, RoomTheme } from '../../core/registry';
+import { styleFloor, styleWall } from './styleShell';
 import { glowTexture } from '../../core/fx';
 import { INK, dark, glowAt, gold, light, paint, rgb, rrect, seeded, type Ctx } from './brush';
 
@@ -23,8 +24,8 @@ export function paintShell(def: RoomDefinition, lights: LightSpot[]) {
   const t = def.theme;
   return new Sprite(
     paint(W, H, (c) => {
-      floor(c, W, H, t.carpetAccent, lights);
-      wall(c, W, t.wall, t.wallTrim, lights);
+      floor(c, W, H, t, lights);
+      wall(c, W, t, lights);
       sides(c, W, H, t.wall);
     }, 1.5),
   );
@@ -32,8 +33,42 @@ export function paintShell(def: RoomDefinition, lights: LightSpot[]) {
 
 // ---- Floor -----------------------------------------------------------------------------------
 
-function floor(c: Ctx, W: number, H: number, accent: number, lights: LightSpot[]) {
+function floor(c: Ctx, W: number, H: number, t: RoomTheme, lights: LightSpot[]) {
   const top = P_WALL_H - 6;
+  if (t.style === 'foyer') foyerFloor(c, W, H, top, t.carpetAccent);
+  else styleFloor(c, W, H, top, t);
+
+  // Light pools and their reflections on the polished floor.
+  for (const l of lights) {
+    if (l.y < top) {
+      glowAt(c, l.x, top + 30, l.r * 0.9, l.r * 0.45, l.col, l.a * 0.6, 'lighter');
+      continue;
+    }
+    glowAt(c, l.x, l.y + 20, l.r * 1.4, l.r, l.col, l.a * 0.55, 'lighter');
+    glowAt(c, l.x, l.y + l.r * 0.5, l.r * 0.18, l.r * 0.75, l.col, l.a * 0.5, 'lighter');
+  }
+
+  // Ambient occlusion where the floor meets the walls, and a soft vignette.
+  const ao = c.createLinearGradient(0, top, 0, top + 90);
+  ao.addColorStop(0, 'rgba(6,2,12,0.75)');
+  ao.addColorStop(1, 'rgba(6,2,12,0)');
+  c.fillStyle = ao;
+  c.fillRect(0, top, W, 90);
+  for (const [x0, x1] of [[P_SIDE, P_SIDE + 80], [W - P_SIDE, W - P_SIDE - 80]]) {
+    const g = c.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, 'rgba(6,2,12,0.6)');
+    g.addColorStop(1, 'rgba(6,2,12,0)');
+    c.fillStyle = g;
+    c.fillRect(Math.min(x0, x1), top, 80, H - top);
+  }
+  const bot = c.createLinearGradient(0, H - 120, 0, H);
+  bot.addColorStop(0, 'rgba(6,2,12,0)');
+  bot.addColorStop(1, 'rgba(6,2,12,0.55)');
+  c.fillStyle = bot;
+  c.fillRect(0, H - 120, W, 120);
+}
+
+function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
   const r = seeded(W * 3 + H);
   c.fillStyle = '#1a161e';
   c.fillRect(0, top, W, H - top);
@@ -167,40 +202,14 @@ function floor(c: Ctx, W: number, H: number, accent: number, lights: LightSpot[]
   }
   c.restore();
 
-  // Light pools and their reflections on the polished floor.
-  for (const l of lights) {
-    if (l.y < top) {
-      glowAt(c, l.x, top + 30, l.r * 0.9, l.r * 0.45, l.col, l.a * 0.6, 'lighter');
-      continue;
-    }
-    glowAt(c, l.x, l.y + 20, l.r * 1.4, l.r, l.col, l.a * 0.55, 'lighter');
-    glowAt(c, l.x, l.y + l.r * 0.5, l.r * 0.18, l.r * 0.75, l.col, l.a * 0.5, 'lighter');
-  }
-
-  // Ambient occlusion where the floor meets the walls, and a soft vignette.
-  const ao = c.createLinearGradient(0, top, 0, top + 90);
-  ao.addColorStop(0, 'rgba(6,2,12,0.75)');
-  ao.addColorStop(1, 'rgba(6,2,12,0)');
-  c.fillStyle = ao;
-  c.fillRect(0, top, W, 90);
-  for (const [x0, x1] of [[P_SIDE, P_SIDE + 80], [W - P_SIDE, W - P_SIDE - 80]]) {
-    const g = c.createLinearGradient(x0, 0, x1, 0);
-    g.addColorStop(0, 'rgba(6,2,12,0.6)');
-    g.addColorStop(1, 'rgba(6,2,12,0)');
-    c.fillStyle = g;
-    c.fillRect(Math.min(x0, x1), top, 80, H - top);
-  }
-  const bot = c.createLinearGradient(0, H - 120, 0, H);
-  bot.addColorStop(0, 'rgba(6,2,12,0)');
-  bot.addColorStop(1, 'rgba(6,2,12,0.55)');
-  c.fillStyle = bot;
-  c.fillRect(0, H - 120, W, 120);
 }
 
 // ---- Back wall --------------------------------------------------------------------------------
 
-function wall(c: Ctx, W: number, col: number, trim: number, lights: LightSpot[]) {
+function wall(c: Ctx, W: number, t: RoomTheme, lights: LightSpot[]) {
   const WH = P_WALL_H;
+  const col = t.wall;
+  const trim = t.wallTrim;
   const g = c.createLinearGradient(0, 0, 0, WH);
   g.addColorStop(0, rgb(dark(col, 0.45)));
   g.addColorStop(0.65, rgb(light(col, 0.06)));
@@ -212,10 +221,12 @@ function wall(c: Ctx, W: number, col: number, trim: number, lights: LightSpot[])
     c.fillStyle = `rgba(255,255,255,${0.012 + 0.012 * Math.sin(x * 0.05)})`;
     c.fillRect(x, 20, 3, WH - 50);
   }
-  // Panels with gold sunburst fans, between fluted pilasters.
+  // Each floor has its own wall pattern; the foyer has panels with gold sunburst fans.
+  if (t.style !== 'foyer') styleWall(c, W, WH, t);
   const step = 140;
   for (let x = 0; x <= W; x += step) {
     const px = x + step / 2;
+    if (t.style === 'foyer') {
     rrect(c, px - 54, 30, 108, 80, 4);
     c.fillStyle = rgb(dark(col, 0.25), 0.7);
     c.fill();
@@ -243,6 +254,7 @@ function wall(c: Ctx, W: number, col: number, trim: number, lights: LightSpot[])
       c.stroke();
     }
     c.restore();
+    }
     // Pilaster.
     const pg = c.createLinearGradient(x - 10, 0, x + 10, 0);
     pg.addColorStop(0, rgb(dark(col, 0.3)));

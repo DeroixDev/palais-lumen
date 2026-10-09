@@ -1,10 +1,12 @@
 // A playable grand piano: tap the keys or use the computer keyboard (A S D F … for white
 // keys, W E T Z U O P for black ones). Songs light the next key so anyone can play along.
 
-import { Container, Graphics, Sprite, Text } from 'pixi.js';
+import { Container, Sprite, Text, type Texture } from 'pixi.js';
 import { COLORS, FONT_BODY, glowTexture } from '../core/fx';
 import { animate, ease } from '../core/tween';
-import { button } from '../core/ui';
+import { brass, button } from '../core/ui';
+import { INK, fillInk, glowAt, paint, rrect } from '../world/painted/brush';
+import { CREAM, MUTED, screw } from './kit';
 import { sfx } from '../core/audio';
 import { Panel } from './panel';
 
@@ -32,9 +34,112 @@ const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A�
 interface Key {
   semi: number;
   black: boolean;
-  g: Graphics;
+  g: Sprite;
   hint: Sprite;
   draw(down: boolean): void;
+}
+
+const keyCache = new Map<string, Texture>();
+/** Ivory or ebony key, painted; `down` is the pressed look (darker, shorter shine). */
+function keyTexture(w: number, h: number, black: boolean, down: boolean) {
+  const k = `${w}x${h}-${black}-${down}`;
+  let t = keyCache.get(k);
+  if (t) return t;
+  t = paint(w + 2, h + 4, (c) => {
+    c.translate(1, 0);
+    const r = black ? 4 : 6;
+    if (black) {
+      rrect(c, 0, -6, w, h + 6 + (down ? 1 : 0), r);
+      const g = c.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, down ? '#2a2030' : '#2e2632');
+      g.addColorStop(0.5, down ? '#120c16' : '#0c080e');
+      g.addColorStop(1, '#050306');
+      fillInk(c, g, 1.4);
+      if (!down) {
+        rrect(c, w * 0.18, 2, w * 0.64, h - 16, 3);
+        const s = c.createLinearGradient(0, 0, 0, h);
+        s.addColorStop(0, 'rgba(255,255,255,0.2)');
+        s.addColorStop(1, 'rgba(255,255,255,0.03)');
+        c.fillStyle = s;
+        c.fill();
+        rrect(c, 2, h - 12, w - 4, 10, 3);
+        c.fillStyle = 'rgba(255,255,255,0.08)';
+        c.fill();
+      }
+    } else {
+      rrect(c, 0, -6, w, h + 6, r);
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, down ? '#e8d8b0' : '#fffaf0');
+      g.addColorStop(0.85, down ? '#f0dca8' : '#f4ead6');
+      g.addColorStop(1, down ? '#d8c08a' : '#e2d2b4');
+      fillInk(c, g, 1.6);
+      if (down) glowAt(c, w / 2, h * 0.6, w * 0.7, h * 0.5, 0xffcf7a, 0.35);
+      else {
+        // Front lip of the key.
+        rrect(c, 1, h - 12, w - 2, 12, r);
+        c.fillStyle = 'rgba(120,90,50,0.16)';
+        c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.6)';
+        c.fillRect(3, 0, 2, h - 16);
+      }
+    }
+  }, 2);
+  keyCache.set(k, t);
+  return t;
+}
+
+const caseCache = new Map<string, Texture>();
+/** The lacquered piano body around the keys, with a fallboard and a brass nameplate. */
+function pianoCase(kw: number, kh: number, narrow: boolean, pad: number) {
+  const k = `${kw}x${kh}-${pad}`;
+  let t = caseCache.get(k);
+  if (t) return t;
+  const w = kw + pad * 2;
+  const h = kh + 70;
+  t = paint(w + 8, h + 10, (c) => {
+    rrect(c, 3, 7, w, h, 18);
+    c.fillStyle = 'rgba(6,2,8,0.55)';
+    c.fill();
+    rrect(c, 0, 0, w, h, 18);
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#2a2230');
+    g.addColorStop(0.2, '#120c16');
+    g.addColorStop(1, '#07050a');
+    fillInk(c, g, 2.5);
+    // Lacquer shine.
+    c.save();
+    rrect(c, 0, 0, w, h, 18);
+    c.clip();
+    glowAt(c, w * 0.28, 8, w * 0.4, 30, 0xfff4dc, 0.18);
+    c.strokeStyle = 'rgba(255,240,220,0.35)';
+    c.lineWidth = 2;
+    rrect(c, 1.5, 1.5, w + 4, h + 4, 18);
+    c.stroke();
+    c.restore();
+    // Gold inlay line and the fallboard edge.
+    rrect(c, 8, 8, w - 16, h - 16, 12);
+    c.strokeStyle = 'rgba(224,178,90,0.55)';
+    c.lineWidth = 1.4;
+    c.stroke();
+    c.fillStyle = '#5a1428';
+    c.fillRect(pad - 4, 40, w - pad * 2 + 8, 6);
+    c.fillStyle = 'rgba(255,200,200,0.25)';
+    c.fillRect(pad - 4, 40, w - pad * 2 + 8, 1.5);
+    // Nameplate.
+    const pw = narrow ? 120 : 150;
+    rrect(c, w / 2 - pw / 2, 12, pw, 20, 6);
+    fillInk(c, brass(c, w / 2 - pw / 2, 12, w / 2 + pw / 3, 34), 1.4);
+    c.fillStyle = 'rgba(60,32,8,0.9)';
+    c.font = `700 ${narrow ? 11 : 12}px "Barlow Condensed", sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('N A C H T F A L T E R', w / 2, 23);
+    screw(c, 22, 22, 4);
+    screw(c, w - 22, 22, 4);
+    c.strokeStyle = INK;
+  }, 2);
+  caseCache.set(k, t);
+  return t;
 }
 
 export class PianoPanel extends Panel {
@@ -58,60 +163,54 @@ export class PianoPanel extends Panel {
   protected build() {
     const n = this.narrow;
     const whites = n ? 8 : 11;
-    const kw = n ? 64 : 80;
-    const kh = n ? 320 : 290;
-    this.W = whites * kw + 80;
-    const top = n ? 250 : 210;
-    this.H = top + kh + 150;
+    const kw = n ? 43 : 74;
+    const kh = n ? 270 : 280;
+    const pad = n ? 12 : 24;
+    const x0 = n ? (404 - whites * kw) / 2 : 46;
+    this.W = n ? 404 : whites * kw + 92;
+    const tabsY = n ? 100 : 100;
+    const top = n ? 300 : 236;
+    this.H = top + kh + (n ? 150 : 140);
     this.keys = [];
     this.frame('KLAVIER', COLORS.lamp, this.onClose);
 
     // Song picker.
     const labels = ['Frei spielen', ...SONGS.map((s) => s.name)];
-    this.tabs(labels, this.song + 1, 106, (i) => {
+    this.tabs(labels, this.song + 1, tabsY, (i) => {
       this.song = i - 1;
       this.pos = 0;
       this.rebuild();
-    }, n ? 2 : 4, n ? 230 : 210);
-    this.songLabel = this.text('', 18, 0xd9c6a0, true);
+    }, n ? 2 : 4, n ? 176 : 196);
+    this.songLabel = this.text('', n ? 16 : 18, 0xe6d6b0, true);
     this.songLabel.anchor.set(0.5);
-    this.songLabel.position.set(this.W / 2, top - 36);
+    this.songLabel.position.set(this.W / 2, top - (n ? 64 : 58));
     this.panel.addChild(this.songLabel);
     this.updateSongLabel();
 
-    // Lacquered case and keybed.
-    const x0 = 40;
-    const cg = new Graphics();
-    cg.roundRect(x0 - 22, top - 18, whites * kw + 44, kh + 40, 16).fill(0x0e0a10).stroke({ color: 0x3a3040, width: 2 });
-    cg.rect(x0 - 10, top - 8, whites * kw + 20, 8).fill(0x6b1a2e);
-    this.panel.addChild(cg);
+    // Lacquered case, fallboard with a brass nameplate, and the keybed.
+    const caseSpr = new Sprite(pianoCase(whites * kw, kh, n, pad));
+    caseSpr.position.set(x0 - pad, top - 46);
+    this.panel.addChild(caseSpr);
     const add = (semi: number, black: boolean, x: number, label: string) => {
-      const w = black ? kw * 0.6 : kw - 3;
-      const h = black ? kh * 0.6 : kh;
+      const w = black ? Math.round(kw * 0.6) : kw - 2;
+      const h = black ? Math.round(kh * 0.6) : kh;
       const c = new Container();
       c.position.set(x, top);
-      const g = new Graphics();
+      const g = new Sprite(keyTexture(w, h, black, false));
       const hint = new Sprite(glowTexture());
       hint.anchor.set(0.5);
-      hint.position.set(w / 2, h - 36);
-      hint.width = hint.height = kw * 1.4;
+      hint.position.set(w / 2, h - 40);
+      hint.width = hint.height = kw * 1.5;
       hint.tint = COLORS.lamp;
       hint.blendMode = 'add';
       hint.alpha = 0;
-      const t = new Text({ text: label, style: { fontFamily: FONT_BODY, fontSize: black ? 15 : 18, fontWeight: '700', fill: black ? 0xd9c6a0 : 0x6a5a4a } });
+      const t = new Text({ text: label, style: { fontFamily: FONT_BODY, fontSize: black ? (n ? 13 : 15) : n ? 15 : 18, fontWeight: '700', fill: black ? 0xd9c6a0 : 0x7a6248 } });
       t.anchor.set(0.5);
-      t.position.set(w / 2, h - 22);
+      t.position.set(w / 2, h - (black ? 18 : 24));
       const draw = (down: boolean) => {
-        g.clear();
-        if (black) {
-          g.roundRect(0, 0, w, h + (down ? 2 : 0), 5).fill(down ? 0x3a2a40 : 0x14080f).stroke({ color: 0x000000, width: 1 });
-          if (!down) g.roundRect(4, 2, w - 8, h - 14, 4).fill({ color: 0xffffff, alpha: 0.08 });
-        } else {
-          g.roundRect(0, 0, w, h, 6).fill(down ? 0xffe7a8 : 0xfff6e6).stroke({ color: 0x8a7a6a, width: 1.5 });
-          if (!down) g.rect(0, h - 10, w, 10).fill({ color: 0x000000, alpha: 0.08 });
-        }
+        g.texture = keyTexture(w, h, black, down);
+        t.y = h - (black ? 18 : 24) + (down ? 2 : 0);
       };
-      draw(false);
       c.addChild(g, hint, t);
       c.eventMode = 'static';
       c.cursor = 'pointer';
@@ -119,27 +218,32 @@ export class PianoPanel extends Panel {
       this.panel.addChild(c);
       this.keys.push({ semi, black, g, hint, draw });
     };
-    for (let i = 0; i < whites; i++) add(WHITE[i], false, x0 + i * kw, n ? WHITE_LABEL[i] : WHITE_LABEL[i]);
+    const names = ['C', 'D', 'E', 'F', 'G', 'A', 'H', 'C', 'D', 'E', 'F'];
+    for (let i = 0; i < whites; i++) add(WHITE[i], false, x0 + i * kw, n ? names[i] : WHITE_LABEL[i]);
     for (const [semi, , label] of BLACK) {
       const wi = WHITE.indexOf(semi - 1);
       if (wi < 0 || wi >= whites - 1) continue;
-      add(semi, true, x0 + (wi + 1) * kw - kw * 0.3 - 1.5, label);
+      add(semi, true, x0 + (wi + 1) * kw - kw * 0.3 - 1, n ? '' : label);
     }
     this.panel.addChild(this.fxLayer);
 
-    // Octave and close.
-    const oct = this.text(`Oktave ${this.octave >= 0 ? '+' : ''}${this.octave}`, 18, 0xd9c6a0, true);
+    // Octave controls in the thumb zone.
+    const oy = this.H - (n ? 52 : 50);
+    const oct = this.text(`Oktave ${this.octave > 0 ? '+' : this.octave < 0 ? '−' : '±'}${Math.abs(this.octave)}`, 20, CREAM, true);
     oct.anchor.set(0.5);
-    oct.position.set(this.W / 2, this.H - 50);
+    oct.position.set(this.W / 2, oy);
     this.panel.addChild(oct);
-    const down = button({ label: '◀', width: 60, height: 46, color: 0x2a1608, textColor: 0xfff1c4, fontSize: 20, onClick: () => this.shift(-1) });
-    down.position.set(this.W / 2 - 100, this.H - 50);
-    const up = button({ label: '▶', width: 60, height: 46, color: 0x2a1608, textColor: 0xfff1c4, fontSize: 20, onClick: () => this.shift(1) });
-    up.position.set(this.W / 2 + 100, this.H - 50);
+    const down = button({ label: '◀', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(-1) });
+    down.position.set(this.W / 2 - 110, oy);
+    const up = button({ label: '▶', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(1) });
+    up.position.set(this.W / 2 + 110, oy);
+    down.setEnabled(this.octave > -1);
+    up.setEnabled(this.octave < 1);
     this.panel.addChild(down, up);
-    const help = this.text(n ? 'Tippe die Tasten an.' : 'Tasten A S D F … und W E T Z U · Pfeile wechseln die Oktave', 15, 0x8a7a6a);
+    const help = this.text(n ? 'Tippe die Tasten an. Der leuchtende Ton ist der nächste.' : 'Tasten A S D F … und W E T Z U · Pfeile wechseln die Oktave', 15, MUTED);
     help.anchor.set(0.5);
-    help.position.set(this.W / 2, top + kh + 40);
+    help.position.set(this.W / 2, top + kh + (n ? 38 : 40));
+    if (help.width > this.W - 40) help.scale.set((this.W - 40) / help.width);
     this.panel.addChild(help);
     this.showHint();
   }

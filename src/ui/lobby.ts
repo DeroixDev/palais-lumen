@@ -3,6 +3,7 @@
 
 import { formatChips, type GameState } from '../core/state';
 import { sfx } from '../core/audio';
+import { dark, ellipse, fillInk, glowAt, light, rgb, rim, rrect, shadow, vgrad } from '../world/painted/brush';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -139,59 +140,97 @@ export class Lobby {
     $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute ${formatChips(d.evening.startBalance + d.evening.quota)} Falter (+${formatChips(d.evening.quota)})${rec}`;
   }
 
+  /** The host as a little painted figure in a spotlight: ink outlines, light from the upper left. */
   private drawAvatar() {
     const cv = $<HTMLCanvasElement>('#lobby-avatar');
+    const res = 2;
+    if (cv.width !== 120 * res) {
+      cv.width = 120 * res;
+      cv.height = 150 * res;
+      cv.style.width = '120px';
+      cv.style.height = '150px';
+    }
     const c = cv.getContext('2d')!;
+    c.setTransform(res, 0, 0, res, 0, 0);
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
     const h = this.host;
-    c.clearRect(0, 0, cv.width, cv.height);
-    const g = c.createRadialGradient(60, 70, 4, 60, 70, 70);
-    g.addColorStop(0, hex(h.color) + '55');
-    g.addColorStop(1, '#00000000');
-    c.fillStyle = g;
-    c.fillRect(0, 0, 120, 150);
-    // Legs, jacket, shirt, bow tie, head, hair.
-    c.fillStyle = '#1b1b22';
-    c.fillRect(46, 100, 11, 40);
-    c.fillRect(63, 100, 11, 40);
     const look = this.state.look;
-    c.fillStyle = hex(look.jacket);
+    const skin = h.skin ?? SKINS[1];
+    c.clearRect(0, 0, 120, 150);
+    // Spotlight and contact shadow.
+    glowAt(c, 60, 78, 58, 70, h.color, 0.32);
+    glowAt(c, 60, 52, 30, 30, 0xfff4dc, 0.12);
+    shadow(c, 60, 141, 30, 7, 0.6);
+    // Legs and shoes.
+    for (const x of [46, 63]) {
+      rrect(c, x, 98, 11, 40, 4);
+      fillInk(c, vgrad(c, 98, 138, 0x1b1b22, 0.15, 0.3), 2);
+      ellipse(c, x + 5, 139, 8, 3.5);
+      fillInk(c, '#0d0a10', 1.6);
+    }
+    // Jacket with lapels in the player colour.
+    rrect(c, 37, 52, 46, 56, 13);
+    fillInk(c, vgrad(c, 52, 108, look.jacket, 0.22, 0.35), 2.4);
+    rrect(c, 37, 52, 46, 56, 13);
+    rim(c, 0.35, 1.4);
     c.beginPath();
-    c.roundRect(38, 52, 44, 56, 12);
-    c.fill();
-    c.strokeStyle = hex(h.color);
-    c.lineWidth = 3;
-    c.stroke();
-    c.fillStyle = '#fff6e6';
+    c.moveTo(52, 52);
+    c.lineTo(68, 52);
+    c.lineTo(60, 78);
+    c.closePath();
+    fillInk(c, '#fff6e6', 1.6);
     c.beginPath();
-    c.moveTo(53, 52);
-    c.lineTo(67, 52);
-    c.lineTo(60, 76);
-    c.fill();
-    c.fillStyle = hex(h.color);
+    c.moveTo(52, 52);
+    c.lineTo(60, 78);
+    c.lineTo(46, 66);
+    c.closePath();
+    fillInk(c, rgb(dark(look.jacket, 0.25)), 1.4);
     c.beginPath();
-    c.moveTo(53, 56);
-    c.lineTo(67, 62);
-    c.lineTo(67, 56);
-    c.lineTo(53, 62);
-    c.fill();
-    c.fillStyle = hex(h.skin ?? SKINS[1]);
+    c.moveTo(68, 52);
+    c.lineTo(60, 78);
+    c.lineTo(74, 66);
+    c.closePath();
+    fillInk(c, rgb(dark(look.jacket, 0.25)), 1.4);
+    // Bow tie.
     c.beginPath();
-    c.arc(60, 36, 17, 0, Math.PI * 2);
-    c.fill();
+    c.moveTo(52, 55);
+    c.lineTo(60, 59);
+    c.lineTo(68, 55);
+    c.lineTo(68, 63);
+    c.lineTo(60, 59);
+    c.lineTo(52, 63);
+    c.closePath();
+    fillInk(c, vgrad(c, 55, 63, h.color, 0.3, 0.3), 1.4);
+    // Head.
+    ellipse(c, 60, 35, 17, 17);
+    const face = c.createRadialGradient(54, 29, 2, 60, 35, 19);
+    face.addColorStop(0, rgb(light(skin, 0.25)));
+    face.addColorStop(1, rgb(dark(skin, 0.18)));
+    fillInk(c, face, 2.2);
     if (look.hairStyle !== 'bald') {
-      c.fillStyle = hex(look.hair);
       c.beginPath();
-      c.ellipse(60, 25, 18, 10, 0, Math.PI, Math.PI * 2);
-      c.fill();
+      c.ellipse(60, 27, 18.5, 11, 0, Math.PI, Math.PI * 2);
+      c.quadraticCurveTo(70, 26, 60, 25);
+      c.quadraticCurveTo(50, 26, 41.5, 27);
+      c.closePath();
+      fillInk(c, vgrad(c, 16, 28, look.hair, 0.3, 0.2), 2);
     }
+    // Eyes and cheeks.
+    c.fillStyle = '#1b1020';
+    ellipse(c, 54.5, 37, 1.8, 2.3);
+    c.fill();
+    ellipse(c, 65.5, 37, 1.8, 2.3);
+    c.fill();
+    glowAt(c, 50, 42, 4, 3, 0xff7a8a, 0.35);
+    glowAt(c, 70, 42, 4, 3, 0xff7a8a, 0.35);
     if (look.hat !== 'none') {
-      c.fillStyle = hex(look.hatColor);
-      c.fillRect(38, 20, 44, 5);
-      c.fillRect(46, look.hat === 'topHat' ? 0 : 10, 28, look.hat === 'topHat' ? 22 : 12);
+      const top = look.hat === 'topHat';
+      rrect(c, 46, top ? 0 : 9, 28, top ? 22 : 13, 4);
+      fillInk(c, vgrad(c, top ? 0 : 9, 22, look.hatColor, 0.25, 0.3), 2);
+      ellipse(c, 60, 21, 23, 4.5);
+      fillInk(c, vgrad(c, 17, 26, look.hatColor, 0.2, 0.35), 2);
     }
-    c.fillStyle = '#1b1b22';
-    c.fillRect(53, 36, 3, 3);
-    c.fillRect(64, 36, 3, 3);
   }
 
   /** Hides the menus but keeps the overlay to catch "skip" taps during the arrival. */

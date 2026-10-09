@@ -8,6 +8,7 @@ import { sfx } from '../core/audio';
 import { coinDataUrl } from '../core/fx';
 import { ACHIEVEMENTS, type Achievement, type AchievementIcon } from '../core/achievements';
 import { stoneDataUrl } from './stone';
+import { installHudArt } from './hudArt';
 
 const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋' };
 
@@ -21,22 +22,59 @@ export interface HudActions {
   newGame(): void;
 }
 
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Medal marks on the day gauge, as multiples of the day's quota. */
+const MARKS: [string, number][] = [['m-bronze', 1], ['m-silver', 1.5], ['m-gold', 2], ['m-diamond', 3]];
+
+interface ToastItem {
+  text: string;
+  cls: string;
+  count: number;
+  at: number;
+  el?: HTMLElement;
+  timer?: number;
+}
+
 export class Hud {
-  private shown = 0;
-  private shownStones = 0;
   private inFoyer = false;
-  private raf = 0;
+  private shownBalance = -1;
+  private shownStones = 0;
+  private flashTimer = 0;
+  private isOpen = false;
+  private closeTimer = 0;
+  private openTitle = '';
+  private toastsShown: ToastItem[] = [];
+  private toastQueue: ToastItem[] = [];
 
   constructor(
     private state: GameState,
     private actions: HudActions,
   ) {
+    installHudArt();
+    const hud = $('#hud');
+    // Phones keep the rarely used keys in a drop-down behind one menu key.
+    const more = $('#hud-more');
+    const setMenu = (on: boolean) => {
+      hud.classList.toggle('menu-open', on);
+      more.setAttribute('aria-expanded', String(on));
+    };
+    more.addEventListener('click', () => {
+      sfx.click();
+      setMenu(!hud.classList.contains('menu-open'));
+    });
+    $('#hud-menu').addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('button')) setMenu(false);
+    });
+    window.addEventListener('pointerdown', (e) => {
+      if (hud.classList.contains('menu-open') && !(e.target as HTMLElement).closest('#hud-menu, #hud-more')) setMenu(false);
+    });
     $('#btn-save').addEventListener('click', () => this.openSaves());
     $('#btn-end').addEventListener('click', () => this.confirmEndEvening());
     $('#btn-back').addEventListener('click', () => this.actions.leaveGame());
     const mute = $('#btn-mute');
     const syncMute = () => {
-      mute.textContent = sfx.muted ? 'Ton aus' : 'Ton an';
+      mute.querySelector('.lbl')!.textContent = sfx.muted ? 'Ton aus' : 'Ton an';
       mute.setAttribute('aria-pressed', String(!sfx.muted));
     };
     syncMute();
@@ -46,9 +84,8 @@ export class Hud {
     });
     const music = $('#btn-music');
     const syncMusic = () => {
-      music.querySelector('.long')!.textContent = sfx.musicOn ? 'Musik an' : 'Musik aus';
+      music.querySelector('.lbl')!.textContent = sfx.musicOn ? 'Musik an' : 'Musik aus';
       music.setAttribute('aria-pressed', String(sfx.musicOn));
-      music.style.opacity = sfx.musicOn ? '1' : '0.6';
     };
     syncMusic();
     music.addEventListener('click', () => {
@@ -61,6 +98,9 @@ export class Hud {
     // Brand coin in the purse, and a little bump whenever a coin lands in it.
     const coinUrl = coinDataUrl(96);
     document.querySelectorAll<HTMLElement>('.coin').forEach((el) => (el.style.backgroundImage = `url(${coinUrl})`));
+    const stoneUrl = stoneDataUrl(64);
+    document.documentElement.style.setProperty('--nf-coin', `url(${coinUrl})`);
+    document.documentElement.style.setProperty('--nf-stone', `url(${stoneUrl})`);
     const purseEl = document.querySelector('.purse') as HTMLElement;
     window.addEventListener('purse-bump', () => {
       purseEl.classList.remove('bump');
@@ -68,14 +108,26 @@ export class Hud {
       purseEl.classList.add('bump');
       sfx.tick();
     });
-    ($('.stone-ic') as HTMLElement).style.backgroundImage = `url(${stoneDataUrl(64)})`;
+    ($('.stone-ic') as HTMLElement).style.backgroundImage = `url(${stoneUrl})`;
+    // Toasts and dialogs keep clear of the HUD: publish its height as --hud-h.
+    const syncHeight = () => {
+      const h = hud.hidden ? 0 : Math.ceil(hud.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty('--hud-h', `${h}px`);
+    };
+    new ResizeObserver(syncHeight).observe(hud);
+    window.addEventListener('resize', syncHeight);
+    this.syncHeight = syncHeight;
     this.shownStones = state.data.moonstones;
-    this.shown = state.balance;
     this.render();
+    if (import.meta.env.DEV) (window as unknown as { __hud: Hud }).__hud = this;
   }
+
+  private syncHeight: () => void;
 
   show(on: boolean) {
     $('#hud').hidden = !on;
+    if (!on) $('#hud').classList.remove('menu-open');
+    this.syncHeight();
   }
 
   /** In the foyer the day hasn't started, so there is nothing to settle. */
@@ -100,17 +152,30 @@ export class Hud {
     $('#ev-num').textContent = this.inFoyer ? `Foyer · Tag ${day} auf Etage ${floor}` : boss ? `Tag ${day} · Boss` : `Tag ${day} · Etage ${floor}`;
     $('#ev-num').title = `Saison ${d.season.number} · Etage ${floor}: ${floorName}`;
     $('#ev-bar').classList.toggle('boss', boss);
+    $('.evening').classList.toggle('boss', boss);
     if (boss) {
       // On the boss day the goal bar is the Moth Queen's life: every Falter won hurts her.
       const hp = Math.max(0, d.evening.quota - Math.max(0, profit));
       $('#ev-goal').textContent = hp > 0 ? `Königin: ${formatChips(hp)}` : 'Königin besiegt!';
+      $('#ev-goal').title = 'Lebenskraft der Mottenkönigin';
       $('#ev-fill').style.width = `${(hp / d.evening.quota) * 100}%`;
+      $('#ev-bar').setAttribute('aria-label', 'Lebenskraft der Mottenkönigin');
     } else {
       // The goal is a fixed end balance, known from the start of the day.
       const missing = this.state.goalMissing;
       $('#ev-goal').textContent = missing > 0 ? `Ziel ${formatChips(this.state.goalBalance)} · noch ${formatChips(missing)}` : `Ziel ${formatChips(this.state.goalBalance)} ✓`;
       $('#ev-goal').title = `Tagesgewinn ${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} von +${formatChips(d.evening.quota)}`;
       $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
+      $('#ev-bar').setAttribute('aria-label', 'Fortschritt zum Tagesziel');
+      // Reached medal studs light up; the next one breathes.
+      let next = true;
+      for (const [cls, k] of MARKS) {
+        const el = $(`#ev-bar .${cls}`);
+        const hit = ratio >= k;
+        el.classList.toggle('hit', hit);
+        el.classList.toggle('next', !hit && next);
+        if (!hit) next = false;
+      }
     }
     $('#stones').textContent = String(d.moonstones);
     if (d.moonstones !== this.shownStones) {
@@ -121,21 +186,67 @@ export class Hud {
       this.shownStones = d.moonstones;
     }
     $('#ev-bar').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
-    // Roll the balance towards its new value.
-    cancelAnimationFrame(this.raf);
-    const from = this.shown;
-    const to = d.balance;
-    const start = performance.now();
+    this.rollBalance(d.balance);
+  }
+
+  /** The balance as brass reels: every digit rolls to its new place, 50 ms after its right neighbour. */
+  private rollBalance(to: number) {
+    const from = this.shownBalance;
+    if (to === from) return;
+    this.shownBalance = to;
     const el = $('#balance');
-    const step = (now: number) => {
-      const k = Math.min(1, (now - start) / 600);
-      this.shown = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
-      el.textContent = formatChips(this.shown);
-      if (k < 1) this.raf = requestAnimationFrame(step);
-    };
-    this.raf = requestAnimationFrame(step);
-    el.classList.toggle('up', to > from);
-    el.classList.toggle('down', to < from);
+    const text = formatChips(to);
+    const oldText = from < 0 ? text : formatChips(from);
+    const shape = (t: string) => t.replace(/\d/g, '0');
+    let reels = el.querySelector('.reels') as HTMLElement | null;
+    if (!reels || reels.dataset.shape !== shape(text)) {
+      // New layout (a digit more or less): rebuild, starting from the old digits aligned right.
+      el.innerHTML = '';
+      reels = document.createElement('span');
+      reels.className = 'reels';
+      reels.setAttribute('aria-hidden', 'true');
+      reels.style.display = 'flex';
+      reels.dataset.shape = shape(text);
+      const pad = oldText.replace(/\D/g, '').padStart(text.replace(/\D/g, '').length, '0');
+      let di = pad.length - text.replace(/\D/g, '').length;
+      for (const ch of text) {
+        if (!/\d/.test(ch)) {
+          const s = document.createElement('span');
+          s.className = 'sep';
+          s.textContent = ch;
+          reels.appendChild(s);
+          continue;
+        }
+        const r = document.createElement('span');
+        r.className = 'reel';
+        const strip = document.createElement('span');
+        strip.innerHTML = '<b>0</b><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b>';
+        const start = Number(pad[Math.max(0, di++)] ?? 0);
+        strip.style.transition = 'none';
+        strip.style.transform = `translateY(${-start}em)`;
+        r.appendChild(strip);
+        reels.appendChild(r);
+      }
+      const sr = document.createElement('span');
+      sr.className = 'sr';
+      el.append(reels, sr);
+      void reels.offsetWidth;
+      reels.querySelectorAll<HTMLElement>('.reel > span').forEach((s) => (s.style.transition = ''));
+    }
+    const digits = text.replace(/\D/g, '');
+    const strips = [...reels.querySelectorAll<HTMLElement>('.reel > span')];
+    const calm = reduceMotion();
+    strips.forEach((s, i) => {
+      s.style.transitionDelay = calm ? '0ms' : `${(strips.length - 1 - i) * 50}ms`;
+      s.style.transform = `translateY(${-Number(digits[i])}em)`;
+    });
+    (el.querySelector('.sr') as HTMLElement).textContent = `${text} Falter`;
+    if (from < 0) return;
+    clearTimeout(this.flashTimer);
+    el.classList.remove('up', 'down');
+    void el.offsetWidth;
+    el.classList.add(to > from ? 'up' : 'down');
+    this.flashTimer = window.setTimeout(() => el.classList.remove('up', 'down'), to > from ? 900 : 450);
   }
 
   /** Every achievement with its progress, as a list. */
@@ -170,33 +281,108 @@ export class Hud {
     this.toast(`${ICON[a.icon]} Erfolg: ${a.name}  ·  +${a.reward} Mondstein${a.reward === 1 ? '' : 'e'}`, 'ach-toast');
   }
 
+  /**
+   * A brass strip under the HUD. Two at a time, the rest wait in line; the same message twice
+   * within 3 s becomes one strip with a counter. Tap to dismiss.
+   */
   toast(text: string, cls = '') {
-    const box = $('#toasts');
-    const t = document.createElement('div');
-    t.className = 'toast' + (cls ? ' ' + cls : '');
-    t.textContent = text;
-    box.appendChild(t);
-    setTimeout(() => t.classList.add('out'), 2600);
-    setTimeout(() => t.remove(), 3100);
+    const now = performance.now();
+    const same = [...this.toastsShown, ...this.toastQueue].find((t) => t.text === text && (t.el || now - t.at < 3000));
+    if (same) {
+      same.count++;
+      same.at = now;
+      if (same.el) {
+        let c = same.el.querySelector('.count');
+        if (!c) {
+          c = document.createElement('span');
+          c.className = 'count';
+          same.el.querySelector('.toast-t')!.appendChild(c);
+        }
+        c.textContent = `×${same.count}`;
+        this.armToast(same);
+      }
+      return;
+    }
+    this.toastQueue.push({ text, cls, count: 1, at: now });
+    this.pumpToasts();
+  }
+
+  private pumpToasts() {
+    while (this.toastsShown.length < 2 && this.toastQueue.length) {
+      const t = this.toastQueue.shift()!;
+      const el = document.createElement('div');
+      el.className = 'toast' + (t.cls ? ' ' + t.cls : '');
+      el.innerHTML = '<span class="toast-ic" aria-hidden="true"></span><span class="toast-t"></span>';
+      el.querySelector('.toast-t')!.textContent = t.text;
+      el.addEventListener('pointerdown', () => this.dropToast(t));
+      t.el = el;
+      $('#toasts').appendChild(el);
+      this.toastsShown.push(t);
+      this.armToast(t);
+    }
+  }
+
+  private armToast(t: ToastItem) {
+    clearTimeout(t.timer);
+    const long = /ach-toast|error/.test(t.cls);
+    const ms = Math.min(6500, Math.max(long ? 4000 : 2500, t.text.length * 45));
+    t.timer = window.setTimeout(() => this.dropToast(t), ms);
+  }
+
+  private dropToast(t: ToastItem) {
+    if (!t.el || t.el.classList.contains('out')) return;
+    clearTimeout(t.timer);
+    const el = t.el;
+    el.classList.add('out');
+    setTimeout(() => {
+      el.remove();
+      this.toastsShown = this.toastsShown.filter((x) => x !== t);
+      this.pumpToasts();
+    }, 150);
   }
 
   // ---- Dialogs ----------------------------------------------------------
 
-  modal(title: string, body: HTMLElement | string, buttons: { label: string; primary?: boolean; onClick: () => void }[]) {
+  /**
+   * A velvet panel in the brass frame. A second dialog replaces the first. The 48 px close key
+   * (and Escape) is there unless the dialog is a single forced choice.
+   */
+  modal(title: string, body: HTMLElement | string, buttons: { label: string; primary?: boolean; onClick: () => void }[], opts: { closable?: boolean } = {}) {
     const root = $('#modal');
+    const replacing = this.isOpen && this.openTitle === title;
+    clearTimeout(this.closeTimer);
+    root.classList.remove('closing');
     root.innerHTML = '';
     const card = document.createElement('div');
     card.className = 'card';
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-modal', 'true');
+    if (replacing) card.style.animation = 'none';
     const h = document.createElement('h2');
     h.textContent = title;
+    h.id = 'modal-title';
+    card.setAttribute('aria-labelledby', 'modal-title');
     card.appendChild(h);
+    const closable = opts.closable ?? !(buttons.length === 1 && buttons[0].label !== 'Schließen');
+    if (closable) {
+      const x = document.createElement('button');
+      x.className = 'card-x';
+      x.setAttribute('aria-label', 'Schließen');
+      x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+      x.addEventListener('click', () => {
+        sfx.click();
+        this.closeModal();
+      });
+      card.appendChild(x);
+    }
+    const content = document.createElement('div');
+    content.className = 'card-body';
     if (typeof body === 'string') {
       const p = document.createElement('p');
       p.textContent = body;
-      card.appendChild(p);
-    } else card.appendChild(body);
+      content.appendChild(p);
+    } else content.appendChild(body);
+    card.appendChild(content);
     const row = document.createElement('div');
     row.className = 'actions';
     for (const b of buttons) {
@@ -212,16 +398,31 @@ export class Hud {
     card.appendChild(row);
     root.appendChild(card);
     root.hidden = false;
-    (row.querySelector<HTMLButtonElement>('button.primary') ?? row.querySelector<HTMLButtonElement>('button'))?.focus();
+    if (!this.isOpen) root.style.animation = '';
+    else root.style.animation = 'none';
+    this.isOpen = true;
+    this.openTitle = title;
+    document.body.classList.add('modal-open');
+    $('#hud').classList.remove('menu-open');
+    (row.querySelector<HTMLButtonElement>('button.primary') ?? row.querySelector<HTMLButtonElement>('button'))?.focus({ preventScroll: true });
   }
 
   closeModal() {
-    $('#modal').hidden = true;
-    $('#modal').innerHTML = '';
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.openTitle = '';
+    document.body.classList.remove('modal-open');
+    const root = $('#modal');
+    root.classList.add('closing');
+    this.closeTimer = window.setTimeout(() => {
+      root.hidden = true;
+      root.innerHTML = '';
+      root.classList.remove('closing');
+    }, 180);
   }
 
   get modalOpen() {
-    return !$('#modal').hidden;
+    return this.isOpen;
   }
 
   confirmEndEvening() {

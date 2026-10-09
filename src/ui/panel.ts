@@ -1,15 +1,23 @@
-// Base for the foyer menus (shop, wardrobe, piano): a brass-framed panel that lays itself
-// out again when the screen switches between wide and narrow (phones).
+// Base for the foyer menus (shop, wardrobe, piano): a velvet panel in a brass frame with
+// moth corner ornaments. It lays itself out again when the screen switches between wide
+// and narrow (phones), flies in (280 ms, slight overshoot) and out (180 ms).
 
-import { Container, Graphics, Text } from 'pixi.js';
-import { COLORS, FONT_BODY, FONT_DISPLAY, glowText } from '../core/fx';
-import { tween } from '../core/tween';
-import { sfx } from '../core/audio';
+import { Container, Graphics, Sprite, Text } from 'pixi.js';
+import { COLORS } from '../core/fx';
+import { animate } from '../core/tween';
+import { button, type Button } from '../core/ui';
+import { paint, rrect, fillInk } from '../world/painted/brush';
 import { drawStone } from './stone';
+import { CREAM, PANEL_PAD, bodyText, closeKnob, enterMotion, leaveMotion, panelTexture, plaque, staggerIn } from './kit';
+
+/** Narrow layouts are drawn for this width, so phones show them at ~95 % size. */
+export const NARROW_W = 404;
 
 export abstract class Panel {
   readonly view = new Container();
   protected bg = new Graphics();
+  /** Scaled and animated as a whole around the screen centre. */
+  private stage = new Container();
   protected panel = new Container();
   protected narrow = false;
   protected W = 960;
@@ -20,10 +28,13 @@ export abstract class Panel {
   private built = false;
   private sw = 800;
   private sh = 600;
-  protected bgAlpha = 0.88;
+  /** How dark the world behind gets (the guide: 60 %). */
+  protected bgAlpha = 0.6;
+  private closing = false;
 
   constructor() {
-    this.view.addChild(this.bg, this.panel);
+    this.stage.addChild(this.panel);
+    this.view.addChild(this.bg, this.stage);
     this.view.eventMode = 'static';
   }
 
@@ -42,20 +53,23 @@ export abstract class Panel {
     this.sh = h;
     const n = w < 720;
     if (!this.built || n !== this.narrow) {
+      const first = !this.built;
       this.narrow = n;
       this.built = true;
       this.rebuild();
-      this.panel.alpha = 0;
-      void tween(this.panel, { alpha: 1 }, 220);
+      if (first) void enterMotion(this.stage);
     } else this.fit();
   }
 
   private fit() {
     const { sw: w, sh: h } = this;
     this.bg.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: this.bgAlpha });
-    const s = Math.min((w * 0.97) / this.W, (h * 0.95) / this.H, 1.1);
-    this.panel.scale.set(s);
-    this.panel.position.set((w - this.W * s) / 2, (h - this.H * s) / 2);
+    // The title plaque sticks out above the frame.
+    const top = 26;
+    const s = Math.min((w * 0.97) / this.W, (h * 0.97 - top) / this.H, 1.1);
+    this.stage.scale.set(s);
+    this.stage.position.set(w / 2, h / 2 + (top * s) / 2);
+    this.panel.position.set(-this.W / 2, -this.H / 2);
   }
 
   update(dtMs: number) {
@@ -63,82 +77,123 @@ export abstract class Panel {
     for (const t of this.tickers) t(this.time, dtMs);
   }
 
+  /** Flies out (180 ms), then frees everything. Safe to call more than once. */
   destroy() {
-    this.view.destroy({ children: true });
+    if (this.closing) return;
+    this.closing = true;
+    this.view.eventMode = 'none';
+    this.view.interactiveChildren = false;
+    const b = this.bg;
+    void animate(180, (k) => !b.destroyed && (b.alpha = 1 - k));
+    void leaveMotion(this.stage).then(() => !this.view.destroyed && this.view.destroy({ children: true }));
   }
 
   // ---- Shared pieces --------------------------------------------------------
 
-  /** Panel background with a brass frame, title and a close cross. */
-  protected frame(title: string, glow: number, onClose: () => void) {
+  /** Velvet panel with the brass frame, a title plaque on the top edge and the close knob. */
+  protected frame(title: string, accent: number, onClose: () => void) {
     const p = this.panel;
-    const g = new Graphics();
-    g.roundRect(6, 10, this.W, this.H, 30).fill({ color: 0x000000, alpha: 0.5 });
-    g.roundRect(0, 0, this.W, this.H, 30).fill(0x170b14).stroke({ color: COLORS.brass, width: 4 });
-    g.roundRect(12, 12, this.W - 24, this.H - 24, 22).stroke({ color: COLORS.brassDark, width: 1.5 });
-    for (const [x, y] of [[30, 30], [this.W - 30, 30], [30, this.H - 30], [this.W - 30, this.H - 30]]) g.circle(x, y, 5).fill(COLORS.brass);
-    p.addChild(g);
-    const t = glowText(title, { fontFamily: FONT_DISPLAY, fontSize: this.narrow ? 30 : 36, fill: 0xfff6e6, letterSpacing: 3 }, { color: glow, distance: 14, outerStrength: 2 });
-    t.position.set(this.W / 2, 50);
-    p.addChild(t);
-    const x = new Container();
-    const xg = new Graphics().circle(0, 0, 22).fill(0x2a1608).stroke({ color: COLORS.brass, width: 2.5 });
-    xg.moveTo(-8, -8).lineTo(8, 8).moveTo(8, -8).lineTo(-8, 8).stroke({ color: 0xfff1c4, width: 3, cap: 'round' });
-    x.addChild(xg);
-    x.position.set(this.W - 44, 44);
-    x.eventMode = 'static';
-    x.cursor = 'pointer';
-    x.on('pointertap', () => {
-      sfx.click();
-      onClose();
-    });
+    const bg = new Sprite(panelTexture(this.W, this.H, { accent: accentVelvet(accent) }));
+    bg.position.set(-PANEL_PAD, -PANEL_PAD);
+    p.addChild(bg);
+    const pl = plaque(title, { size: this.narrow ? 24 : 28, minW: this.narrow ? 220 : 300 });
+    pl.position.set(this.W / 2, 4);
+    p.addChild(pl);
+    const x = closeKnob(onClose);
+    x.position.set(this.W - 40, 40);
     p.addChild(x);
   }
 
-  /** "◆ 12 Mondsteine" */
+  /** Moonstone purse: a recessed velvet counter with the stone and the number. */
   protected stones(n: number, x: number, y: number, size = 22) {
     const c = new Container();
-    const s = drawStone(size * 0.6);
+    const t = bodyText(`${n}`, size + 4, 0xdff6ff, { bold: true });
+    const u = bodyText(n === 1 ? 'Mondstein' : 'Mondsteine', size - 4, 0xb9d6e6);
+    const w = Math.round(size * 2.2 + t.width + u.width + 18);
+    const h = Math.round(size * 1.9);
+    const plate = new Sprite(
+      paint(w + 6, h + 6, (cx) => {
+        cx.translate(3, 3);
+        rrect(cx, 0, 0, w, h, h / 2);
+        const g = cx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#0c0610');
+        g.addColorStop(1, '#2a1424');
+        fillInk(cx, g, 1.5);
+        rrect(cx, 0, 0, w, h, h / 2);
+        cx.strokeStyle = 'rgba(224,178,90,0.75)';
+        cx.lineWidth = 1.5;
+        cx.stroke();
+        cx.save();
+        rrect(cx, 0, 0, w, h, h / 2);
+        cx.clip();
+        cx.strokeStyle = 'rgba(0,0,0,0.6)';
+        cx.lineWidth = 6;
+        rrect(cx, 0, 2.5, w, h, h / 2);
+        cx.stroke();
+        cx.restore();
+      }, 2),
+    );
+    plate.position.set(-3, -h / 2 - 3);
+    c.addChild(plate);
+    const s = drawStone(size * 0.62);
+    s.position.set(h / 2 + 2, 0);
     c.addChild(s);
-    const t = this.text(`${n} Mondsteine`, size, 0xdff6ff, true);
     t.anchor.set(0, 0.5);
-    t.position.set(size * 0.9, 0);
-    c.addChild(t);
-    c.position.set(x, y);
+    t.position.set(h / 2 + size * 0.85, 0);
+    u.anchor.set(0, 0.5);
+    u.position.set(t.x + t.width + 6, 2);
+    c.addChild(t, u);
+    c.position.set(x - w / 2, y);
     this.panel.addChild(c);
     return c;
   }
 
   protected text(t: string, size: number, color: number, bold = false, wrap = 0) {
-    const x = new Text({
-      text: t,
-      style: { fontFamily: FONT_BODY, fontSize: size, fontWeight: bold ? '700' : '600', fill: color, wordWrap: wrap > 0, wordWrapWidth: wrap, align: wrap ? 'center' : 'left', lineHeight: Math.round(size * 1.2) },
-    });
+    const x: Text = bodyText(t, size, color === 0xfff6e6 ? CREAM : color, { bold, wrap: wrap || undefined });
     return x;
   }
 
-  /** Row(s) of pill tabs. */
-  protected tabs(labels: string[], active: number, y: number, onPick: (i: number) => void, perRow = labels.length, w = 160) {
+  /** Row(s) of tabs: velvet buttons, the chosen one in brass. Returns the buttons. */
+  protected tabs(labels: string[], active: number, y: number, onPick: (i: number) => void, perRow = labels.length, w = 160, x0?: number, areaW?: number) {
+    const out: Button[] = [];
+    const cx = x0 !== undefined && areaW !== undefined ? x0 + areaW / 2 : this.W / 2;
+    const h = 48;
     labels.forEach((l, i) => {
       const row = Math.floor(i / perRow);
       const inRow = Math.min(perRow, labels.length - row * perRow);
       const col = i % perRow;
-      const x = this.W / 2 + (col - (inRow - 1) / 2) * (w + 10);
-      const c = new Container();
+      const x = cx + (col - (inRow - 1) / 2) * (w + 8);
       const on = i === active;
-      const g = new Graphics().roundRect(-w / 2, -21, w, 42, 21).fill(on ? COLORS.brass : 0x2a1608).stroke({ color: on ? 0xfff1c4 : COLORS.brassDark, width: 2 });
-      const t = this.text(l, 18, on ? 0x1b1013 : 0xfff1c4, true);
-      t.anchor.set(0.5);
-      c.addChild(g, t);
-      c.position.set(x, y + row * 52);
-      c.eventMode = 'static';
-      c.cursor = 'pointer';
-      c.on('pointertap', () => {
-        if (on) return;
-        sfx.click();
-        onPick(i);
+      const b = button({
+        label: l,
+        width: w,
+        height: h,
+        color: on ? COLORS.brass : 0x3a1428,
+        textColor: on ? 0x2a1406 : 0xf2e6c9,
+        fontSize: 18,
+        display: false,
+        onClick: () => {
+          if (!on) onPick(i);
+        },
       });
-      this.panel.addChild(c);
+      b.position.set(x, y + row * (h + 8));
+      this.panel.addChild(b);
+      out.push(b);
     });
+    return out;
   }
+
+  /** Lets freshly built items pop in one after another. */
+  protected popIn(items: Container[]) {
+    staggerIn(items);
+  }
+}
+
+/** Corner inlay colour from a panel's accent (kept dark so it stays an ornament). */
+function accentVelvet(c: number) {
+  const r = (c >> 16) & 255;
+  const g = (c >> 8) & 255;
+  const b = c & 255;
+  const k = 0.42;
+  return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k);
 }

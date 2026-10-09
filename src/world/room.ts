@@ -13,7 +13,9 @@ import { drawTrophy } from './trophies';
 import { Player, type Avatar } from './player';
 import { Chibi } from './painted/chibi';
 import { paintShell, paintedElevator, paintedSign, type LightSpot } from './painted/foyerShell';
-import { buildPainted, paintedAchBoard, paintedVitrine } from './painted/foyerProps';
+import { paintedStation } from './painted/stations';
+import { buildPaintedDecor } from './painted';
+import { paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
@@ -108,7 +110,7 @@ export class RoomScene {
     private onInteract: (i: Interactable) => void,
   ) {
     this.def = getRoom(roomId);
-    this.painted = this.def.theme.style === 'foyer';
+    this.painted = true;
     this.view.addChild(this.world);
     this.buildShell();
     this.world.addChild(this.floorDecor, this.wallDecor);
@@ -314,7 +316,8 @@ export class RoomScene {
   private buildStations() {
     for (const st of this.def.stations) {
       const game = getGame(st.game);
-      const c = game.drawStation(st.options ?? {});
+      const painted = this.painted ? paintedStation(st.game, st.options ?? {}) : null;
+      const c = painted ?? game.drawStation(st.options ?? {});
       c.position.set(st.x, st.y);
       c.zIndex = st.y + game.footprint.h;
       this.entities.addChild(c);
@@ -323,7 +326,7 @@ export class RoomScene {
       if (st.label) {
         const t = new Text({ text: st.label.toUpperCase(), style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0xfff6e6, letterSpacing: 1 } });
         t.anchor.set(0.5, 1);
-        t.position.set(game.footprint.w / 2, -4);
+        t.position.set(game.footprint.w / 2, painted?.labelY ?? -4);
         t.alpha = 0.8;
         c.addChild(t);
       }
@@ -369,7 +372,7 @@ export class RoomScene {
         continue;
       }
       // The painted look returns several pieces (a counter and its shopkeeper); the first is the prop itself.
-      const parts = (this.painted && buildPainted(d, this.def.theme)) || [buildDecor(d, this.def.theme)].filter((x): x is BuiltDecor => !!x);
+      const parts = (this.painted && buildPaintedDecor(d, this.def.theme)) || [buildDecor(d, this.def.theme)].filter((x): x is BuiltDecor => !!x);
       const b = parts[0];
       if (!b) continue;
       if (d.kind === 'entrance') this.entrance = b;
@@ -853,7 +856,7 @@ export class RoomScene {
   /** Where the Moth Queen floats, for effects aimed at her. */
   bossPoint() {
     const d = this.def.decor.find((x) => x.kind === 'throne');
-    return d ? this.toScreen(d.x, d.y - 90) : null;
+    return d ? this.toScreen(d.x, d.y - (this.painted ? 196 : 90)) : null;
   }
 
   // ---- Input ------------------------------------------------------------

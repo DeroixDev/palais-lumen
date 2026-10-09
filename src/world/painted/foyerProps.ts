@@ -10,7 +10,7 @@ import { Chibi } from './chibi';
 import { P_WALL_H } from './foyerShell';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from './brush';
 
-function glow(c: Container, x: number, y: number, w: number, h: number, tint: number, alpha: number) {
+export function glow(c: Container, x: number, y: number, w: number, h: number, tint: number, alpha: number) {
   const s = new Sprite(glowTexture());
   s.anchor.set(0.5);
   s.position.set(x, y);
@@ -23,19 +23,19 @@ function glow(c: Container, x: number, y: number, w: number, h: number, tint: nu
   return s;
 }
 
-function kicker(ms = 900) {
+export function kicker(ms = 900) {
   let k = 0;
   return { poke: () => void (k = 1), step: (dt: number) => (k = Math.max(0, k - dt / ms)) };
 }
 
-const box = (x: number, y: number, w: number, h: number): Rect => ({ x: x - w / 2, y: y - h / 2, w, h });
+export const box = (x: number, y: number, w: number, h: number): Rect => ({ x: x - w / 2, y: y - h / 2, w, h });
 
-function ent(view: Container, obstacles: Rect[], z: number, update?: BuiltDecor['update'], poke?: () => void): BuiltDecor {
+export function ent(view: Container, obstacles: Rect[], z: number, update?: BuiltDecor['update'], poke?: () => void): BuiltDecor {
   return { view, layer: 'entities', obstacles, z, update, poke };
 }
 
 /** A candle or bulb flame with a flickering glow. */
-function flame(c: Container, x: number, y: number, size = 1, tint = 0xffb347) {
+export function flame(c: Container, x: number, y: number, size = 1, tint = 0xffb347) {
   const f = new Graphics();
   f.ellipse(0, -4 * size, 3 * size, 6 * size).fill(0xffb347);
   f.ellipse(0, -3 * size, 1.5 * size, 3.4 * size).fill(0xfff6d0);
@@ -51,7 +51,7 @@ function flame(c: Container, x: number, y: number, size = 1, tint = 0xffb347) {
 }
 
 /** Brass cylinder pot in the slanted view. */
-function pot(c: Ctx, w: number, h: number, col?: number) {
+export function pot(c: Ctx, w: number, h: number, col?: number) {
   const rx = w / 2;
   const ry = w * 0.22;
   shadow(c, 3, 2, rx + 12, ry + 6, 0.55);
@@ -77,7 +77,7 @@ function pot(c: Ctx, w: number, h: number, col?: number) {
   c.fillRect(-rx * 0.6, -h + ry + 2, 3, h * 0.6);
 }
 
-function leaf(c: Ctx, x: number, y: number, ang: number, len: number, wid: number, col: number) {
+export function leaf(c: Ctx, x: number, y: number, ang: number, len: number, wid: number, col: number) {
   c.save();
   c.translate(x, y);
   c.rotate(ang);
