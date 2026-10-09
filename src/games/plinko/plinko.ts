@@ -738,6 +738,7 @@ export const plinko: GameDefinition = {
   name: 'Mottenfall',
   houseEdge: 1 - returnToPlayer('mid'),
   footprint: { w: 76, h: 64 },
+  size: 'cabinet',
   drawStation,
   create: (ctx) => new PlinkoGame(ctx),
 };

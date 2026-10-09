@@ -117,6 +117,11 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     a.close();
     a.jumpToDay(BOSS_DAY);
   });
+  btn(days, 'Spiele neu würfeln', () => {
+    d.counters.rotSalt = (d.counters.rotSalt ?? 0) + 1;
+    a.close();
+    a.jumpToDay(d.evening.number);
+  });
   btn(days, 'Tag jetzt abrechnen', () => {
     a.close();
     a.endDay();

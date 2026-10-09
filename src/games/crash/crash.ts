@@ -921,6 +921,7 @@ export const crash: GameDefinition = {
   name: 'Mondflug',
   houseEdge: 1 - RTP,
   footprint: { w: 120, h: 84 },
+  size: 'table',
   drawStation,
   create: (ctx) => new CrashGame(ctx),
 };

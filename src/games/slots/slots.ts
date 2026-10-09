@@ -1101,6 +1101,7 @@ export const slots: GameDefinition = {
   name: 'Slot-Automat',
   houseEdge: 1 - returnToPlayer(),
   footprint: { w: 62, h: 50 },
+  size: 'cabinet',
   drawStation,
   create: (ctx) => new SlotGame(ctx),
 };

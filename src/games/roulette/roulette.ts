@@ -938,6 +938,7 @@ export const roulette: GameDefinition = {
   name: 'Roulette',
   houseEdge: HOUSE_EDGE,
   footprint: { w: 150, h: 84 },
+  size: 'table',
   drawStation,
   create: (ctx) => new RouletteGame(ctx),
 };

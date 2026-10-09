@@ -25,6 +25,7 @@ import { Season } from './ui/season';
 import { StampCardPanel } from './ui/stampCard';
 import { setupFeel } from './ui/feel';
 import { initFocus } from './core/focus';
+import { installRotation } from './core/rotation';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -89,6 +90,7 @@ async function boot() {
   const measureTop = () => (TOP = hudEl.hidden ? 0 : Math.ceil(hudEl.getBoundingClientRect().height));
 
   const state = new GameState(latestSave() ?? newSave());
+  installRotation(state);
   let mode: Mode = 'title';
   let room!: RoomScene;
   let game: GameInstance | null = null;
@@ -698,6 +700,8 @@ async function boot() {
     (window as any).__nf = {
       state,
       openStation: (roomIdx: number) => openGame(room.def.stations[roomIdx]),
+      // Opens any registered game directly (for testing new games without the rotation).
+      openGame: (id: string, options: Record<string, unknown> = {}) => openGame({ game: id, x: 0, y: 0, label: getGame(id).name, options }),
       closeGame,
       endEvening,
       openVitrine,

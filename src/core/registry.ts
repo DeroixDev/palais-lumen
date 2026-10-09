@@ -43,6 +43,13 @@ export interface GameDefinition {
   houseEdge: number;
   /** Footprint of the machine/table in the top-down room, in world pixels. */
   footprint: { w: number; h: number };
+  /**
+   * Which room spots it fits: a 'cabinet' (machine, at most 76×64) stands in a bank of
+   * machines, a 'table' (at most 150×84) on a table spot. The daily rotation uses this.
+   */
+  size: 'cabinet' | 'table';
+  /** One line for the elevator panel / day card: what the game is about. */
+  blurb?: string;
   /** Draws the machine/table as seen from above. Origin is the top-left of the footprint. */
   drawStation(options: Record<string, unknown>): Container;
   create(ctx: GameContext): GameInstance;
@@ -144,10 +151,40 @@ export function getGame(id: string) {
   return g;
 }
 
+/** Decides which games stand where today (see src/core/rotation.ts). Identity until set. */
+let resolveStations: (def: RoomDefinition) => StationPlacement[] = (def) => def.stations;
+const resolved = new Map<RoomDefinition, { key: string; def: RoomDefinition }>();
+let resolverKey: () => string = () => '';
+
+export function setStationResolver(fn: (def: RoomDefinition) => StationPlacement[], key: () => string) {
+  resolveStations = fn;
+  resolverKey = key;
+  resolved.clear();
+}
+
+/** The room as it stands today: same walls and decor, today's games on its spots. */
+function today(def: RoomDefinition): RoomDefinition {
+  const key = resolverKey();
+  const hit = resolved.get(def);
+  if (hit && hit.key === key) return hit.def;
+  const d = { ...def, stations: resolveStations(def) };
+  resolved.set(def, { key, def: d });
+  return d;
+}
+
+export function allGames() {
+  return [...games.values()];
+}
+
 export function getRoom(id: string) {
-  return rooms.get(id) ?? rooms.get('f1')!;
+  return today(rooms.get(id) ?? rooms.get('f1')!);
 }
 
 export function allRooms() {
-  return [...rooms.values()];
+  return [...rooms.values()].map(today);
+}
+
+/** The room as written in its file, before the daily rotation. */
+export function baseRoom(id: string) {
+  return rooms.get(id) ?? rooms.get('f1')!;
 }

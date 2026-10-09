@@ -403,7 +403,16 @@ function crashTable(): PaintedStation {
   return c;
 }
 
+const extraStations = new Map<string, (options: Record<string, unknown>) => PaintedStation>();
+
+/** New games bring their own painted machine/table: register it here (from the game's file). */
+export function registerPaintedStation(game: string, build: (options: Record<string, unknown>) => PaintedStation) {
+  extraStations.set(game, build);
+}
+
 export function paintedStation(game: string, options: Record<string, unknown>): PaintedStation | null {
+  const extra = extraStations.get(game);
+  if (extra) return extra(options);
   switch (game) {
     case 'slots':
       return slotCabinet(options);
