@@ -5,7 +5,7 @@
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { FONT_BODY, glowTexture } from '../core/fx';
-import { getGame, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { allRooms, getGame, type RoomDefinition, type StationPlacement } from '../core/registry';
 import { floorForDay, type GameState, type Quest } from '../core/state';
 import { closedGames, currentEvent } from '../core/events';
 import { STAMP_REWARDS, hasReward } from '../core/stamps';
@@ -16,6 +16,8 @@ import { GOLD, INK, ellipse, fillInk, glowAt, gold, paint, propSprite, rgb, rrec
 import type { PlayerLook } from './player';
 import type { Rect } from './decor';
 import { WALL_H } from './styles';
+import { programBoardSprite } from './programBoard';
+import { floorPlan } from '../ui/schedule';
 
 /** The bits of the room the extras build into. */
 export interface ExtrasHost {
@@ -233,7 +235,7 @@ export class RoomExtras {
   /** What the room shows depends on these; rebuilt when they change. */
   private signature() {
     const d = this.state.data;
-    return [d.event, d.evening.number, d.stampRewards.join(','), closedGames(d).join(','), d.quests.map((q) => `${q.id}:${q.accepted ? 1 : 0}${q.done ? 1 : 0}:${q.have}`).join('|')].join('#');
+    return [d.event, d.evening.number, d.season.number, d.counters.rotSalt ?? 0, d.stampRewards.join(','), closedGames(d).join(','), d.quests.map((q) => `${q.id}:${q.accepted ? 1 : 0}${q.done ? 1 : 0}:${q.have}`).join('|')].join('#');
   }
 
   /** Rebuilds now if what the room shows has changed (instead of waiting for the next state change). */
@@ -282,6 +284,7 @@ export class RoomExtras {
     if (ev?.dark) this.candlelight();
     if (this.today) this.placeGivers();
     if (this.def.floor === 0) this.receptionStand();
+    if (this.def.floor === 0) this.programBoard();
   }
 
   // ---- Stations: closed games and golden upgrades ---------------------------------------------
@@ -544,6 +547,26 @@ export class RoomExtras {
     this.host.obstacles.push(o);
     this.ownObstacles.push(o);
     const it: ExtraInteractable = { kind: 'extra', id: 'stamps', x, y: y + 40, title: 'Stammkunden-Karte' };
+    this.host.interactables.push(it);
+    this.own.push(it);
+  }
+
+  // ---- Foyer: today's programme on an easel by the elevator ------------------------------------
+
+  private programBoard() {
+    const x = this.def.elevatorX - 118;
+    const y = WALL_H + 92;
+    const top = this.state.topFloor;
+    const rows = allRooms()
+      .filter((r) => r.floor > 0)
+      .map((r) => ({ floor: r.floor, games: floorPlan(this.state, r), locked: r.floor > top }));
+    const s = programBoardSprite(x, y, rows);
+    s.zIndex = y;
+    this.put(s);
+    const o = { x: x - 30, y: y - 10, w: 60, h: 14 };
+    this.host.obstacles.push(o);
+    this.ownObstacles.push(o);
+    const it: ExtraInteractable = { kind: 'extra', id: 'program', x, y: y + 40, title: 'Programm des Tages' };
     this.host.interactables.push(it);
     this.own.push(it);
   }

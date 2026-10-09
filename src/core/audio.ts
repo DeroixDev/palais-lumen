@@ -371,6 +371,25 @@ class Sfx {
   shimmer() {
     [1046, 1318, 1568, 2093].forEach((f, i) => this.bell(f, 0.04, i * 0.08, 1));
   }
+  /** Sternenhimmel: a shooting star streaks across the dome. */
+  starFall() {
+    this.noise(0.32, 0.07, 0, 5200, 'bandpass', 2, this.fx, 1400);
+    this.tone(2600, 0.28, 'sine', 0.018, 0, 1300);
+  }
+  /** Sternenhimmel: a picked star is hit; the pitch climbs with every hit. */
+  starHit(i: number) {
+    const f = 587 * Math.pow(2, (i * 2) / 12);
+    this.bell(f, 0.16, 0, 0.9);
+    this.bell(f * 1.5, 0.07, 0.06, 0.6);
+  }
+  /** Kratzglück: a short burst of a coin scraping over the coating. */
+  scratch() {
+    this.noise(0.07, 0.06, 0, 2600 + Math.random() * 1800, 'bandpass', 1.4);
+  }
+  /** Glühwürmchen-Bingo: a firefly settles on a number. */
+  firefly(hit: boolean) {
+    this.bell(hit ? 1568 + Math.random() * 200 : 1175 + Math.random() * 300, hit ? 0.1 : 0.04, 0, hit ? 0.7 : 0.3);
+  }
   /** The Moth Queen enters a new phase: a low drum, a dark minor stab and a wing rush. */
   bossSting(phase = 2) {
     const root = phase >= 3 ? 98 : 110;
@@ -457,6 +476,42 @@ class Sfx {
     this.noise(1.1, 0.3, 0, 300, 'bandpass', 0.8, this.fx, 1400);
     this.noise(0.9, 0.18, 0.2, 1800, 'bandpass', 2, this.fx, 500);
     this.tone(400, 0.6, 'sine', 0.1, 0, 120);
+  }
+
+  // ---- Teich-Derby, Eisstraße, Zielscheibe ---------------------------------
+
+  /** A rubber-duck quack (two nasal saw blips). */
+  quack(pitch = 1) {
+    this.tone(560 * pitch, 0.12, 'sawtooth', 0.05, 0, 380 * pitch);
+    this.noise(0.1, 0.08, 0, 1300 * pitch, 'bandpass', 5);
+    this.tone(520 * pitch, 0.1, 'sawtooth', 0.04, 0.13, 360 * pitch);
+  }
+  /** Water splash: a noise burst falling in pitch and a few droplets. */
+  splash(big = 1) {
+    this.noise(0.5 * big, 0.3, 0, 2400, 'bandpass', 0.8, this.fx, 500);
+    this.tone(180, 0.25, 'sine', 0.15 * big, 0, 70);
+    for (let i = 0; i < 4; i++) this.tone(1200 + Math.random() * 900, 0.06, 'sine', 0.04, 0.12 + i * 0.07, 1800);
+  }
+  /** Dart into a cork target: a dull wooden thunk with a short twang. */
+  thunk() {
+    this.tone(150, 0.16, 'sine', 0.5, 0, 70);
+    this.noise(0.05, 0.4, 0, 1100, 'lowpass', 1);
+    this.tone(420, 0.3, 'triangle', 0.05, 0.02, 380);
+  }
+  /** Ice cracking: sharp crackles. */
+  iceCrack() {
+    for (let i = 0; i < 6; i++) this.noise(0.03, 0.35 - i * 0.04, i * 0.045 + Math.random() * 0.02, 3000 + Math.random() * 2500, 'bandpass', 4);
+    this.tone(90, 0.3, 'sine', 0.2, 0.05, 50);
+  }
+  /** A light hop onto ice: soft tap plus a glassy ping. */
+  hop(step = 0) {
+    this.noise(0.03, 0.25, 0, 2200, 'bandpass', 3);
+    this.bell(1046 * Math.pow(2, Math.min(step, 14) / 12), 0.07, 0.01, 0.35);
+  }
+  /** Starting pistol for the duck race. */
+  starter() {
+    this.noise(0.18, 0.55, 0, 1800, 'lowpass', 0.7);
+    this.tone(90, 0.2, 'sine', 0.3, 0, 45);
   }
 
   // ---- Arrival ------------------------------------------------------------
@@ -1027,6 +1082,84 @@ class Sfx {
     if (rec.bossa) this.noise(0.03, 0.035, d + (b % 2 ? swing : 0), 6000, 'highpass', 1, out);
     else if (b === 1 || b === 3) this.noise(spb * 0.6, 0.05, d, 5000, 'bandpass', 0.7, out);
     this.noise(0.04, 0.025, d + swing, 7000, 'highpass', 1, out);
+  }
+
+  // ---- Diamantminen, Drachenturm, Mondmünze ------------------------------------------
+
+  /** A stone cracking open (Diamantminen). */
+  crack() {
+    this.noise(0.05, 0.35, 0, 2400, 'bandpass', 3);
+    this.noise(0.12, 0.22, 0.04, 900, 'bandpass', 2);
+    this.tone(160, 0.12, 'sine', 0.18, 0.02, 90);
+  }
+  /** A soft puff of smoke: no bang, just air and a low thump. */
+  puff() {
+    this.noise(0.7, 0.22, 0, 700, 'lowpass', 0.8, this.fx, 200);
+    this.tone(110, 0.35, 'sine', 0.16, 0, 60);
+  }
+  /** A brass coin flicked into the air: a ring that wobbles while it spins. */
+  coinFlip() {
+    this.noise(0.03, 0.3, 0, 3800, 'bandpass', 5);
+    for (let i = 0; i < 6; i++) this.bell(2400 + (i % 2) * 300, 0.035 * (1 - i / 7), 0.05 + i * 0.09, 0.15);
+  }
+  /** The coin landing on brass, with a short rattle. */
+  coinLand() {
+    this.bell(1760, 0.12, 0, 0.5);
+    for (let i = 0; i < 4; i++) this.bell(2200 + Math.random() * 300, 0.05 * (1 - i / 5), 0.08 + i * 0.05 * (1 - i * 0.12), 0.12);
+  }
+  /** A heavy wooden door creaking open (Drachenturm). */
+  creak() {
+    this.tone(180, 0.35, 'sawtooth', 0.025, 0, 120, this.fx, 0.05);
+    this.noise(0.3, 0.08, 0, 600, 'bandpass', 4, this.fx, 300);
+  }
+
+  // ---- Straßenwürfel, Großes Rad, Drei Laternen ----------------------------
+
+  /** A bone die hitting stone (strength 0..1): a dry click with a short knock. */
+  diceHit(strength = 1) {
+    const v = Math.max(0.05, Math.min(1, strength));
+    this.noise(0.025, 0.4 * v, 0, 2600 + Math.random() * 900, 'bandpass', 4);
+    this.tone(260 + Math.random() * 80, 0.06, 'triangle', 0.12 * v, 0, 180);
+  }
+  /** The wheel's leather clicker snapping over a peg. */
+  clicker() {
+    this.noise(0.016, 0.22, 0, 3200 + Math.random() * 400, 'bandpass', 5);
+    this.tone(1500, 0.02, 'square', 0.015);
+  }
+  /** Soft wing beats of a moth leaving its hiding place. */
+  flutter() {
+    for (let i = 0; i < 5; i++) this.noise(0.05, 0.09 * (1 - i / 6), i * 0.07, 900 + i * 120, 'bandpass', 1.5);
+  }
+
+  // ---- Falter-Poker ------------------------------------------------------------------------
+
+  /** A card snapping over on the felt; `i` lifts the pitch a little per card. */
+  pokerCard(i = 0) {
+    this.noise(0.05, 0.3, 0, 2600 + i * 160, 'bandpass', 2.5, this.fx, 5200);
+    this.noise(0.02, 0.22, 0.045, 1400, 'bandpass', 3);
+    this.tone(320 + i * 30, 0.05, 'triangle', 0.05, 0.04);
+  }
+  /** Hold toggle: a brass latch, brighter when it locks. */
+  pokerHold(on: boolean) {
+    this.noise(0.025, 0.3, 0, on ? 3800 : 2400, 'bandpass', 5);
+    this.tone(on ? 880 : 520, 0.09, 'triangle', 0.09, 0.01, on ? 1320 : 400);
+  }
+
+  // ---- Card tables (Blackjack, Baccarat, Kartenleiter) ---------------------
+
+  /** A card sliding off the shoe and slapping onto the felt. */
+  cardDeal() {
+    this.noise(0.09, 0.16, 0, 1800, 'bandpass', 0.8, this.fx, 4200);
+    this.noise(0.035, 0.32, 0.08, 1200, 'lowpass', 1);
+  }
+  /** A card turned over: a soft snap. */
+  cardFlip() {
+    this.noise(0.05, 0.22, 0, 3000, 'bandpass', 2);
+    this.tone(900, 0.04, 'triangle', 0.03, 0.01);
+  }
+  /** The slow peel of a squeezed card: paper creaking upwards. */
+  cardPeel(duration = 0.8) {
+    this.noise(duration, 0.08, 0, 700, 'bandpass', 3, this.fx, 2600);
   }
 }
 

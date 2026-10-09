@@ -31,8 +31,8 @@ export const f3: RoomDefinition = {
     { game: 'roulette', x: 625, y: 420, label: 'Räderwerk', options: { minBet: 20 } },
     { game: 'plinko', x: 130, y: 560, label: 'Mottenfall' },
     { game: 'plinko', x: 250, y: 560, label: 'Mottenfall' },
-    { game: 'crash', x: 1010, y: 440, label: 'Mondflug' },
-    { game: 'crash', x: 1180, y: 440, label: 'Mondflug' },
+    { game: 'crash', x: 1010, y: 360, label: 'Mondflug' },
+    { game: 'crash', x: 1180, y: 360, label: 'Mondflug' },
   ],
   decor: [
     { kind: 'gearInlay', x: 700, y: 462, w: 300 },

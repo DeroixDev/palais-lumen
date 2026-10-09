@@ -13,6 +13,7 @@ import { getGame } from '../core/registry';
 import { DayBoard, QuestDialog, eventRibbon } from './dayBoard';
 import { StampCardPanel, StampPopup } from './stampCard';
 import { GameChip } from './gameChip';
+import { ProgramPanel } from './program';
 import { reducedMotion } from '../core/fx';
 
 interface Overlay {
@@ -142,6 +143,11 @@ export class DayFeatures {
     if (id === 'stamps') {
       sfx.deskBell();
       this.deps.showOverlay(new StampCardPanel(this.state, () => this.deps.closeOverlay()));
+      return;
+    }
+    if (id === 'program') {
+      sfx.rustle();
+      this.deps.showOverlay(new ProgramPanel(this.state, () => this.deps.closeOverlay()));
       return;
     }
     if (id.startsWith('quest:')) {

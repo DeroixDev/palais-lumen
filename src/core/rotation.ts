@@ -70,24 +70,33 @@ export function todaysStations(def: RoomDefinition, season: number, day: number,
     cabinet: shuffle(allGames().filter((g) => g.size === 'cabinet'), rand),
     table: shuffle(allGames().filter((g) => g.size === 'table'), rand),
   };
-  const next: Record<'cabinet' | 'table', number> = { cabinet: 0, table: 0 };
+  const used: Record<'cabinet' | 'table', Set<string>> = { cabinet: new Set(), table: new Set() };
+  // A table only goes where it fits: a 150-wide roulette or derby table on a 120 spot would
+  // reach into the decor next to it. Machines all fit a bank (at most 76 on an 80 pitch).
+  const fits = (g: GameDefinition, spots: Spot[]) => g.size === 'cabinet' || g.footprint.w <= Math.min(...spots.map((s) => s.w)) + 10;
   const out: StationPlacement[] = [];
   for (const group of shuffle(groupsOf(def), rand)) {
     const pool = pools[group.size];
     if (!pool.length) continue;
     // Distinct games until the pool runs out, then round again.
-    const game = pool[next[group.size]++ % pool.length];
+    const taken = used[group.size];
+    if (taken.size >= pool.length) taken.clear();
+    const fresh = pool.filter((g) => !taken.has(g.id));
+    const game = fresh.find((g) => fits(g, group.spots)) ?? pool.find((g) => fits(g, group.spots)) ?? fresh[0];
+    taken.add(game.id);
     const options: Record<string, unknown> = game.id === 'slots' ? { theme: SLOT_THEMES[Math.floor(rand() * SLOT_THEMES.length)] } : {};
-    for (const s of group.spots) {
+    // One name sign per bank (over its middle machine), so long names don't run into each other.
+    const signAt = Math.floor((group.spots.length - 1) / 2);
+    group.spots.forEach((s, k) => {
       out.push({
         game: game.id,
         // Centre a smaller machine on the spot, standing on the same floor line.
         x: Math.round(s.x + (s.w - game.footprint.w) / 2),
         y: Math.round(s.y + s.h - game.footprint.h),
-        label: game.name,
+        label: k === signAt ? game.name : undefined,
         options,
       });
-    }
+    });
   }
   return out;
 }

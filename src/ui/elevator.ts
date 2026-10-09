@@ -12,6 +12,8 @@ import { focusable } from '../core/focus';
 import { sfx } from '../core/audio';
 import { INK, fillInk, glowAt, paint, rrect, seeded, type Ctx } from '../world/painted/brush';
 import { enterMotion, leaveMotion, screw } from './kit';
+import { gameIcon } from './gameIcons';
+import { floorPlan } from './schedule';
 
 /** First day a floor can be reached. */
 export function floorOpensOnDay(floor: number) {
@@ -332,7 +334,8 @@ export class ElevatorPanel {
     this.newBadge = null;
     this.needle = new Container();
     const W = (this.W = n ? 404 : 640);
-    const rowH = n ? 70 : 64;
+    // Narrow rows get a third line for today's games (src/ui/schedule.ts).
+    const rowH = n ? 86 : 64;
     const dialR = n ? 116 : 150;
     const dialY = n ? 206 : 232;
     const row0 = dialY + (n ? 40 : 54);
@@ -408,22 +411,48 @@ export class ElevatorPanel {
         row.addChild(lk);
       }
       const tx = kx + kr + (n ? 14 : 20);
+      const plan = f > 0 ? floorPlan(this.state, room) : [];
+      const three = n && plan.length > 0;
+      const nameY = three ? -24 : -11;
+      const tagY = three ? 0 : 14;
       const status = new Text({
         text: f === current ? 'HIER' : locked ? `ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : f === top && f > 0 ? 'HEUTE' : '',
         style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '700', fill: f === current ? 0x14501e : locked ? 0x5a3a14 : 0x5a1a6a },
       });
       status.anchor.set(1, 0.5);
-      status.position.set(W - rx - 14, -11);
+      status.position.set(W - rx - 14, nameY);
       row.addChild(status);
       const maxName = W - rx - 14 - tx - (status.text ? status.width + 10 : 0);
       const name = new Text({ text: room.name, style: { fontFamily: FONT_DISPLAY, fontSize: n ? 19 : 21, fill: locked ? 0x6a4a20 : 0x2a1406, dropShadow: { color: 0xfff4d0, alpha: 0.5, blur: 0, distance: 1.2, angle: Math.PI / 2 } } });
       name.anchor.set(0, 0.5);
-      name.position.set(tx, -11);
+      name.position.set(tx, nameY);
       if (name.width > maxName) name.scale.set(maxName / name.width);
       const tag = new Text({ text: room.tagline, style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '600', fill: locked ? 0x6a4a20 : 0x4a2a10 } });
       tag.anchor.set(0, 0.5);
-      tag.position.set(tx, 14);
-      const maxTag = W - rx - 14 - tx;
+      tag.position.set(tx, tagY);
+      // Today's games: small medallions, a pink dot on the ones new on this floor today.
+      const iconS = n ? 24 : 24;
+      const step = iconS + 4;
+      const iconsW = plan.length * step;
+      const iconRight = W - rx - 14 - (f === this.highlight && !locked ? 76 : 0);
+      plan.forEach((g, k) => {
+        const ic = gameIcon(g.id, iconS);
+        ic.position.set(three ? tx + iconS / 2 + k * step : iconRight - iconsW + iconS / 2 + k * step, three ? 26 : tagY);
+        if (locked) ic.alpha = 0.5;
+        row.addChild(ic);
+        if (g.isNew) {
+          const dot = new Sprite(glowTexture());
+          dot.anchor.set(0.5);
+          dot.tint = 0xff5fa2;
+          dot.width = dot.height = 14;
+          dot.position.set(ic.x + iconS * 0.36, ic.y - iconS * 0.36);
+          const pip = new Text({ text: '●', style: { fontFamily: FONT_BODY, fontSize: 11, fill: 0xff5fa2 } });
+          pip.anchor.set(0.5);
+          pip.position.copyFrom(dot.position);
+          row.addChild(dot, pip);
+        }
+      });
+      const maxTag = (three || !plan.length ? W - rx - 14 : iconRight - iconsW - 10) - tx;
       if (tag.width > maxTag) tag.scale.set(maxTag / tag.width);
       row.addChild(name, tag);
       if (f === this.highlight && !locked) {

@@ -8,7 +8,7 @@ import { ease, tween, wait } from '../core/tween';
 import { leavePhoto } from './photo';
 
 /** Builds the card, centred in the upper third of the screen below the HUD, and runs its animation. */
-export function dayCard(title: string, sub: string, screenW: number, screenH: number, top = 64, extra: Container | null = null) {
+export function dayCard(title: string, sub: string, screenW: number, screenH: number, top = 64, extra: Container | null = null, games: Container | null = null) {
   leavePhoto();
   // On narrow screens the goal line breaks in two, so it stays at least 14 px tall.
   const narrow = screenW < 560;
@@ -29,8 +29,15 @@ export function dayCard(title: string, sub: string, screenW: number, screenH: nu
     extra.y = tex.height / 2 - 46;
     c.addChild(extra);
   }
-  const fit = Math.min(1, (screenW - 24) / visW);
-  c.position.set(screenW / 2, Math.max(top + (tex.height * fit) / 2, screenH * 0.34));
+  // Today's games on this floor ("Spielplan", src/ui/schedule.ts) below that.
+  if (games) {
+    games.y = extra ? extra.y + extra.height + 8 : tex.height / 2 - 40;
+    c.addChild(games);
+  }
+  // Everything has to fit between the HUD and the bottom edge (landscape phones).
+  const bottom = Math.max(tex.height / 2, ...[extra, games].map((x) => (x ? x.y + x.height : 0)));
+  const fit = Math.min(1, (screenW - 24) / visW, (screenH - top - 16) / (bottom + tex.height / 2));
+  c.position.set(screenW / 2, Math.max(top + 8 + (tex.height * fit) / 2, Math.min(screenH * 0.34, screenH - 8 - bottom * fit)));
   c.alpha = 0;
   c.eventMode = 'none';
   announce(`${title.charAt(0)}${title.slice(1).toLowerCase()}. ${sub.replace('\n', ' ')}`);
@@ -40,7 +47,7 @@ export function dayCard(title: string, sub: string, screenW: number, screenH: nu
     tex.destroy(true);
   };
   void Promise.all([tween(c, { alpha: 1 }, 280, ease.outCubic), calm ? Promise.resolve() : tween(c.scale, { x: fit, y: fit }, 280, ease.outBack)])
-    .then(() => wait(extra ? 3600 : 2400))
+    .then(() => wait(extra || games ? 3600 + (extra && games ? 1200 : 0) : 2400))
     .then(() => Promise.all([tween(c, { alpha: 0 }, 180, ease.inCubic), calm ? Promise.resolve() : tween(c.scale, { x: fit * 0.97, y: fit * 0.97 }, 180, ease.inCubic)]))
     .then(() => {
       if (!c.destroyed) c.destroy({ children: true });

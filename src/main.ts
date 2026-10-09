@@ -20,6 +20,7 @@ import { ShopPanel } from './ui/shop';
 import { WardrobePanel } from './ui/wardrobe';
 import { PianoPanel } from './ui/piano';
 import { dayCard } from './ui/dayCard';
+import { scheduleStrip } from './ui/schedule';
 import { DayFeatures } from './ui/dayFeatures';
 import { Season } from './ui/season';
 import { StampCardPanel } from './ui/stampCard';
@@ -761,7 +762,7 @@ async function boot() {
   function eveningCard() {
     const d = state.data;
     const goal = `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`;
-    const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP, days.ribbon(app.screen.width));
+    const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP, days.ribbon(app.screen.width), scheduleStrip(state, room.def, app.screen.width));
     particles.view.addChild(c);
     sfx.win();
   }
