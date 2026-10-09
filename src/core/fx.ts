@@ -1,6 +1,7 @@
 // Shared visual effects: textures, particles, screen shake, floating text, counters.
 
-import { Container, Sprite, Text, Texture, type Renderer } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
+import { GlowFilter } from 'pixi-filters';
 import { animate, ease, tween } from './tween';
 import { formatChips } from './state';
 
@@ -59,30 +60,86 @@ export function gradientTexture(key: string, w: number, h: number, stops: [numbe
   });
 }
 
-export function coinTexture() {
-  return canvasTexture('coin', 64, 64, (c) => {
-    const g = c.createRadialGradient(24, 22, 4, 32, 32, 30);
-    g.addColorStop(0, '#fff3c4');
-    g.addColorStop(0.5, '#f0c25a');
-    g.addColorStop(1, '#a8741f');
-    c.fillStyle = g;
+/** Draws the Nachtfalter moth (the brand mark) on a 2D canvas. */
+export function drawMoth(c: CanvasRenderingContext2D, cx: number, cy: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
+  c.save();
+  c.fillStyle = wing;
+  for (const side of [-1, 1]) {
     c.beginPath();
-    c.arc(32, 32, 29, 0, Math.PI * 2);
+    c.ellipse(cx + side * 0.27 * s, cy - 0.1 * s, 0.3 * s, 0.19 * s, side * -0.45, 0, Math.PI * 2);
     c.fill();
-    c.strokeStyle = '#7a5214';
-    c.lineWidth = 3;
-    c.stroke();
-    c.strokeStyle = 'rgba(255,240,190,0.8)';
-    c.lineWidth = 2;
     c.beginPath();
-    c.arc(32, 32, 20, 0, Math.PI * 2);
+    c.ellipse(cx + side * 0.18 * s, cy + 0.17 * s, 0.18 * s, 0.13 * s, side * 0.6, 0, Math.PI * 2);
+    c.fill();
+  }
+  if (spots) {
+    c.fillStyle = spots;
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.arc(cx + side * 0.3 * s, cy - 0.12 * s, 0.06 * s, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  c.fillStyle = body;
+  c.beginPath();
+  c.ellipse(cx, cy + 0.02 * s, 0.055 * s, 0.27 * s, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = body;
+  c.lineWidth = Math.max(1, 0.025 * s);
+  c.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(cx + side * 0.02 * s, cy - 0.22 * s);
+    c.quadraticCurveTo(cx + side * 0.06 * s, cy - 0.42 * s, cx + side * 0.17 * s, cy - 0.46 * s);
     c.stroke();
-    c.fillStyle = '#7a5214';
-    c.font = 'bold 24px Bungee, Impact, sans-serif';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillText('N', 32, 34);
-  });
+  }
+  c.restore();
+}
+
+/** The "Falter" coin: brass with an embossed moth. */
+export function coinTexture() {
+  return canvasTexture('coin', 64, 64, (c) => paintCoin(c, 64));
+}
+
+export function paintCoin(c: CanvasRenderingContext2D, size: number) {
+  const k = size / 64;
+  const g = c.createRadialGradient(24 * k, 22 * k, 4 * k, 32 * k, 32 * k, 30 * k);
+  g.addColorStop(0, '#fff3c4');
+  g.addColorStop(0.5, '#f0c25a');
+  g.addColorStop(1, '#a8741f');
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(32 * k, 32 * k, 29 * k, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#7a5214';
+  c.lineWidth = 3 * k;
+  c.stroke();
+  // Milled rim.
+  c.strokeStyle = 'rgba(122,82,20,0.55)';
+  c.lineWidth = 1.2 * k;
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(32 * k + Math.cos(a) * 25 * k, 32 * k + Math.sin(a) * 25 * k);
+    c.lineTo(32 * k + Math.cos(a) * 28 * k, 32 * k + Math.sin(a) * 28 * k);
+    c.stroke();
+  }
+  // Embossed moth: dark offset, then light face.
+  drawMoth(c, 33 * k, 35 * k, 38 * k, 'rgba(110,70,15,0.75)', 'rgba(110,70,15,0.9)');
+  drawMoth(c, 32 * k, 34 * k, 38 * k, '#ffe7a0', '#c9902e', 'rgba(168,116,31,0.7)');
+}
+
+/** White moth for particles; tint it. Wings flap by scaling x. */
+export function mothTexture() {
+  return canvasTexture('moth', 64, 64, (c) => drawMoth(c, 32, 34, 56, 'rgba(255,255,255,0.95)', 'rgba(255,255,255,1)', 'rgba(200,200,200,0.9)'));
+}
+
+/** Coin as an image URL for the HTML HUD. */
+export function coinDataUrl(size = 64) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  paintCoin(cv.getContext('2d')!, size);
+  return cv.toDataURL();
 }
 
 export function sparkTexture() {
@@ -110,12 +167,170 @@ interface Particle {
   fade: boolean;
 }
 
+interface Moth {
+  c: Container;
+  wings: Sprite;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  t: number;
+  life: number;
+  phase: number;
+  orbit: { x: number; y: number; r: number } | null;
+  angle: number;
+  spin: number;
+}
+
+interface FlyingCoin {
+  s: Sprite;
+  t: number;
+  delay: number;
+  x0: number;
+  y0: number;
+  cx: number;
+  cy: number;
+  arrived: boolean;
+}
+
+/** Where the HUD purse sits on screen; set by main.ts. */
+export const purse = { x: 40, y: 34 };
+
 export class Particles {
   readonly view = new Container();
   private list: Particle[] = [];
+  private moths: Moth[] = [];
+  private coins: FlyingCoin[] = [];
+
+  /**
+   * The brand effect for big wins: glowing moths burst out of a point,
+   * optionally circle something (a wheel, a machine), then flutter away.
+   */
+  mothSwarm(x: number, y: number, count: number, orbit: { x: number; y: number; r: number } | null = null, tint = 0xffe7a8, lifeS = 3.2) {
+    for (let i = 0; i < count; i++) {
+      const c = new Container();
+      const glow = new Sprite(glowTexture());
+      glow.anchor.set(0.5);
+      glow.width = glow.height = 70;
+      glow.tint = tint;
+      glow.alpha = 0.55;
+      glow.blendMode = 'add';
+      const wings = new Sprite(mothTexture());
+      wings.anchor.set(0.5);
+      wings.tint = tint;
+      c.addChild(glow, wings);
+      const sc = 0.4 + Math.random() * 0.35;
+      c.scale.set(sc);
+      c.position.set(x, y);
+      this.view.addChild(c);
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+      const sp = 260 + Math.random() * 320;
+      this.moths.push({
+        c,
+        wings,
+        x,
+        y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        t: -Math.random() * 0.25,
+        life: lifeS + Math.random() * 0.8,
+        phase: Math.random() * 10,
+        orbit,
+        angle: Math.random() * Math.PI * 2,
+        spin: (0.9 + Math.random() * 0.8) * (Math.random() < 0.5 ? -1 : 1),
+      });
+    }
+  }
+
+  /** Coins fly from a point into the HUD purse. */
+  coinsToPurse(x: number, y: number, count: number) {
+    for (let i = 0; i < count; i++) {
+      const s = new Sprite(coinTexture());
+      s.anchor.set(0.5);
+      s.scale.set(0.45);
+      const ox = x + (Math.random() - 0.5) * 80;
+      const oy = y + (Math.random() - 0.5) * 50;
+      s.position.set(ox, oy);
+      s.alpha = 0;
+      this.view.addChild(s);
+      this.coins.push({
+        s,
+        t: 0,
+        delay: 0.15 + i * 0.045,
+        x0: ox,
+        y0: oy,
+        cx: (ox + purse.x) / 2 + (Math.random() - 0.5) * 200,
+        cy: Math.min(oy, purse.y) - 120 - Math.random() * 120,
+        arrived: false,
+      });
+    }
+  }
+
+  private updateMoths(dt: number) {
+    for (let i = this.moths.length - 1; i >= 0; i--) {
+      const m = this.moths[i];
+      m.t += dt;
+      if (m.t < 0) continue;
+      const leaving = m.t > m.life - 1;
+      if (m.t < 0.55) {
+        // Burst: fly out and slow down.
+        m.vx *= 1 - 2.2 * dt;
+        m.vy *= 1 - 2.2 * dt;
+      } else if (m.orbit && !leaving) {
+        m.angle += m.spin * dt;
+        const r = m.orbit.r * (1 + 0.12 * Math.sin(m.t * 3 + m.phase));
+        const tx = m.orbit.x + Math.cos(m.angle) * r;
+        const ty = m.orbit.y + Math.sin(m.angle) * r * 0.85;
+        m.vx += ((tx - m.x) * 6 - m.vx) * Math.min(1, dt * 4);
+        m.vy += ((ty - m.y) * 6 - m.vy) * Math.min(1, dt * 4);
+      } else {
+        // Flutter: a wobbly drift that drifts upwards when leaving.
+        m.vx += Math.sin(m.t * 5 + m.phase) * 500 * dt;
+        m.vy += (Math.cos(m.t * 4 + m.phase) * 400 - (leaving ? 700 : 60)) * dt;
+        m.vx *= 1 - 0.8 * dt;
+        m.vy *= 1 - 0.8 * dt;
+      }
+      m.x += m.vx * dt;
+      m.y += m.vy * dt;
+      m.c.position.set(m.x, m.y);
+      m.c.rotation = Math.atan2(m.vy, m.vx) + Math.PI / 2;
+      m.wings.scale.x = 0.25 + 0.75 * Math.abs(Math.sin(m.t * 22 + m.phase));
+      m.c.alpha = Math.min(1, m.t * 4) * (leaving ? Math.max(0, m.life - m.t) : 1);
+      if (m.t >= m.life) {
+        m.c.destroy({ children: true });
+        this.moths.splice(i, 1);
+      }
+    }
+  }
+
+  private updateCoins(dt: number) {
+    for (let i = this.coins.length - 1; i >= 0; i--) {
+      const c = this.coins[i];
+      c.t += dt;
+      const k = (c.t - c.delay) / 0.7;
+      if (k < 0) {
+        c.s.alpha = Math.min(1, c.t * 8);
+        continue;
+      }
+      const e = k * k * (3 - 2 * k);
+      const u = 1 - e;
+      c.s.x = u * u * c.x0 + 2 * u * e * c.cx + e * e * purse.x;
+      c.s.y = u * u * c.y0 + 2 * u * e * c.cy + e * e * purse.y;
+      c.s.alpha = 1;
+      c.s.scale.set(0.45 * (1 - e * 0.45));
+      c.s.scale.x *= Math.cos(c.t * 14);
+      if (k >= 1) {
+        c.s.destroy();
+        this.coins.splice(i, 1);
+        window.dispatchEvent(new Event('purse-bump'));
+      }
+    }
+  }
 
   update(dtMs: number) {
     const dt = dtMs / 1000;
+    this.updateMoths(dt);
+    this.updateCoins(dt);
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i];
       p.life += dt;
@@ -221,7 +436,11 @@ export class Particles {
 
   clear() {
     for (const p of this.list) p.s.destroy();
+    for (const m of this.moths) m.c.destroy({ children: true });
+    for (const c of this.coins) c.s.destroy();
     this.list = [];
+    this.moths = [];
+    this.coins = [];
   }
 }
 
@@ -281,4 +500,65 @@ export function bake(c: Container): Texture {
   const tex = rendererRef!.generateTexture({ target: c, resolution: 2, antialias: true });
   c.destroy({ children: true });
   return tex;
+}
+
+export type WinTier = 'small' | 'big' | 'jackpot';
+
+/** Same three levels in every game: small win (more than the stake back), big win from 10×, jackpot from 50×. */
+export function tierFor(multiplier: number): WinTier | null {
+  // Getting part of the stake back is not a win, so it gets no fanfare.
+  if (multiplier <= 1) return null;
+  if (multiplier >= 50) return 'jackpot';
+  if (multiplier >= 10) return 'big';
+  return 'small';
+}
+
+/** A big headline that pops in, glows and fades out. */
+export async function banner(parent: Container, text: string, color: number, x: number, y: number, maxWidth: number) {
+  const t = new Text({
+    text,
+    style: { fontFamily: FONT_DISPLAY, fontSize: 84, fill: 0xfff6e6, stroke: { color: 0x14080f, width: 10 }, align: 'center' },
+  });
+  t.filters = [new GlowFilter({ color, distance: 24, outerStrength: 4, quality: 0.2 })];
+  t.anchor.set(0.5);
+  const fit = Math.min(1, (maxWidth * 0.9) / t.width);
+  t.position.set(x, y);
+  t.scale.set(0.1);
+  t.rotation = -0.15;
+  parent.addChild(t);
+  await Promise.all([tween(t, { rotation: 0 }, 500, ease.outBack), tween(t.scale, { x: fit, y: fit }, 600, ease.outElastic)]);
+  void tween(t.scale, { x: fit * 1.05, y: fit * 1.05 }, 700, ease.inOutCubic).then(() =>
+    tween(t, { alpha: 0, y: y - 30 }, 500, ease.inCubic, 700).then(() => t.destroy()),
+  );
+}
+
+export const CHIP_COLORS: Record<number, number> = { 10: 0x2f6fd6, 50: 0xe0761f, 100: 0x1b1b22, 250: 0x1d8a5c, 500: 0x7b3fc4, 1000: 0xc8243a };
+
+/** A casino chip with the brand's wing pattern on the rim. */
+export function drawChip(value: number, radius = 20): Container {
+  const c = new Container();
+  const col = CHIP_COLORS[value] ?? 0x2f6fd6;
+  const g = new Graphics();
+  g.circle(0, 3, radius).fill({ color: 0x000000, alpha: 0.4 });
+  g.circle(0, 0, radius).fill(col);
+  // Four pairs of wings around the rim.
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    for (const side of [-1, 1]) {
+      const base = a + side * 0.09;
+      const tip = a + side * 0.42;
+      const r0 = radius * 0.62;
+      const r1 = radius * 0.98;
+      g.poly([
+        Math.cos(base) * r0, Math.sin(base) * r0,
+        Math.cos(base) * r1, Math.sin(base) * r1,
+        Math.cos(tip) * r1, Math.sin(tip) * r1,
+        Math.cos(tip - side * 0.08) * (r0 + radius * 0.12), Math.sin(tip - side * 0.08) * (r0 + radius * 0.12),
+      ]).fill(0xfff6e6);
+    }
+  }
+  g.circle(0, 0, radius * 0.62).fill(col).stroke({ color: 0xfff6e6, width: Math.max(1, radius * 0.07), alpha: 0.8 });
+  g.circle(0, 0, radius).stroke({ color: 0x000000, width: 1, alpha: 0.35 });
+  c.addChild(g);
+  return c;
 }

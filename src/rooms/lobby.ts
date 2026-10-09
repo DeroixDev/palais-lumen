@@ -19,10 +19,13 @@ export const lobby: RoomDefinition = {
   stations: [
     { game: 'slots', x: 130, y: 250, label: 'Nachtfalter', options: { theme: 'classic' } },
     { game: 'slots', x: 230, y: 250, label: 'Nachtfalter', options: { theme: 'classic' } },
-    { game: 'slots', x: 330, y: 250, label: 'Diamant', options: { theme: 'diamond' } },
+    { game: 'slots', x: 330, y: 250, label: 'Mondschein', options: { theme: 'diamond' } },
     { game: 'roulette', x: 560, y: 430, label: 'Roulette', options: { minBet: 10 } },
     { game: 'slots', x: 130, y: 520, label: 'Nachtfalter', options: { theme: 'classic' } },
-    { game: 'slots', x: 230, y: 520, label: 'Diamant', options: { theme: 'diamond' } },
+    { game: 'slots', x: 230, y: 520, label: 'Mondschein', options: { theme: 'diamond' } },
+    { game: 'plinko', x: 110, y: 680, label: 'Mottenfall' },
+    { game: 'plinko', x: 230, y: 680, label: 'Mottenfall' },
+    { game: 'crash', x: 840, y: 250, label: 'Mondflug' },
   ],
   doors: [{ to: 'vip', x: 1040, label: 'VIP-Lounge' }],
   decor: [

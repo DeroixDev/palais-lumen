@@ -4,6 +4,7 @@ import { formatChips, quotaFor, type GameState } from '../core/state';
 import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '../core/save';
 import type { SaveData } from '../core/state';
 import { sfx } from '../core/audio';
+import { coinDataUrl } from '../core/fx';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -38,6 +39,16 @@ export class Hud {
     });
     $('#btn-help').addEventListener('click', () => this.help());
     state.onChange(() => this.render());
+    // Brand coin in the purse, and a little bump whenever a coin lands in it.
+    const coinUrl = coinDataUrl(96);
+    document.querySelectorAll<HTMLElement>('.coin').forEach((el) => (el.style.backgroundImage = `url(${coinUrl})`));
+    const purseEl = document.querySelector('.purse') as HTMLElement;
+    window.addEventListener('purse-bump', () => {
+      purseEl.classList.remove('bump');
+      void purseEl.offsetWidth;
+      purseEl.classList.add('bump');
+      sfx.tick();
+    });
     this.shown = state.balance;
     this.render();
   }
@@ -163,7 +174,7 @@ export class Hud {
       name.textContent = names[s.id];
       const meta = document.createElement('span');
       meta.textContent = s.data
-        ? `Abend ${s.data.evening.number} · ${formatChips(s.data.balance)} Spielgeld · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
+        ? `Abend ${s.data.evening.number} · ${formatChips(s.data.balance)} Falter · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
         : 'leer';
       info.append(name, meta);
       row.appendChild(info);
@@ -233,7 +244,7 @@ export class Hud {
       <p><strong>Spielen:</strong> an einen Automaten oder Tisch gehen und <kbd>E</kbd> drücken oder tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
       <p><strong>Abende:</strong> Jeder Abend hat ein Gewinnziel. Wer es übertrifft, bekommt Bronze, Silber, Gold oder Diamant. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
-      <p class="safe">Hier gibt es nur Spielgeld. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;
+      <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;
     this.modal('So geht’s', body, [
       { label: 'Neues Spiel', onClick: () => this.confirmNewGame() },
       { label: 'Los geht’s', primary: true, onClick: () => this.closeModal() },

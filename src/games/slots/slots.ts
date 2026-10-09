@@ -1,22 +1,34 @@
-// Three-reel slot machine with one payline.
+// "Neun Felder": 3×3 slot machine that pays on 8 lines (rows, columns, diagonals).
+// The golden moth is wild and stands in for any symbol.
 
 import { BlurFilter, Container, Graphics, Sprite, Text } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, countUp, floatText, glowTexture, gradientTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, countUp, floatText, glowTexture, gradientTexture, tierFor } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
-import { SYMBOLS, symbolTextures, type SymbolId } from './symbols';
+import { SYMBOLS, SYMBOL_NAMES, symbolTextures, type SymbolId } from './symbols';
 
 // ---- Rules -------------------------------------------------------------
 
-const WEIGHTS: Record<SymbolId, number> = { cherry: 20, lemon: 30, bell: 20, bar: 13, seven: 7, diamond: 4 };
-const PAY3: Record<SymbolId, number> = { cherry: 5, lemon: 10, bell: 15, bar: 30, seven: 80, diamond: 200 };
-const PAY_TWO_CHERRIES = 3;
-const PAY_ONE_CHERRY = 1;
-const PAY_MIXED_HIGH = 10; // any mix of 7 and diamond
+const WEIGHTS: Record<SymbolId, number> = { firefly: 26, candle: 24, lantern: 18, key: 13, moon: 8, moth: 4 };
+/** Pay per line, as a multiple of the whole stake. Three moths pay the moth value. */
+const PAY: Record<SymbolId, number> = { firefly: 0.5, candle: 0.8, lantern: 2, key: 4, moon: 12, moth: 60 };
 const TOTAL_WEIGHT = SYMBOLS.reduce((s, k) => s + WEIGHTS[k], 0);
+
+/** Cells as [column, row]. */
+type Cell = [number, number];
+export const LINES: { name: string; cells: Cell[] }[] = [
+  { name: 'oben', cells: [[0, 0], [1, 0], [2, 0]] },
+  { name: 'Mitte', cells: [[0, 1], [1, 1], [2, 1]] },
+  { name: 'unten', cells: [[0, 2], [1, 2], [2, 2]] },
+  { name: 'links', cells: [[0, 0], [0, 1], [0, 2]] },
+  { name: 'mittig', cells: [[1, 0], [1, 1], [1, 2]] },
+  { name: 'rechts', cells: [[2, 0], [2, 1], [2, 2]] },
+  { name: 'diagonal', cells: [[0, 0], [1, 1], [2, 2]] },
+  { name: 'diagonal', cells: [[0, 2], [1, 1], [2, 0]] },
+];
 
 function roll(): SymbolId {
   let r = Math.random() * TOTAL_WEIGHT;
@@ -24,32 +36,45 @@ function roll(): SymbolId {
     r -= WEIGHTS[s];
     if (r < 0) return s;
   }
-  return 'lemon';
+  return 'firefly';
 }
 
-/** Payout multiplier for the middle line. */
-export function evaluate(line: SymbolId[]): { mult: number; hits: number[]; kind: 'none' | 'small' | 'jackpot' } {
-  const [a, b, c] = line;
-  if (a === b && b === c) {
-    return { mult: PAY3[a], hits: [0, 1, 2], kind: a === 'seven' || a === 'diamond' ? 'jackpot' : 'small' };
-  }
-  const high = (s: SymbolId) => s === 'seven' || s === 'diamond';
-  if (high(a) && high(b) && high(c)) return { mult: PAY_MIXED_HIGH, hits: [0, 1, 2], kind: 'small' };
-  if (a === 'cherry' && b === 'cherry') return { mult: PAY_TWO_CHERRIES, hits: [0, 1], kind: 'small' };
-  if (a === 'cherry') return { mult: PAY_ONE_CHERRY, hits: [0], kind: 'small' };
-  return { mult: 0, hits: [], kind: 'none' };
+function lineSymbol(syms: SymbolId[]): SymbolId | null {
+  const plain = syms.filter((s) => s !== 'moth');
+  if (plain.length === 0) return 'moth';
+  return plain.every((s) => s === plain[0]) ? plain[0] : null;
 }
 
-/** Exact long-run payout ratio, computed from the table above (shown to the player). */
+export interface LineWin {
+  line: number;
+  symbol: SymbolId;
+  mult: number;
+}
+
+/** grid[column][row] */
+export function evaluate(grid: SymbolId[][]): { wins: LineWin[]; mult: number } {
+  const wins: LineWin[] = [];
+  LINES.forEach((l, i) => {
+    const sym = lineSymbol(l.cells.map(([c, r]) => grid[c][r]));
+    if (sym) wins.push({ line: i, symbol: sym, mult: PAY[sym] });
+  });
+  // Smallest first so the presentation builds up.
+  wins.sort((a, b) => a.mult - b.mult);
+  return { wins, mult: wins.reduce((s, w) => s + w.mult, 0) };
+}
+
+/** Exact long-run payout ratio over all 6^9 grids (shown to the player). */
 export function returnToPlayer() {
-  const P = (s: SymbolId) => WEIGHTS[s] / TOTAL_WEIGHT;
-  let r = 0;
-  for (const s of SYMBOLS) r += P(s) ** 3 * PAY3[s];
-  r += P('cherry') ** 2 * (1 - P('cherry')) * PAY_TWO_CHERRIES;
-  r += P('cherry') * (1 - P('cherry')) * PAY_ONE_CHERRY;
-  const hi = P('seven') + P('diamond');
-  r += (hi ** 3 - P('seven') ** 3 - P('diamond') ** 3) * PAY_MIXED_HIGH;
-  return r;
+  const P = SYMBOLS.map((s) => WEIGHTS[s] / TOTAL_WEIGHT);
+  // Every line pays independently, so the expected total is 8 × the expected value of one line.
+  let line = 0;
+  for (let a = 0; a < 6; a++)
+    for (let b = 0; b < 6; b++)
+      for (let c = 0; c < 6; c++) {
+        const sym = lineSymbol([SYMBOLS[a], SYMBOLS[b], SYMBOLS[c]]);
+        if (sym) line += P[a] * P[b] * P[c] * PAY[sym];
+      }
+  return line * LINES.length;
 }
 
 // ---- Themes ------------------------------------------------------------
@@ -65,7 +90,7 @@ interface SlotTheme {
 
 const THEMES: Record<string, SlotTheme> = {
   classic: { title: 'NACHTFALTER', bodyTop: '#7a1d34', bodyBottom: '#2a0f1c', trim: COLORS.brass, neon: COLORS.neon, bets: [10, 20, 50, 100] },
-  diamond: { title: 'DIAMANT', bodyTop: '#16526b', bodyBottom: '#0a1a2a', trim: 0x9fe8ff, neon: COLORS.cyan, bets: [50, 100, 250, 500] },
+  diamond: { title: 'MONDSCHEIN', bodyTop: '#16526b', bodyBottom: '#0a1a2a', trim: 0x9fe8ff, neon: COLORS.cyan, bets: [50, 100, 250, 500] },
   gold: { title: 'GOLDMOTTE', bodyTop: '#8a6a1f', bodyBottom: '#2a1d08', trim: 0xfff1c4, neon: COLORS.lamp, bets: [100, 250, 500, 1000] },
 };
 
@@ -98,7 +123,9 @@ class SlotGame implements GameInstance {
   private plus!: Button;
   private paytable!: Container;
   private theme: SlotTheme;
-  private payline!: Graphics;
+  private lineLayer!: Container;
+  private tensionGlow!: Graphics;
+  private tension = false;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -205,7 +232,7 @@ class SlotGame implements GameInstance {
       const sprites = start.map((s, k) => {
         const sp = new Sprite(tex[s]);
         sp.anchor.set(0.5);
-        sp.width = sp.height = 92;
+        sp.width = sp.height = 100;
         sp.position.set(REEL_W / 2, k * SYM + SYM / 2);
         strip.addChild(sp);
         return sp;
@@ -223,13 +250,16 @@ class SlotGame implements GameInstance {
       shade.position.set(x, REELS_Y);
       c.addChild(shade);
     }
-    // Payline.
-    this.payline = new Graphics();
-    const py = REELS_Y + SYM * 1.5;
-    this.payline.moveTo(winX - 6, py).lineTo(winX + winW + 6, py).stroke({ color: COLORS.red, width: 3, alpha: 0.85 });
-    this.payline.poly([winX - 18, py - 10, winX - 4, py, winX - 18, py + 10]).fill(COLORS.red);
-    this.payline.poly([winX + winW + 18, py - 10, winX + winW + 4, py, winX + winW + 18, py + 10]).fill(COLORS.red);
-    c.addChild(this.payline);
+    // Winning lines are drawn here as neon strokes.
+    this.lineLayer = new Container();
+    c.addChild(this.lineLayer);
+    // Suspense glow for the last reel.
+    this.tensionGlow = new Graphics()
+      .roundRect(REELS_X + 2 * (REEL_W + REEL_GAP) - 6, REELS_Y - 6, REEL_W + 12, SYM * 3 + 12, 10)
+      .stroke({ color: t.neon, width: 6 });
+    this.tensionGlow.filters = [new GlowFilter({ color: t.neon, distance: 16, outerStrength: 3, quality: 0.2 })];
+    this.tensionGlow.alpha = 0;
+    c.addChild(this.tensionGlow);
     // Glass reflection.
     const glass = new Graphics().poly([winX, REELS_Y - 14, winX + winW * 0.45, REELS_Y - 14, winX + winW * 0.2, REELS_Y + SYM * 3 + 14, winX, REELS_Y + SYM * 3 + 14]);
     glass.fill({ color: 0xffffff, alpha: 0.05 });
@@ -292,33 +322,42 @@ class SlotGame implements GameInstance {
   private buildPaytable() {
     const tex = symbolTextures();
     const p = new Container();
-    p.addChild(new Graphics().roundRect(40, 170, W - 80, 440, 20).fill({ color: 0x0b0609, alpha: 0.96 }).stroke({ color: this.theme.trim, width: 3 }));
-    const head = label('GEWINNTABELLE · mittlere Linie', 22, COLORS.lamp);
-    head.position.set(64, 186);
+    p.addChild(new Graphics().roundRect(30, 166, W - 60, 470, 20).fill({ color: 0x0b0609, alpha: 0.97 }).stroke({ color: this.theme.trim, width: 3 }));
+    const head = label('GEWINNTABELLE', 24, COLORS.lamp, true);
+    head.position.set(54, 182);
     p.addChild(head);
-    const rows: [SymbolId[], string][] = [
-      [['diamond', 'diamond', 'diamond'], `${PAY3.diamond}×`],
-      [['seven', 'seven', 'seven'], `${PAY3.seven}×`],
-      [['bar', 'bar', 'bar'], `${PAY3.bar}×`],
-      [['bell', 'bell', 'bell'], `${PAY3.bell}×`],
-      [['lemon', 'lemon', 'lemon'], `${PAY3.lemon}×`],
-      [['cherry', 'cherry', 'cherry'], `${PAY3.cherry}×`],
-      [['seven', 'diamond', 'seven'], `${PAY_MIXED_HIGH}×  (7 und Diamant gemischt)`],
-      [['cherry', 'cherry'], `${PAY_TWO_CHERRIES}×  (links)`],
-      [['cherry'], `${PAY_ONE_CHERRY}×  (links, Einsatz zurück)`],
-    ];
-    rows.forEach(([syms, txt], i) => {
-      const y = 228 + i * 41;
-      syms.forEach((s, k) => {
-        const sp = new Sprite(tex[s]);
-        sp.width = sp.height = 34;
-        sp.position.set(70 + k * 38, y);
-        p.addChild(sp);
-      });
-      const t = label(txt, 20, 0xfff6e6);
-      t.position.set(200, y + 4);
-      p.addChild(t);
+    const sub = label('Pro Linie, als Vielfaches deines Einsatzes. Alle 8 Linien zählen gleichzeitig.', 16, 0xd9c6a0);
+    sub.position.set(54, 216);
+    p.addChild(sub);
+    // The 8 lines as tiny grids.
+    LINES.forEach((l, i) => {
+      const gx = 54 + i * 58;
+      const gy = 246;
+      const g = new Graphics();
+      for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) g.rect(gx + c * 14, gy + r * 14, 12, 12).fill({ color: 0xffffff, alpha: 0.12 });
+      for (const [c, r] of l.cells) g.rect(gx + c * 14, gy + r * 14, 12, 12).fill(this.theme.neon);
+      p.addChild(g);
     });
+    const order: SymbolId[] = ['moth', 'moon', 'key', 'lantern', 'candle', 'firefly'];
+    order.forEach((sym, i) => {
+      const y = 310 + i * 46;
+      for (let k = 0; k < 3; k++) {
+        const sp = new Sprite(tex[sym]);
+        sp.width = sp.height = 40;
+        sp.position.set(54 + k * 42, y);
+        p.addChild(sp);
+      }
+      const name = label(SYMBOL_NAMES[sym], 19, 0xfff6e6);
+      name.position.set(190, y + 8);
+      p.addChild(name);
+      const val = label(`${String(PAY[sym]).replace('.', ',')}×`, 22, COLORS.lamp, true);
+      val.anchor.set(1, 0);
+      val.position.set(W - 54, y + 6);
+      p.addChild(val);
+    });
+    const wild = label('Der goldene Nachtfalter ist Joker und ersetzt jedes Symbol.', 17, COLORS.lamp);
+    wild.position.set(54, 590);
+    p.addChild(wild);
     p.eventMode = 'static';
     p.cursor = 'pointer';
     p.on('pointertap', () => (p.visible = false));
@@ -341,19 +380,34 @@ class SlotGame implements GameInstance {
   async spin() {
     if (this.spinning) return;
     if (!this.ctx.state.placeBet(this.bet)) {
-      this.ctx.toast('Nicht genug Spielgeld für diesen Einsatz.');
+      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
       return;
     }
     this.spinning = true;
     this.paytable.visible = false;
+    this.clearLines();
     this.updateBet();
     this.winText.text = '0';
     this.ctx.sfx.spinStart();
+    // The result is decided here; the reels only play it out.
     const result: SymbolId[][] = [0, 1, 2].map(() => [roll(), roll(), roll()]);
-    await Promise.all(result.map((r, i) => this.spinReel(i, r, 1100 + i * 420)));
+    // Suspense when the first two reels already line up something valuable.
+    const valuable = (x: SymbolId) => x === 'moon' || x === 'moth';
+    const suspense = LINES.some((l) => l.cells[0][0] === 0 && l.cells[1][0] === 1 && l.cells.slice(0, 2).every(([c, r]) => valuable(result[c][r])));
+    const durations = [1000, 1400, suspense ? 3000 : 1800];
+    await Promise.all(
+      result.map((r, i) =>
+        this.spinReel(i, r, durations[i]).then(() => {
+          if (i === 1 && suspense) {
+            this.tension = true;
+            this.ctx.sfx.tension(1.4);
+          }
+        }),
+      ),
+    );
+    this.tension = false;
     this.current = result;
-    const line = result.map((r) => r[1]);
-    await this.resolve(line);
+    await this.resolve(result);
     this.spinning = false;
     this.updateBet();
   }
@@ -362,13 +416,13 @@ class SlotGame implements GameInstance {
     const reel = this.reels[i];
     const tex = symbolTextures();
     const prev = this.current[i];
-    const fillerCount = 16 + i * 6;
+    const fillerCount = Math.round(duration / 70);
     const list: SymbolId[] = [...target, ...Array.from({ length: fillerCount }, roll), ...prev];
     for (const s of reel.sprites) s.destroy();
     reel.sprites = list.map((s, k) => {
       const sp = new Sprite(tex[s]);
       sp.anchor.set(0.5);
-      sp.width = sp.height = 92;
+      sp.width = sp.height = 100;
       sp.position.set(REEL_W / 2, k * SYM + SYM / 2);
       reel.strip.addChild(sp);
       return sp;
@@ -402,88 +456,122 @@ class SlotGame implements GameInstance {
     // Drop the off-screen sprites so the strip stays small.
     reel.sprites.slice(3).forEach((s) => s.destroy());
     reel.sprites = reel.sprites.slice(0, 3);
+    // A landed moth flaps its wings once.
+    reel.sprites.forEach((sp, r) => {
+      if (target[r] !== 'moth') return;
+      const base = sp.scale.x;
+      void animate(700, (k) => (sp.scale.x = base * (0.55 + 0.45 * Math.abs(Math.cos(k * Math.PI * 3)))));
+    });
   }
 
-  private async resolve(line: SymbolId[]) {
-    const { mult, hits, kind } = evaluate(line);
-    if (mult === 0) {
+  private cellCentre([c, r]: Cell) {
+    return { x: REELS_X + c * (REEL_W + REEL_GAP) + REEL_W / 2, y: REELS_Y + r * SYM + SYM / 2 };
+  }
+
+  private clearLines() {
+    this.lineLayer.removeChildren().forEach((ch) => ch.destroy());
+    for (const reel of this.reels) for (const sp of reel.sprites) sp.filters = [];
+  }
+
+  /** Draws one winning line as a glowing neon stroke through its three cells. */
+  private drawLine(line: number, color: number) {
+    const pts = LINES[line].cells.map((cell) => this.cellCentre(cell));
+    const first = pts[0];
+    const last = pts[2];
+    // Extend a little beyond the outer cells.
+    const dx = (last.x - first.x) * 0.18;
+    const dy = (last.y - first.y) * 0.18;
+    const g = new Graphics();
+    g.moveTo(first.x - dx, first.y - dy).lineTo(last.x + dx, last.y + dy).stroke({ color, width: 8, cap: 'round', alpha: 0.9 });
+    g.moveTo(first.x - dx, first.y - dy).lineTo(last.x + dx, last.y + dy).stroke({ color: 0xffffff, width: 3, cap: 'round' });
+    for (const p of pts) g.circle(p.x, p.y, 9).fill(color);
+    g.filters = [new GlowFilter({ color, distance: 14, outerStrength: 3, quality: 0.2 })];
+    this.lineLayer.addChild(g);
+    g.alpha = 0;
+    void tween(g, { alpha: 1 }, 150);
+    return g;
+  }
+
+  private async resolve(grid: SymbolId[][]) {
+    const { wins, mult } = evaluate(grid);
+    if (wins.length === 0) {
       this.ctx.sfx.lose();
       return;
     }
-    const win = this.bet * mult;
-    this.ctx.state.payout(win);
+    const win = Math.round(this.bet * mult);
     const g = this.cabinet;
     const toScreen = (x: number, y: number) => g.toGlobal({ x, y });
+    const real = mult > 1;
 
-    // Highlight winning symbols.
-    for (const i of hits) {
-      const sp = this.reels[i].sprites[1];
-      sp.filters = [new GlowFilter({ color: this.theme.neon, distance: 14, outerStrength: 4, quality: 0.2 })];
-      void tween(sp.scale, { x: sp.scale.x * 1.18, y: sp.scale.y * 1.18 }, 300, ease.outBack).then(() =>
-        tween(sp.scale, { x: sp.scale.x / 1.18, y: sp.scale.y / 1.18 }, 400, ease.inOutCubic, 600),
-      );
+    // Present the lines one after another, each with a rising note.
+    let shown = 0;
+    for (let i = 0; i < wins.length; i++) {
+      const w = wins[i];
+      this.drawLine(w.line, real ? this.theme.neon : 0xb69a6a);
+      for (const [c, r] of LINES[w.line].cells) {
+        const sp = this.reels[c].sprites[r];
+        sp.filters = [new GlowFilter({ color: this.theme.neon, distance: 12, outerStrength: 3, quality: 0.2 })];
+        const base = 100 / sp.texture.width;
+        sp.scale.set(base * 1.18);
+        void tween(sp.scale, { x: base, y: base }, 380, ease.outBack);
+      }
+      if (real) this.ctx.sfx.lineHit(i);
+      else this.ctx.sfx.partial();
+      const before = shown;
+      shown = Math.round(this.bet * wins.slice(0, i + 1).reduce((a, b) => a + b.mult, 0));
+      void countUp(this.winText, before, shown, 300);
+      if (wins.length > 1 && i > 0) this.combo(i + 1);
+      await wait(wins.length > 4 ? 260 : 420);
     }
+
+    this.ctx.state.payout(win);
     const centre = toScreen(W / 2, REELS_Y + SYM * 1.5);
-    const big = mult >= 15;
-    if (kind === 'jackpot') {
-      this.flashUntil = performance.now() + 4000;
-      this.ctx.sfx.bigWin();
-      this.ctx.shake(18);
-      await this.banner('JACKPOT!', COLORS.lamp);
-      this.ctx.particles.coinRain(this.viewW, 180);
-      this.ctx.particles.coinBurst(centre.x, centre.y, 60);
-      this.ctx.state.addTrophy('jackpot', 'gold', `Jackpot: ${formatChips(win)} an ${this.theme.title}`);
-      this.ctx.toast('Neue Trophäe für deine Vitrine!');
-    } else if (big) {
-      this.flashUntil = performance.now() + 2500;
-      this.ctx.sfx.bigWin();
-      this.ctx.shake(10);
-      void this.banner('GROSSER GEWINN', this.theme.neon);
-      this.ctx.particles.coinRain(this.viewW, 70);
-      this.ctx.particles.coinBurst(centre.x, centre.y, 30);
-    } else {
-      this.flashUntil = performance.now() + 900;
-      this.ctx.sfx.win();
-      this.ctx.particles.coinBurst(centre.x, centre.y, Math.min(24, 4 + mult * 3));
-      this.ctx.particles.sparkle(centre.x, centre.y, 12);
-    }
     const local = this.view.toLocal(toScreen(W / 2, REELS_Y + SYM * 3 + 66));
+    if (!real) {
+      floatText(this.view, local.x, local.y, `${formatChips(win)} zurück`, 0xd9c6a0, Math.round(30 * Math.max(0.7, g.scale.x)));
+      return;
+    }
+    const tier = tierFor(mult);
+    this.flashUntil = performance.now() + (tier === 'jackpot' ? 4500 : tier === 'big' ? 2500 : 900);
     floatText(this.view, local.x, local.y, `+${formatChips(win)}`, COLORS.lamp, Math.round(40 * Math.max(0.7, g.scale.x)));
-    await countUp(this.winText, 0, win, big || kind === 'jackpot' ? 1800 : 600, '', () => this.ctx.sfx.coin());
-    if (kind === 'jackpot') await wait(800);
-    for (const i of hits) this.reels[i].sprites[1].filters = [];
+    // Moths circle the machine on big wins.
+    const machine = toScreen(W / 2, H / 2);
+    this.ctx.celebrate(mult, centre.x, centre.y, { x: machine.x, y: machine.y, r: (W / 2) * g.scale.x });
+    if (tier === 'jackpot' || wins.some((w) => w.symbol === 'moth')) {
+      this.ctx.state.addTrophy('jackpot', 'gold', `Nachtfalter-Jackpot: ${formatChips(win)} an ${this.theme.title}`);
+      this.ctx.toast('Neue Trophäe für deine Vitrine!');
+    }
+    if (tier !== 'small') await wait(1600);
   }
 
-  private async banner(text: string, color: number) {
-    const t = new Text({
-      text,
-      style: {
-        fontFamily: FONT_DISPLAY,
-        fontSize: 72,
-        fill: 0xfff6e6,
-        stroke: { color: 0x14080f, width: 10 },
-        align: 'center',
-      },
+  /** "2 LINIEN!", "3 LINIEN!" … pops above the reels; one label that counts up. */
+  private comboText: Text | null = null;
+  private combo(n: number) {
+    let t = this.comboText;
+    if (!t || t.destroyed) {
+      t = new Text({
+        text: '',
+        style: { fontFamily: FONT_DISPLAY, fontSize: 30, fill: COLORS.lamp, stroke: { color: 0x14080f, width: 6 } },
+      });
+      t.anchor.set(0.5);
+      this.cabinet.addChild(t);
+      this.comboText = t;
+    }
+    const label = t;
+    label.text = `${n} LINIEN!`;
+    label.position.set(W / 2, REELS_Y - 4);
+    label.alpha = 1;
+    label.scale.set(0.5);
+    const id = ++this.comboId;
+    void tween(label.scale, { x: 1, y: 1 }, 260, ease.outBack);
+    void wait(900).then(() => {
+      if (id !== this.comboId || label.destroyed) return;
+      void tween(label, { alpha: 0, y: REELS_Y - 30 }, 400, ease.inCubic);
     });
-    t.filters = [new GlowFilter({ color, distance: 24, outerStrength: 4, quality: 0.2 })];
-    t.anchor.set(0.5);
-    const fit = Math.min(1, (this.viewW * 0.9) / t.width);
-    t.position.set(this.viewW / 2, this.viewH * 0.42);
-    t.scale.set(0.1);
-    t.rotation = -0.2;
-    this.view.addChild(t);
-    await Promise.all([tween(t, { rotation: 0 }, 500, ease.outBack), tween(t.scale, { x: fit, y: fit }, 500, ease.outBack)]);
-    void tween(t.scale, { x: fit * 1.05, y: fit * 1.05 }, 600, ease.inOutCubic).then(() =>
-      tween(t, { alpha: 0 }, 500, ease.inCubic, 900).then(() => t.destroy()),
-    );
   }
-
-  private viewW = 800;
-  private viewH = 600;
+  private comboId = 0;
 
   resize(w: number, h: number) {
-    this.viewW = w;
-    this.viewH = h;
     const s = Math.min((w * 0.94) / W, (h * 0.9) / H);
     this.cabinet.scale.set(s);
     this.cabinet.position.set((w - W * s) / 2, (h - H * s) / 2 + 10);
@@ -497,7 +585,7 @@ class SlotGame implements GameInstance {
       const on = Math.floor(this.bulbPhase * speed + i) % 3 === 0;
       b.alpha = flashing ? (Math.floor(this.bulbPhase * 10) % 2 ? 1 : 0.25) : on ? 1 : 0.3;
     });
-    this.payline.alpha = flashing ? 0.6 + Math.sin(this.bulbPhase * 20) * 0.4 : 0.85;
+    this.tensionGlow.alpha = this.tension ? 0.55 + 0.45 * Math.sin(this.bulbPhase * 18) : Math.max(0, this.tensionGlow.alpha - dtMs / 300);
   }
 
   busy() {

@@ -113,6 +113,51 @@ class Sfx {
     seq.forEach((f, i) => this.tone(f / 2, 0.25, 'triangle', 0.2, i * 0.1));
     for (let i = 0; i < 14; i++) this.coin(0.3 + i * 0.07);
   }
+  /** Rising notes as winning lines light up one after another. */
+  lineHit(i: number) {
+    const f = 523 * Math.pow(2, (i * 3) / 12);
+    this.tone(f, 0.22, 'triangle', 0.22);
+    this.tone(f * 2, 0.12, 'sine', 0.08, 0.04);
+  }
+  /** Building suspense while the last reel is still spinning. */
+  tension(duration: number) {
+    for (let i = 0; i < duration * 8; i++) this.tone(220 + i * 18, 0.1, 'square', 0.035, i / 8);
+  }
+  /** Soft note for getting part of the stake back. */
+  partial() {
+    this.tone(660, 0.12, 'sine', 0.12);
+  }
+  /** Little glass tick when a plinko moth brushes a peg; pitch climbs with the row. */
+  pegTick(row: number) {
+    this.tone(700 + row * 70 + Math.random() * 40, 0.05, 'triangle', 0.07);
+  }
+  /** Rising engine hum for the crash flight; returns a stop function. */
+  flight(): () => void {
+    if (!this.ctx || !this.master) return () => {};
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 110;
+    g.gain.value = 0.025;
+    osc.connect(g).connect(this.master);
+    osc.start();
+    const ctx = this.ctx;
+    const t0 = ctx.currentTime;
+    osc.frequency.exponentialRampToValueAtTime(880, t0 + 30);
+    return () => {
+      try {
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.2);
+      } catch {
+        /* already stopped */
+      }
+    };
+  }
+  /** Soft puff when the moth gets too close to the flame. */
+  fizzle() {
+    this.noise(0.4, 0.2, 0, 400);
+    this.tone(400, 0.35, 'sine', 0.15, 0, 120);
+  }
   lose() {
     this.tone(330, 0.2, 'triangle', 0.12, 0, 220);
   }

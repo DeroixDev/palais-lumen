@@ -17,6 +17,11 @@ export interface GameContext {
   /** Shakes the whole game view. */
   shake(strength?: number): void;
   toast(text: string): void;
+  /**
+   * Plays the shared win celebration for a payout of `multiplier` × stake at a screen point.
+   * `orbit` lets the moth swarm circle something, e.g. the roulette wheel.
+   */
+  celebrate(multiplier: number, x: number, y: number, orbit?: { x: number; y: number; r: number }): void;
   /** Called by the game when the player wants to leave. */
   exit(): void;
 }

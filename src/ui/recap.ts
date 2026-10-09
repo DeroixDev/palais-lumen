@@ -184,7 +184,7 @@ export class Recap {
     const kept = r.wagered - r.won;
     const note = this.text(
       kept > 0
-        ? `Das Haus hat heute ${formatChips(kept)} Spielgeld behalten. Auf Dauer gewinnt immer das Haus.`
+        ? `Das Haus hat heute ${formatChips(kept)} Falter behalten. Auf Dauer gewinnt immer das Haus.`
         : `Heute hattest du Glück. Auf Dauer gewinnt trotzdem immer das Haus.`,
       18,
       0x9a8a7a,

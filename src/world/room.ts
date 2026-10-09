@@ -3,11 +3,12 @@
 import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import { getGame, getRoom, type DecorPlacement, type DoorPlacement, type RoomDefinition, type StationPlacement } from '../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from '../core/fx';
 import type { GameState } from '../core/state';
 import { formatChips } from '../core/state';
 import { drawTrophy } from './trophies';
 import { Player } from './player';
+import { Guests, type Spot } from './guests';
 
 export const WALL_H = 150;
 const SIDE = 24;
@@ -34,6 +35,10 @@ export class RoomScene {
   private obstacles: Rect[] = [];
   private interactables: Interactable[] = [];
   private stationLamps: { g: Container; phase: number }[] = [];
+  private lampMoths: { c: Container; wings: Sprite; base: number; cx: number; cy: number; r: number; ph: number; sp: number }[] = [];
+  private spots: Spot[] = [];
+  private guests: Guests | null = null;
+  private fxLayer = new Container();
   private prompt = new Container();
   private promptText: Text;
   private shelf: Container | null = null;
@@ -68,11 +73,14 @@ export class RoomScene {
     this.buildDoors();
     this.world.addChild(this.lights);
     this.buildLights();
+    this.world.addChild(this.fxLayer);
 
     const pos = state.data.roomId === this.def.id && state.data.position.x > 0 ? state.data.position : this.def.spawn;
     this.player = new Player(state.data.players.host?.color ?? COLORS.lamp);
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
+    const guestCount = Math.min(6, Math.max(2, Math.round(this.def.stations.length / 2)));
+    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position);
 
     // Interaction prompt bubble.
     const bubble = new Graphics();
@@ -166,6 +174,7 @@ export class RoomScene {
         c.addChild(t);
       }
       this.obstacles.push({ x: st.x, y: st.y, w: game.footprint.w, h: game.footprint.h });
+      this.spots.push({ kind: 'station', x: st.x + game.footprint.w / 2, y: st.y + game.footprint.h + 22, fx: { x: st.x + game.footprint.w / 2, y: st.y + 10 } });
       this.interactables.push({
         kind: 'station',
         station: st,
@@ -218,7 +227,10 @@ export class RoomScene {
         g.roundRect(8, 8, w - 16, 22, 8).fill(0x6b3a1e);
         const bottles = [COLORS.cyan, COLORS.neon, COLORS.lamp, 0x7bd47b, COLORS.cyan, COLORS.lamp];
         for (let i = 0; i < Math.floor(w / 36); i++) g.circle(22 + i * 36, 19, 6).fill(bottles[i % bottles.length]);
-        for (let i = 0; i < Math.floor(w / 60); i++) g.circle(30 + i * 60, h + 18, 11).fill(0x3a2230).stroke({ color: COLORS.brassDark, width: 2 });
+        for (let i = 0; i < Math.floor(w / 60); i++) {
+          g.circle(30 + i * 60, h + 18, 11).fill(0x3a2230).stroke({ color: COLORS.brassDark, width: 2 });
+          this.spots.push({ kind: 'lounge', x: d.x + 30 + i * 60, y: d.y + h + 26 });
+        }
         const t = new Text({ text: 'BAR · Limo & Mocktails', style: { fontFamily: FONT_BODY, fontSize: 15, fontWeight: '700', fill: 0xfff1c4 } });
         t.anchor.set(0.5);
         t.position.set(w / 2, 50);
@@ -235,6 +247,7 @@ export class RoomScene {
         g.roundRect(0, 0, w, 16, 8).fill(0x7a2550);
         g.roundRect(0, 0, 16, h, 8).fill(0x7a2550);
         g.roundRect(w - 16, 0, 16, h, 8).fill(0x7a2550);
+        this.spots.push({ kind: 'lounge', x: d.x + w * 0.3, y: d.y + h + 24 }, { kind: 'lounge', x: d.x + w * 0.7, y: d.y + h + 24 });
         c.zIndex = d.y + h;
         this.obstacles.push({ x: d.x, y: d.y, w, h });
         break;
@@ -343,6 +356,24 @@ export class RoomScene {
         s.alpha = 0.16;
         s.blendMode = 'add';
         this.lights.addChild(s);
+        // A few moths always circle the light.
+        for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+          const c = new Container();
+          const glow = new Sprite(glowTexture());
+          glow.anchor.set(0.5);
+          glow.width = glow.height = 34;
+          glow.tint = th.light;
+          glow.alpha = 0.35;
+          glow.blendMode = 'add';
+          const wings = new Sprite(mothTexture());
+          wings.anchor.set(0.5);
+          wings.width = wings.height = 14;
+          wings.tint = 0xfff1c4;
+          wings.alpha = 0.75;
+          c.addChild(glow, wings);
+          this.lights.addChild(c);
+          this.lampMoths.push({ c, wings, base: 14 / wings.texture.width, cx: x, cy: y, r: 22 + Math.random() * 40, ph: Math.random() * 10, sp: 0.8 + Math.random() * 1.4 });
+        }
       }
     }
     for (const st of this.def.stations) {
@@ -480,6 +511,15 @@ export class RoomScene {
     // Lamps on machines pulse; the neon sign flickers now and then.
     for (const l of this.stationLamps) l.g.alpha = 0.55 + 0.45 * Math.sin(this.time * 3 + l.phase);
     this.sign.alpha = Math.sin(this.time * 31) > 0.97 ? 0.55 : 1;
+    for (const m of this.lampMoths) {
+      const a = this.time * m.sp + m.ph;
+      const x = m.cx + Math.cos(a) * m.r + Math.sin(a * 2.7) * 8;
+      const y = m.cy + Math.sin(a * 1.3) * m.r * 0.7;
+      m.c.rotation = Math.atan2(y - m.c.y, x - m.c.x) + Math.PI / 2;
+      m.c.position.set(x, y);
+      m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 22 + m.ph)));
+    }
+    this.guests?.update(dtMs);
 
     this.updateCamera();
   }

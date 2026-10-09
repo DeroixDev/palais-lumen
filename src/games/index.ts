@@ -3,6 +3,10 @@
 import { registerGame } from '../core/registry';
 import { slots } from './slots/slots';
 import { roulette } from './roulette/roulette';
+import { plinko } from './plinko/plinko';
+import { crash } from './crash/crash';
 
 registerGame(slots);
 registerGame(roulette);
+registerGame(plinko);
+registerGame(crash);

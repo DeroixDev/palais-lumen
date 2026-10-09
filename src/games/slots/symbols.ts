@@ -1,103 +1,232 @@
-// Slot symbols, drawn in code and baked to textures once.
+// Nachtfalter slot symbols, painted once on canvas and turned into textures.
 
-import { Container, Graphics, Text, type Texture } from 'pixi.js';
-import { bake, FONT_DISPLAY } from '../../core/fx';
+import { Texture } from 'pixi.js';
+import { drawMoth } from '../../core/fx';
 
-export type SymbolId = 'cherry' | 'lemon' | 'bell' | 'bar' | 'seven' | 'diamond';
-export const SYMBOLS: SymbolId[] = ['cherry', 'lemon', 'bell', 'bar', 'seven', 'diamond'];
+export type SymbolId = 'firefly' | 'candle' | 'lantern' | 'key' | 'moon' | 'moth';
+export const SYMBOLS: SymbolId[] = ['firefly', 'candle', 'lantern', 'key', 'moon', 'moth'];
+export const SYMBOL_NAMES: Record<SymbolId, string> = {
+  firefly: 'Glühwürmchen',
+  candle: 'Kerze',
+  lantern: 'Laterne',
+  key: 'Messingschlüssel',
+  moon: 'Vollmond',
+  moth: 'Goldener Nachtfalter',
+};
 
-const S = 100;
+const S = 200;
+type Ctx = CanvasRenderingContext2D;
 
-function cherry() {
-  const g = new Graphics();
-  g.moveTo(50, 18).quadraticCurveTo(40, 40, 30, 62).stroke({ color: 0x2f7d32, width: 5 });
-  g.moveTo(50, 18).quadraticCurveTo(62, 40, 70, 58).stroke({ color: 0x2f7d32, width: 5 });
-  g.ellipse(62, 16, 14, 7).fill(0x43a047);
-  g.circle(30, 68, 19).fill(0xb3132b);
-  g.circle(70, 64, 19).fill(0xd61f3a);
-  g.circle(24, 61, 6).fill({ color: 0xffffff, alpha: 0.6 });
-  g.circle(64, 57, 6).fill({ color: 0xffffff, alpha: 0.6 });
-  return g;
+function glow(c: Ctx, x: number, y: number, r: number, color: string) {
+  const g = c.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g;
+  c.fillRect(x - r, y - r, r * 2, r * 2);
 }
 
-function lemon() {
-  const g = new Graphics();
-  g.ellipse(50, 52, 36, 27).fill(0xf5c518);
-  g.circle(14, 52, 7).fill(0xf5c518);
-  g.circle(86, 52, 7).fill(0xf5c518);
-  g.ellipse(50, 52, 36, 27).stroke({ color: 0xc69500, width: 3 });
-  g.ellipse(40, 42, 13, 6).fill({ color: 0xffffff, alpha: 0.5 });
-  return g;
+function firefly(c: Ctx) {
+  glow(c, 100, 128, 70, 'rgba(210,255,90,0.55)');
+  // Wings.
+  c.fillStyle = 'rgba(200,225,255,0.75)';
+  c.beginPath();
+  c.ellipse(70, 82, 34, 16, -0.6, 0, Math.PI * 2);
+  c.ellipse(130, 82, 34, 16, 0.6, 0, Math.PI * 2);
+  c.fill();
+  // Glowing tail.
+  const tail = c.createRadialGradient(100, 132, 4, 100, 132, 32);
+  tail.addColorStop(0, '#fbffd0');
+  tail.addColorStop(0.6, '#c8f24a');
+  tail.addColorStop(1, '#6f9a1c');
+  c.fillStyle = tail;
+  c.beginPath();
+  c.ellipse(100, 128, 24, 34, 0, 0, Math.PI * 2);
+  c.fill();
+  // Body and head.
+  c.fillStyle = '#3a2a1a';
+  c.beginPath();
+  c.ellipse(100, 88, 16, 22, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#c0392b';
+  c.beginPath();
+  c.arc(100, 62, 13, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#3a2a1a';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(95, 52);
+  c.quadraticCurveTo(84, 34, 74, 32);
+  c.moveTo(105, 52);
+  c.quadraticCurveTo(116, 34, 126, 32);
+  c.stroke();
 }
 
-function bell() {
-  const g = new Graphics();
-  g.moveTo(50, 12)
-    .bezierCurveTo(26, 14, 26, 48, 22, 66)
-    .lineTo(14, 76)
-    .lineTo(86, 76)
-    .lineTo(78, 66)
-    .bezierCurveTo(74, 48, 74, 14, 50, 12)
-    .fill(0xf0b73b)
-    .stroke({ color: 0x9a6a12, width: 3 });
-  g.circle(50, 84, 9).fill(0x9a6a12);
-  g.circle(50, 10, 6).fill(0x9a6a12);
-  g.moveTo(38, 24).quadraticCurveTo(32, 44, 31, 62).stroke({ color: 0xfff1c4, width: 5, alpha: 0.7 });
-  return g;
+function candle(c: Ctx) {
+  glow(c, 100, 52, 70, 'rgba(255,190,80,0.6)');
+  // Flame.
+  const f = c.createRadialGradient(100, 62, 2, 100, 56, 26);
+  f.addColorStop(0, '#fffbe0');
+  f.addColorStop(0.5, '#ffcf4a');
+  f.addColorStop(1, '#e8531f');
+  c.fillStyle = f;
+  c.beginPath();
+  c.moveTo(100, 22);
+  c.bezierCurveTo(120, 48, 116, 74, 100, 78);
+  c.bezierCurveTo(84, 74, 80, 48, 100, 22);
+  c.fill();
+  c.strokeStyle = '#2a1a10';
+  c.lineWidth = 4;
+  c.beginPath();
+  c.moveTo(100, 78);
+  c.lineTo(100, 88);
+  c.stroke();
+  // Wax with drips.
+  const w = c.createLinearGradient(70, 0, 130, 0);
+  w.addColorStop(0, '#d9c8a8');
+  w.addColorStop(0.4, '#fff6e6');
+  w.addColorStop(1, '#cbb68f');
+  c.fillStyle = w;
+  c.beginPath();
+  c.moveTo(72, 92);
+  c.lineTo(128, 92);
+  c.lineTo(128, 166);
+  c.lineTo(72, 166);
+  c.closePath();
+  c.fill();
+  c.beginPath();
+  c.ellipse(84, 104, 6, 16, 0, 0, Math.PI * 2);
+  c.ellipse(116, 100, 5, 11, 0, 0, Math.PI * 2);
+  c.fill();
+  // Brass holder.
+  c.fillStyle = '#c9902e';
+  c.beginPath();
+  c.ellipse(100, 170, 46, 12, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#f0c25a';
+  c.beginPath();
+  c.ellipse(100, 166, 40, 8, 0, 0, Math.PI * 2);
+  c.fill();
 }
 
-function bar() {
-  const c = new Container();
-  const g = new Graphics();
-  g.roundRect(8, 30, 84, 40, 8).fill(0x1b1b22).stroke({ color: 0xe0b25a, width: 4 });
-  const t = new Text({ text: 'BAR', style: { fontFamily: FONT_DISPLAY, fontSize: 30, fill: 0xfff1c4 } });
-  t.anchor.set(0.5);
-  t.position.set(50, 51);
-  c.addChild(g, t);
-  return c;
+function lantern(c: Ctx) {
+  glow(c, 100, 108, 84, 'rgba(255,200,100,0.55)');
+  c.strokeStyle = '#7a5214';
+  c.lineWidth = 6;
+  c.beginPath();
+  c.arc(100, 30, 14, Math.PI, 0);
+  c.stroke();
+  // Roof.
+  c.fillStyle = '#9a6a1c';
+  c.beginPath();
+  c.moveTo(60, 58);
+  c.lineTo(140, 58);
+  c.lineTo(122, 36);
+  c.lineTo(78, 36);
+  c.closePath();
+  c.fill();
+  // Glass with light.
+  const gl = c.createRadialGradient(100, 108, 6, 100, 108, 50);
+  gl.addColorStop(0, '#fffbe0');
+  gl.addColorStop(0.5, '#ffd36a');
+  gl.addColorStop(1, '#d9861f');
+  c.fillStyle = gl;
+  c.fillRect(68, 60, 64, 96);
+  // Frame bars.
+  c.strokeStyle = '#7a5214';
+  c.lineWidth = 6;
+  c.strokeRect(68, 60, 64, 96);
+  c.beginPath();
+  c.moveTo(100, 60);
+  c.lineTo(100, 156);
+  c.stroke();
+  // Little moth silhouette in the glass.
+  drawMoth(c, 100, 112, 44, 'rgba(90,50,10,0.55)', 'rgba(90,50,10,0.7)');
+  // Base.
+  c.fillStyle = '#9a6a1c';
+  c.fillRect(60, 156, 80, 14);
+  c.fillStyle = '#f0c25a';
+  c.fillRect(64, 158, 72, 4);
 }
 
-function seven() {
-  const t = new Text({
-    text: '7',
-    style: {
-      fontFamily: FONT_DISPLAY,
-      fontSize: 86,
-      fill: 0xe0233f,
-      stroke: { color: 0xf0c25a, width: 7 },
-      dropShadow: { color: 0x5a0010, distance: 4, angle: Math.PI / 3, blur: 0, alpha: 1 },
-    },
-  });
-  t.anchor.set(0.5);
-  t.position.set(50, 52);
-  const c = new Container();
-  c.addChild(t);
-  return c;
+function key(c: Ctx) {
+  glow(c, 100, 100, 80, 'rgba(240,194,90,0.35)');
+  c.save();
+  c.translate(100, 100);
+  c.rotate(-0.6);
+  const m = c.createLinearGradient(0, -20, 0, 20);
+  m.addColorStop(0, '#fff1c4');
+  m.addColorStop(0.5, '#e0b25a');
+  m.addColorStop(1, '#8a5e14');
+  c.fillStyle = m;
+  c.strokeStyle = '#6e4a10';
+  c.lineWidth = 3;
+  // Shaft.
+  c.fillRect(-10, -8, 92, 16);
+  c.strokeRect(-10, -8, 92, 16);
+  // Bit.
+  c.fillRect(56, 8, 12, 24);
+  c.fillRect(74, 8, 10, 16);
+  c.strokeRect(56, 8, 12, 24);
+  c.strokeRect(74, 8, 10, 16);
+  // Ornate bow with a moth cut-out.
+  c.beginPath();
+  c.arc(-40, 0, 36, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+  c.fillStyle = '#2a1630';
+  c.beginPath();
+  c.arc(-40, 0, 24, 0, Math.PI * 2);
+  c.fill();
+  c.rotate(0.6);
+  drawMoth(c, -40 * Math.cos(-0.6), -40 * Math.sin(-0.6) + 2, 40, '#e0b25a', '#fff1c4');
+  c.restore();
 }
 
-function diamond() {
-  const g = new Graphics();
-  g.poly([20, 36, 34, 18, 66, 18, 80, 36, 50, 84]).fill(0x5fe3ff).stroke({ color: 0x1b8fb8, width: 3 });
-  g.poly([20, 36, 80, 36, 50, 84]).fill({ color: 0x2bb7e6, alpha: 0.8 });
-  g.poly([34, 18, 42, 36, 50, 18]).fill({ color: 0xffffff, alpha: 0.7 });
-  g.poly([50, 18, 58, 36, 66, 18]).fill({ color: 0xc8f6ff, alpha: 0.7 });
-  g.poly([42, 36, 58, 36, 50, 84]).fill({ color: 0x9cefff, alpha: 0.6 });
-  return g;
+function moon(c: Ctx) {
+  glow(c, 100, 100, 98, 'rgba(255,240,190,0.55)');
+  const g = c.createRadialGradient(84, 80, 10, 100, 100, 66);
+  g.addColorStop(0, '#fffbe8');
+  g.addColorStop(0.7, '#f3dd9c');
+  g.addColorStop(1, '#c9a25a');
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(100, 100, 64, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = 'rgba(160,120,60,0.35)';
+  for (const [x, y, r] of [
+    [78, 84, 12],
+    [118, 76, 8],
+    [116, 118, 15],
+    [84, 124, 7],
+    [130, 98, 5],
+  ]) {
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
 }
 
-const drawers: Record<SymbolId, () => Container> = { cherry, lemon, bell, bar, seven, diamond };
+function moth(c: Ctx) {
+  glow(c, 100, 100, 98, 'rgba(255,215,120,0.75)');
+  drawMoth(c, 102, 108, 178, 'rgba(110,70,15,0.7)', 'rgba(110,70,15,0.9)');
+  const wing = c.createLinearGradient(20, 40, 180, 160);
+  wing.addColorStop(0, '#fff1c4');
+  wing.addColorStop(0.5, '#f0c25a');
+  wing.addColorStop(1, '#b07a1f');
+  drawMoth(c, 100, 104, 178, wing, '#6e4a10', '#fff6e6');
+}
 
+const painters: Record<SymbolId, (c: Ctx) => void> = { firefly, candle, lantern, key, moon, moth };
 let textures: Record<SymbolId, Texture> | null = null;
 
 export function symbolTextures() {
   if (!textures) {
     textures = {} as Record<SymbolId, Texture>;
     for (const id of SYMBOLS) {
-      const wrap = new Container();
-      // Transparent frame so every symbol bakes to the same size.
-      wrap.addChild(new Graphics().rect(0, 0, S, S).fill({ color: 0x000000, alpha: 0.001 }));
-      wrap.addChild(drawers[id]());
-      textures[id] = bake(wrap);
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = S;
+      painters[id](cv.getContext('2d')!);
+      textures[id] = Texture.from(cv);
     }
   }
   return textures;

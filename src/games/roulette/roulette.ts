@@ -3,7 +3,7 @@
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, floatText, glowTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, drawChip, floatText, glowTexture } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -51,25 +51,6 @@ const BOARD_W = CW * 14;
 const BOARD_H = CH * 3 + 56 + 56;
 const CONTROLS_H = 150;
 const CHIPS = [10, 50, 100, 500];
-const CHIP_COLORS: Record<number, number> = { 10: 0x2f6fd6, 50: 0xe0761f, 100: 0x1b1b22, 500: 0x7b3fc4 };
-
-function drawChip(value: number, radius = 20) {
-  const c = new Container();
-  const col = CHIP_COLORS[value] ?? 0x2f6fd6;
-  const g = new Graphics();
-  g.circle(0, 3, radius).fill({ color: 0x000000, alpha: 0.4 });
-  g.circle(0, 0, radius).fill(col);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    g.moveTo(Math.cos(a) * radius * 0.72, Math.sin(a) * radius * 0.72)
-      .lineTo(Math.cos(a) * radius, Math.sin(a) * radius)
-      .stroke({ color: 0xfff6e6, width: radius * 0.28 });
-  }
-  g.circle(0, 0, radius * 0.66).fill(col).stroke({ color: 0xfff6e6, width: 1.5, alpha: 0.7 });
-  c.addChild(g);
-  return c;
-}
-
 class RouletteGame implements GameInstance {
   view = new Container();
   private wheelGroup = new Container();
@@ -320,7 +301,7 @@ class RouletteGame implements GameInstance {
     if (this.spinning) return;
     const next = this.totalBet + this.chipValue;
     if (next > this.ctx.state.balance) {
-      this.ctx.toast('Nicht genug Spielgeld für diesen Chip.');
+      this.ctx.toast('Nicht genug Falter für diesen Chip.');
       return;
     }
     this.bets.set(key, (this.bets.get(key) ?? 0) + this.chipValue);
@@ -339,7 +320,7 @@ class RouletteGame implements GameInstance {
     let sum = 0;
     for (const v of this.lastBets.values()) sum += v;
     if (sum > this.ctx.state.balance) {
-      this.ctx.toast('Nicht genug Spielgeld, um die letzten Einsätze zu wiederholen.');
+      this.ctx.toast('Nicht genug Falter, um die letzten Einsätze zu wiederholen.');
       return;
     }
     this.bets = new Map(this.lastBets);
@@ -397,7 +378,7 @@ class RouletteGame implements GameInstance {
       return;
     }
     if (!this.ctx.state.placeBet(total)) {
-      this.ctx.toast('Nicht genug Spielgeld.');
+      this.ctx.toast('Nicht genug Falter.');
       return;
     }
     this.spinning = true;
@@ -498,17 +479,10 @@ class RouletteGame implements GameInstance {
       const total = this.totalBet;
       const local = this.view.toLocal(pos);
       floatText(this.view, local.x, local.y - 30, `+${formatChips(payout)}`, COLORS.lamp, 40);
-      if (bestMult >= 35) {
-        this.ctx.sfx.bigWin();
-        this.ctx.shake(14);
-        this.ctx.particles.coinRain(this.viewW, 100);
-        await this.banner('VOLLTREFFER!');
-      } else if (payout >= total * 3) {
-        this.ctx.sfx.bigWin();
-        this.ctx.particles.coinRain(this.viewW, 40);
-      } else {
-        this.ctx.sfx.win();
-      }
+      // Moths rise from the winning field and circle the wheel.
+      const wheelCentre = this.wheel.getGlobalPosition();
+      const wheelR = (R + 30) * this.wheelGroup.scale.x;
+      this.ctx.celebrate(payout / total, pos.x, pos.y, { x: wheelCentre.x, y: wheelCentre.y, r: wheelR });
       for (let i = 0; i < Math.min(12, winners.length * 4); i++) this.ctx.sfx.coin(i * 0.06);
     } else {
       this.ctx.sfx.lose();
@@ -517,29 +491,9 @@ class RouletteGame implements GameInstance {
     this.bets.clear();
   }
 
-  private async banner(text: string) {
-    const t = new Text({
-      text,
-      style: { fontFamily: FONT_DISPLAY, fontSize: 80, fill: 0xfff6e6, stroke: { color: COLORS.ink, width: 10 } },
-    });
-    t.filters = [new GlowFilter({ color: COLORS.lamp, distance: 24, outerStrength: 4, quality: 0.2 })];
-    t.anchor.set(0.5);
-    const fit = Math.min(1, (this.viewW * 0.9) / t.width);
-    t.position.set(this.viewW / 2, this.viewH * 0.4);
-    t.scale.set(0.1);
-    this.view.addChild(t);
-    await tween(t.scale, { x: fit, y: fit }, 600, ease.outElastic);
-    void tween(t, { alpha: 0 }, 500, ease.inCubic, 900).then(() => t.destroy());
-  }
-
   // ---- Frame ------------------------------------------------------------
 
-  private viewW = 800;
-  private viewH = 600;
-
   resize(w: number, h: number) {
-    this.viewW = w;
-    this.viewH = h;
     const boardTotalH = BOARD_H + CONTROLS_H + 84;
     const boardTotalW = BOARD_W + 40;
     if (w / h > 1.25) {

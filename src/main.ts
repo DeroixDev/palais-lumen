@@ -6,7 +6,7 @@ import './rooms';
 import { getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
 import { GameState, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
-import { COLORS, Particles, setRenderer, shake } from './core/fx';
+import { COLORS, Particles, banner, purse, setRenderer, shake, tierFor } from './core/fx';
 import { animate, cancelAllTweens, ease, tween, updateTweens } from './core/tween';
 import { sfx } from './core/audio';
 import { RoomScene, WALL_H, type Interactable } from './world/room';
@@ -99,7 +99,7 @@ async function boot() {
     if (rescueOpen || state.balance >= 10 || (game && game.busy())) return;
     rescueOpen = true;
     setTimeout(() => {
-      hud.modal('Spielgeld alle', 'Kein Problem: Der Nachtfalter spendiert dir 500 Spielgeld, damit es weitergeht. Echtes Geld gibt es hier nie.', [
+      hud.modal('Falter alle', 'Kein Problem: Der Nachtfalter spendiert dir 500 Falter, damit es weitergeht. Falter sind reines Spielgeld, echtes Geld gibt es hier nie.', [
         {
           label: 'Danke!',
           primary: true,
@@ -119,6 +119,12 @@ async function boot() {
 
   function layout() {
     measureTop();
+    const coin = document.querySelector('#hud .coin');
+    if (coin && !hudEl.hidden) {
+      const r = coin.getBoundingClientRect();
+      purse.x = r.left + r.width / 2;
+      purse.y = r.top + r.height / 2;
+    }
     if (room) room.topInset = TOP || 64;
     const w = app.screen.width;
     const h = app.screen.height;
@@ -173,8 +179,8 @@ async function boot() {
       hud.modal(
         `${target.name} freischalten`,
         enough
-          ? `Die ${target.name} kostet einmalig ${cost.toLocaleString('de-DE')} Spielgeld und bleibt danach in diesem Spielstand offen.`
-          : `Dafür brauchst du ${cost.toLocaleString('de-DE')} Spielgeld. Dir fehlen noch ${(cost - state.balance).toLocaleString('de-DE')}.`,
+          ? `Die ${target.name} kostet einmalig ${cost.toLocaleString('de-DE')} Falter und bleibt danach in diesem Spielstand offen.`
+          : `Dafür brauchst du ${cost.toLocaleString('de-DE')} Falter. Dir fehlen noch ${(cost - state.balance).toLocaleString('de-DE')}.`,
         enough
           ? [
               { label: 'Später', onClick: () => hud.closeModal() },
@@ -233,6 +239,7 @@ async function boot() {
       options: st.options ?? {},
       shake: (s = 12) => void shake(gameLayer, s),
       toast: (t) => hud.toast(t),
+      celebrate: (mult, x, y, orbit) => celebrate(mult, x, y, orbit),
       exit: () => void closeGame(),
     });
     gameLayer.position.set(0, TOP);
@@ -281,6 +288,36 @@ async function boot() {
     room.refreshShelf();
     autosave();
     checkRescue();
+  }
+
+  /** The shared win celebration, so every game feels like the same casino. */
+  function celebrate(mult: number, x: number, y: number, orbit?: { x: number; y: number; r: number }) {
+    const tier = tierFor(mult);
+    if (!tier) return;
+    const w = app.screen.width;
+    const h = app.screen.height;
+    if (tier === 'small') {
+      sfx.win();
+      particles.sparkle(x, y, 14, COLORS.lamp, 140);
+      particles.coinsToPurse(x, y, Math.min(10, 3 + Math.round(mult * 2)));
+      return;
+    }
+    if (tier === 'big') {
+      sfx.bigWin();
+      void shake(gameLayer, 9);
+      particles.mothSwarm(x, y, 22, orbit ?? null, COLORS.lamp);
+      particles.coinBurst(x, y, 26);
+      particles.coinsToPurse(x, y, 16);
+      void banner(particles.view, 'GROSSER GEWINN', COLORS.neon, w / 2, h * 0.4, w);
+      return;
+    }
+    sfx.bigWin();
+    setTimeout(() => sfx.bigWin(), 900);
+    void shake(gameLayer, 18, 700);
+    particles.mothSwarm(x, y, 48, orbit ?? null, 0xfff1c4, 4.5);
+    particles.coinRain(w, 140);
+    particles.coinsToPurse(x, y, 26);
+    void banner(particles.view, 'JACKPOT!', COLORS.lamp, w / 2, h * 0.4, w);
   }
 
   // ---- Overlays ---------------------------------------------------------
@@ -406,8 +443,8 @@ async function boot() {
   const hasSave = !!latestSave();
   cont.textContent = hasSave ? 'Weiterspielen' : 'Casino betreten';
   info.textContent = hasSave
-    ? `Abend ${state.data.evening.number} · ${state.balance.toLocaleString('de-DE')} Spielgeld · ${state.data.trophies.length} Trophäen`
-    : 'Du startest mit 1.000 Spielgeld.';
+    ? `Abend ${state.data.evening.number} · ${state.balance.toLocaleString('de-DE')} Falter · ${state.data.trophies.length} Trophäen`
+    : 'Du startest mit 1.000 Falter.';
   const start = () => {
     sfx.unlock();
     title.classList.add('out');

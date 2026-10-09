@@ -21,7 +21,9 @@ export const vip: RoomDefinition = {
     { game: 'roulette', x: 420, y: 300, label: 'High Roller', options: { minBet: 50 } },
     { game: 'slots', x: 140, y: 250, label: 'Goldmotte', options: { theme: 'gold' } },
     { game: 'slots', x: 240, y: 250, label: 'Goldmotte', options: { theme: 'gold' } },
-    { game: 'slots', x: 760, y: 250, label: 'Diamant', options: { theme: 'diamond' } },
+    { game: 'slots', x: 760, y: 250, label: 'Mondschein', options: { theme: 'diamond' } },
+    { game: 'plinko', x: 150, y: 380, label: 'Mottenfall' },
+    { game: 'crash', x: 730, y: 380, label: 'Mondflug' },
   ],
   doors: [{ to: 'lobby', x: 500, label: 'Lobby' }],
   decor: [
