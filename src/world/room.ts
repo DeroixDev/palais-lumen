@@ -78,6 +78,11 @@ export class RoomScene {
   /** Direction the player faces while a cutscene moves them. */
   private scripted: number | null | undefined = undefined;
   private keys = new Set<string>();
+  /** Swipe-and-hold steering on touch screens (screen coordinates). */
+  private drag: { id: number; sx: number; sy: number; x: number; y: number; active: boolean } | null = null;
+  private stick = new Graphics();
+  /** How long the player has been pushing against the thing in front of them. */
+  private bump = 0;
   private target: { x: number; y: number } | null = null;
   private pending: Interactable | null = null;
   private nearest: Interactable | null = null;
@@ -139,6 +144,11 @@ export class RoomScene {
     window.addEventListener('keydown', this.keyDown);
     window.addEventListener('keyup', this.keyUp);
     window.addEventListener('blur', this.clearKeys);
+    window.addEventListener('pointerdown', this.dragStart);
+    window.addEventListener('pointermove', this.dragMove);
+    window.addEventListener('pointerup', this.dragEnd);
+    window.addEventListener('pointercancel', this.dragEnd);
+    this.view.addChild(this.stick);
   }
 
   // ---- Building ---------------------------------------------------------
@@ -721,8 +731,58 @@ export class RoomScene {
   private keyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
   private clearKeys = () => this.keys.clear();
 
+  private dragStart = (e: PointerEvent) => {
+    if (this.frozen || this.drag || !(e.target instanceof HTMLCanvasElement)) return;
+    this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, active: false };
+  };
+
+  private dragMove = (e: PointerEvent) => {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.id) return;
+    d.x = e.clientX;
+    d.y = e.clientY;
+    const dist = Math.hypot(d.x - d.sx, d.y - d.sy);
+    if (!d.active && dist > 14 && !this.frozen) {
+      d.active = true;
+      this.target = null;
+      this.pending = null;
+    }
+    // The stick's centre follows the finger when it goes far, so turning around is quick.
+    const max = 70;
+    if (dist > max) {
+      d.sx = d.x - ((d.x - d.sx) / dist) * max;
+      d.sy = d.y - ((d.y - d.sy) / dist) * max;
+    }
+  };
+
+  private dragEnd = (e: PointerEvent) => {
+    if (!this.drag || e.pointerId !== this.drag.id) return;
+    this.drag = null;
+    this.stick.clear();
+  };
+
+  private drawStick() {
+    const d = this.drag;
+    this.stick.clear();
+    if (!d || !d.active || this.frozen) return;
+    const dist = Math.hypot(d.x - d.sx, d.y - d.sy);
+    const k = Math.min(1, 46 / Math.max(1, dist));
+    this.stick.circle(d.sx, d.sy, 52).fill({ color: 0x000000, alpha: 0.18 }).stroke({ color: COLORS.lamp, width: 2, alpha: 0.45 });
+    this.stick.circle(d.sx + (d.x - d.sx) * k, d.sy + (d.y - d.sy) * k, 22).fill({ color: COLORS.lamp, alpha: 0.55 });
+  }
+
+  /** Middle of the thing an interactable belongs to (to tell if the player walks into it). */
+  private objectPoint(i: Interactable) {
+    if (i.kind === 'station') {
+      const g = getGame(i.station.game);
+      return { x: i.station.x + g.footprint.w / 2, y: i.station.y + g.footprint.h / 2 };
+    }
+    if (i.kind === 'use') return { x: i.cx, y: i.cy };
+    return { x: i.x, y: i.y - 70 };
+  }
+
   private onTap(e: FederatedPointerEvent) {
-    if (this.frozen) return;
+    if (this.frozen || this.drag?.active) return;
     const p = this.world.toLocal(e.global);
     // Tapped close to something interactive? Walk there and use it.
     let best: Interactable | null = null;
@@ -760,6 +820,16 @@ export class RoomScene {
       if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) dx += 1;
       if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) dy -= 1;
       if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) dy += 1;
+      if (this.drag?.active) {
+        const d = this.drag;
+        const dist = Math.hypot(d.x - d.sx, d.y - d.sy);
+        if (dist > 10) {
+          dx = (d.x - d.sx) / dist;
+          dy = (d.y - d.sy) / dist;
+          this.target = null;
+          this.pending = null;
+        }
+      }
       if (dx === 0 && dy === 0 && this.target) {
         const tx = this.target.x - this.player.view.x;
         const ty = this.target.y - this.player.view.y;
@@ -787,6 +857,28 @@ export class RoomScene {
       const oy = pv.y;
       if (!this.collides(pv.x + mx, pv.y)) pv.x += mx;
       if (!this.collides(pv.x, pv.y + my)) pv.y += my;
+      // Walking into a machine, table or shop uses it, after a short push.
+      const moved = Math.hypot(pv.x - ox, pv.y - oy);
+      const near = this.nearest;
+      if (!this.frozen && near && moved < Math.hypot(mx, my) * 0.5) {
+        const o = this.objectPoint(near);
+        const tx = o.x - pv.x;
+        const ty = o.y - pv.y;
+        const tl = Math.hypot(tx, ty) || 1;
+        if ((dx * tx + dy * ty) / (len * tl) > 0.45) {
+          this.bump += dt;
+          if (this.bump > 0.16) {
+            this.bump = 0;
+            this.target = null;
+            this.pending = null;
+            if (this.drag) this.drag.active = false;
+            this.stick.clear();
+            this.keys.clear();
+            this.onInteract(near);
+            return;
+          }
+        } else this.bump = 0;
+      } else this.bump = 0;
       this.stepAcc += dt;
       if (this.stepAcc > 0.3) {
         this.stepAcc = 0;
@@ -836,6 +928,7 @@ export class RoomScene {
     this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
     this.updateCompanion(dt);
+    this.drawStick();
 
     this.updateCamera();
   }
@@ -892,6 +985,10 @@ export class RoomScene {
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.clearKeys);
+    window.removeEventListener('pointerdown', this.dragStart);
+    window.removeEventListener('pointermove', this.dragMove);
+    window.removeEventListener('pointerup', this.dragEnd);
+    window.removeEventListener('pointercancel', this.dragEnd);
     this.view.destroy({ children: true });
   }
 }

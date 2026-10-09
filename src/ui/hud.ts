@@ -325,8 +325,8 @@ export class Hud {
     const body = document.createElement('div');
     body.className = 'help';
     body.innerHTML = `
-      <p><strong>Laufen:</strong> WASD oder Pfeiltasten, oder irgendwo hintippen.</p>
-      <p><strong>Spielen:</strong> an einen Automaten oder Tisch gehen und <kbd>E</kbd> drücken oder tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
+      <p><strong>Laufen:</strong> WASD oder Pfeiltasten. Am Handy wischen und den Finger halten, dann läufst du in diese Richtung. Kurz tippen läuft zu der Stelle.</p>
+      <p><strong>Spielen:</strong> einfach gegen einen Automaten, Tisch oder Stand laufen. Oder davor <kbd>E</kbd> drücken oder auf die Sprechblase tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
       <p><strong>Saison:</strong> Jeder Tag hat ein Gewinnziel, und es steigt von Tag zu Tag. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
       <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet die Mottenkönigin ganz oben im Thronsaal. Besiegst du sie, hast du die Saison gewonnen.</p>
       <p><strong>Foyer:</strong> Hier startest du und hierher kommst du nach jedem Tag zurück. Im Laden gibt es Kleidung, Begleiter und Glücksbringer für Mondsteine, in der Umkleide ziehst du dich um, am Empfang stellst du deine Gruppe zusammen. Mondsteine gibt es für Medaillen, Erfolge und die Mottenkönigin, nie für Geld.</p>
