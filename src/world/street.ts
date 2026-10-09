@@ -321,11 +321,12 @@ export class Street {
       const base = 16 / m.texture.width;
       const ph = Math.random() * 10;
       void animate(1400 + Math.random() * 900, (k) => {
+        if (c.destroyed) return;
         c.position.set(sx + Math.cos(ang) * dist * k + Math.sin(k * 9 + ph) * 14, sy + Math.sin(ang) * dist * k);
         c.scale.set(1 + k * 0.8);
         c.alpha = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
         m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(k * 60 + ph)));
-      }).then(() => c.destroy({ children: true }));
+      }).then(() => !c.destroyed && c.destroy({ children: true }));
     }
   }
 
@@ -548,6 +549,7 @@ export class Street {
     void animate(
       2200,
       (k) => {
+        if (taxi.c.destroyed) return;
         const x = stopX + 1200 * k * k;
         for (const w of taxi.wheels) w.rotation += (x - taxi.c.x) / 22;
         taxi.c.x = x;
@@ -556,14 +558,14 @@ export class Street {
       ease.linear,
     ).then(() => {
       this.exhaust = null;
-      taxi.c.destroy({ children: true });
+      if (!taxi.c.destroyed) taxi.c.destroy({ children: true });
     });
     entry.walking = true;
     void tween(this.cam, { x: DOOR_X, y: GROUND - 140, zoom: 1.6 }, 2200, ease.inOutCubic);
     // The doors swing open towards you and warm light floods out.
     void wait(1300).then(() => {
       sfx.bigDoors();
-      void animate(900, (k) => this.drawDoors(k), ease.outBack);
+      void animate(900, (k) => !this.doors.destroyed && this.drawDoors(k), ease.outBack);
       void tween(this.doorLight, { alpha: 0.9, width: 900, height: 700 }, 900, ease.outCubic);
       this.mothBurst();
     });

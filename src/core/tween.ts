@@ -27,7 +27,17 @@ const running = new Set<Running>();
 
 export function updateTweens(dtMs: number) {
   for (const r of [...running]) {
-    if (r.update(dtMs)) running.delete(r);
+    // A tween whose target was destroyed (e.g. a scene closed mid-animation) must not
+    // break every other animation: drop it and carry on.
+    let done: boolean;
+    try {
+      done = r.update(dtMs);
+    } catch (e) {
+      console.error(e);
+      r.cancel();
+      done = true;
+    }
+    if (done) running.delete(r);
   }
 }
 
