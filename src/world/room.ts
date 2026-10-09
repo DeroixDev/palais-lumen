@@ -90,7 +90,7 @@ export class RoomScene {
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
     const guestCount = Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7)));
-    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position);
+    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height });
 
     // Interaction prompt bubble.
     const bubble = new Graphics();

@@ -381,33 +381,129 @@ class Sfx {
 
   // ---- Arrival ------------------------------------------------------------
 
-  /** Taxi engine; returns a stop function. */
-  engineStart(): () => void {
-    if (!this.ctx || !this.fx) return () => {};
+  /**
+   * A running car: a small engine model (two detuned saws and a sub, pulsed at the
+   * firing rate, through a filter that opens with the revs) plus tyre roll on the road.
+   * `set(rpm, speed)` glides to new values (both 0..1); `stop()` turns the engine off.
+   */
+  car(): { set(rpm: number, speed: number, glide?: number): void; stop(): void } {
+    const none = { set() {}, stop() {} };
+    if (!this.ctx || !this.fx || !this.noiseBuf) return none;
     const ctx = this.ctx;
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const f = ctx.createBiquadFilter();
-    const g = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(48, t);
-    f.type = 'lowpass';
-    f.frequency.value = 260;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.12, t + 0.5);
-    osc.connect(f).connect(g).connect(this.fx);
-    osc.start(t);
-    this.noise(2.5, 0.05, 0, 400, 'lowpass', 1);
-    return () => {
-      const n = ctx.currentTime;
-      osc.frequency.setTargetAtTime(32, n, 0.3);
-      g.gain.setTargetAtTime(0.0001, n, 0.35);
-      osc.stop(n + 1.5);
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(1, t + 0.25);
+    out.connect(this.fx);
+    // Engine voices.
+    const a = ctx.createOscillator();
+    const b = ctx.createOscillator();
+    const sub = ctx.createOscillator();
+    a.type = 'sawtooth';
+    b.type = 'sawtooth';
+    sub.type = 'square';
+    b.detune.value = 14;
+    const mix = ctx.createGain();
+    mix.gain.value = 0.09;
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.05;
+    a.connect(mix);
+    b.connect(mix);
+    sub.connect(subGain).connect(mix);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 3;
+    // Cylinder pulses: amplitude modulation at the firing rate.
+    const am = ctx.createGain();
+    am.gain.value = 0.6;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'triangle';
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = 0.4;
+    lfo.connect(lfoDepth).connect(am.gain);
+    mix.connect(lp).connect(am).connect(out);
+    // Tyres on asphalt and a little wind.
+    const road = ctx.createBufferSource();
+    road.buffer = this.noiseBuf;
+    road.loop = true;
+    const roadF = ctx.createBiquadFilter();
+    roadF.type = 'bandpass';
+    roadF.frequency.value = 350;
+    roadF.Q.value = 0.8;
+    const roadG = ctx.createGain();
+    roadG.gain.value = 0.0001;
+    road.connect(roadF).connect(roadG).connect(out);
+    const apply = (rpm: number, speed: number, at: number, glide: number) => {
+      const f = 34 + rpm * 62;
+      a.frequency.setTargetAtTime(f, at, glide);
+      b.frequency.setTargetAtTime(f, at, glide);
+      sub.frequency.setTargetAtTime(f / 2, at, glide);
+      lfo.frequency.setTargetAtTime(f / 2, at, glide);
+      lp.frequency.setTargetAtTime(220 + rpm * 1300, at, glide);
+      mix.gain.setTargetAtTime(0.07 + rpm * 0.07, at, glide);
+      roadG.gain.setTargetAtTime(0.0001 + speed * 0.07, at, glide);
+      roadF.frequency.setTargetAtTime(250 + speed * 500, at, glide);
+    };
+    apply(0.15, 0, t, 0.01);
+    for (const o of [a, b, sub, lfo]) o.start(t);
+    road.start(t);
+    let stopped = false;
+    return {
+      set: (rpm, speed, glide = 0.25) => !stopped && apply(rpm, speed, ctx.currentTime, glide),
+      stop: () => {
+        if (stopped) return;
+        stopped = true;
+        const n = ctx.currentTime;
+        apply(0, 0, n, 0.15);
+        out.gain.setTargetAtTime(0.0001, n + 0.1, 0.25);
+        for (const o of [a, b, sub, lfo]) o.stop(n + 1.5);
+        road.stop(n + 1.5);
+      },
     };
   }
+  /** Starter motor whirr and the engine catching. */
+  ignition() {
+    for (let i = 0; i < 4; i++) this.noise(0.09, 0.08, i * 0.11, 900, 'bandpass', 2);
+    this.tone(60, 0.4, 'sawtooth', 0.06, 0.42, 90);
+  }
+  /** Brakes: tyre hiss and a short squeal. */
+  brake() {
+    this.noise(0.6, 0.06, 0, 900, 'bandpass', 1, this.fx, 300);
+    this.tone(2350, 0.35, 'sine', 0.025, 0.05, 2150, this.fx, 0.05);
+    this.tone(3120, 0.25, 'sine', 0.012, 0.1, 2950, this.fx, 0.05);
+  }
+  handbrake() {
+    for (let i = 0; i < 5; i++) this.noise(0.02, 0.1, i * 0.035, 3000, 'bandpass', 5);
+  }
+  /** Car door: handle click and the door swinging open. */
+  carDoorOpen() {
+    this.noise(0.03, 0.25, 0, 2500, 'bandpass', 4);
+    this.noise(0.04, 0.2, 0.06, 1500, 'bandpass', 3);
+    this.noise(0.3, 0.03, 0.1, 700, 'bandpass', 2, this.fx, 1100);
+  }
+  /** Car door slammed shut: deep body thump and a metallic latch. */
   carDoor() {
-    this.noise(0.08, 0.35, 0, 600, 'lowpass', 1);
-    this.tone(110, 0.15, 'sine', 0.3, 0, 70);
+    this.noise(0.12, 0.4, 0, 450, 'lowpass', 1);
+    this.tone(95, 0.22, 'sine', 0.35, 0, 55);
+    this.tone(190, 0.08, 'triangle', 0.08, 0.005, 120);
+    this.noise(0.05, 0.18, 0.03, 2600, 'bandpass', 6);
+    this.noise(0.4, 0.03, 0.05, 300, 'lowpass', 1);
+  }
+  /** Taxi horn, two friendly toots. */
+  horn() {
+    for (const d of [0, 0.22]) {
+      this.tone(415, 0.14, 'sawtooth', 0.035, d);
+      this.tone(523, 0.14, 'sawtooth', 0.03, d);
+    }
+  }
+  /** Heavy casino doors swinging outwards on their hinges. */
+  bigDoors() {
+    this.noise(0.08, 0.15, 0, 1200, 'bandpass', 3);
+    this.tone(180, 0.6, 'triangle', 0.025, 0.05, 140, this.fx, 0.1);
+    this.noise(0.7, 0.05, 0.05, 500, 'bandpass', 2, this.fx, 250);
+    this.noise(0.15, 0.12, 0.62, 300, 'lowpass', 1);
+    this.bell(1568, 0.05, 0.15, 0.9);
+    this.bell(2093, 0.04, 0.25, 0.9);
   }
 
   // ---- Music and ambience -------------------------------------------------

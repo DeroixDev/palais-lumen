@@ -17,6 +17,8 @@ export interface Look {
   skin?: number;
   hair?: number;
   jacket?: number;
+  /** Doorman's cap. */
+  cap?: boolean;
 }
 
 /** A person seen from the side, with swinging legs. */
@@ -26,6 +28,7 @@ class Walker {
   private legB = new Graphics();
   private body = new Container();
   private t = 0;
+  private t2 = Math.random() * 10;
 
   constructor(look: Look) {
     const shadow = new Graphics().ellipse(0, 0, 22, 6).fill({ color: 0x000000, alpha: 0.45 });
@@ -43,16 +46,36 @@ class Walker {
     g.circle(0, -106, 13).fill(look.skin ?? 0xe8b48a);
     g.ellipse(-2, -114, 14, 8).fill(look.hair ?? 0x2a1a10);
     g.circle(6, -106, 1.6).fill(0x1b1b22);
-    this.body.addChild(g);
+    if (look.cap) {
+      g.roundRect(-13, -124, 26, 12, 4).fill(look.jacket ?? 0x6b1a2e).stroke({ color: COLORS.brass, width: 1.5 });
+      g.roundRect(-2, -114, 20, 4, 2).fill(0x1b1b22);
+      g.rect(-13, -116, 26, 3).fill(COLORS.brass);
+    }
+    // Front arm, swinging while walking.
+    this.arm.roundRect(-4, 0, 8, 36, 4).fill(look.jacket ?? 0x2a1630).stroke({ color: 0x14080f, width: 1, alpha: 0.5 });
+    this.arm.circle(0, 38, 4.5).fill(look.skin ?? 0xe8b48a);
+    this.arm.position.set(2, -88);
+    this.body.addChild(g, this.arm);
+    // The upper body bends at the hips (for bowing).
+    this.body.pivot.set(0, -42);
+    this.body.position.set(0, -42);
     this.view.addChild(shadow, this.legB, this.legA, this.body);
   }
 
+  private arm = new Graphics();
+  /** 0..1: how deep the bow is. */
+  bow = 0;
+
   update(dtMs: number, walking: boolean) {
     if (walking) this.t += dtMs / 1000;
+    else this.t2 += dtMs / 1000;
     const s = walking ? Math.sin(this.t * 9) : 0;
     this.legA.rotation = s * 0.45;
     this.legB.rotation = -s * 0.45;
-    this.body.y = walking ? -Math.abs(Math.cos(this.t * 9)) * 3 : 0;
+    this.arm.rotation = -s * 0.5 - this.bow * 0.5;
+    // Standing: slow breathing.
+    this.body.y = -42 + (walking ? -Math.abs(Math.cos(this.t * 9)) * 3 : Math.sin(this.t2 * 2.2) * 0.8);
+    this.body.rotation = this.bow * 0.45;
     if (walking && Math.abs(s) > 0.97 && Math.random() < 0.5) sfx.footstep();
   }
 }
@@ -127,8 +150,12 @@ export class Street {
   private sign!: Sprite;
   private signGlow!: Sprite;
   private doorLight!: Sprite;
-  private doorL = new Graphics();
-  private doorR = new Graphics();
+  /** Both entrance doors, redrawn while they swing (0 shut, 1 wide open towards the street). */
+  private doors = new Graphics();
+  private doorman!: Walker;
+  private puffs: { g: Graphics; vx: number; vy: number; life: number }[] = [];
+  private exhaust: { x: number; y: number; c: Container } | null = null;
+  private puffAcc = 0;
   private moths: { c: Container; wings: Sprite; base: number; cx: number; cy: number; ph: number; sp: number }[] = [];
   private cars: { c: Container; v: number; wheels: Graphics[] }[] = [];
   private time = 0;
@@ -168,13 +195,14 @@ export class Street {
     this.doorLight.blendMode = 'add';
     const inner = new Graphics().rect(DOOR_X - 84, GROUND - 164, 168, 164).fill(0xffd98a);
     this.world.addChild(inner, this.doorLight);
-    for (const [d, sx] of [[this.doorL, -1], [this.doorR, 1]] as const) {
-      d.rect(sx < 0 ? -84 : 0, 0, 84, 164).fill(0x3a1a12).stroke({ color: COLORS.brass, width: 3 });
-      d.roundRect(sx < 0 ? -66 : 18, 18, 48, 90, 20).fill({ color: 0xffcf7a, alpha: 0.35 });
-      d.circle(sx < 0 ? -10 : 10, 92, 4).fill(COLORS.brass);
-      d.position.set(DOOR_X, GROUND - 164);
-      this.world.addChild(d);
-    }
+    this.world.addChild(this.doors);
+    this.drawDoors(0);
+    // The doorman waits beside the entrance.
+    this.doorman = new Walker({ color: COLORS.brass, jacket: 0x6b1a2e, skin: 0xc68a5e, hair: 0x1b1b22, cap: true });
+    this.doorman.view.position.set(DOOR_X + 150, GROUND + 14);
+    this.doorman.view.scale.x = -1;
+    this.world.addChild(this.doorman.view);
+    this.walkers.push({ w: this.doorman, walking: false });
 
     // Neon sign with marquee bulbs.
     this.signGlow = new Sprite(glowTexture());
@@ -225,6 +253,82 @@ export class Street {
     for (let i = 0; i < 3; i++) this.addMoth(DOOR_X, FACADE.top + 146);
   }
 
+  /**
+   * Double doors hinged at the frame, swinging outwards towards the street.
+   * The free edge comes closer to the viewer, so it grows taller and drops a little;
+   * past 90 degrees the back of the leaf shows.
+   */
+  private drawDoors(k: number) {
+    const g = this.doors.clear();
+    const top = GROUND - 164;
+    const hh = 164;
+    const theta = k * (Math.PI * 0.62);
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    for (const side of [-1, 1]) {
+      const hx = DOOR_X + side * 84; // hinge
+      const fx = hx - side * 84 * cos; // free edge
+      const grow = 1 + sin * 0.22;
+      const cy = top + hh / 2 + sin * 12;
+      const ft = cy - (hh / 2) * grow;
+      const fb = cy + (hh / 2) * grow;
+      const front = cos >= 0;
+      const lerp = (u: number, v: number) => {
+        // Point on the leaf: u 0 hinge..1 free edge, v 0 top..1 bottom.
+        const x = hx + (fx - hx) * u;
+        const t0 = top + (ft - top) * u;
+        const b0 = top + hh + (fb - top - hh) * u;
+        return [x, t0 + (b0 - t0) * v];
+      };
+      const quad = (u0: number, u1: number, v0: number, v1: number) => [...lerp(u0, v0), ...lerp(u1, v0), ...lerp(u1, v1), ...lerp(u0, v1)];
+      // Shadow of the open leaf on the carpet.
+      if (k > 0.05) g.poly([hx, GROUND, fx, fb + 2, fx + side * 6, fb + 10, hx + side * 4, GROUND + 6]).fill({ color: 0x000000, alpha: 0.25 * sin });
+      g.poly(quad(0, 1, 0, 1)).fill(front ? 0x3a1a12 : 0x24100a).stroke({ color: COLORS.brass, width: 3 });
+      // Leaf thickness at the free edge once it turns.
+      if (k > 0.05) g.poly([fx, ft, fx + side * 5 * sin, ft + 2, fx + side * 5 * sin, fb - 2, fx, fb]).fill(0x1a0a06);
+      if (front) {
+        g.poly(quad(0.2, 0.8, 0.11, 0.66)).fill({ color: 0xffcf7a, alpha: 0.35 });
+        g.poly(quad(0.2, 0.8, 0.11, 0.66)).stroke({ color: COLORS.brass, width: 1.5, alpha: 0.7 });
+        const [px, py] = lerp(0.9, 0.56);
+        g.roundRect(px - 3, py - 14, 6, 28, 3).fill(COLORS.brass);
+      } else {
+        g.poly(quad(0.15, 0.85, 0.1, 0.9)).stroke({ color: COLORS.brassDark, width: 1.5, alpha: 0.6 });
+      }
+    }
+  }
+
+  /** Warm moths tumble out of the opened doors towards the street. */
+  private mothBurst() {
+    for (let i = 0; i < 14; i++) {
+      const c = new Container();
+      const glow = new Sprite(glowTexture());
+      glow.anchor.set(0.5);
+      glow.width = glow.height = 36;
+      glow.tint = COLORS.lamp;
+      glow.alpha = 0.6;
+      glow.blendMode = 'add';
+      const m = new Sprite(mothTexture());
+      m.anchor.set(0.5);
+      m.width = m.height = 16;
+      m.tint = 0xfff1c4;
+      c.addChild(glow, m);
+      const sx = DOOR_X + (Math.random() - 0.5) * 120;
+      const sy = GROUND - 40 - Math.random() * 110;
+      c.position.set(sx, sy);
+      this.world.addChild(c);
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.6;
+      const dist = 120 + Math.random() * 220;
+      const base = 16 / m.texture.width;
+      const ph = Math.random() * 10;
+      void animate(1400 + Math.random() * 900, (k) => {
+        c.position.set(sx + Math.cos(ang) * dist * k + Math.sin(k * 9 + ph) * 14, sy + Math.sin(ang) * dist * k);
+        c.scale.set(1 + k * 0.8);
+        c.alpha = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+        m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(k * 60 + ph)));
+      }).then(() => c.destroy({ children: true }));
+    }
+  }
+
   private addMoth(cx: number, cy: number) {
     const c = new Container();
     const glow = new Sprite(glowTexture());
@@ -244,11 +348,15 @@ export class Street {
 
   private makeCar(taxi: boolean) {
     const c = new Container();
+    // The body sits on its springs above the wheels, so it can dip when braking.
+    const body = new Container();
+    body.pivot.set(0, -16);
+    body.position.set(0, -16);
     const g = new Graphics();
-    const body = taxi ? 0x3a1a3a : [0x1d2a4a, 0x2a2a2a, 0x4a1a1a][Math.floor(Math.random() * 3)];
+    const paint = taxi ? 0x3a1a3a : [0x1d2a4a, 0x2a2a2a, 0x4a1a1a][Math.floor(Math.random() * 3)];
     g.ellipse(0, 0, 130, 10).fill({ color: 0x000000, alpha: 0.5 });
-    g.roundRect(-120, -60, 240, 44, 16).fill(body);
-    g.poly([-70, -60, -45, -100, 50, -100, 80, -60]).fill(body);
+    g.roundRect(-120, -60, 240, 44, 16).fill(paint);
+    g.poly([-70, -60, -45, -100, 50, -100, 80, -60]).fill(paint);
     g.poly([-60, -62, -40, -94, -4, -94, -4, -62]).fill(0x9fd8ff);
     g.poly([4, -62, 4, -94, 46, -94, 70, -62]).fill(0x9fd8ff);
     g.poly([-56, -64, -42, -90, -30, -90, -46, -64]).fill({ color: 0xffffff, alpha: 0.25 });
@@ -258,12 +366,33 @@ export class Street {
     if (taxi) {
       g.roundRect(-24, -116, 48, 16, 5).fill(COLORS.lamp);
     }
-    c.addChild(g);
+    body.addChild(g);
+    c.addChild(body);
     if (taxi) {
       const t = glowText('TAXI', { fontFamily: FONT_DISPLAY, fontSize: 11, fill: 0x14080f }, { color: COLORS.lamp, distance: 6, outerStrength: 1 });
       t.position.set(0, -108);
-      c.addChild(t);
+      body.addChild(t);
     }
+    // Rear door (hinged at its front edge), drawn over the body.
+    const door = new Graphics();
+    door.roundRect(-58, -60, 54, 42, 4).fill(0x3a1a3a).stroke({ color: 0x0b0508, width: 1.5 });
+    door.poly([-56, -62, -40, -94, -4, -94, -4, -62]).fill(0x9fd8ff).stroke({ color: 0x0b0508, width: 1.5 });
+    door.rect(-58, -40, 54, 4).fill(COLORS.brass);
+    door.roundRect(-16, -52, 9, 3, 1.5).fill(0xcfd6e0);
+    door.pivot.set(-4, 0);
+    door.position.set(-4, 0);
+    door.visible = taxi;
+    body.addChild(door);
+    // Brake lights.
+    const brake = new Sprite(glowTexture());
+    brake.anchor.set(0.5);
+    brake.position.set(-120, -49);
+    brake.width = 90;
+    brake.height = 50;
+    brake.tint = 0xff2a3a;
+    brake.alpha = 0;
+    brake.blendMode = 'add';
+    body.addChild(brake);
     const beam = new Sprite(glowTexture());
     beam.anchor.set(0, 0.5);
     beam.position.set(116, -48);
@@ -272,7 +401,7 @@ export class Street {
     beam.tint = 0xfff1c4;
     beam.alpha = 0.35;
     beam.blendMode = 'add';
-    c.addChild(beam);
+    body.addChild(beam);
     const wheels: Graphics[] = [];
     for (const wx of [-72, 72]) {
       const w = new Graphics().circle(0, 0, 22).fill(0x0b0b10).circle(0, 0, 11).fill(0x8a8a90);
@@ -282,7 +411,7 @@ export class Street {
       wheels.push(w);
     }
     this.world.addChild(c);
-    return { c, wheels };
+    return { c, wheels, body, door, brake };
   }
 
   resize(w: number, h: number) {
@@ -334,29 +463,69 @@ export class Street {
       }
     }
     for (const w of this.walkers) w.w.update(dtMs, w.walking);
+    // Exhaust from the taxi while its engine runs.
+    if (this.exhaust) {
+      this.puffAcc += dt;
+      if (this.puffAcc > 0.09) {
+        this.puffAcc = 0;
+        const p = new Graphics().circle(0, 0, 7).fill({ color: 0xbfb8c8, alpha: 0.35 });
+        const ex = this.exhaust;
+        p.position.set(ex.c.x + ex.x, ex.c.y + ex.y);
+        this.world.addChild(p);
+        this.puffs.push({ g: p, vx: -40 - Math.random() * 30, vy: -18 - Math.random() * 12, life: 0 });
+      }
+    }
+    for (const p of [...this.puffs]) {
+      p.life += dt;
+      p.g.x += p.vx * dt;
+      p.g.y += p.vy * dt;
+      p.g.scale.set(1 + p.life * 2.2);
+      p.g.alpha = Math.max(0, 1 - p.life / 1.1);
+      if (p.life > 1.1) {
+        p.g.destroy();
+        this.puffs.splice(this.puffs.indexOf(p), 1);
+      }
+    }
     this.applyCam();
   }
 
-  /** The arrival: taxi pulls up, you get out, walk the red carpet, the doors open. */
+  /** The arrival: taxi pulls up, you get out, walk the red carpet, the doors swing open. */
   async arrive(look: Look) {
-    const stopEngine = sfx.engineStart();
+    sfx.ignition();
+    const engine = sfx.car();
+    engine.set(0.75, 0.9, 0.4);
     const taxi = this.makeCar(true);
     const stopX = DOOR_X - 230;
     taxi.c.position.set(-300, GROUND + 50);
+    this.exhaust = { x: -126, y: -26, c: taxi.c };
     const startX = taxi.c.x;
     void tween(this.cam, { x: DOOR_X - 120, zoom: 1.15 }, 2400, ease.inOutCubic);
+    let braking = false;
     await animate(
       2300,
       (k) => {
-        const x = startX + (stopX - startX) * k;
+        const x = startX + (stopX - startX) * ease.outCubic(k);
         for (const w of taxi.wheels) w.rotation += (x - taxi.c.x) / 22;
         taxi.c.x = x;
+        if (k > 0.55 && !braking) {
+          braking = true;
+          sfx.brake();
+          engine.set(0.2, 0.3, 0.5);
+        }
+        // Nose dips while braking.
+        taxi.body.rotation = braking ? Math.sin(Math.min(1, (k - 0.55) / 0.45) * Math.PI) * 0.035 : 0;
+        taxi.brake.alpha = braking ? 0.85 : 0;
       },
-      ease.outCubic,
     );
-    stopEngine();
-    await wait(250);
-    sfx.carDoor();
+    engine.set(0.12, 0, 0.3);
+    sfx.handbrake();
+    // The body settles back on its springs.
+    void animate(500, (k) => (taxi.body.rotation = -Math.sin(k * Math.PI * 2) * 0.012 * (1 - k)));
+    void tween(taxi.brake, { alpha: 0 }, 500);
+    await wait(300);
+    // Rear door opens, you step out, the door shuts.
+    sfx.carDoorOpen();
+    await tween(taxi.door.scale, { x: 0.25 }, 280, ease.outCubic);
     const you = new Walker(look);
     you.view.position.set(stopX + 30, GROUND + 22);
     you.view.alpha = 0;
@@ -364,29 +533,42 @@ export class Street {
     const entry = { w: you, walking: false };
     this.walkers.push(entry);
     await tween(you.view, { alpha: 1, y: GROUND + 30 }, 300);
-    // Taxi leaves, you walk up the carpet.
-    const leave = sfx.engineStart();
+    await wait(150);
+    sfx.carDoor();
+    await tween(taxi.door.scale, { x: 1 }, 160, ease.inCubic);
+    void animate(250, (k) => (taxi.body.rotation = Math.sin(k * Math.PI * 3) * 0.006 * (1 - k)));
+    sfx.horn();
+    // The doorman greets you with a bow.
+    void animate(1200, (k) => (this.doorman.bow = Math.sin(Math.min(1, k * 1.4) * Math.PI)), ease.linear);
+    // Taxi pulls away: revs, a gear change, revs again.
+    engine.set(0.7, 0.4, 0.25);
+    void wait(900).then(() => engine.set(0.4, 0.7, 0.12));
+    void wait(1050).then(() => engine.set(0.8, 1, 0.35));
+    void wait(1900).then(() => engine.stop());
     void animate(
       2200,
       (k) => {
         const x = stopX + 1200 * k * k;
         for (const w of taxi.wheels) w.rotation += (x - taxi.c.x) / 22;
         taxi.c.x = x;
+        taxi.body.rotation = -Math.sin(Math.min(1, k * 3) * Math.PI) * 0.02;
       },
       ease.linear,
     ).then(() => {
-      leave();
+      this.exhaust = null;
       taxi.c.destroy({ children: true });
     });
     entry.walking = true;
     void tween(this.cam, { x: DOOR_X, y: GROUND - 140, zoom: 1.6 }, 2200, ease.inOutCubic);
+    // The doors swing open towards you and warm light floods out.
+    void wait(1300).then(() => {
+      sfx.bigDoors();
+      void animate(900, (k) => this.drawDoors(k), ease.outBack);
+      void tween(this.doorLight, { alpha: 0.9, width: 900, height: 700 }, 900, ease.outCubic);
+      this.mothBurst();
+    });
     await tween(you.view, { x: DOOR_X - 8, y: GROUND + 8 }, 2000, ease.linear);
-    // The doors swing open and warm light floods out.
-    sfx.door();
-    void tween(this.doorL.scale, { x: 0.12 }, 600, ease.outCubic);
-    void tween(this.doorR.scale, { x: 0.12 }, 600, ease.outCubic);
-    void tween(this.doorLight, { alpha: 0.9, width: 900, height: 700 }, 700, ease.outCubic);
-    await wait(400);
+    await wait(250);
     void tween(you.view.scale, { x: 0.8, y: 0.8 }, 900, ease.inCubic);
     void tween(you.view, { alpha: 0 }, 900, ease.inCubic);
     await tween(this.cam, { zoom: 3.2, y: GROUND - 90 }, 1000, ease.inCubic);
