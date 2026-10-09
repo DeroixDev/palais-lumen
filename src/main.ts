@@ -29,6 +29,7 @@ import { setupFeel } from './ui/feel';
 import { initFocus } from './core/focus';
 import { installRotation } from './core/rotation';
 import { BossRun } from './ui/bossRun';
+import { Bag } from './ui/bag';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -472,6 +473,7 @@ async function boot() {
     game.view.alpha = 0;
     await tween(game.view, { alpha: 1 }, 250);
     hud.setInGame(true);
+    bag.setGame(st.game);
     feel.gameOpened(st.game);
     sfx.setScene('game');
     mode = 'game';
@@ -485,6 +487,7 @@ async function boot() {
     }
     mode = 'transition';
     hud.setInGame(false);
+    bag.setGame(null);
     feel.gameOpened(null);
     sfx.setScene('casino');
     const g = game;
@@ -526,6 +529,7 @@ async function boot() {
    */
   function celebrate(mult: number, x: number, y: number, orbit?: { x: number; y: number; r: number }) {
     const level = rewardLevel(mult);
+    bag.winAt(x, y);
     feel.celebrate(mult);
     if (!level) return;
     const w = app.screen.width;
@@ -651,6 +655,7 @@ async function boot() {
       game.destroy();
       game = null;
       hud.setInGame(false);
+      bag.setGame(null);
     }
     if (overlay) closeOverlay();
     cancelAllTweens();
@@ -685,6 +690,22 @@ async function boot() {
       if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
     },
     debugDay: (day) => void debugDay(day),
+  });
+
+  // Modifier items: the bag in the HUD, reaction offers, round stones (src/ui/bag.ts).
+  const bag = new Bag(state, {
+    toast: (t) => hud.toast(t),
+    modal: (title, body, buttons) => hud.modal(title, body, buttons),
+    closeModal: () => hud.closeModal(),
+    modalOpen: () => hud.modalOpen,
+    busy: () => !!game?.busy(),
+    gameName: (id) => {
+      try {
+        return getGame(id).name;
+      } catch {
+        return id;
+      }
+    },
   });
 
   // Day events, guest tasks and the stamp card (src/ui/dayFeatures.ts).

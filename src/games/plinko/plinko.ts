@@ -13,30 +13,11 @@ import { StakeWatch } from '../stakeWatch';
 
 // ---- Rules -------------------------------------------------------------
 
-const ROWS = 12;
-type Risk = 'low' | 'mid' | 'high';
-const RISK_LABEL: Record<Risk, string> = { low: 'Ruhig', mid: 'Mittel', high: 'Wild' };
-const HALF: Record<Risk, number[]> = {
-  low: [8, 3, 1.5, 1.2, 1.1, 0.9, 0.6],
-  mid: [30, 10, 4, 2, 1.1, 0.5, 0.3],
-  high: [150, 24, 7, 2, 0.7, 0.2, 0.2],
-};
-const TABLE: Record<Risk, number[]> = {
-  low: [...HALF.low, ...HALF.low.slice(0, 6).reverse()],
-  mid: [...HALF.mid, ...HALF.mid.slice(0, 6).reverse()],
-  high: [...HALF.high, ...HALF.high.slice(0, 6).reverse()],
-};
+import { HALF, RISK_LABEL, ROWS, TABLE, returnToPlayer, wingPath, wingRtp, type Risk } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 
-function binom(n: number, k: number) {
-  let r = 1;
-  for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i;
-  return r;
-}
-const PROB = Array.from({ length: ROWS + 1 }, (_, k) => binom(ROWS, k) / 2 ** ROWS);
-
-export function returnToPlayer(risk: Risk) {
-  return TABLE[risk].reduce((s, m, i) => s + m * PROB[i], 0);
-}
+export { returnToPlayer };
 
 const fmtMult = (m: number) => (m >= 10 ? String(m) : String(m).replace('.', ','));
 
@@ -281,12 +262,16 @@ class PlinkoGame implements GameInstance {
   private bets: number[];
 
   private stakeWatch: StakeWatch;
+  /** Odds item: the Mottenflügel pushes the moth outwards at the second peg. */
+  private odds: OddsWatch;
 
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'plinko', ['mottenfluegel']);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
+    if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
   }
 
   private get bet() {
@@ -434,8 +419,23 @@ class PlinkoGame implements GameInstance {
     });
     this.relabel();
     this.legend?.set(HALF[r]);
+    setItemRtp('plinko', 'mottenfluegel', wingRtp(r));
+    this.refreshRtp();
+  }
+
+  /** The payout line: the true share, with the wing while it works. */
+  private refreshRtp() {
+    const r = this.risk;
+    if (this.odds.id) {
+      this.rtpText.text = itemRtpText(wingRtp(r), 'mottenfluegel').replace(' · ', '\n');
+      this.rtpText.style.fill = 0xffc0de;
+      this.rtpText.style.fontSize = 17;
+      return;
+    }
     const rtp = returnToPlayer(r);
     this.rtpText.text = `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %\nHausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
+    this.rtpText.style.fill = 0xe6d6b4;
+    this.rtpText.style.fontSize = 21;
   }
 
   private changeBet(d: number) {
@@ -456,11 +456,13 @@ class PlinkoGame implements GameInstance {
     }
     this.ctx.sfx.whoosh();
     // Decide the whole path now: one left/right choice per row.
-    const path = Array.from({ length: ROWS }, () => (Math.random() < 0.5 ? 0 : 1));
-    void this.fly(path, bet, this.risk);
+    const coins = Array.from({ length: ROWS }, () => (Math.random() < 0.5 ? 0 : 1));
+    const wing = this.odds.on('mottenfluegel');
+    const path = wing ? wingPath(coins) : coins;
+    void this.fly(path, bet, this.risk, wing);
   }
 
-  private async fly(path: number[], bet: number, risk: Risk) {
+  private async fly(path: number[], bet: number, risk: Risk, wing = false) {
     this.inFlight++;
     const ball = new Container();
     const glow = new Sprite(glowTexture());
@@ -489,6 +491,7 @@ class PlinkoGame implements GameInstance {
       const pegIndex = rights + 1;
       this.hitPeg(r, pegIndex);
       const dir = path[r];
+      if (wing && r === 1) this.wingBeat(ball.x, ball.y, dir);
       rights += dir;
       const nx = CX + (2 * rights - (r + 1)) * (DX / 2);
       const ny = r < ROWS - 1 ? TOP + (r + 1) * DY - 16 : BUCKET_Y + 6;
@@ -537,7 +540,7 @@ class PlinkoGame implements GameInstance {
     const local = this.view.toLocal(screen);
     const fs = Math.max(0.75, this.board.scale.x);
     if (win > 0) this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'plinko', stake: bet, win, rtp: returnToPlayer(risk), tags: k === 0 || k === ROWS ? ['plinko', 'edge'] : ['plinko'] });
+    this.ctx.state.report({ game: 'plinko', stake: bet, win, rtp: wing ? wingRtp(risk) : returnToPlayer(risk), tags: k === 0 || k === ROWS ? ['plinko', 'edge'] : ['plinko'] });
     if (m > 1) {
       const centre = this.board.toGlobal({ x: CX, y: TOP + (ROWS * DY) / 2 });
       this.ctx.celebrate(m, screen.x, screen.y, { x: centre.x, y: centre.y, r: 200 * this.board.scale.x });
@@ -570,6 +573,20 @@ class PlinkoGame implements GameInstance {
       else this.ctx.sfx.lose();
       if (win > 0) floatText(this.view, local.x, local.y - 30, `${formatChips(win)} zurück`, 0xd9c6a0, Math.round(24 * fs));
     }
+  }
+
+  /** Mottenflügel: a pink wing flash at the second peg, pushing outwards. */
+  private wingBeat(x: number, y: number, dir: number) {
+    const flash = new Sprite(glowTexture());
+    flash.anchor.set(0.5);
+    flash.position.set(x, y);
+    flash.width = flash.height = 120;
+    flash.tint = 0xff8fc8;
+    flash.blendMode = 'add';
+    this.ballLayer.addChildAt(flash, 0);
+    void tween(flash, { alpha: 0, x: x + (dir ? 40 : -40) }, 600, ease.outCubic).then(() => flash.destroy());
+    if (this.inFlight <= 1) void itemMoment(this.stageLayer, x + (dir ? 120 : -120), y + 10, 'mottenfluegel', dir ? 'FLÜGEL →' : '← FLÜGEL', 0.7);
+    this.ctx.sfx.whoosh();
   }
 
   private hitPeg(r: number, j: number) {
@@ -666,6 +683,7 @@ class PlinkoGame implements GameInstance {
       this.changeBet(0);
       this.ctx.toast(this.stakeWatch.note);
     }
+    if (this.odds.poll()) this.refreshRtp();
     this.time += dtMs / 1000;
     const cool = dtMs / 450;
     for (const row of this.pegs)

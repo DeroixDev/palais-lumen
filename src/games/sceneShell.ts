@@ -86,6 +86,16 @@ export class SceneShell {
   /** Font size in design pixels that stays at least 13.5 css px on screen. */
   fs = (px: number) => Math.round(Math.max(px, 13.5 / this.s));
 
+  private ctrlBox: { w: number; h: number } | null = null;
+
+  /** Builds the control bar again at its current size (e.g. its payout line changed with an item). */
+  rebuildControls() {
+    const inner = this.controls.children.find((c) => c !== this.bar);
+    if (!inner || !this.ctrlBox) return;
+    inner.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.hooks.buildControls(inner as Container, this.ctrlBox.w, this.ctrlBox.h, this.layout, this.fs);
+  }
+
   resize(w: number, h: number) {
     const tall = w / h < 0.9;
     const layout: Layout = tall ? 'tall' : h < 520 && w / h > 1.5 ? 'side' : 'wide';
@@ -164,6 +174,7 @@ export class SceneShell {
     this.controls.addChild(this.bar);
     const inner = new Container();
     this.controls.addChild(inner);
+    this.ctrlBox = { w: cw, h: ch };
     this.hooks.buildControls(inner, cw, ch, layout, this.fs);
     this.hooks.layoutScene(sw, sh, layout);
     this.drawHistory();

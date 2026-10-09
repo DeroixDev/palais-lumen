@@ -14,7 +14,8 @@ import { PANEL_PAD, panelTexture } from '../../ui/kit';
 import { Shoe, type Card } from '../cards/cards';
 import { CARD_W, CardView, SqueezeView, dealCard } from '../cards/cardArt';
 import { RulesCard, StakeControl, TotalBadge, chipPile, infoButton, pct, presentWin, readable, slide } from '../cards/tableKit';
-import { DECKS, ODDS, PAYS, RTP, SIDE_LABEL, playCoup, returnFor, total, type Coup, type Side } from './rules';
+import { DECKS, ODDS, PAYS, PEEK_BEST_RTP, PEEK_RTP, RTP, SIDE_LABEL, peekBest, playCoup, pointOf, returnFor, total, type Coup, type Side } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { CANDLES, CHANDELIER_W, SIDE_COLOR, bacTableTexture, beadTexture, chandelierTexture, glintTexture, station, type BacGeo } from './paint';
 
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -114,6 +115,11 @@ class BaccaratGame implements GameInstance {
   private infoBtn: Button;
   private rtpText!: Text;
   private textScale = 1;
+  /** Odds item: the Röntgenbrille shows the Spieler's first card before the bet. */
+  private odds: OddsWatch;
+  private peek: Card | null = null;
+  private peekView: CardView | null = null;
+  private idleSince = -1e9;
   private keyHandler = (e: KeyboardEvent) => {
     if (this.rules.open) {
       if (e.code === 'Escape') this.rules.hide();
@@ -130,6 +136,7 @@ class BaccaratGame implements GameInstance {
 
   constructor(private ctx: GameContext) {
     this.stake = new StakeControl(ctx, BETS, 1);
+    this.odds = new OddsWatch(ctx.state, 'baccarat', ['roentgenbrille']);
     const r = (s: Side) => `${SIDE_LABEL[s]} gewinnt in ${pct(ODDS[s])} der Coups, zahlt ${String(PAYS[s]).replace('.', ',')} : 1 → Auszahlungsquote ${pct(RTP[s], 2)}.`;
     this.rules = new RulesCard("SO GEHT'S", [
       '• Setz auf Spieler, Bank oder Unentschieden. Beide Seiten bekommen zwei Karten; wer näher an 9 kommt, gewinnt.',
@@ -306,6 +313,11 @@ class BaccaratGame implements GameInstance {
       });
       this.badges[s].view.position.set(T.x + b.x, T.y + b.y - b.h / 2 - 2);
     }
+    if (this.peekView) {
+      const p = this.peekSpot();
+      this.peekView.scale.set(L.cardScale);
+      this.peekView.position.set(p.x, p.y);
+    }
     if (this.pile) {
       const f = L.geo.fields[this.side];
       this.pile.position.set(T.x + f.x + f.w / 2 - 40, T.y + f.y + f.h / 2 + 30);
@@ -327,6 +339,18 @@ class BaccaratGame implements GameInstance {
       this.fieldGlow[k].alpha = k === s ? 1 : 0;
     }
     const others = SIDES.filter((k) => k !== s).map((k) => `${SIDE_LABEL[k]} ${pct(RTP[k])}`).join(' · ');
+    if (this.odds.id) {
+      // With the glasses: the long-run share (best bet every time) and what each bet returns with this card.
+      const head = itemRtpText(PEEK_BEST_RTP, 'roentgenbrille', 'bei bester Wette');
+      const r = this.peek ? PEEK_RTP[pointOf(this.peek.rank)] : null;
+      const now = r ? SIDES.map((k) => `${k === 'tie' ? 'Unent.' : SIDE_LABEL[k]} ${pct(r[k])}`).join(' · ') : '';
+      this.rtpText.text = this.L.mode === 'wide' ? `${head.split(' · ')[0].replace(' mit ', '\nmit ')}${now ? `\nmit dieser Karte:\n${now}` : ''}` : `${head}${now ? `\nMit dieser Karte: ${now}` : ''}`;
+      this.rtpText.style.fill = 0xa8eeff;
+      readable(this.rtpText, 17, this.textScale, this.L.mode === 'wide' ? 250 : this.L.W - 110);
+      if (!quiet) this.ctx.sfx.chip();
+      return;
+    }
+    this.rtpText.style.fill = 0xe6d6b4;
     this.rtpText.text =
       this.L.mode === 'wide'
         ? `Auszahlungsquote ${pct(RTP[s])}\nHausvorteil ${pct(1 - RTP[s])} (${SIDE_LABEL[s]})\n${others.replace('Unentschieden', 'Unent.')}`
@@ -397,6 +421,9 @@ class BaccaratGame implements GameInstance {
     this.phase = 'playing';
     this.hurry = false;
     this.setControls(false);
+    const peek = this.peek;
+    this.peek = null;
+    this.dropPeekView();
     await this.clearTable();
     if (this.dead) return;
     // The chip goes onto the chosen field.
@@ -409,11 +436,17 @@ class BaccaratGame implements GameInstance {
     this.ctx.sfx.chip();
     void slide(this.pile, px, py, 260);
     // The whole coup is decided now from a freshly shuffled shoe; the table only shows it.
-    this.shoe.shuffle();
-    const coup = playCoup(() => this.shoe.draw());
+    // With the Röntgenbrille the shoe was shuffled when the first card was shown.
+    let first = peek;
+    if (!first) this.shoe.shuffle();
+    const coup = playCoup(() => {
+      const c = first ?? this.shoe.draw();
+      first = null;
+      return c;
+    });
     await this.show(coup);
     if (this.dead) return;
-    await this.settle(coup, bet);
+    await this.settle(coup, bet, peek ? PEEK_RTP[pointOf(peek.rank)][this.side] : RTP[this.side]);
   }
 
   /** Deals the four cards face down, then reveals them (squeezing the decisive ones). */
@@ -542,7 +575,7 @@ class BaccaratGame implements GameInstance {
     v.visible = true;
   }
 
-  private async settle(coup: Coup, bet: number) {
+  private async settle(coup: Coup, bet: number, rtp: number) {
     const L = this.L;
     const T = L.table;
     const side = this.side;
@@ -581,7 +614,7 @@ class BaccaratGame implements GameInstance {
       }
     }
     if (win > 0) this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'baccarat', stake: bet, win, rtp: RTP[side], tags });
+    this.ctx.state.report({ game: 'baccarat', stake: bet, win, rtp, tags });
     if (win > bet) this.flare = 1;
     if (win === 0) this.ctx.sfx.lose();
     await presentWin(this.ctx, this.root, {
@@ -593,8 +626,62 @@ class BaccaratGame implements GameInstance {
     if (win === bet) this.status.text += '\nEinsatz zurück';
     await wait(300);
     if (this.dead) return;
+    this.idleSince = this.time;
     this.phase = 'idle';
     this.setControls(true);
+  }
+
+  /** Röntgenbrille: between rounds, the shoe is shuffled and its first card shown face up. */
+  private syncPeek() {
+    if (this.odds.id && !this.peek && this.phase === 'idle' && this.time >= this.idleSince + 1500) {
+      this.shoe.shuffle();
+      this.peek = this.shoe.draw();
+      this.showPeek(this.peek);
+      this.choose(this.side, true);
+    } else if (!this.odds.id && this.peek) {
+      this.peek = null;
+      this.dropPeekView();
+      this.choose(this.side, true);
+    }
+  }
+
+  private showPeek(card: Card) {
+    const L = this.L;
+    this.dropPeekView();
+    const v = new CardView(card, { faceUp: true });
+    v.scale.set(L.cardScale);
+    const p = this.peekSpot();
+    v.position.set(p.x, p.y);
+    v.setGlow(0.9, 0x6fe0ff);
+    v.tint = 0xd8f6ff;
+    this.cardLayer.addChild(v);
+    this.peekView = v;
+    if (!reducedMotion()) {
+      v.alpha = 0;
+      v.y -= 30;
+      void tween(v, { alpha: 1, y: p.y }, 360, ease.outBack);
+    }
+    const best = peekBest(pointOf(card.rank));
+    this.status.text = `RÖNTGENBLICK: ${pointOf(card.rank)}\nbeste Wette: ${SIDE_LABEL[best]}`;
+    this.status.style.fill = 0xa8eeff;
+    this.popStatus();
+    void itemMoment(this.fxLayer, p.x, p.y - 150 * L.cardScale, 'roentgenbrille', 'RÖNTGENBRILLE', 0.8);
+    this.ctx.sfx.shimmer();
+  }
+
+  /** The first card is seen through the shoe's mouth, where the cards come from. */
+  private peekSpot() {
+    const L = this.L;
+    return { x: L.table.x + L.geo.cx, y: L.mode === 'wide' ? 200 : L.table.y + 70 };
+  }
+
+  private dropPeekView() {
+    this.peekView?.destroy({ children: true });
+    this.peekView = null;
+    if (this.status?.text.startsWith('RÖNTGENBLICK')) {
+      this.status.text = '';
+      this.status.style.fill = 0xfff6e6;
+    }
   }
 
   private drawRoad() {
@@ -617,6 +704,8 @@ class BaccaratGame implements GameInstance {
 
   update(dtMs: number) {
     this.stake.update(this.busy());
+    if (this.odds.poll()) this.choose(this.side, true);
+    if (!this.dead && this.phase === 'idle' && !this.rules.open) this.syncPeek();
     this.time += dtMs;
     this.flare = Math.max(0, this.flare - dtMs / 1600);
     const calm = reducedMotion();

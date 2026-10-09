@@ -10,6 +10,8 @@ import { button, type Button } from '../../core/ui';
 import { focusable } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { magnetRtp, magnetSpin } from './rules';
 import {
   CHIP_ANCHOR,
   CHIP_EDGE,
@@ -216,6 +218,9 @@ class RouletteGame implements GameInstance {
   private time = 0;
   private layoutKey = '';
   private stakeWatch: StakeWatch;
+  /** Odds item of this table: the Magnetkugel pulls the ball out of the zero once. */
+  private odds: OddsWatch;
+  private edgeText!: Text;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -230,6 +235,7 @@ class RouletteGame implements GameInstance {
     this.minBet = ctx.state.stakes([baseMin])[0];
     this.chipValue = this.chips[baseMin >= 50 ? 1 : 0];
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'roulette', ['magnetkugel']);
     this.buildWheel();
     this.view.addChild(this.boardGroup, this.controls, this.dim, this.wheelGroup);
     this.dim.eventMode = 'none';
@@ -395,9 +401,11 @@ class RouletteGame implements GameInstance {
     this.totalText = new Text({ text: '', style: valueStyle });
     this.hintText = new Text({ text: '', style: { ...hintStyle, wordWrap: tall, wordWrapWidth: Math.max(60, width - 24 - 4 * chipStep - 22) } });
     const edge = new Text({
-      text: `Hausvorteil ${(HOUSE_EDGE * 100).toFixed(1).replace('.', ',')} % · Volltreffer zahlt 35:1`,
+      text: '',
       style: { fontFamily: FONT_BODY, fontSize: tall ? 14 : 16, fontWeight: '600', fill: 0xbfa98a },
     });
+    this.edgeText = edge;
+    this.refreshEdge();
     c.addChild(this.totalText, this.hintText, edge);
 
     const secondary = { color: 0x3a2030, textColor: 0xfff3dc, display: false } as const;
@@ -601,7 +609,9 @@ class RouletteGame implements GameInstance {
     this.pocketGlow.alpha = 0;
     await this.bringWheel(true);
 
-    const result = Math.floor(Math.random() * 37);
+    const magnet = this.odds.on('magnetkugel');
+    const { first, final } = magnet ? magnetSpin() : { first: Math.floor(Math.random() * 37), final: -1 };
+    let result = first;
     const T = 5600;
     this.ctx.sfx.whoosh();
     this.ctx.sfx.ballRoll((T / 1000) * 0.75);
@@ -638,12 +648,59 @@ class RouletteGame implements GameInstance {
     this.ballRadius = WHEEL.rest;
     this.ballHop = 0;
     this.ctx.sfx.thud();
+    if (magnet && result === 0) {
+      await this.magnetPull(final);
+      result = final;
+    }
     this.history.unshift(result);
     await this.showResult(result);
     this.refreshHistory();
     await this.settle(result);
     this.spinning = false;
     this.refreshBets();
+  }
+
+  /** Magnetkugel: the ball sat in the zero; the magnet lifts it out and it rolls on to `n`. */
+  private async magnetPull(n: number) {
+    const calm = reducedMotion();
+    const a = this.rotor.rotation + this.ballAngle - Math.PI / 2;
+    const at = this.view.toLocal(this.wheelGroup.toGlobal({ x: Math.cos(a) * WHEEL.rest * 0.55, y: Math.sin(a) * WHEEL.rest * 0.55 }));
+    this.pocketGlow.alpha = 0;
+    this.ctx.sfx.medal();
+    void itemMoment(this.view, at.x, at.y, 'magnetkugel', 'MAGNETKUGEL!', Math.max(0.8, this.wheelGroup.scale.x * 1.5));
+    await wait(calm ? 300 : 650);
+    // The ball jumps out of the pocket and runs most of a lap more before it settles.
+    const start = this.ballAngle;
+    let end = this.pocketAngle(n);
+    while (end > start - Math.PI * 1.2) end -= Math.PI * 2;
+    const T = calm ? 700 : 2100;
+    this.ctx.sfx.ballRoll((T / 1000) * 0.8);
+    let bounced = 0;
+    await animate(T, (t) => {
+      const e = 1 - Math.pow(1 - t, 2.2);
+      const hop = calm ? 0 : Math.abs(Math.sin(t * Math.PI * 3)) * 26 * (1 - t);
+      const nb = Math.floor(t * 3);
+      if (nb > bounced && t < 1) {
+        bounced = nb;
+        this.ctx.sfx.tick();
+      }
+      this.ballAngle = start + (end - start) * e;
+      this.ballRadius = WHEEL.rest + (WHEEL.track - WHEEL.rest) * Math.sin(t * Math.PI) * 0.6 + hop * 0.5;
+      this.ballHop = hop;
+    });
+    this.ballAngle = this.pocketAngle(n);
+    this.ballRadius = WHEEL.rest;
+    this.ballHop = 0;
+    this.ctx.sfx.thud();
+  }
+
+  /** The line under the table: the true payout share, with the magnet while it works. */
+  private refreshEdge() {
+    if (!this.edgeText) return;
+    this.edgeText.text = this.odds.id
+      ? itemRtpText(magnetRtp([]), 'magnetkugel', 'Wetten ohne Null')
+      : `Hausvorteil ${(HOUSE_EDGE * 100).toFixed(1).replace('.', ',')} % · Volltreffer zahlt 35:1`;
+    this.edgeText.style.fill = this.odds.id ? 0xffb0a0 : 0xbfa98a;
   }
 
   /** Portrait phones: the wheel comes forward over the dimmed table for the spin, and leaves again. */
@@ -703,7 +760,8 @@ class RouletteGame implements GameInstance {
     }
     const tags = ['roulette', n === 0 ? 'zero' : REDS.has(n) ? 'red' : 'black'];
     if (winners.some((k) => k.startsWith('n:'))) tags.push('straight');
-    const report = () => this.ctx.state.report({ game: 'roulette', stake: [...this.bets.values()].reduce((a, b) => a + b, 0), win: payout, rtp: 36 / 37, tags });
+    const rtp = this.odds.on('magnetkugel') ? magnetRtp(this.bets) : 36 / 37;
+    const report = () => this.ctx.state.report({ game: 'roulette', stake: [...this.bets.values()].reduce((a, b) => a + b, 0), win: payout, rtp, tags });
 
     // Losing chips are raked off towards the wheel side, winners get paid beside their stack.
     const toScreen = (x: number, y: number) => this.boardGroup.toGlobal({ x, y });
@@ -890,6 +948,7 @@ class RouletteGame implements GameInstance {
 
   update(dtMs: number) {
     if (this.stakeWatch.changed(this.busy())) this.refreshStakes();
+    if (this.odds.poll()) this.refreshEdge();
     const dt = dtMs / 1000;
     this.time += dt;
     // Wheel eases back to its idle speed.

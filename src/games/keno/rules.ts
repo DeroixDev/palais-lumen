@@ -27,30 +27,38 @@ function choose(n: number, k: number) {
   return r;
 }
 
-/** Chance of exactly k hits with n picks. */
-export function hitChance(n: number, k: number) {
-  return (choose(n, k) * choose(POOL - n, DRAWS - k)) / choose(POOL, DRAWS);
+/** Chance of exactly k hits with n picks (and `draws` falling stars). */
+export function hitChance(n: number, k: number, draws = DRAWS) {
+  return (choose(n, k) * choose(POOL - n, draws - k)) / choose(POOL, draws);
 }
 
 /** Exact long-run payout share for n picks. */
-export function returnToPlayer(n: number) {
+export function returnToPlayer(n: number, draws = DRAWS) {
   const row = PAYTABLE[n];
   if (!row) return 0;
-  return row.reduce((s, m, k) => s + m * hitChance(n, k), 0);
+  return row.reduce((s, m, k) => s + m * hitChance(n, k, draws), 0);
+}
+
+/**
+ * Sternschnuppe (odds item): one more shooting star falls (11 instead of 10), the paytable
+ * stays. Exact by the same hypergeometric count.
+ */
+export function starRtp(n: number) {
+  return returnToPlayer(n, DRAWS + 1);
 }
 
 export function kenoMultiplier(picks: number, hits: number) {
   return PAYTABLE[picks]?.[hits] ?? 0;
 }
 
-/** The 10 shooting stars of one round (1..40, distinct, in falling order). */
-export function drawStars(rand: () => number = Math.random): number[] {
+/** The 10 shooting stars of one round (1..40, distinct, in falling order); `count` = 11 with the Sternschnuppe. */
+export function drawStars(rand: () => number = Math.random, count = DRAWS): number[] {
   const all = Array.from({ length: POOL }, (_, i) => i + 1);
-  for (let i = 0; i < DRAWS; i++) {
+  for (let i = 0; i < count; i++) {
     const j = i + Math.floor(rand() * (POOL - i));
     [all[i], all[j]] = [all[j], all[i]];
   }
-  return all.slice(0, DRAWS);
+  return all.slice(0, count);
 }
 
 /** n distinct random stars for the quick pick. */

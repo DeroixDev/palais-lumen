@@ -13,7 +13,9 @@ import { button, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
 import { winStage } from '../slots/stage';
 import { BetStepper, DrawShell, MIN_FONT, fmtMult, infoKnob, rtpText, spaceKey } from '../drawKit';
-import { MODES, cardLines, drawFireflies, newCard, returnToPlayer, scoreCard, type BingoMode, type CardSize } from './rules';
+import { MODES, cardLines, drawFireflies, extraMode, newCard, returnToPlayer, scoreCard, starRtp, type BingoMode, type CardSize } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import { CARD, FIREFLY, JAR, bingoStation, cardGrid, cardTexture, fireflyTexture, gardenTexture, jarTexture, slotTexture } from './paint';
 import { lineTexture } from '../keno/paint';
 
@@ -73,6 +75,9 @@ class BingoGame implements GameInstance {
   private fresh!: Button;
   private main!: Button;
   private rtp!: ReturnType<typeof rtpText>;
+  /** Odds item: the Sternschnuppe lets one more firefly out of the jar. */
+  private odds: OddsWatch;
+  private oddsDirty = false;
   private pay = new Container();
   private payRows: { key: string; hi: Graphics }[] = [];
   private tall = false;
@@ -84,6 +89,7 @@ class BingoGame implements GameInstance {
     this.view = this.shell.view;
     this.bet = new BetStepper(ctx, BETS, 300);
     this.card = newCard(this.mode);
+    this.odds = new OddsWatch(ctx.state, 'bingo', ['sternschnuppe']);
     this.build();
     this.unkey = spaceKey(() => this.play());
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
@@ -245,10 +251,11 @@ class BingoGame implements GameInstance {
     });
   }
 
-  private buildTray() {
+  private buildTray(extraSlot = !!this.odds?.id) {
     this.trayLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
     this.slots = [];
-    const n = this.mode.draws;
+    // One slot more while the Sternschnuppe works.
+    const n = this.mode.draws + (extraSlot ? 1 : 0);
     const gap = 4;
     const avail = SW - 64;
     const w = Math.min(46, Math.floor((avail - gap * (n - 1)) / n));
@@ -344,7 +351,10 @@ class BingoGame implements GameInstance {
       this.pay.addChild(bg, hi, a, b);
       this.payRows.push({ key: r.key, hi });
     });
-    this.rtp.set(returnToPlayer(m), W);
+    setItemRtp('bingo', 'sternschnuppe', starRtp(m));
+    const line = this.odds?.id ? itemRtpText(starRtp(m), 'sternschnuppe') : undefined;
+    this.rtp.set(returnToPlayer(m), W, line, line ? 0xfff3a0 : 0xe6d6b4);
+    if (this.sub) this.sub.text = `${m.draws + (line ? 1 : 0)} Glühwürmchen · Zahlen 1–${m.pool}`;
   }
 
   private markTier(key: string | null) {
@@ -367,9 +377,11 @@ class BingoGame implements GameInstance {
     const mode = this.mode;
     const card = this.card;
     // Decide everything first.
-    const drawn = drawFireflies(mode);
+    const extra = this.odds.on('sternschnuppe');
+    const drawn = drawFireflies(extra ? extraMode(mode) : mode);
     const result = scoreCard(mode, card, drawn);
-    const rtp = returnToPlayer(mode);
+    const rtp = extra ? starRtp(mode) : returnToPlayer(mode);
+    if (this.slots.length !== drawn.length) this.buildTray(extra);
     const lines = cardLines(mode.size);
     const marked = card.map(() => false);
     const done = new Set<number>();
@@ -403,6 +415,14 @@ class BingoGame implements GameInstance {
       );
       await wait(this.calm ? 90 : 300);
       if (this.view.destroyed) return;
+      if (extra && i === drawn.length - 2) {
+        // Sternschnuppe: one more firefly is coming.
+        await Promise.all(flights);
+        this.ctx.sfx.medal();
+        await itemMoment(this.shell.scene, SW / 2, SH * 0.3, 'sternschnuppe', 'NOCH EIN GLÜHWÜRMCHEN!', 0.9);
+        await wait(this.calm ? 200 : 500);
+        if (this.view.destroyed) return;
+      }
     }
     await Promise.all(flights);
     if (this.view.destroyed) return;
@@ -569,6 +589,12 @@ class BingoGame implements GameInstance {
 
   update(dtMs: number) {
     this.bet.poll(this.running);
+    if (this.odds.poll()) this.oddsDirty = true;
+    if (this.oddsDirty && !this.running) {
+      this.oddsDirty = false;
+      this.buildTray();
+      this.buildPayTable();
+    }
     this.time += dtMs / 1000;
     if (this.calm) return;
     const t = this.time;

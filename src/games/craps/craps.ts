@@ -11,7 +11,8 @@ import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
-import { FIELD_RTP, LINE_RTP, comeOut, fieldReturn, pointPays, rollDie } from './rules';
+import { FIELD_RTP, LINE_RTP, LOADED_LINE_RTP, comeOut, fieldReturn, pointPays, rollDie } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DIE_TEX, PUCK, dieTexture, drawCrapsStation, puckTexture, streetLayout, streetTexture, type StreetLayout } from './paint';
 
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -204,6 +205,10 @@ class CrapsGame implements GameInstance {
   private time = 0;
   private calm = reducedMotion();
   private stakeWatch: StakeWatch;
+  /** Odds item: Gezinkte Würfel throw a 2, 3 or 12 on the Anwurf once more. */
+  private odds: OddsWatch;
+  private loaded = false;
+  private oddsDirty = false;
   private lineChips: Container | null = null;
   private fieldChips: Container | null = null;
 
@@ -224,6 +229,7 @@ class CrapsGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'craps', ['gezinkte']);
     this.shell = new SceneShell({
       title: 'STRASSENWÜRFEL',
       accent: 0xffb860,
@@ -368,8 +374,10 @@ class CrapsGame implements GameInstance {
   private buildControls(c: Container, width: number, height: number, layout: Layout, fs: (px: number) => number) {
     const tall = layout === 'tall';
     const rtp = new Text({
-      text: `Linie: Auszahlungsquote ${pct(LINE_RTP)}\u00a0% · Hausvorteil ${pct(1 - LINE_RTP)}\u00a0%\nFeld: Auszahlungsquote ${pct(FIELD_RTP)}\u00a0% · Hausvorteil ${pct(1 - FIELD_RTP)}\u00a0%`,
-      style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 13 : 15), fontWeight: '600', fill: 0xbfa98a, lineHeight: fs(tall ? 15 : 18) },
+      text: this.odds.id
+        ? `Linie: ${itemRtpText(LOADED_LINE_RTP, 'gezinkte')}\nFeld: Auszahlungsquote ${pct(FIELD_RTP)}\u00a0% · Hausvorteil ${pct(1 - FIELD_RTP)}\u00a0%`
+        : `Linie: Auszahlungsquote ${pct(LINE_RTP)}\u00a0% · Hausvorteil ${pct(1 - LINE_RTP)}\u00a0%\nFeld: Auszahlungsquote ${pct(FIELD_RTP)}\u00a0% · Hausvorteil ${pct(1 - FIELD_RTP)}\u00a0%`,
+      style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 13 : 15), fontWeight: '600', fill: this.odds.id ? 0xfff1c4 : 0xbfa98a, lineHeight: fs(tall ? 15 : 18) },
     });
     const bar = layoutBar(c, width, height, layout, fs, {
       stepCaption: 'EINSATZ LINIE',
@@ -507,6 +515,7 @@ class CrapsGame implements GameInstance {
     }
     this.lineStake = line;
     this.fieldStake = field;
+    this.loaded = this.odds.on('gezinkte');
     this.roundWin = 0;
     this.roundTags = ['craps'];
     this.point = 0;
@@ -540,9 +549,9 @@ class CrapsGame implements GameInstance {
     return sum === this.point ? 0xffcf7a : sum === 7 ? 0xc86a5a : 0xd9cfb8;
   }
 
-  private async resolveComeOut(sum: number) {
+  private async resolveComeOut(sum: number, again = false) {
     // The field is decided by the first throw.
-    if (this.fieldStake > 0) {
+    if (this.fieldStake > 0 && !again) {
       const r = fieldReturn(sum);
       if (r > 0) {
         this.roundTags.push('field');
@@ -557,6 +566,7 @@ class CrapsGame implements GameInstance {
       await this.payStack(this.lineChips, this.lineStake * 2, this.lineStake);
       return this.finish();
     }
+    if (k === 'craps' && this.loaded && !again) return this.loadedAgain(sum);
     if (k === 'craps') {
       this.slate(String(sum), 'VERLOREN', `${sum} beim Anwurf`, LOSE);
       this.glowDice(LOSE);
@@ -571,6 +581,24 @@ class CrapsGame implements GameInstance {
     await this.movePuck(true);
     this.phase = 'point';
     this.refreshButtons();
+  }
+
+  /** Gezinkte Würfel: the 2, 3 or 12 does not count; the dice are thrown once more as the Anwurf. */
+  private async loadedAgain(sum: number) {
+    this.slate(String(sum), 'GEZINKT!', `${sum} zählt nicht · noch ein Anwurf`, 0xfff1c4);
+    this.glowDice(0xfff1c4);
+    this.ctx.sfx.medal();
+    const p = this.view.toLocal(this.shell.scene.toGlobal({ x: this.shell.sw / 2, y: this.shell.sh * 0.42 }));
+    await itemMoment(this.view, p.x, p.y, 'gezinkte', 'GEZINKTE WÜRFEL!', Math.max(0.75, this.shell.s));
+    this.roundTags.push('gezinkte');
+    await wait(this.calm ? 300 : 700);
+    const faces: [number, number] = [rollDie(), rollDie()];
+    const again = faces[0] + faces[1];
+    this.slate('', 'ANWURF', 'Die gezinkten Würfel rollen …');
+    await this.animateThrow(faces);
+    this.faces = faces;
+    this.shell.addHistory(String(again), this.historyColor(again), 0x1a0c10);
+    await this.resolveComeOut(again, true);
   }
 
   private async resolvePoint(sum: number) {
@@ -599,7 +627,7 @@ class CrapsGame implements GameInstance {
   private async finish() {
     this.phase = 'settling';
     const stake = this.lineStake + this.fieldStake;
-    const rtp = (this.lineStake * LINE_RTP + this.fieldStake * FIELD_RTP) / stake;
+    const rtp = (this.lineStake * (this.loaded ? LOADED_LINE_RTP : LINE_RTP) + this.fieldStake * FIELD_RTP) / stake;
     // One report per round (tags: craps; natural = 7/11 on the first throw, point = point made,
     // seven = seven-out, field = the field bet won).
     this.ctx.state.report({ game: 'craps', stake, win: this.roundWin, rtp, tags: this.roundTags });
@@ -754,6 +782,12 @@ class CrapsGame implements GameInstance {
   }
 
   update(dtMs: number) {
+    if (this.odds.poll()) this.oddsDirty = true;
+    if (this.oddsDirty && !this.busy()) {
+      this.oddsDirty = false;
+      this.shell.rebuildControls();
+      this.refreshButtons();
+    }
     if (this.stakeWatch.changed(this.busy())) {
       this.bets = this.ctx.state.stakes(BETS);
       this.changeBet(0);

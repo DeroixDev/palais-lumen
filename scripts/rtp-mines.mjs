@@ -11,7 +11,7 @@ import { build } from 'esbuild';
 
 const out = await build({ entryPoints: [new URL('../src/games/mines/rules.ts', import.meta.url).pathname], bundle: true, write: false, format: 'esm' });
 const R = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
-const { MINES_RTP, TILES, MIN_TRAPS, MAX_TRAPS, surviveChance, minesMult, minesPayout, minesPayoutShown, layTraps } = R;
+const { MINES_RTP, TILES, MIN_TRAPS, MAX_TRAPS, surviveChance, minesMult, minesPayout, minesPayoutShown, layTraps, guardFirst, guardRtp } = R;
 
 // Expected Falter of one payout: rand below the fraction pays one more.
 function expectedPayout(stake, t, k) {
@@ -61,4 +61,38 @@ const se = Math.sqrt((sq / N - sim * sim) / N);
 console.log(`Simulated ${N.toLocaleString('de-DE')} rounds (stake 10, 1–6 diamonds): ${(sim * 100).toFixed(2)} % ± ${(se * 100).toFixed(2)} (1 SE)`);
 const ok = Math.abs(lo - MINES_RTP) < 1e-9 && Math.abs(hi - MINES_RTP) < 1e-9 && Math.abs(sim - MINES_RTP) < 4 * se + 0.001;
 console.log(ok ? 'OK' : 'FAIL');
-process.exit(ok ? 0 : 1);
+
+// Minensucher (odds item): the first stone is always a diamond (guardFirst moves the trap).
+// Exact: P(k safe | first safe) = P(k) / P(1), so every cash-out point k ≥ 1 returns
+// RTP / P(1) = RTP · 25 / (25 − traps). Checked by counting for every trap count and k, then
+// simulated with the game's own guardFirst() on real layouts.
+let okGuard = true;
+for (let t = MIN_TRAPS; t <= MAX_TRAPS; t++) {
+  let lo2 = Infinity, hi2 = -Infinity;
+  for (let k = 1; k <= TILES - t; k++) {
+    const ev = (surviveChance(t, k) / surviveChance(t, 1)) * minesMult(t, k);
+    lo2 = Math.min(lo2, ev);
+    hi2 = Math.max(hi2, ev);
+  }
+  const want = (MINES_RTP * TILES) / (TILES - t);
+  okGuard &&= Math.abs(lo2 - want) < 1e-9 && Math.abs(hi2 - want) < 1e-9 && Math.abs(guardRtp(t) - want) < 1e-12;
+  // Simulation: first pick at a random stone, then random order; cash out after 1–6 diamonds.
+  const M = 200_000;
+  let paid = 0;
+  for (let i = 0; i < M; i++) {
+    const target = 1 + Math.floor(Math.random() * Math.min(6, TILES - t));
+    const order = [...Array(TILES).keys()];
+    for (let j = TILES - 1; j > 0; j--) { const r = Math.floor(Math.random() * (j + 1)); [order[j], order[r]] = [order[r], order[j]]; }
+    const field = guardFirst(layTraps(t), order[0]);
+    let k = 0;
+    let bust = false;
+    for (const idx of order) {
+      if (field[idx]) { bust = true; break; }
+      if (++k === target) break;
+    }
+    paid += bust ? 0 : minesMult(t, k);
+  }
+  console.log(`Minensucher, ${String(t).padStart(2)} Fallen: exakt ${(want * 100).toFixed(3)} % für jeden Kassier-Punkt, simuliert ${((paid / M) * 100).toFixed(2)} %`);
+}
+console.log(okGuard ? 'OK: Minensucher' : 'FAIL: Minensucher');
+process.exit(ok && okGuard ? 0 : 1);

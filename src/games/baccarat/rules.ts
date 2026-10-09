@@ -71,3 +71,32 @@ export function returnFor(side: Side, winner: Side) {
   if (winner === 'tie') return 1;
   return 0;
 }
+
+// ---- Röntgenbrille (odds item) -----------------------------------------------------------------
+// Before the bet, the glasses show the first card of the shoe: the Spieler's first card. What
+// each bet then returns depends on that card's points (8 decks, exact, from
+// scripts/rtp-baccarat.mjs, which enumerates every rest of the coup for each first card).
+// A player who then picks the best bet gets PEEK_BEST_RTP overall.
+
+/** PEEK_RTP[points of the Spieler's first card] = return of each bet. */
+export const PEEK_RTP: Record<Side, number>[] = [
+  [0.899263, 1.030455, 0.895683],
+  [0.900913, 1.028934, 0.907356],
+  [0.905493, 1.024562, 0.919594],
+  [0.911843, 1.018463, 0.931317],
+  [0.922593, 1.008289, 0.971771],
+  [0.943609, 0.987916, 0.985829],
+  [0.985055, 0.94818, 1.072795],
+  [1.049493, 0.885398, 1.073367],
+  [1.146017, 0.790521, 0.961948],
+  [1.187308, 0.750301, 0.963568],
+].map(([player, banker, tie]) => ({ player, banker, tie }));
+
+/** The best bet for a first card's points. */
+export function peekBest(points: number): Side {
+  const r = PEEK_RTP[points];
+  return (Object.keys(r) as Side[]).reduce((a, b) => (r[b] > r[a] ? b : a));
+}
+
+/** Long-run return with the glasses when the best bet is picked every time. */
+export const PEEK_BEST_RTP = PEEK_RTP.reduce((s, r, v) => s + ((v === 0 ? 16 : 4) / 52) * r[peekBest(v)], 0);

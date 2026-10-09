@@ -212,12 +212,15 @@ export class BetStepper {
 export function rtpText(rtp: number, maxWidth: number) {
   const t = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: MIN_FONT, fontWeight: '600', fill: 0xe6d6b4, align: 'center' } });
   t.anchor.set(0.5);
-  const set = (r: number, w = maxWidth) => {
-    t.text = rtpLine(r);
+  /** `line` replaces the standard text (an odds item is on), `fill` its colour. */
+  const set = (r: number, w = maxWidth, line?: string, fill = 0xe6d6b4) => {
+    const full = line ?? rtpLine(r);
+    t.text = full;
+    t.style.fill = fill;
     t.scale.set(1);
     if (t.width > w) {
       // Two lines rather than shrinking below the readable size.
-      t.text = rtpLine(r).replace(' · ', '\n');
+      t.text = full.replace(' · ', '\n');
     }
   };
   set(rtp);

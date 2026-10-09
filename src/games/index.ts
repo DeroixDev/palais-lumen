@@ -1,6 +1,8 @@
 // Every game in the casino. To add one: create src/games/<name>/<name>.ts that
 // exports a GameDefinition, register it here, then place it in a room (src/rooms).
 import { registerGame } from '../core/registry';
+// Odds items (modifier items that change a game's real chances), registered with their RTPs.
+import '../core/oddsItems';
 import { slots } from './slots/slots';
 import { roulette } from './roulette/roulette';
 import { plinko } from './plinko/plinko';

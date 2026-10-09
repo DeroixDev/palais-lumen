@@ -14,7 +14,9 @@ import { focusable, type FocusHandle } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { winStage } from '../slots/stage';
 import { BetStepper, DrawShell, MIN_FONT, fmtMult, infoKnob, rtpText, spaceKey } from '../drawKit';
-import { DRAWS, MAX_PICKS, PAYTABLE, POOL, drawStars, kenoMultiplier, quickPick, returnToPlayer } from './rules';
+import { DRAWS, MAX_PICKS, PAYTABLE, POOL, drawStars, kenoMultiplier, quickPick, returnToPlayer, starRtp } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import { domeTexture, kenoStation, lineTexture, ringTexture, starTexture, tailTexture } from './paint';
 import { seeded } from '../../world/painted/brush';
 
@@ -63,6 +65,9 @@ class KenoGame implements GameInstance {
   private clear!: Button;
   private main!: Button;
   private rtp!: ReturnType<typeof rtpText>;
+  /** Odds item: the Sternschnuppe lets an 11th shooting star fall. */
+  private odds: OddsWatch;
+  private oddsDirty = false;
   private pay = new Container();
   private payRows: { k: number; hi: Graphics; a: Text; b: Text }[] = [];
   private hitStars = new Set<number>();
@@ -73,6 +78,7 @@ class KenoGame implements GameInstance {
     this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 500, velvet: 0x1e1838, layout: (t, w, h) => this.layout(t, w, h) });
     this.view = this.shell.view;
     this.bet = new BetStepper(ctx, BETS, 300);
+    this.odds = new OddsWatch(ctx.state, 'keno', ['sternschnuppe']);
     this.build();
     this.unkey = spaceKey(() => this.play());
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
@@ -300,9 +306,12 @@ class KenoGame implements GameInstance {
     });
     // The payout line belongs to the table: it changes with the number of stars.
     const rtp = returnToPlayer(n);
-    if (tall) this.rtp.set(rtp, SW - 72);
+    setItemRtp('keno', 'sternschnuppe', starRtp(n));
+    const line = this.odds?.id ? itemRtpText(starRtp(n), 'sternschnuppe') : undefined;
+    const fill = line ? 0xfff3a0 : 0xe6d6b4;
+    if (tall) this.rtp.set(rtp, SW - 72, line, fill);
     else {
-      this.rtp.set(rtp, W);
+      this.rtp.set(rtp, W, line, fill);
       this.rtp.text.position.set(this.pay.x + W / 2, this.pay.y + top + rows.length * rh + 22);
     }
   }
@@ -344,16 +353,25 @@ class KenoGame implements GameInstance {
     this.resetSky();
     this.markRow(-1);
     // Decide everything first.
-    const draws = drawStars();
+    const extra = this.odds.on('sternschnuppe');
+    const draws = drawStars(Math.random, extra ? DRAWS + 1 : DRAWS);
     const picks = new Set(this.picks);
     const hitsTotal = draws.filter((d) => picks.has(d)).length;
     const mult = kenoMultiplier(n, hitsTotal);
-    const rtp = returnToPlayer(n);
+    const rtp = extra ? starRtp(n) : returnToPlayer(n);
     let hits = 0;
     let prev: Star | null = null;
     for (let i = 0; i < draws.length; i++) {
       const s = this.stars[draws[i] - 1];
-      this.setHeader(`Sternschnuppe ${i + 1} / ${DRAWS} · ${hits} Treffer`);
+      if (i === DRAWS) {
+        // Sternschnuppe: the extra star announces itself before it falls.
+        this.setHeader(`Sternschnuppe ${i + 1} / ${draws.length} · ${hits} Treffer`);
+        this.ctx.sfx.medal();
+        await itemMoment(this.shell.scene, SW / 2, SH * 0.3, 'sternschnuppe', 'STERNSCHNUPPE!', 1);
+        await wait(this.calm ? 200 : 500);
+        if (this.view.destroyed) return;
+      }
+      this.setHeader(`Sternschnuppe ${i + 1} / ${draws.length} · ${hits} Treffer`);
       await this.fall(s, i);
       if (this.view.destroyed) return;
       if (picks.has(s.n)) {
@@ -362,7 +380,7 @@ class KenoGame implements GameInstance {
         prev = s;
         this.markRow(hits);
       } else this.miss(s);
-      this.setHeader(`Sternschnuppe ${i + 1} / ${DRAWS} · ${hits} Treffer`);
+      this.setHeader(`Sternschnuppe ${i + 1} / ${draws.length} · ${hits} Treffer`);
       await wait(this.calm ? 60 : 110);
       if (this.view.destroyed) return;
     }
@@ -531,6 +549,11 @@ class KenoGame implements GameInstance {
 
   update(dtMs: number) {
     this.bet.poll(this.running);
+    if (this.odds.poll()) this.oddsDirty = true;
+    if (this.oddsDirty && !this.running) {
+      this.oddsDirty = false;
+      this.buildPayTable();
+    }
     this.time += dtMs / 1000;
     if (this.calm) return;
     // Resting stars twinkle softly; the quick-pick flare settles.

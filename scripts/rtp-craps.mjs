@@ -31,4 +31,17 @@ for (let i = 0; i < N; i++) {
 console.log(`Simuliert (${N.toLocaleString('de-DE')} Runden je Wette, Linie mit Einsatz 15): Linie ${pct(paid / staked)}, Feld ${pct(fPaid / fStaked)}`);
 const ok = Math.abs(line - R.LINE_RTP) < 1e-12 && Math.abs(field - R.FIELD_RTP) < 1e-12 && line >= 0.93 && line <= 0.97 && field >= 0.93 && field <= 0.97;
 console.log(ok ? 'OK: beide Wetten zwischen 93 % und 97 %.' : 'FEHLER');
-process.exit(ok ? 0 : 1);
+
+// Gezinkte Würfel (odds item): 2, 3, 12 on the Anwurf is thrown once more. By hand: the line
+// wins line/Anwurf with P(2,3,12) = 4/36 a second time.
+const lineLoaded = line + (4 / 36) * line;
+let lStaked = 0;
+let lPaid = 0;
+for (let i = 0; i < N; i++) {
+  lStaked += 15;
+  lPaid += R.playRoundLoaded(15, 0);
+}
+const okLoaded = Math.abs(lineLoaded - R.LOADED_LINE_RTP) < 1e-12;
+console.log(`Gezinkte Würfel: Linie exakt ${pct(lineLoaded)} (rules.ts: ${pct(R.LOADED_LINE_RTP)}), simuliert ${pct(lPaid / lStaked)}; Feld unverändert ${pct(field)}`);
+console.log(okLoaded ? 'OK: Gezinkte Würfel' : 'FEHLER: Gezinkte Würfel');
+process.exit(ok && okLoaded ? 0 : 1);

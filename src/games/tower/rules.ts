@@ -58,3 +58,20 @@ export function placeDragons(d: Diff, rand: () => number = Math.random) {
 function clean(x: number) {
   return Math.round(x * 1e6) / 1e6;
 }
+
+// ---- Minensucher (odds item) ------------------------------------------------------------------
+// On the first floor the searcher shows one of the dragons (a random one) before the first
+// door: that door stays open, so the first pick is among doors − 1 with dragons − 1 dragons.
+// Floors 2–8 are as always and the multipliers stay as shown, so every cash-out floor k ≥ 1
+// returns RTP · p' / p with p' = (doors − dragons) / (doors − 1): RTP · doors / (doors − 1).
+
+export function scoutRtp(d: Diff) {
+  const { doors } = DIFFS[d];
+  return (TOWER_RTP * doors) / (doors - 1);
+}
+
+/** Which door of a floor the searcher shows: one of its dragons, chosen at random. */
+export function scoutDoor(row: boolean[], rand: () => number = Math.random) {
+  const dragons = row.map((x, i) => (x ? i : -1)).filter((i) => i >= 0);
+  return dragons[Math.floor(rand() * dragons.length)];
+}

@@ -9,6 +9,7 @@ import { PERKS } from '../core/perks';
 import { baseRoom } from '../core/registry';
 import { seasonDebug } from './season';
 import { bossRunDebug } from './bossRun';
+import { debugClearActive, debugFillBag } from '../core/itemsCore';
 
 /** What the debug panel needs from the game loop. */
 export interface DebugActions {
@@ -106,6 +107,17 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     for (const w of WARDROBE) if (!d.owned.includes(w.id)) d.owned.push(w.id);
     for (const c of CHARMS) if (!d.charms.includes(c.id)) d.charms.push(c.id);
     return 'Alle Outfits und Glücksbringer gehören dir.';
+  });
+
+  // Modifier items (src/core/itemsCore.ts).
+  const itemRow = section('Items');
+  btn(itemRow, 'Alle Items +1', () => {
+    debugFillBag(state);
+    return 'Von jedem Item liegt eins mehr im Beutel.';
+  });
+  btn(itemRow, 'Aktive Items löschen', () => {
+    debugClearActive(state);
+    return 'Keine Items mehr aktiv.';
   });
 
   // Days: jumping keeps the money and starts the chosen day fresh in the foyer.

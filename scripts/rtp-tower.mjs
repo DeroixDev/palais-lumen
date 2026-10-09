@@ -10,7 +10,7 @@ import { build } from 'esbuild';
 
 const out = await build({ entryPoints: [new URL('../src/games/tower/rules.ts', import.meta.url).pathname], bundle: true, write: false, format: 'esm' });
 const R = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
-const { TOWER_RTP, FLOORS, DIFFS, safeChance, towerMult, towerPayout, towerPayoutShown, placeDragons } = R;
+const { TOWER_RTP, FLOORS, DIFFS, safeChance, towerMult, towerPayout, towerPayoutShown, placeDragons, scoutRtp, scoutDoor } = R;
 
 function expectedPayout(stake, d, k) {
   const shown = towerPayoutShown(stake, d, k);
@@ -57,4 +57,36 @@ const se = Math.sqrt((sq / N - sim * sim) / N);
 console.log(`Simulated ${N.toLocaleString('de-DE')} climbs (stake 10, random target floor): ${(sim * 100).toFixed(2)} % ± ${(se * 100).toFixed(2)} (1 SE)`);
 const ok = Math.abs(lo - TOWER_RTP) < 1e-9 && Math.abs(hi - TOWER_RTP) < 1e-9 && Math.abs(sim - TOWER_RTP) < 4 * se + 0.001;
 console.log(ok ? 'OK' : 'FAIL');
-process.exit(ok ? 0 : 1);
+
+// Minensucher (odds item): one dragon of the first floor is shown before the first pick.
+// Exact: the first floor is passed with (doors − dragons) / (doors − 1) instead of
+// (doors − dragons) / doors, the rest as always, so each cash-out floor k ≥ 1 returns
+// towerMult(k) · p' · p^(k−1). Then 400,000 simulated climbs per difficulty with scoutDoor().
+let okScout = true;
+for (const d of Object.keys(DIFFS)) {
+  const { doors, dragons } = DIFFS[d];
+  const p1 = (doors - dragons) / (doors - 1);
+  let lo2 = Infinity, hi2 = -Infinity;
+  for (let k = 1; k <= FLOORS; k++) {
+    const ev = towerMult(d, k) * p1 * Math.pow(safeChance(d), k - 1);
+    lo2 = Math.min(lo2, ev);
+    hi2 = Math.max(hi2, ev);
+  }
+  okScout &&= Math.abs(lo2 - scoutRtp(d)) < 1e-9 && Math.abs(hi2 - scoutRtp(d)) < 1e-9;
+  const M = 400_000;
+  let paid = 0;
+  for (let i = 0; i < M; i++) {
+    const target = 1 + Math.floor(Math.random() * FLOORS);
+    let k = 0;
+    for (; k < target; k++) {
+      const row = placeDragons(d);
+      const open = k === 0 ? scoutDoor(row) : -1;
+      const choices = row.map((_, j) => j).filter((j) => j !== open);
+      if (row[choices[Math.floor(Math.random() * choices.length)]]) break;
+    }
+    paid += k === target ? towerMult(d, k) : 0;
+  }
+  console.log(`Minensucher, ${DIFFS[d].label}: exakt ${(scoutRtp(d) * 100).toFixed(3)} % für jede Kassier-Etage, simuliert ${((paid / M) * 100).toFixed(2)} %`);
+}
+console.log(okScout ? 'OK: Minensucher' : 'FAIL: Minensucher');
+process.exit(ok && okScout ? 0 : 1);

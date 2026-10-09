@@ -124,3 +124,22 @@ export function returnToPlayer(mode: BingoMode) {
   }
   return r;
 }
+
+// ---- Sternschnuppe (odds item) ----------------------------------------------------------------
+// One more firefly flies out of the jar (draws + 1), the prizes stay. Exact by the same count.
+
+export function extraMode(mode: BingoMode): BingoMode {
+  return { ...mode, draws: mode.draws + 1 };
+}
+
+const starCache = new Map<number, number>();
+/** Exact long-run payout share of a card size with one extra firefly. */
+export function starRtp(mode: BingoMode) {
+  let r = starCache.get(mode.size);
+  if (r === undefined) {
+    const { byLines, full } = outcomeChances(extraMode(mode));
+    r = byLines.reduce((s, p, n) => s + p * bingoMultiplier(mode, n, false), 0) + full * mode.fullPay;
+    starCache.set(mode.size, r);
+  }
+  return r;
+}

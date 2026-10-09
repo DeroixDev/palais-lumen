@@ -14,7 +14,9 @@ import { formatChips } from '../../core/state';
 import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, fmtX, rtpText, type Layout } from '../sceneShell';
-import { LEVELS, LEVEL_ORDER, RTP, drawBreak, multAt, payout, type Level } from './rules';
+import { LEVELS, LEVEL_ORDER, RTP, drawBreak, drawBreakSteady, multAt, payout, steadyRtp, type Level } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import {
   PENGUIN,
   bankTexture,
@@ -117,6 +119,9 @@ class IceGame implements GameInstance {
 
   private bets: number[];
   private stakeWatch: StakeWatch;
+  /** Odds item: with the Ruhige Hand the first floe holds. On this round? */
+  private odds: OddsWatch;
+  private steady = false;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -127,6 +132,7 @@ class IceGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'ice', ['ruhigehand']);
     this.shell = new SceneShell({
       title: 'EISSTRASSE',
       accent: ICE,
@@ -409,7 +415,11 @@ class IceGame implements GameInstance {
     const canCollect = this.phase === 'stand' && this.k >= 1;
     this.collectBtn.setEnabled(canCollect);
     this.collectBtn.setLabel(canCollect ? `EINSAMMELN ${formatChips(Math.floor(this.stake * multAt(this.level, this.k)))}` : 'EINSAMMELN');
-    this.rtpLine.text = `${rtpText(RTP)} · Bruchrisiko je Scholle ${Math.round(LEVELS[this.level].q * 100)} %`;
+    setItemRtp('ice', 'ruhigehand', steadyRtp(this.level));
+    this.rtpLine.text = this.odds.id
+      ? `${itemRtpText(steadyRtp(this.level), 'ruhigehand')} · erste Scholle hält`
+      : `${rtpText(RTP)} · Bruchrisiko je Scholle ${Math.round(LEVELS[this.level].q * 100)} %`;
+    this.rtpLine.style.fill = this.odds.id ? 0xbff0ff : 0xbfa98a;
   }
 
   private refreshHud() {
@@ -453,10 +463,22 @@ class IceGame implements GameInstance {
     if (this.phase === 'reset') this.buildRiver();
     this.stake = bet;
     // The result first: which floe will break (or none).
-    this.breakAt = drawBreak(this.level);
+    this.steady = this.odds.on('ruhigehand');
+    this.breakAt = this.steady ? drawBreakSteady(this.level) : drawBreak(this.level);
     this.k = 0;
     this.phase = 'stand';
     this.talk.text = '';
+    if (this.steady) {
+      // Ruhige Hand: the first floe glows steady before the first hop.
+      const f = this.floes[0];
+      if (f) {
+        this.ripple(f.c.x, f.c.y, 0x9fe8ff, 110);
+        const g = this.view.toLocal(f.c.getGlobalPosition());
+        void itemMoment(this.view, g.x, g.y - 70 * this.shell.s, 'ruhigehand', 'RUHIGE HAND', Math.max(0.6, this.shell.s * 0.85));
+        this.ctx.sfx.medal();
+        this.talk.text = 'Ruhige Hand: die erste Scholle hält.';
+      }
+    }
     void this.hop();
   }
 
@@ -538,7 +560,7 @@ class IceGame implements GameInstance {
     this.phase = 'fall';
     this.refreshButtons();
     // Settle at once: the round is lost.
-    this.ctx.state.report({ game: 'ice', stake: this.stake, win: 0, rtp: RTP, tags: ['ice', 'splash'] });
+    this.ctx.state.report({ game: 'ice', stake: this.stake, win: 0, rtp: this.steady ? steadyRtp(this.level) : RTP, tags: ['ice', 'splash'] });
     this.shell.addHistory(`Platsch ${this.k}`, 0x24345a, 0xcfe4ff);
     this.ctx.sfx.iceCrack();
     void tween(f.crack, { alpha: 1 }, 140);
@@ -623,7 +645,7 @@ class IceGame implements GameInstance {
     if (m >= 5) tags.push('ice5');
     if (m >= 10) tags.push('ice10');
     if (across) tags.push('across');
-    this.ctx.state.report({ game: 'ice', stake: this.stake, win, rtp: RTP, tags });
+    this.ctx.state.report({ game: 'ice', stake: this.stake, win, rtp: this.steady ? steadyRtp(this.level) : RTP, tags });
     this.shell.addHistory(fmtX(m), GOLD);
     this.phase = 'reset';
     this.refreshHud();
@@ -715,6 +737,7 @@ class IceGame implements GameInstance {
   }
 
   update(dtMs: number) {
+    if (this.odds.poll()) this.refreshButtons();
     if (this.stakeWatch.changed(this.busy())) {
       this.bets = this.ctx.state.stakes(BETS);
       this.changeBet(0);

@@ -54,6 +54,10 @@ export class LadderDeck {
   private secondState = { label: 'KASSIEREN', enabled: false };
   private betState = { text: '', minus: true, plus: true };
   private betLocked = false;
+  private rtpText: Text | null = null;
+  private rtpInner = 0;
+  /** A different payout line (an odds item is on), with its colour; null = the game's own. */
+  private rtpOverride: { text: string; fill: number } | null = null;
   w = DECK_WIDE;
   h = SCENE_H;
 
@@ -110,12 +114,33 @@ export class LadderDeck {
       rtp.position.set(W / 2, 324);
       info.position.set(W / 2, 364);
     }
-    if (rtp.width > inner) rtp.scale.set(inner / rtp.width);
+    this.rtpText = rtp;
+    this.rtpInner = inner;
+    this.applyRtp();
     this.view.addChild(opts, betCap, this.betText, this.minus, this.plus, this.main, this.second, rtp, info);
     this.applyMain();
     this.applySecond();
     this.applyBet();
     this.o.refresh();
+  }
+
+  /** Shows another payout line (e.g. with an odds item), or the game's own again with null. */
+  setRtp(text: string | null, fill = 0xe6d6b4) {
+    this.rtpOverride = text === null ? null : { text, fill };
+    this.applyRtp();
+  }
+
+  private applyRtp() {
+    const t = this.rtpText;
+    if (!t || t.destroyed) return;
+    t.text = this.rtpOverride?.text ?? rtpLine(this.o.rtp);
+    t.style.fill = this.rtpOverride?.fill ?? 0xe6d6b4;
+    const two = t.text.includes('\n');
+    t.style.fontSize = two ? 16 : 18;
+    t.style.lineHeight = two ? 18 : 0;
+    t.style.align = 'center';
+    t.scale.set(1);
+    if (t.width > this.rtpInner) t.scale.set(this.rtpInner / t.width);
   }
 
   setMain(text: string, enabled = true) {

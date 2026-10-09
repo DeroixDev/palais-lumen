@@ -79,3 +79,43 @@ export function playRound(line: number, field: number, rand = Math.random) {
     if (a === 7) return win;
   }
 }
+
+// ---- Gezinkte Würfel (odds item) ---------------------------------------------------------------
+// A 2, 3 or 12 on the first throw ("Anwurf") does not lose the line: the loaded dice are thrown
+// once more and that throw counts as the Anwurf (it can still be 2, 3 or 12 and lose). The
+// field bet stays decided by the first throw.
+
+/** Exact long-run return of the line bet with the loaded dice. */
+export function loadedLineRtp() {
+  const once = (s: number) => {
+    const k = comeOut(s);
+    if (k === 'natural') return 1 + LINE_NATURAL_PAY;
+    if (k === 'point') return (WAYS[s] / (WAYS[s] + 6)) * (1 + LINE_POINT_PAY);
+    return 0;
+  };
+  let r = 0;
+  for (let s = 2; s <= 12; s++) {
+    const p = WAYS[s] / 36;
+    if (comeOut(s) === 'craps') for (let t = 2; t <= 12; t++) r += p * (WAYS[t] / 36) * once(t);
+    else r += p * once(s);
+  }
+  return r;
+}
+
+export const LOADED_LINE_RTP = loadedLineRtp();
+
+/** A whole round with the loaded dice (for the RTP script). */
+export function playRoundLoaded(line: number, field: number, rand = Math.random) {
+  let a = rollDie(rand) + rollDie(rand);
+  const win = field > 0 ? field * fieldReturn(a) : 0;
+  if (comeOut(a) === 'craps') a = rollDie(rand) + rollDie(rand);
+  const k = comeOut(a);
+  if (k === 'natural') return win + line * (1 + LINE_NATURAL_PAY);
+  if (k === 'craps') return win;
+  const point = a;
+  for (;;) {
+    a = rollDie(rand) + rollDie(rand);
+    if (a === point) return win + pointPays(line, rand);
+    if (a === 7) return win;
+  }
+}

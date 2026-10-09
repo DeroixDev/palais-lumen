@@ -96,6 +96,13 @@ export const WARDROBE: WardrobeOption[] = [
   { id: 'pet-gold', slot: 'companion', name: 'Goldmotte', set: { companion: 'gold' }, price: 15 },
 ];
 
+/**
+ * Mondsteine come in faster since won rounds and the surplus pay them too (v18 items, roughly
+ * 20–60 on a good day), so the souvenirs and charms cost three times their old price.
+ */
+export const PRICE_SCALE = 3;
+for (const o of WARDROBE) o.price *= PRICE_SCALE;
+
 export const SLOT_LABEL: Record<WardrobeSlot, string> = {
   outfit: 'Kleidung',
   jacket: 'Farbe',
@@ -122,6 +129,8 @@ export const CHARMS: Charm[] = [
   { id: 'zweiteChance', name: 'Zweite Chance', desc: 'Einmal pro Saison: ein verfehlter Tag beendet die Saison nicht.', price: 12 },
   { id: 'bossbann', name: 'Königinnen-Bann', desc: 'Das Ziel am Boss-Tag ist 20 % kleiner.', price: 10 },
 ];
+
+for (const ch of CHARMS) ch.price *= PRICE_SCALE;
 
 export const COMPANION_COLOR: Record<Exclude<Companion, 'none'>, number> = {
   lantern: 0xffcf7a,

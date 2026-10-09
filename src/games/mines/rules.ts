@@ -53,3 +53,24 @@ export function layTraps(traps: number, rand: () => number = Math.random) {
 function clean(x: number) {
   return Math.round(x * 1e6) / 1e6;
 }
+
+// ---- Minensucher (odds item) ------------------------------------------------------------------
+// The first stone of a round is always a diamond: if a trap lies under it, the searcher moves
+// that trap to a random other diamond stone (the field stays uniformly random among all fields
+// with that first stone safe). Payouts stay as shown, so for any cash-out after k ≥ 1 diamonds
+// the return is RTP · P(k safe) / P(k safe | first safe)⁻¹ = RTP / P(first safe) = RTP · 25 / (25 − traps).
+
+export function guardRtp(traps: number) {
+  return MINES_RTP / surviveChance(traps, 1);
+}
+
+/** The searcher's move for the first pick at `i`: returns the field to play with. */
+export function guardFirst(field: boolean[], i: number, rand: () => number = Math.random) {
+  if (!field[i]) return field;
+  const safe = field.map((t, j) => (!t && j !== i ? j : -1)).filter((j) => j >= 0);
+  const j = safe[Math.floor(rand() * safe.length)];
+  const out = field.slice();
+  out[i] = false;
+  out[j] = true;
+  return out;
+}

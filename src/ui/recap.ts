@@ -15,6 +15,7 @@ import { drawStone } from './stone';
 import { CREAM, MUTED, PANEL_PAD, bodyText, enterMotion, leaveMotion, panelTexture, plaque } from './kit';
 import { paintedMedal, paintedTrophy } from './trophyArt';
 import { curveCard } from './recapCurve';
+import { settlementNote } from '../core/itemsCore';
 
 const MARKERS: [number, Medal][] = [
   [1, 'bronze'],
@@ -413,6 +414,17 @@ export class Recap {
         await this.pause(100);
       }
       void this.anim(300, (k) => (label.alpha = k));
+    }
+
+    // Where the stones came from: medal, surplus above the goal, won rounds (src/core/itemsCore.ts).
+    const stoneNote = settlementNote(r.moonstones);
+    if (stoneNote) {
+      const t = bodyText(stoneNote, n ? 14 : 16, 0xbfe6f4, { wrap: W - 2 * L });
+      t.anchor.set(0.5);
+      t.position.set(W / 2, H - (n ? 133 : 132));
+      t.alpha = 0;
+      p.addChild(t);
+      void this.anim(300, (k) => (t.alpha = k));
     }
 
     // With rounds played, the honest numbers come on the next page with the curve.

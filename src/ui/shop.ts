@@ -16,6 +16,7 @@ import { brass } from '../core/ui';
 import { Panel } from './panel';
 import { drawStone } from './stone';
 import { CREAM, MUTED, caseTexture, plateTexture } from './kit';
+import { ITEMS_TAB, ItemShelf } from './shopItems';
 
 const TABS: { label: string; items: () => (WardrobeOption | Charm)[] }[] = [
   { label: 'Farben', items: () => WARDROBE.filter((o) => o.slot === 'jacket' && o.price > 0) },
@@ -23,6 +24,7 @@ const TABS: { label: string; items: () => (WardrobeOption | Charm)[] }[] = [
   { label: 'Hüte', items: () => WARDROBE.filter((o) => o.slot === 'hat' && o.price > 0) },
   { label: 'Begleiter', items: () => WARDROBE.filter((o) => o.slot === 'companion' && o.price > 0) },
   { label: 'Glücksbringer', items: () => CHARMS },
+  { label: 'Glücksgriffe', items: () => [] },
 ];
 
 const CHARM_SIGN: Record<Charm['id'], string> = { startgeld: '+150', zinsen: '%', rabatt: '−10%', zweiteChance: '♥', bossbann: '♛' };
@@ -88,7 +90,11 @@ export class ShopPanel extends Panel {
     super();
   }
 
+  /** The Glücksgriffe tab: modifier items for the bag (src/ui/shopItems.ts). */
+  private shelf = new ItemShelf();
+
   protected build() {
+    if (this.tab === ITEMS_TAB) return this.buildItems();
     const n = this.narrow;
     const items = TABS[this.tab].items();
     const charms = this.tab === 4;
@@ -112,7 +118,7 @@ export class ShopPanel extends Panel {
       this.fresh = true;
       sfx.rustle();
       this.rebuild();
-    }, n ? 3 : 5, n ? 120 : 150);
+    }, n ? 3 : 6, n ? 120 : 128);
 
     const x0 = (this.W - (cols * cw + (cols - 1) * gap)) / 2;
     const cards: Container[] = [];
@@ -146,6 +152,36 @@ export class ShopPanel extends Panel {
     const close = button({ label: 'FERTIG', width: n ? 200 : 220, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, onClick: this.onClose });
     close.position.set(this.W / 2, this.H - 46);
     this.panel.addChild(close);
+  }
+
+  private buildItems() {
+    this.shelf.build({
+      panel: this.panel,
+      narrow: this.narrow,
+      state: this.state,
+      fresh: this.fresh,
+      setSize: (w, h) => {
+        this.W = w;
+        this.H = h;
+      },
+      frame: () => this.frame('ANDENKENLADEN', COLORS.cyan, this.onClose),
+      stones: (x, y, size) => this.stones(this.state.data.moonstones, x, y, size),
+      tabs: (y) =>
+        this.tabs(TABS.map((t) => t.label), this.tab, y, (i) => {
+          this.tab = i;
+          this.fresh = true;
+          sfx.rustle();
+          this.rebuild();
+        }, this.narrow ? 3 : 6, this.narrow ? 120 : 128),
+      text: (t, size, color, bold, wrap) => this.text(t, size, color, bold, wrap),
+      popIn: (cards) => this.popIn(cards),
+      tickers: this.tickers,
+      toast: this.toast,
+      particles: this.particles,
+      rebuild: () => this.rebuild(),
+      close: this.onClose,
+    });
+    this.fresh = false;
   }
 
   /** The buy plate: price with a stone; locked (with the reason) when it can't be paid. */

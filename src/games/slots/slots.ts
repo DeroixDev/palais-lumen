@@ -9,6 +9,7 @@ import { button, label, type Button } from '../../core/ui';
 import { markModal } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { SYMBOLS, SYMBOL_NAMES, paintMoth, symbolTextures, type SymbolId } from './symbols';
 import { bulbTexture, lightWave, plaqueTexture, reducedMotion, winStage } from './stage';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
@@ -29,6 +30,11 @@ export const COMBO = [0, 1, 1.2, 3, 10, 15, 25, 40, 60];
  * offline (scripts/slots-rtp.mjs checks it against the tables above).
  */
 export const RTP = 0.9488697;
+/**
+ * Glücksfeder (odds item): a spin without any line gets its middle cell drawn once more.
+ * Exact over all 6^9 grids (scripts/slots-rtp.mjs checks it).
+ */
+export const FEATHER_RTP = 1.0527922;
 const TOTAL_WEIGHT = SYMBOLS.reduce((s, k) => s + WEIGHTS[k], 0);
 
 /** Cells as [column, row]. */
@@ -449,13 +455,19 @@ class SlotGame implements GameInstance {
     this.theme = themeOf(ctx.options);
     this.bets = ctx.state.stakes(this.theme.bets);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'slots', ['gluecksfeder']);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
+    if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
   }
 
   /** Today's ladder: the theme's day-1 bets scaled to today's stakes. */
   private bets: number[];
   private stakeWatch: StakeWatch;
+  /** Odds item: the Glücksfeder draws the middle cell of a losing spin once more. */
+  private odds: OddsWatch;
+  private feather = false;
+  private infoText!: Text;
   private get bet() {
     return this.bets[this.betIndex];
   }
@@ -593,6 +605,7 @@ class SlotGame implements GameInstance {
     info.anchor.set(0.5);
     info.position.set(W / 2, FOOT_Y + 1);
     c.addChild(info);
+    this.infoText = info;
 
     this.paytable = this.buildPaytable();
     markModal(this.paytable);
@@ -728,6 +741,7 @@ class SlotGame implements GameInstance {
     this.winText.text = '0';
     this.pullLever();
     this.ctx.sfx.spinStart();
+    this.feather = this.odds.on('gluecksfeder');
     // The result is decided here; the reels only play it out.
     const result: SymbolId[][] = [0, 1, 2].map(() => [roll(), roll(), roll()]);
     // Suspense when the first two reels already line up something valuable.
@@ -746,6 +760,7 @@ class SlotGame implements GameInstance {
     );
     this.tension = false;
     this.current = result;
+    if (this.feather && evaluate(result).wins.length === 0) await this.featherCell(result);
     await this.resolve(result);
     this.spinning = false;
     this.updateBet();
@@ -798,6 +813,42 @@ class SlotGame implements GameInstance {
       const base = sp.scale.x;
       void animate(700, (k) => (sp.scale.x = base * (0.6 + 0.4 * Math.abs(Math.cos(k * Math.PI * 3)))));
     });
+  }
+
+  /** Glücksfeder: the feather brushes over the middle cell and it is drawn once more. */
+  private async featherCell(grid: SymbolId[][]) {
+    const next = roll();
+    const tex = symbolTextures();
+    const sp = this.reels[1].sprites[1];
+    const { x, y } = this.cellCentre([1, 1]);
+    const at = this.view.toLocal(this.lineLayer.toGlobal({ x, y: y - SYM * 1.05 }));
+    void itemMoment(this.view, at.x, at.y, 'gluecksfeder', 'GLÜCKSFEDER', 0.75 * this.lineLayer.worldTransform.a);
+    this.ctx.sfx.whoosh();
+    this.flashAt(x, y, REEL_W * 1.3, SYM * 1.3, 0xffcf7a, 0.7, 700);
+    const sy = sp.scale.y;
+    const flips = this.calm ? 1 : 6;
+    for (let i = 0; i < flips; i++) {
+      await animate(this.calm ? 120 : 60 + i * 18, (k) => !sp.destroyed && (sp.scale.y = sy * Math.abs(Math.cos(k * Math.PI))));
+      if (sp.destroyed) return;
+      sp.texture = tex[i === flips - 1 ? next : SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]];
+      this.ctx.sfx.tick();
+    }
+    sp.scale.y = sy;
+    grid[1][1] = next;
+    this.ctx.sfx.thud();
+    this.flashAt(x, y, REEL_W * 1.2, SYM * 1.2, 0xfff1c4, 0.5, 320);
+    await wait(this.calm ? 150 : 300);
+  }
+
+  /** The footer: the true payout share, with the feather while it works. */
+  private refreshInfo() {
+    if (!this.infoText) return;
+    const rtp = returnToPlayer();
+    this.infoText.text = this.odds.id
+      ? itemRtpText(FEATHER_RTP, 'gluecksfeder')
+      : `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %  ·  Hausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
+    this.infoText.style.fill = this.odds.id ? 0xffd890 : 0xe6d6b4;
+    this.infoText.scale.set(Math.min(1, (W - 40) / (this.infoText.width / this.infoText.scale.x)));
   }
 
   /** A short additive light puff (behind nothing, over the reels). */
@@ -880,7 +931,8 @@ class SlotGame implements GameInstance {
     if (lines >= 3) tags.push('lines3');
     if (grid.some((col) => col.includes('moth'))) tags.push('moth');
     if (rewardLevel(mult) === 4) tags.push('jackpot');
-    this.ctx.state.report({ game: 'slots', stake: this.bet, win, rtp: RTP, tags });
+    if (this.feather) tags.push('feder');
+    this.ctx.state.report({ game: 'slots', stake: this.bet, win, rtp: this.feather ? FEATHER_RTP : RTP, tags });
   }
 
   private async resolve(grid: SymbolId[][]) {
@@ -1040,6 +1092,7 @@ class SlotGame implements GameInstance {
   }
 
   update(dtMs: number) {
+    if (this.odds.poll()) this.refreshInfo();
     // Today's stakes changed (boss phase, event): same rung of the ladder, new amounts.
     if (this.stakeWatch.changed(this.busy())) {
       this.bets = this.ctx.state.stakes(this.theme.bets);

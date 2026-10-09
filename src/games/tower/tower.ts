@@ -14,7 +14,9 @@ import { focusable, type FocusHandle } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
 import { LadderDeck, SCENE_H, SCENE_W, fmtMult, ladderWin, layoutLadder } from '../ladderKit';
-import { DIFFS, FLOORS, TOWER_RTP, placeDragons, towerMult, towerPayout, towerPayoutShown, type Diff } from './rules';
+import { DIFFS, FLOORS, TOWER_RTP, placeDragons, scoutDoor, scoutRtp, towerMult, towerPayout, towerPayoutShown, type Diff } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import {
   DOOR_H,
   FIRE,
@@ -85,6 +87,9 @@ class TowerGame implements GameInstance {
   private betIndex = 0;
   private bets: number[];
   private stakeWatch: StakeWatch;
+  /** Odds item: the Minensucher shows one dragon of the first floor. On this round? */
+  private odds: OddsWatch;
+  private scout = false;
   private time = 0;
   private calm = reducedMotion();
 
@@ -101,6 +106,7 @@ class TowerGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'tower', ['minensucher']);
     this.deck = new LadderDeck({
       rtp: TOWER_RTP,
       accent: COLORS.lamp,
@@ -300,6 +306,7 @@ class TowerGame implements GameInstance {
     if (d === this.diff) return;
     this.diff = d;
     this.ctx.sfx.chip();
+    this.refreshRtp();
     this.buildTower();
     this.phase = 'idle';
     this.tweenCamera(0);
@@ -345,6 +352,12 @@ class TowerGame implements GameInstance {
     });
   }
 
+  /** The deck's payout line: with the Minensucher it depends on the difficulty. */
+  private refreshRtp() {
+    setItemRtp('tower', 'minensucher', scoutRtp(this.diff));
+    this.deck.setRtp(this.odds.id ? itemRtpText(scoutRtp(this.diff), 'minensucher').replace(' · ', '\n') : null, 0xffc890);
+  }
+
   private status(big: string, col: number, sub: string) {
     this.bigText.text = big;
     this.bigText.style.fill = col;
@@ -374,7 +387,9 @@ class TowerGame implements GameInstance {
     if (this.phase === 'anim') return;
     if (this.phase === 'play') {
       const f = this.floors[this.floor];
-      void this.pick(Math.floor(Math.random() * f.doors.length));
+      // (Only closed doors: the Minensucher may have opened one on the first floor.)
+      const closed = f.doors.map((d, i) => (d.open ? -1 : i)).filter((i) => i >= 0);
+      void this.pick(closed[Math.floor(Math.random() * closed.length)]);
       return;
     }
     this.start();
@@ -405,9 +420,20 @@ class TowerGame implements GameInstance {
     this.fxLayer.removeChildren().forEach((c) => c.destroy());
     this.floor = 0;
     this.phase = 'play';
+    this.scout = this.odds.on('minensucher');
     this.ctx.sfx.whoosh();
     if (wasUp) void this.tweenCamera(0, 500);
     this.refresh();
+    if (this.scout) {
+      // Minensucher: one sleeping dragon of the first floor is shown before the first pick.
+      const d = this.floors[0].doors[scoutDoor(this.dragons[0])];
+      void this.openDoor(d, true, false);
+      d.glow.tint = 0xffa94a;
+      d.glow.alpha = 0.6;
+      const g = this.view.toLocal(d.c.getGlobalPosition());
+      void itemMoment(this.view, g.x, g.y - 90 * this.board.scale.x, 'minensucher', 'DRACHE GEFUNDEN', Math.max(0.6, this.board.scale.x * 0.8));
+      this.ctx.sfx.medal();
+    }
     return true;
   }
 
@@ -553,7 +579,7 @@ class TowerGame implements GameInstance {
   }
 
   private bust(k: number) {
-    this.ctx.state.report({ game: 'tower', stake: this.stake, win: 0, rtp: TOWER_RTP, tags: this.tags(k, ['bust']) });
+    this.ctx.state.report({ game: 'tower', stake: this.stake, win: 0, rtp: this.scout ? scoutRtp(this.diff) : TOWER_RTP, tags: this.tags(k, ['bust']) });
     this.status('DRACHE!', 0xff9a7a, k ? `Etage ${k + 1} – der Einsatz ist weg.` : 'Gleich unten – der Einsatz ist weg.');
     this.deck.setMain('SPIELEN', false);
     this.deck.setSecond('KASSIEREN', false);
@@ -568,7 +594,7 @@ class TowerGame implements GameInstance {
     const m = towerMult(this.diff, k);
     const win = towerPayout(this.stake, this.diff, k);
     this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'tower', stake: this.stake, win, rtp: TOWER_RTP, tags: this.tags(k, ['cashout']) });
+    this.ctx.state.report({ game: 'tower', stake: this.stake, win, rtp: this.scout ? scoutRtp(this.diff) : TOWER_RTP, tags: this.tags(k, ['cashout']) });
     this.status(`+${formatChips(win)}`, COLORS.lamp, auto ? `Turmspitze! ${fmtMult(m)}` : `Kassiert auf Etage ${k} · ${fmtMult(m)}`);
     this.deck.setMain('SPIELEN', false);
     this.deck.setSecond('KASSIEREN', false);
@@ -644,6 +670,7 @@ class TowerGame implements GameInstance {
       this.changeBet(0);
       this.ctx.toast(this.stakeWatch.note);
     }
+    if (this.odds.poll()) this.refreshRtp();
     this.time += dtMs / 1000;
     if (this.calm) return;
     const active = this.phase === 'play' ? this.floor : this.phase === 'idle' ? 0 : -1;

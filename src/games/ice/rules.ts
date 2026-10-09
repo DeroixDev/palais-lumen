@@ -39,3 +39,19 @@ export function payout(stake: number, level: Level, k: number, rand = Math.rando
   const whole = Math.floor(x);
   return whole + (rand() < x - whole ? 1 : 0);
 }
+
+// ---- Ruhige Hand (odds item) -------------------------------------------------------------------
+// The first floe always holds; floes 2 … steps break with the level's chance q as always.
+// Standing on floe k ≥ 1 then has chance (1 − q)^(k − 1), the multipliers stay as shown, so
+// every cash-out point returns RTP / (1 − q).
+
+export function steadyRtp(level: Level) {
+  return RTP / (1 - LEVELS[level].q);
+}
+
+/** drawBreak with the first floe held. */
+export function drawBreakSteady(level: Level, rand = Math.random) {
+  const { q, steps } = LEVELS[level];
+  for (let k = 2; k <= steps; k++) if (rand() < q) return k;
+  return steps + 1;
+}

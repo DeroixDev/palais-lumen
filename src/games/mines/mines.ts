@@ -15,7 +15,9 @@ import { focusable, type FocusHandle } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
 import { LadderDeck, SCENE_H, SCENE_W, fmtMult, ladderWin, layoutLadder } from '../ladderKit';
-import { MAX_TRAPS, MINES_RTP, MIN_TRAPS, TILES, layTraps, minesMult, minesPayout, minesPayoutShown } from './rules';
+import { MAX_TRAPS, MINES_RTP, MIN_TRAPS, TILES, guardFirst, guardRtp, layTraps, minesMult, minesPayout, minesPayoutShown } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import {
   DIAMOND,
   FIELD_X,
@@ -78,6 +80,9 @@ class MinesGame implements GameInstance {
   private betIndex = 0;
   private bets: number[];
   private stakeWatch: StakeWatch;
+  /** Odds item: the Minensucher makes the first stone of a round a diamond. On this round? */
+  private odds: OddsWatch;
+  private guard = false;
   private time = 0;
   private calm = reducedMotion();
 
@@ -91,6 +96,7 @@ class MinesGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'mines', ['minensucher']);
     this.deck = new LadderDeck({
       rtp: MINES_RTP,
       accent: COLORS.lamp,
@@ -257,6 +263,7 @@ class MinesGame implements GameInstance {
     this.traps = Math.max(MIN_TRAPS, Math.min(MAX_TRAPS, n));
     this.ctx.sfx.chip();
     this.refresh();
+    this.refreshRtp();
   }
 
   private changeBet(d: number) {
@@ -283,6 +290,12 @@ class MinesGame implements GameInstance {
     this.deck.lockBet(playing || p === 'anim');
     this.refreshOptions();
     for (const t of this.tiles) t.focus.refresh();
+  }
+
+  /** The deck's payout line: with the Minensucher it depends on the trap count. */
+  private refreshRtp() {
+    setItemRtp('mines', 'minensucher', guardRtp(this.traps));
+    this.deck.setRtp(this.odds.id ? itemRtpText(guardRtp(this.traps), 'minensucher').replace(' · ', '\n') : null, 0xffc890);
   }
 
   private status(big: string, col: number, sub: string) {
@@ -317,6 +330,7 @@ class MinesGame implements GameInstance {
     this.stake = bet;
     // The whole field is decided before the first stone opens.
     this.field = layTraps(this.traps);
+    this.guard = this.odds.on('minensucher');
     this.found = 0;
     this.phase = 'play';
     this.ctx.sfx.whoosh();
@@ -358,6 +372,13 @@ class MinesGame implements GameInstance {
     this.phase = 'anim';
     t.open = true;
     this.refresh();
+    if (this.guard && this.found === 0) {
+      // Minensucher: the first stone is made safe (a trap under it moves elsewhere).
+      this.field = guardFirst(this.field, i);
+      const g = this.view.toLocal(t.c.getGlobalPosition());
+      void itemMoment(this.view, g.x, g.y - 30 * this.board.scale.x, 'minensucher', 'SICHER!', Math.max(0.6, this.board.scale.x * 0.8));
+      this.ctx.sfx.medal();
+    }
     const trap = this.field[i];
     await this.crackOpen(t, trap, true);
     if (this.view.destroyed) return;
@@ -463,7 +484,7 @@ class MinesGame implements GameInstance {
   /** The lantern puffs out its soot: a warm flash, a soft cloud, the round is lost. */
   private bust(t: Tile) {
     this.phase = 'anim';
-    this.ctx.state.report({ game: 'mines', stake: this.stake, win: 0, rtp: MINES_RTP, tags: this.tags(['bust']) });
+    this.ctx.state.report({ game: 'mines', stake: this.stake, win: 0, rtp: this.guard ? guardRtp(this.traps) : MINES_RTP, tags: this.tags(['bust']) });
     this.ctx.sfx.puff();
     this.status('RUSS!', 0xff9a7a, this.found ? `${this.found} ${this.found === 1 ? 'Diamant' : 'Diamanten'} – der Einsatz ist weg.` : 'Gleich der erste Stein – der Einsatz ist weg.');
     this.deck.setMain('SPIELEN', false);
@@ -515,7 +536,7 @@ class MinesGame implements GameInstance {
     this.ctx.state.payout(win);
     const tags = this.tags(['cashout']);
     if (this.found >= TILES - this.traps) tags.push('allclear');
-    this.ctx.state.report({ game: 'mines', stake: this.stake, win, rtp: MINES_RTP, tags });
+    this.ctx.state.report({ game: 'mines', stake: this.stake, win, rtp: this.guard ? guardRtp(this.traps) : MINES_RTP, tags });
     this.status(`+${formatChips(win)}`, COLORS.lamp, auto ? `Alle Diamanten gefunden! ${fmtMult(m)}` : `Kassiert bei ${fmtMult(m)}`);
     this.deck.setMain('SPIELEN', false);
     this.deck.setSecond('KASSIEREN', false);
@@ -580,6 +601,7 @@ class MinesGame implements GameInstance {
       this.changeBet(0);
       this.ctx.toast(this.stakeWatch.note);
     }
+    if (this.odds.poll()) this.refreshRtp();
     this.time += dtMs / 1000;
     for (const l of this.lanterns) {
       l.s.rotation = this.calm ? 0 : Math.sin(this.time * 1.3 + l.ph) * 0.05;

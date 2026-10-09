@@ -23,24 +23,15 @@ import {
   skylineTexture,
   starTexture,
 } from './paint';
+import { MAX_MULT, RTP, SHIELD_BELOW, SHIELD_RTP, drawWindPoint, shielded } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 
 // ---- Rules -------------------------------------------------------------
 
-/** Share of every bet that comes back on average, whatever the player does. */
-const RTP = 0.96;
-const MAX_MULT = 1000;
+export { drawWindPoint };
+
 /** Growth speed: multiplier = e^(K·seconds). 2× after ~5 s, 10× after ~16 s. */
 const K = 0.14;
-
-/**
- * The wind point is drawn before take-off: P(flight reaches x) = 0.96 / x.
- * So 4 % of flights end right at the start, and any cash-out target pays 96 % on average.
- */
-export function drawWindPoint(rand = Math.random()) {
-  const x = RTP / (1 - rand);
-  if (x < 1) return 1;
-  return Math.min(MAX_MULT, Math.floor(x * 100) / 100);
-}
 
 const fmt = (m: number) => m.toFixed(2).replace('.', ',');
 const BETS = [10, 20, 50, 100, 250];
@@ -162,6 +153,11 @@ class CrashGame implements GameInstance {
   private autoIndex = 0;
   private stake = 0;
   private windAt = 1;
+  /** Odds item: the Mondschirm catches gusts below 1,10× (stake back). On for this flight? */
+  private odds!: OddsWatch;
+  private shield = false;
+  private rtpText: Text | null = null;
+  private rtpMaxW = 0;
   private t = 0;
   private mult = 1;
   private nextMilestone = 0;
@@ -182,6 +178,7 @@ class CrashGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'crash', ['mondschirm']);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
@@ -365,6 +362,7 @@ class CrashGame implements GameInstance {
     const autoBtn = (aw: number) => button({ label: '', ariaLabel: (t) => `Auto-Einsammeln: ${t}`, width: aw, height: 52, color: 0x3a2040, textColor: CREAM, fontSize: 19, display: false, onClick: () => this.cycleAuto() });
     const rtp = new Text({
       text: `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %`,
+      // (replaced by refreshRtp() while the Mondschirm works)
       style: { fontFamily: FONT_BODY, fontSize: tall ? 14 : 15, fontWeight: '600', fill: 0xbfa98a },
     });
     if (tall) {
@@ -398,7 +396,11 @@ class CrashGame implements GameInstance {
       rtp.anchor.set(0, 0.5);
       rtp.position.set(ax, H - 16);
       rtp.visible = ax + rtp.width < width - 24 - aw - 10;
+      this.rtpMaxW = width - 24 - aw - 10 - ax;
     }
+    this.rtpText = rtp;
+    if (tall) this.rtpMaxW = width - 24;
+    this.refreshRtp();
     c.addChild(betLabel, autoLabel, this.minus, this.plus, this.betText, this.autoBtn, this.actionBtn, rtp);
     this.changeBet(0, true);
     this.cycleAuto(0, true);
@@ -477,6 +479,7 @@ class CrashGame implements GameInstance {
     this.stake = bet;
     // The result exists before anything moves.
     this.windAt = drawWindPoint();
+    this.shield = this.odds.on('mondschirm');
     this.resetFlight();
     this.phase = 'warmup';
     this.setControlsLocked(true);
@@ -519,7 +522,7 @@ class CrashGame implements GameInstance {
     const tags = ['crash', 'cashout'];
     if (m >= 2) tags.push('cashout2');
     if (m >= 5) tags.push('cashout5');
-    this.ctx.state.report({ game: 'crash', stake: this.stake, win, rtp: RTP, tags });
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win, rtp: this.shield ? SHIELD_RTP : RTP, tags });
     this.mult = m;
     this.setDisplay(m, GOLD, 'EINGESAMMELT');
     this.setControlsLocked(false);
@@ -572,10 +575,11 @@ class CrashGame implements GameInstance {
 
   /** The night wind catches the moth: it tumbles down and the round is over. Calm, no shake. */
   private wind() {
+    if (this.shield && shielded(this.windAt)) return this.parachute();
     this.phase = 'done';
     this.stopHum();
     // 'crash' is the game tag (every round); 'bust' marks a lost flight.
-    this.ctx.state.report({ game: 'crash', stake: this.stake, win: 0, rtp: RTP, tags: ['crash', 'bust'] });
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win: 0, rtp: this.shield ? SHIELD_RTP : RTP, tags: ['crash', 'bust'] });
     this.ctx.sfx.fizzle();
     this.cold = true;
     this.setDisplay(this.windAt, COLD, 'WINDSTOSS');
@@ -617,6 +621,56 @@ class CrashGame implements GameInstance {
       },
       ease.linear,
     );
+  }
+
+  /** Mondschirm: the gust came below 1,10×; the parachute opens and the stake comes back. */
+  private parachute() {
+    this.phase = 'done';
+    this.stopHum();
+    const win = this.stake;
+    this.ctx.state.payout(win);
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win, rtp: SHIELD_RTP, tags: ['crash', 'bust', 'mondschirm'] });
+    this.ctx.sfx.partial();
+    this.setDisplay(this.windAt, 0xbfd8ff, 'MONDSCHIRM');
+    this.plaqueTint.tint = 0xbfd8ff;
+    this.plaqueTint.alpha = 0.3;
+    void tween(this.plaqueTint, { alpha: 0 }, 700);
+    this.subText.text = `Windstoß bei ${fmt(this.windAt)}× – der Mondschirm fängt die Motte: ${formatChips(win)} Falter zurück.`;
+    this.setControlsLocked(false);
+    this.actionBtn.setEnabled(true);
+    this.updateActionLabel();
+    this.addHistory(this.windAt, false);
+    const calm = reducedMotion();
+    const p = this.view.toLocal(this.sky.toGlobal({ x: this.moth.x, y: this.moth.y - 70 }));
+    void itemMoment(this.view, p.x, p.y, 'mondschirm', 'MONDSCHIRM!', Math.max(0.7, this.board.scale.x));
+    floatText(this.view, p.x, p.y + 90, `${formatChips(win)} zurück`, 0xbfd8ff, 28);
+    // The moth sails down gently, swaying under the canopy.
+    const sx = this.moth.x;
+    const sy = this.moth.y;
+    void animate(
+      calm ? 900 : 2200,
+      (k) => {
+        if (this.moth.destroyed) return;
+        this.moth.x = sx + (calm ? 0 : Math.sin(k * 7) * 26);
+        this.moth.y = sy + (this.skyH - 70 - sy) * k;
+        this.moth.rotation = calm ? 0 : Math.sin(k * 7) * 0.25;
+        this.mothWings.scale.x = 0.6 + 0.2 * Math.abs(Math.sin(k * 6));
+      },
+      ease.outCubic,
+    );
+  }
+
+  /** The payout line, with the Mondschirm while it works. */
+  private refreshRtp() {
+    const t = this.rtpText;
+    if (!t) return;
+    t.text = this.odds?.id
+      ? itemRtpText(SHIELD_RTP, 'mondschirm', `einsammeln ab ${fmt(SHIELD_BELOW)}×`)
+      : `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %`;
+    t.style.fill = this.odds?.id ? 0xc8dcff : 0xbfa98a;
+    t.scale.set(1);
+    if (this.rtpMaxW > 0 && t.width > this.rtpMaxW) t.scale.set(Math.max(0.6, this.rtpMaxW / t.width));
+    t.visible = this.rtpMaxW > 0 && t.width <= this.rtpMaxW + 1;
   }
 
   private addHistory(m: number, won: boolean) {
@@ -816,6 +870,7 @@ class CrashGame implements GameInstance {
 
   update(dtMs: number) {
     if (this.stakeWatch.changed(this.busy())) this.refreshStakes();
+    if (this.odds.poll()) this.refreshRtp();
     const dt = dtMs / 1000;
     this.time += dt;
     // Candle flicker.

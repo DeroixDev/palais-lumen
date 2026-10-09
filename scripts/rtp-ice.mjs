@@ -44,4 +44,27 @@ for (const lv of R.LEVEL_ORDER) {
   console.log(`${R.LEVELS[lv].label.padEnd(7)} stake 10 with fair rounding: ${(lo * 100).toFixed(2)}–${(hi * 100).toFixed(2)} % depending on the cash-out floe`);
 }
 console.log(ok ? `OK: exactly ${R.RTP * 100} % at every cash-out point` : 'FAIL');
-process.exit(ok ? 0 : 1);
+
+// Ruhige Hand (odds item): the first floe always holds. Exact: P(stand on k) = (1 − q)^(k − 1),
+// so cash-out point k returns multAt(k) · (1 − q)^(k − 1) = RTP / (1 − q) for every k ≥ 1.
+// Then 400,000 simulated rounds per level with the game's own drawBreakSteady().
+let okSteady = true;
+for (const lv of R.LEVEL_ORDER) {
+  const { q, steps, label } = R.LEVELS[lv];
+  let lo = Infinity, hi = -Infinity;
+  for (let k = 1; k <= steps; k++) {
+    const r = R.multAt(lv, k) * Math.pow(1 - q, k - 1);
+    lo = Math.min(lo, r);
+    hi = Math.max(hi, r);
+  }
+  okSteady &&= Math.abs(lo - R.steadyRtp(lv)) < 1e-9 && Math.abs(hi - R.steadyRtp(lv)) < 1e-9;
+  let paid = 0;
+  const M = 400_000;
+  for (let i = 0; i < M; i++) {
+    const target = 1 + Math.floor(Math.random() * steps);
+    if (R.drawBreakSteady(lv) > target) paid += R.multAt(lv, target);
+  }
+  console.log(`Ruhige Hand, ${label.padEnd(7)} exakt ${(R.steadyRtp(lv) * 100).toFixed(3)} % für jede Scholle, simuliert ${((paid / M) * 100).toFixed(2)} %`);
+}
+console.log(okSteady ? 'OK: Ruhige Hand' : 'FAIL: Ruhige Hand');
+process.exit(ok && okSteady ? 0 : 1);
