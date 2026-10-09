@@ -21,10 +21,10 @@ npm run build    # fertige Dateien in dist/
 ```
 src/
   core/        Spielzustand, Speichern, Effekte, Sound, Tweens, UI-Bausteine, Registry
-  games/       ein Ordner pro Spiel (slots, roulette) + index.ts zum Registrieren
-  rooms/       eine Datei pro Raum (lobby, vip) + index.ts zum Registrieren
-  world/       Raumdarstellung, Spielfigur, Trophäen-Grafiken
-  ui/          HUD und Dialoge (HTML), Abendabrechnung und Vitrine (Pixi)
+  games/       ein Ordner pro Spiel (slots, roulette, plinko, crash) + index.ts zum Registrieren
+  rooms/       eine Datei pro Etage (f1 bis f5) + index.ts zum Registrieren
+  world/       Raumdarstellung, Möbel (decor.ts), Böden und Wände (styles.ts), Spielfigur, Gäste
+  ui/          HUD und Dialoge (HTML), Tagesabrechnung, Vitrine und Aufzug (Pixi)
 ```
 
 ### Ein neues Spiel hinzufügen
@@ -36,11 +36,11 @@ src/
 2. In `src/games/index.ts` registrieren.
 3. In einem Raum unter `stations` platzieren, zum Beispiel `{ game: 'blackjack', x: 400, y: 300, label: 'Blackjack' }`.
 
-### Einen neuen Raum hinzufügen
+### Eine Etage ändern oder hinzufügen
 
-1. `src/rooms/lobby.ts` kopieren, `id`, Größe, Farben (`theme`), Stationen und Deko anpassen. Mit `unlockCost` muss der Raum erst mit Spielgeld freigeschaltet werden.
-2. In `src/rooms/index.ts` registrieren.
-3. In einem bestehenden Raum eine Tür eintragen: `doors: [{ to: '<id>', x: 900, label: 'Name' }]`.
+1. Eine Datei in `src/rooms/` kopieren, `id`, `floor`, Farben und Stil (`theme.style`), Stationen und Möbel (`decor`) anpassen. Alle Möbelarten stehen in `DecorKind` in `src/core/registry.ts` und werden in `src/world/decor.ts` gezeichnet.
+2. In `src/rooms/index.ts` registrieren. Der Aufzug listet alle Etagen nach `floor`.
+3. Welche Etage an welchem Tag offen ist, regelt `floorForDay()` in `src/core/state.ts` (Etage 1 bis 4 je 3 Tage, Etage 5 ist der Boss-Tag 13).
 
 ## Spielstände
 
