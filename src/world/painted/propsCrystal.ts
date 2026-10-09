@@ -131,7 +131,7 @@ function shard(c: Ctx, w: number, h: number, col: number) {
 }
 
 /** A painted gold moth emblem (wings, body) centred at (0,0), roughly s wide. */
-function mothEmblem(c: Ctx, s: number, gem = '#ff5fa2') {
+export function mothEmblem(c: Ctx, s: number, gem = '#ff5fa2') {
   const k = s / 40;
   for (const sd of [-1, 1]) {
     c.beginPath();
@@ -185,7 +185,7 @@ function wingPath(c: Ctx, part: 'fore' | 'hind') {
 }
 
 /** The Queen's right wing, root at (0,0). `flash` paints a white silhouette for hits. */
-function paintWing(c: Ctx, flash: boolean) {
+export function paintWing(c: Ctx, flash: boolean) {
   for (const part of ['hind', 'fore'] as const) {
     wingPath(c, part);
     if (flash) {
@@ -259,7 +259,7 @@ function paintWing(c: Ctx, flash: boolean) {
 }
 
 /** The Queen's body: gown, ruff, face, crown, antennae and sceptre, thorax at (0,0). */
-function paintQueen(c: Ctx) {
+export function paintQueen(c: Ctx) {
   // Antennae, feathery.
   for (const s of [-1, 1]) {
     c.beginPath();
@@ -415,7 +415,7 @@ function paintQueen(c: Ctx) {
 }
 
 /** The halo behind the Queen's head: a gold ring with rays. */
-function paintHalo(c: Ctx) {
+export function paintHalo(c: Ctx) {
   glowAt(c, 0, 0, 44, 44, 0xffe2a8, 0.5, 'lighter');
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2;

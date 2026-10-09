@@ -19,10 +19,14 @@ import { buildPaintedDecor } from './painted';
 import { paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
 import { RoomExtras, type ExtraInteractable } from './roomExtras';
+import { CorridorScene } from './bossRun';
+import { RoomSpecials } from './sideRooms';
 import { guestFactor, onEventSwitch } from '../core/events';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
+import { CLUB_USE_TITLE } from './clubUse';
+import { clubLightSpots, clubSign } from './painted/propsClub';
 
 export { WALL_H };
 
@@ -52,6 +56,7 @@ const USE_TITLE: Partial<Record<DecorKind, string>> = {
   crystal: 'Kristall anschlagen',
   iceSwan: 'Eisschwan bestaunen',
   brazier: 'Glut anfachen',
+  ...CLUB_USE_TITLE,
 };
 
 /** Half the width of the elevator doorway. */
@@ -77,6 +82,10 @@ export class RoomScene {
   private guests: Guests | null = null;
   /** Day event, task guests and stamp-card upgrades (src/world/roomExtras.ts). */
   extras!: RoomExtras;
+  /** Boss corridor: gates, plaques, the Queen's challenge (src/world/bossRun.ts). */
+  corridor: CorridorScene | null = null;
+  /** Side-room finds, spotlit special machines and ambience (src/world/sideRooms.ts). */
+  private specials: RoomSpecials | null = null;
   private fxLayer = new Container();
   private prompt = new Container();
   private promptText: Text;
@@ -135,13 +144,17 @@ export class RoomScene {
     this.buildLights();
     this.world.addChild(this.fxLayer);
 
-    const pos = state.data.roomId === this.def.id && state.data.position.x > 0 ? state.data.position : this.def.spawn;
+    const saved = state.data.roomId === this.def.id && state.data.position.x > 0 ? state.data.position : null;
+    // A save from before the room was rebuilt may put the player inside a wall or a machine.
+    const pos = saved && saved.x < this.def.width && saved.y < this.def.height && !this.collides(saved.x, saved.y) ? saved : this.def.spawn;
     this.player = this.makePlayer();
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
     this.buildCompanion();
     this.placeUseSpots();
     this.extras = new RoomExtras(state, this.def, { spots: this.spots, world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position });
+    if (this.def.corridor) this.corridor = new CorridorScene(state, this.def, { world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, player: () => this.player.view.position });
+    this.specials = new RoomSpecials(state, this.def, { floor: this.floorDecor, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, floatText: (t, x, y, c, sz) => this.floatText(t, x, y, c, sz), refreshPrompt: () => (this.nearest = null) });
     this.spawnGuests();
     // Debug switched today's event: closed games and the crowd change right away.
     this.offEventSwitch = onEventSwitch(() => {
@@ -200,7 +213,8 @@ export class RoomScene {
   /** Neon sign, baked once with its glow so the filter doesn't run every frame. */
   private buildSign() {
     if (this.painted) {
-      const s = paintedSign(this.def.sign, this.def.width / 2, 62, FONT_DISPLAY);
+      const t = this.def.theme;
+      const s = clubSign(this.def.sign, t.style, t.neon, this.def.width / 2, 62, FONT_DISPLAY) ?? paintedSign(this.def.sign, this.def.width / 2, 62, FONT_DISPLAY);
       this.sign = s.view;
       this.world.addChild(s.view);
       this.animated.push((time) => s.update(time));
@@ -320,7 +334,7 @@ export class RoomScene {
   /** Doorways to the other rooms of this floor. */
   private buildDoors() {
     for (const door of this.def.doors ?? []) {
-      this.wallDecor.addChild(paintedDoorway(door, this.def.width, this.def.height, this.def.theme.neon));
+      this.wallDecor.addChild(paintedDoorway(door, this.def.width, this.def.height, this.def.theme.neon, this.def.theme.style));
       const p = doorStand(door, this.def.width, this.def.height);
       const name = door.label ?? getRoom(door.to).name;
       this.interactables.push({ kind: 'door', door, x: p.x, y: p.y, title: name });
@@ -710,6 +724,7 @@ export class RoomScene {
       else if (d.kind === 'painting') spots.push({ x: d.x, y: 40, r: 70, col: 0xffe2a8, a: 0.3 });
       else if (d.kind === 'jukebox' || d.kind === 'fountain') spots.push({ x: d.x, y: d.y, r: 110, col: d.kind === 'jukebox' ? 0xff7ab8 : 0x7ad8ff, a: 0.3 });
     }
+    spots.push(...clubLightSpots(this.def.decor));
     return spots;
   }
 
@@ -1138,6 +1153,8 @@ export class RoomScene {
     if (this.elevator) this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
     this.extras.update(dtMs);
+    this.corridor?.update(dtMs);
+    this.specials?.update(dtMs);
     this.updateCompanion(dt);
     this.drawStick();
 
@@ -1210,6 +1227,9 @@ export class RoomScene {
   /** Today's crowd: more on a gala, fewer on a quiet evening (replaces any guests already here). */
   private spawnGuests() {
     this.guests?.destroy();
+    // The corridor belongs to the player and the Queen; no one stands in front of a machine.
+    this.guests = null;
+    if (this.def.corridor) return;
     const guestCount = Math.round(Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7))) * guestFactor(this.state.data));
     this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height }, this.painted ? (c, l) => new Chibi(c, l) : undefined);
   }
@@ -1218,6 +1238,8 @@ export class RoomScene {
     this.dead = true;
     this.offEventSwitch();
     this.extras?.destroy();
+    this.corridor?.destroy();
+    this.specials?.destroy();
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.clearKeys);

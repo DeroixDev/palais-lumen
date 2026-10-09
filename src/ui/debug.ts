@@ -8,6 +8,7 @@ import { MAX_HEAT } from '../core/moon';
 import { PERKS } from '../core/perks';
 import { baseRoom } from '../core/registry';
 import { seasonDebug } from './season';
+import { bossRunDebug } from './bossRun';
 
 /** What the debug panel needs from the game loop. */
 export interface DebugActions {
@@ -208,6 +209,13 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     if (d.evening.number < BOSS_DAY) return 'Das geht nur am Boss-Tag.';
     d.balance = d.evening.startBalance + Math.ceil(d.evening.quota * 0.8);
     a.close();
+  });
+  // Boss corridor on floor 5 (src/ui/bossRun.ts).
+  const runRow = section('Boss-Gang (Etage 5)');
+  btn(runRow, 'Boss-Gang zurücksetzen', () => bossRunDebug?.debugReset());
+  btn(runRow, 'Zur Königin', () => {
+    a.close();
+    return bossRunDebug?.debugToQueen();
   });
 
   return wrap;

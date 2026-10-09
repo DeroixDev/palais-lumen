@@ -81,7 +81,7 @@ export class ProgramPanel extends Panel {
     const closed = closedGames(d);
     const fresh = new Set<string>();
     for (const r of allRooms()) if (r.floor > 0) for (const g of floorPlan(this.state, r)) if (g.isNew) fresh.add(g.id);
-    const list = allGames().map((g) => ({
+    const list = allGames().filter((g) => !g.boss).map((g) => ({
       id: g.id,
       name: g.name,
       blurb: g.blurb ?? BLURB[g.id] ?? '',

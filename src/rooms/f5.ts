@@ -1,15 +1,59 @@
-import type { RoomDefinition } from '../core/registry';
+import type { DecorPlacement, RoomDefinition, StationPlacement } from '../core/registry';
+import { CORRIDOR } from '../core/bossRun';
 
-/** Floor 5, the boss: the Moth Queen's throne room. One day, the highest goal. */
+/**
+ * Floor 5, the boss: a long, low corridor to the Moth Queen's throne. You walk right; one
+ * machine at a time stands in the way and gets exactly one try, a gate opens behind it, and at
+ * the far end the Queen waits for the duel (src/core/bossRun.ts, src/world/bossRun.ts).
+ * The spots alternate machine and table; the daily rotation puts a different game on each
+ * (seeded by season and day, so a reload shows the same corridor).
+ */
+const { width: W, height: H, machines, gates, throne } = CORRIDOR;
+
+const stations: StationPlacement[] = machines.map((x, i) =>
+  i % 2 === 0
+    ? { game: 'coin', x: x - 38, y: 196 } // a machine spot (76 × 64)
+    : { game: 'roulette', x: x - 75, y: 190 }, // a table spot (150 × 84)
+);
+
+const decor: DecorPlacement[] = [];
+// Banners and sconces along the back wall, closer together towards the Queen.
+for (let x = 300; x < W - 120; x += x < 3300 ? 160 : 110) {
+  if (machines.some((m) => Math.abs(m - x) < 90) || gates.some((g) => Math.abs(g - x) < 50) || Math.abs(x - 150) < 110) continue;
+  decor.push({ kind: x % 320 < 160 ? 'banner' : 'sconce', x, y: 0, w: x > 3800 ? 50 : 40 });
+}
+// Braziers and moth statues guard each gate, on the back and front edge of the floor.
+for (const g of gates) {
+  decor.push({ kind: 'brazier', x: g - 70, y: 214 }, { kind: 'brazier', x: g - 70, y: 572 });
+  decor.push({ kind: 'statue', x: g + 76, y: 578 });
+}
+// Pillars along the front edge between the machines.
+for (const m of machines) decor.push({ kind: 'pillar', x: m + 150, y: 586 });
+// Chandeliers light the way; the last ones hang over the throne hall.
+for (const x of [3960, 4250]) decor.push({ kind: 'chandelier', x, y: 470, w: x > 3800 ? 56 : 40 });
+// The throne hall.
+decor.push(
+  { kind: 'rug', x: throne.x - 150, y: 480, w: 360, h: 120 },
+  { kind: 'throne', x: throne.x, y: throne.y },
+  { kind: 'brazier', x: throne.x - 190, y: 470 },
+  { kind: 'brazier', x: throne.x + 190, y: 470 },
+  { kind: 'pillar', x: 3900, y: 226 },
+  { kind: 'pillar', x: 4340, y: 226 },
+  { kind: 'pillar', x: 4340, y: 586 },
+  { kind: 'statue', x: 4000, y: 578 },
+  { kind: 'statue', x: 4260, y: 578 },
+);
+
 export const f5: RoomDefinition = {
   id: 'f5',
-  name: 'Thron der Mottenkönigin',
-  tagline: 'Der letzte Tag. Schlag die Königin.',
+  name: 'Gang der Mottenkönigin',
+  tagline: 'Ein Gang, ein Versuch pro Automat. Am Ende wartet die Königin.',
   floor: 5,
-  elevatorX: 1250,
+  corridor: true,
+  elevatorX: 150,
   sign: 'MOTTENKÖNIGIN',
-  width: 1400,
-  height: 980,
+  width: W,
+  height: H,
   theme: {
     style: 'throne',
     carpet: 0x1a0b22,
@@ -23,43 +67,7 @@ export const f5: RoomDefinition = {
     sofa: 0x5a1a3a,
     curtain: 0x5a1a6a,
   },
-  spawn: { x: 1250, y: 200 },
-  stations: [
-    { game: 'slots', x: 90, y: 240, label: 'Goldmotte', options: { theme: 'gold' } },
-    { game: 'slots', x: 170, y: 240, label: 'Goldmotte', options: { theme: 'gold' } },
-    { game: 'slots', x: 250, y: 240, label: 'Goldmotte', options: { theme: 'gold' } },
-    { game: 'roulette', x: 160, y: 560, label: 'Königstisch', options: { minBet: 100 } },
-    { game: 'crash', x: 1060, y: 560, label: 'Mondflug' },
-    { game: 'plinko', x: 1060, y: 290, label: 'Mottenfall' },
-    { game: 'plinko', x: 1180, y: 330, label: 'Mottenfall' },
-  ],
-  decor: [
-    { kind: 'rug', x: 700, y: 660, w: 200, h: 560 },
-    { kind: 'throne', x: 700, y: 390 },
-    { kind: 'rope', x: 700, y: 505, w: 200 },
-    { kind: 'brazier', x: 560, y: 530 },
-    { kind: 'brazier', x: 840, y: 530 },
-    { kind: 'brazier', x: 560, y: 720 },
-    { kind: 'brazier', x: 840, y: 720 },
-    { kind: 'pillar', x: 440, y: 300 },
-    { kind: 'pillar', x: 960, y: 300 },
-    { kind: 'pillar', x: 440, y: 840 },
-    { kind: 'pillar', x: 960, y: 840 },
-    { kind: 'statue', x: 300, y: 870 },
-    { kind: 'trophyShelf', x: 1140, y: 880, w: 240 },
-    { kind: 'plant', x: 55, y: 930 },
-    { kind: 'plant', x: 1345, y: 930 },
-    { kind: 'armchair', x: 60, y: 440, r: 3 },
-    { kind: 'bookshelf', x: 1358, y: 620, w: 130, r: 1 },
-    { kind: 'chandelier', x: 700, y: 680, w: 60 },
-    { kind: 'chandelier', x: 240, y: 460, w: 40 },
-    { kind: 'chandelier', x: 1140, y: 460, w: 40 },
-    { kind: 'banner', x: 70, y: 0, w: 40 },
-    { kind: 'banner', x: 170, y: 0, w: 46 },
-    { kind: 'banner', x: 280, y: 0, w: 46 },
-    { kind: 'banner', x: 390, y: 0, w: 46 },
-    { kind: 'banner', x: 1010, y: 0, w: 46 },
-    { kind: 'banner', x: 1120, y: 0, w: 46 },
-    { kind: 'banner', x: 1360, y: 0, w: 34 },
-  ],
+  spawn: { x: 150, y: 260 },
+  stations,
+  decor,
 };

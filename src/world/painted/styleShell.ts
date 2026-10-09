@@ -2,6 +2,7 @@
 // in foyerShell.ts; light pools, ambient occlusion, mouldings and pilasters are shared there.
 
 import type { RoomTheme } from '../../core/registry';
+import { clubFloor, clubWall, isClubStyle } from './clubShell';
 import { dark, ellipse, glowAt, gold, light, mix, rgb, rrect, seeded, type Ctx } from './brush';
 
 // ---- Floors -------------------------------------------------------------------------------------
@@ -19,6 +20,10 @@ export function styleFloor(c: Ctx, W: number, H: number, top: number, t: RoomThe
       return crystalFloor(c, W, H, top, t, r);
     case 'throne':
       return throneFloor(c, W, H, top, t, r);
+    case 'club':
+    case 'techno':
+    case 'hiphop':
+      return clubFloor(c, W, H, top, t);
     default:
       c.fillStyle = rgb(t.carpet);
       c.fillRect(0, top, W, H - top);
@@ -106,11 +111,11 @@ function gardenFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r:
     const ang = (k / 60) * Math.PI * 2;
     path.push([W / 2 + Math.cos(ang) * W * 0.36, top + (H - top) * 0.52 + Math.sin(ang) * (H - top) * 0.3]);
   }
-  for (let k = 0; k < path.length; k++) {
+  for (let k = 0; k < path.length && !t.bare; k++) {
     const [x, y] = path[k];
     for (let j = 0; j < 2; j++) stone(c, x + (r() - 0.5) * 30, y + (r() - 0.5) * 14, 16 + r() * 8, r);
   }
-  for (let y = top + 10; y < top + (H - top) * 0.22; y += 22) stone(c, W / 2 + (r() - 0.5) * 20, y, 18, r);
+  if (!t.bare) for (let y = top + 10; y < top + (H - top) * 0.22; y += 22) stone(c, W / 2 + (r() - 0.5) * 20, y, 18, r);
   // Moonlight wash from the upper left.
   glowAt(c, W * 0.25, top + 40, W * 0.6, (H - top) * 0.7, 0x9fc8ff, 0.12, 'lighter');
 }
@@ -281,6 +286,27 @@ function throneFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r:
       x += w;
     }
   }
+  // A long corridor gets its runner lengthwise, from the elevator to the throne.
+  if (W > H * 3) {
+    const cy = top + (H - top) * 0.52;
+    const rg = c.createLinearGradient(0, cy - 70, 0, cy + 70);
+    rg.addColorStop(0, rgb(dark(t.carpetPattern, 0.2)));
+    rg.addColorStop(0.5, rgb(light(t.carpetPattern, 0.15)));
+    rg.addColorStop(1, rgb(dark(t.carpetPattern, 0.2)));
+    c.fillStyle = rg;
+    c.fillRect(0, cy - 70, W, 140);
+    for (let i = 0; i < W / 3; i++) {
+      c.fillStyle = r() < 0.5 ? rgb(light(t.carpetPattern, 0.3), 0.2) : rgb(dark(t.carpetPattern, 0.4), 0.2);
+      c.fillRect(r() * W, cy - 70 + r() * 140, 3, 1);
+    }
+    for (const ey of [cy - 70, cy + 63]) {
+      c.fillStyle = gold(c, 0, ey, 0, ey + 7);
+      c.fillRect(0, ey, W, 7);
+    }
+    c.fillStyle = 'rgba(8,2,14,0.35)';
+    c.fillRect(0, top, W, H - top);
+    return;
+  }
   // Runner from the door to the throne.
   const cx = W / 2;
   const rg = c.createLinearGradient(cx - 80, 0, cx + 80, 0);
@@ -323,6 +349,7 @@ function border(c: Ctx, W: number, H: number, top: number, col: number, inset: n
 /** The pattern between crown moulding and wainscot. */
 export function styleWall(c: Ctx, W: number, WH: number, t: RoomTheme) {
   const r = seeded(W + t.wall);
+  if (isClubStyle(t.style)) return clubWall(c, W, WH, t);
   switch (t.style) {
     case 'velvet': {
       // Damask wallpaper: rows of gold-thread flourishes.

@@ -10,6 +10,7 @@ import { COLORS, Particles, purse, rewardLevel, setRenderer, shake } from './cor
 import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
 import { sfx } from './core/audio';
 import { RoomScene, type Interactable } from './world/room';
+import { useClubProp } from './world/clubUse';
 import { ElevatorPanel, floorTitle } from './ui/elevator';
 import { Hud } from './ui/hud';
 import { Recap } from './ui/recap';
@@ -27,6 +28,7 @@ import { StampCardPanel } from './ui/stampCard';
 import { setupFeel } from './ui/feel';
 import { initFocus } from './core/focus';
 import { installRotation } from './core/rotation';
+import { BossRun } from './ui/bossRun';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -188,6 +190,7 @@ async function boot() {
     game?.resize(w, h - TOP);
     overlay?.resize(w, h);
     days.layout(w, h, TOP);
+    run.layout(w, h, TOP);
     street?.resize(w, h);
     feel.resize(w, h);
   }
@@ -267,8 +270,11 @@ async function boot() {
   function onInteract(i: Interactable) {
     if (mode !== 'room' || hud.modalOpen || room.frozen) return;
     if (i.kind === 'station') {
-      if (days.canPlay(i.station)) void openGame(i.station);
-    } else if (i.kind === 'extra') days.interact(i.id);
+      // The boss corridor's machines are mandatory: its own rules, never closed.
+      if (!run.station(i.station) && days.canPlay(i.station)) void openGame(i.station);
+    } else if (i.kind === 'extra') {
+      if (!run.interact(i.id)) days.interact(i.id);
+    }
     else if (i.kind === 'shelf') openVitrine();
     else if (i.kind === 'achievements') {
       sfx.door();
@@ -412,6 +418,8 @@ async function boot() {
         room.floatText('✦', i.cx, y, 0xdff6ff);
         hud.toast('Der Eisschwan glitzert im Kerzenlicht.');
         break;
+      default:
+        useClubProp(prop, i.cx, i.cy, { floatText: (t, x, yy, c, sz) => room.floatText(t, x, yy, c, sz), toast: (t) => hud.toast(t) });
     }
   }
 
@@ -447,7 +455,7 @@ async function boot() {
       ),
       tween(backdrop, { alpha: 0.9 }, 480, ease.inCubic),
     ]);
-    game = def.create({
+    game = def.create(run.wrap(st, {
       state,
       sfx,
       particles,
@@ -457,7 +465,7 @@ async function boot() {
       toast: (t) => hud.toast(t),
       celebrate: (mult, x, y, orbit) => celebrate(mult, x, y, orbit),
       exit: () => void closeGame(),
-    });
+    }));
     gameLayer.position.set(0, TOP);
     game.resize(w, h - TOP);
     gameLayer.addChild(game.view);
@@ -683,6 +691,10 @@ async function boot() {
   const days = new DayFeatures(state, { toast: (t) => hud.toast(t), showOverlay, closeOverlay, game: () => (mode === 'game' ? feel.game : null), gameBusy: () => !!game?.busy(), leaveGame: () => void closeGame() });
   app.stage.addChildAt(days.view, app.stage.getChildIndex(overlayLayer));
 
+  // Boss corridor on floor 5: one try per machine, gates, the Queen's duel (src/ui/bossRun.ts).
+  const run = new BossRun(state, { room: () => room ?? null, mode: () => mode, openGame: (st) => void openGame(st), leaveGame: () => void closeGame(), gameBusy: () => !!game?.busy(), toast: (t) => hud.toast(t), endEvening: () => void endEvening() });
+  app.stage.addChildAt(run.view, app.stage.getChildIndex(overlayLayer));
+
   // Perk draft, moon levels and the boss phases (src/ui/season.ts).
   const season = new Season(state, {
     showOverlay,
@@ -755,6 +767,7 @@ async function boot() {
       mode: () => mode,
       days,
       season,
+      run,
       eveningCard: () => eveningCard(),
       feel,
       app,
@@ -770,6 +783,7 @@ async function boot() {
     overlay?.update(dt);
     particles.update(dt);
     days.update(dt, mode);
+    run.update(dt);
     feel.update(dt);
     season.update();
   });

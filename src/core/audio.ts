@@ -1,12 +1,14 @@
 // All sound is synthesised with WebAudio (no audio files): effects, room ambience and a
 // small generative lounge band. Everything starts after the first click (browser rule).
 
+import { CLUB_BPM, ClubMix, clubFx, type Voices } from './clubMusic';
+
 const MUTE_KEY = 'nachtfalter.muted';
 const MUSIC_KEY = 'nachtfalter.music';
 
 type Scene = 'off' | 'menu' | 'casino' | 'game';
 
-const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne', 'street'] as const;
+const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne', 'street', 'club', 'techno', 'hiphop'] as const;
 type Mood = (typeof MOODS)[number];
 
 class Sfx {
@@ -662,7 +664,10 @@ class Sfx {
 
   private applyMusicLevel() {
     if (!this.ctx || !this.musicBus || !this.ambBus) return;
-    const level = !this.musicOn ? 0 : this.scene === 'menu' ? 0.55 : this.scene === 'casino' ? 0.32 : this.scene === 'game' ? 0.18 : 0;
+    // Club floor: louder and fuller near the dance floor; a game ducks it back down.
+    const prox = this.scene === 'casino' && this.floorMood in CLUB_BPM ? this.proximity : 0;
+    this.clubMix.setLevel(this.ctx, prox);
+    const level = !this.musicOn ? 0 : this.scene === 'menu' ? 0.55 : this.scene === 'casino' ? 0.32 + prox * 0.3 : this.scene === 'game' ? 0.18 : 0;
     this.musicBus.gain.setTargetAtTime(Math.max(0.0001, level), this.ctx.currentTime, 0.6);
     const amb = this.scene === 'casino' ? 0.5 : this.scene === 'game' ? 0.25 : this.scene === 'menu' ? 0.45 : 0;
     this.ambBus.gain.setTargetAtTime(Math.max(0.0001, amb), this.ctx.currentTime, 0.8);
@@ -773,6 +778,40 @@ class Sfx {
     { name: 'Bossa Falter', bpm: 112, swing: 0.5, minor: false, bossa: true },
   ];
   /** Puts on the next record; returns its name. */
+  // ---- Club floor (src/core/clubMusic.ts) -------------------------------------------
+
+  private clubMix = new ClubMix();
+  private proximity = 0;
+  private voiceSet: Voices | null = null;
+
+  private voices(): Voices {
+    return (this.voiceSet ??= {
+      ctx: this.ctx!,
+      tone: (...a) => this.tone(...a),
+      noise: (...a) => this.noise(...a),
+      bell: (...a) => this.bell(...a),
+    });
+  }
+
+  /** How close the player is to the dance floor (0..1): the club music layers up and gets louder. */
+  setProximity(p: number) {
+    p = Math.max(0, Math.min(1, p));
+    if (Math.abs(p - this.proximity) < 0.01 && !(p === 0 && this.proximity > 0)) return;
+    this.proximity = p;
+    this.applyMusicLevel();
+  }
+
+  /** Where the band is right now, in beats (fractional), or null before the sound starts. */
+  beatPos(): number | null {
+    if (!this.ctx || !this.musicTimer) return null;
+    return this.beat - (this.nextBeat - this.ctx.currentTime) * (this.moodBpm() / 60);
+  }
+
+  /** One-shots for the club props: 'airhorn', 'rewind', 'drop', 'bass', 'lights', 'fog', 'sneaker', 'chain'. */
+  clubFx(kind: string) {
+    if (this.ctx && this.fx) clubFx(this.voices(), kind, this.fx);
+  }
+
   nextRecord() {
     this.record = (this.record + 1) % Sfx.RECORDS.length;
     this.noise(0.25, 0.08, 0, 3000, 'highpass', 1);
@@ -837,6 +876,10 @@ class Sfx {
         return 84 + Math.max(0, this.intensity - 1) * 10;
       case 'street':
         return 76;
+      case 'club':
+      case 'techno':
+      case 'hiphop':
+        return CLUB_BPM[this.mood];
       default:
         return Sfx.RECORDS[this.record].bpm;
     }
@@ -880,6 +923,10 @@ class Sfx {
         return this.throneBeat(bar, b, d, spb, out);
       case 'street':
         return this.streetBeat(beat, t, spb, out);
+      case 'club':
+      case 'techno':
+      case 'hiphop':
+        return this.clubMix.play(m, this.voices(), bar, b, d, spb, out);
       default:
         return this.playBeat(beat, t, spb, out);
     }

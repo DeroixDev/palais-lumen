@@ -222,6 +222,7 @@ export class BossDirector {
       this.lastClosed = g;
       if (g) this.host.toast(`Letzter Tanz: ${gameName(g)} ist geschlossen. Alle ${ROTATE_EVERY} Runden schließt die Königin ein anderes Spiel.`);
       if (g && this.host.mode() === 'game' && this.lastGame === g) this.escort();
+      if (!g) this.host.toast('Letzter Tanz: Jeder Treffer im Duell der Königin bringt jetzt einen Mondstein extra. Die Gewinnchancen bleiben gleich.');
     } else this.host.toast('Die Königin erhebt sich: alle Einsätze sind jetzt doppelt so hoch. Die Gewinnchancen bleiben gleich.');
   }
 

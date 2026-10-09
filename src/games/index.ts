@@ -21,6 +21,7 @@ import { coin } from './coin/coin';
 import { mines } from './mines/mines';
 import { tower } from './tower/tower';
 import { poker } from './poker/poker';
+import { queen } from './queen/queen';
 
 registerGame(slots);
 registerGame(roulette);
@@ -42,3 +43,5 @@ registerGame(coin);
 registerGame(mines);
 registerGame(tower);
 registerGame(poker);
+// The Moth Queen's duel at the end of the boss corridor (never in the daily rotation).
+registerGame(queen);

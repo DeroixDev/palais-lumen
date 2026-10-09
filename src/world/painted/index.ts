@@ -7,8 +7,10 @@ import { buildPaintedVelvet } from './propsVelvet';
 import { buildPaintedGarden } from './propsGarden';
 import { buildPaintedClockwork } from './propsClockwork';
 import { buildPaintedCrystal } from './propsCrystal';
+import { buildPaintedPlan } from './propsPlan';
+import { buildPaintedClub } from './propsClub';
 
-const builders = [buildPainted, buildPaintedVelvet, buildPaintedGarden, buildPaintedClockwork, buildPaintedCrystal];
+const builders = [buildPainted, buildPaintedVelvet, buildPaintedGarden, buildPaintedClockwork, buildPaintedCrystal, buildPaintedPlan, buildPaintedClub];
 
 export function buildPaintedDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | null {
   for (const b of builders) {

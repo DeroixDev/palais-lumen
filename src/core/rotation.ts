@@ -70,8 +70,8 @@ export function todaysStations(def: RoomDefinition, season: number, day: number,
   if (pinned.length) return [...pinned, ...todaysStations({ ...def, stations: def.stations.filter((s) => !s.pinned) }, season, day, salt)];
   const rand = rng(hash(`${season}:${day}:${salt}:${def.id}`));
   const pools: Record<'cabinet' | 'table', GameDefinition[]> = {
-    cabinet: shuffle(allGames().filter((g) => g.size === 'cabinet'), rand),
-    table: shuffle(allGames().filter((g) => g.size === 'table'), rand),
+    cabinet: shuffle(allGames().filter((g) => g.size === 'cabinet' && !g.boss), rand),
+    table: shuffle(allGames().filter((g) => g.size === 'table' && !g.boss), rand),
   };
   const used: Record<'cabinet' | 'table', Set<string>> = { cabinet: new Set(), table: new Set() };
   // A table only goes where it fits: a 150-wide roulette or derby table on a 120 spot would

@@ -1,0 +1,47 @@
+import type { RoomDefinition } from '../core/registry';
+
+/** Floor 4 side room: the hip-hop floor behind the techno bunker. */
+export const f4hiphop: RoomDefinition = {
+  id: 'f4h',
+  parent: 'f4',
+  name: 'Hip-Hop-Floor',
+  tagline: 'Boom-Bap, Graffiti und Goldketten',
+  floor: 4,
+  elevatorX: -1000,
+  sign: 'HIP-HOP FLOOR',
+  width: 1300,
+  height: 900,
+  theme: {
+    style: 'hiphop',
+    carpet: 0xb07a40,
+    carpetPattern: 0xc8242a,
+    carpetAccent: 0xffd23f,
+    wall: 0x5a2216,
+    wallTrim: 0xffd23f,
+    neon: 0xffd23f,
+    light: 0xffcf7a,
+    accent: 0x2a1a10,
+    sofa: 0x2a6ae8,
+  },
+  spawn: { x: 120, y: 520 },
+  doors: [{ x: 0, y: 520, side: 'left', to: 'f4t', label: 'Techno-Bunker' }],
+  stations: [
+    { game: 'slots', x: 830, y: 196, options: { theme: 'gold' } },
+    { game: 'slots', x: 910, y: 196, label: 'Goldmotte', options: { theme: 'gold' } },
+    { game: 'slots', x: 990, y: 196, options: { theme: 'gold' } },
+    { game: 'shells', x: 880, y: 470, label: 'Hütchenspiel' },
+    { game: 'craps', x: 1060, y: 650, label: 'Würfel' },
+  ],
+  decor: [
+    { kind: 'danceFloor', x: 520, y: 580, w: 420, h: 260 },
+    { kind: 'turntables', x: 500, y: 330 },
+    { kind: 'speakerStack', x: 130, y: 340, w: 0.85 },
+    { kind: 'boombox', x: 160, y: 760 },
+    { kind: 'sneakerShelf', x: 330, y: 205, w: 230 },
+    { kind: 'chainDisplay', x: 1210, y: 430 },
+    { kind: 'sofa', x: 820, y: 830, w: 200 },
+    { kind: 'table', x: 820, y: 740 },
+    { kind: 'hoop', x: 1190, y: 0 },
+    { kind: 'neonArt', x: 590, y: 0, r: 5, w: 0.8, h: 0xffd23f },
+  ],
+};

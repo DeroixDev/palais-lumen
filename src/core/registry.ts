@@ -50,13 +50,15 @@ export interface GameDefinition {
   size: 'cabinet' | 'table';
   /** One line for the elevator panel / day card: what the game is about. */
   blurb?: string;
+  /** The Moth Queen's own duel: never drawn by the daily rotation, not in the program or tasks. */
+  boss?: boolean;
   /** Draws the machine/table as seen from above. Origin is the top-left of the footprint. */
   drawStation(options: Record<string, unknown>): Container;
   create(ctx: GameContext): GameInstance;
 }
 
 /** Look of a floor: decides how carpet and walls are painted. */
-export type RoomStyle = 'foyer' | 'velvet' | 'garden' | 'clockwork' | 'crystal' | 'throne';
+export type RoomStyle = 'foyer' | 'velvet' | 'garden' | 'clockwork' | 'crystal' | 'throne' | 'club' | 'techno' | 'hiphop';
 
 export interface RoomTheme {
   style: RoomStyle;
@@ -75,6 +77,8 @@ export interface RoomTheme {
   crystal?: number;
   /** Curtains and banners. */
   curtain?: number;
+  /** Leave out the style's own floor centrepiece (the garden's path loop); the room lays its own paths. */
+  bare?: boolean;
 }
 
 export interface StationPlacement {
@@ -101,8 +105,14 @@ export type DecorKind =
   | 'table' | 'piano' | 'bar' | 'cabinet' | 'bookshelf' | 'floorLamp' | 'statue' | 'fountain' | 'moonPool'
   | 'lanternPost' | 'boiler' | 'pipes' | 'workbench' | 'clockTower' | 'crystal' | 'iceSwan' | 'champagne'
   | 'brazier' | 'throne' | 'rope' | 'trophyShelf'
+  // floor plans: Kerzensaal nave, Mondgarten pond and paths, Uhrwerk belt and catwalks
+  | 'runner' | 'dais' | 'pond' | 'path' | 'pavilion' | 'conveyor' | 'catwalk' | 'grate'
   // foyer
   | 'shopCounter' | 'reception' | 'wardrobe' | 'clothesRack' | 'jukebox' | 'entrance' | 'achievementWall' | 'plaque'
+  // club floor (src/world/painted/propsClub.ts)
+  | 'djStage' | 'danceFloor' | 'speakerStack' | 'clubBar' | 'vipBooth' | 'lightDesk' | 'railing' | 'ledPillar'
+  | 'fogMachine' | 'turntables' | 'boombox' | 'sneakerShelf' | 'chainDisplay'
+  | 'neonArt' | 'laser' | 'strobe' | 'hoop' | 'discoBall'
   // above everything
   | 'chandelier'
   // back wall
@@ -137,6 +147,8 @@ export interface RoomDefinition {
   parent?: string;
   /** Doorways to the other rooms of this floor. */
   doors?: DoorDef[];
+  /** Boss corridor: one mandatory try per machine, gates between them (src/world/bossRun.ts). */
+  corridor?: boolean;
   name: string;
   /** Floor number: 0 is the foyer, 1–5 the casino floors. The elevator goes between them. */
   floor: number;

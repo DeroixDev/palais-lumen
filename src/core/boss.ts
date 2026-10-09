@@ -1,7 +1,8 @@
 // The Moth Queen's phases on the boss day. Her life is the goal minus today's profit:
-// Phase 1 from 100 %, Phase 2 below 60 % (stakes ×2), Phase 3 below 25 % (one game type
-// closed, rotating every 8 rounds; events.ts isClosed() includes it). Phases only go up
-// within a day. Economy only.
+// Phase 1 from 100 %, Phase 2 below 60 % (stakes ×2), Phase 3 below 25 % (every hit in the
+// Queen's duel brings a Mondstein, src/games/queen). Phases only go up within a day. Economy only.
+// Floor 5 is the boss corridor now (src/core/bossRun.ts): its machines are mandatory, so the
+// old "Letzter Tanz" closure of a game type is off (bossClosedGame stays for events.ts).
 
 import { BOSS_DAY, type GameState, type SaveData } from './state';
 
@@ -10,11 +11,12 @@ export const PHASE_TEXT = [
   '',
   'Jeder gewonnene Falter trifft sie.',
   'Alle Einsätze sind jetzt doppelt so hoch.',
-  'Ein Spiel bleibt geschlossen und wechselt alle 8 Runden.',
+  'Jeder Treffer im Duell bringt einen Mondstein.',
 ];
 /** Games on the boss floor that "Letzter Tanz" can close. */
 export const BOSS_GAMES = ['slots', 'roulette', 'crash', 'plinko'];
 export const ROTATE_EVERY = 8;
+const CORRIDOR_BOSS = true;
 
 export const isBossDay = (d: SaveData) => d.evening.number >= BOSS_DAY;
 
@@ -36,7 +38,8 @@ const k = { n: 'boss:p3rounds', seed: 'boss:p3seed' };
 
 /** The game closed by "Letzter Tanz" right now, or ''. */
 export function bossClosedGame(d: SaveData) {
-  if (!isBossDay(d) || d.bossPhase < 3) return '';
+  // The corridor's machines are mandatory: nothing closes any more.
+  if (CORRIDOR_BOSS || !isBossDay(d) || d.bossPhase < 3) return '';
   const played = Math.max(0, d.counters[k.n] ?? 0);
   const i = ((d.counters[k.seed] ?? 0) + Math.floor(played / ROTATE_EVERY)) % BOSS_GAMES.length;
   return BOSS_GAMES[i];

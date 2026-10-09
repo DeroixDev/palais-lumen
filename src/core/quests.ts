@@ -79,6 +79,8 @@ const shuffle = <T,>(a: T[]) => {
 /** Two or three tasks for today's floor, each for a different game where possible. */
 export function makeQuests(d: SaveData): Quest[] {
   const day = d.evening.number;
+  // The boss corridor is one try per machine: no guest tasks there.
+  if (floorRooms(floorForDay(day)).some((r) => r.corridor)) return [];
   const games = new Set(floorRooms(floorForDay(day)).flatMap((r) => r.stations.map((s) => s.game)).filter((g) => !isClosed(d, g)));
   const pool = shuffle(TEMPLATES.filter((t) => !t.game || games.has(t.game)));
   const count = Math.random() < 0.5 ? 2 : 3;

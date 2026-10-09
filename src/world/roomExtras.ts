@@ -18,6 +18,7 @@ import type { Rect } from './decor';
 import { WALL_H } from './styles';
 import { programBoardSprite } from './programBoard';
 import { floorPlan } from '../ui/schedule';
+import { ClubLife } from './clubLife';
 
 /** The bits of the room the extras build into. */
 export interface ExtrasHost {
@@ -220,6 +221,8 @@ export class RoomExtras {
   private sig = '';
   private time = 0;
   private off: () => void;
+  /** Dancers and the proximity music on the club floor. */
+  private club: ClubLife | null;
 
   constructor(
     private state: GameState,
@@ -227,6 +230,7 @@ export class RoomExtras {
     private host: ExtrasHost,
   ) {
     this.build();
+    this.club = ClubLife.for(def, host);
     this.off = state.onChange(() => {
       if (this.signature() !== this.sig) this.build();
     });
@@ -279,7 +283,7 @@ export class RoomExtras {
     this.clear();
     const d = this.state.data;
     const ev = this.def.floor > 0 ? currentEvent(d) : null;
-    this.stationLooks(this.def.floor > 0 ? closedGames(d) : []);
+    this.stationLooks(this.def.floor > 0 && !this.def.corridor ? closedGames(d) : []);
     if (this.def.floor > 0 && hasReward(d, this.def.id)) this.statue();
     if (ev?.dark) this.candlelight();
     if (this.today) this.placeGivers();
@@ -574,6 +578,7 @@ export class RoomExtras {
   // ---- Per frame ----------------------------------------------------------------------------------
 
   update(dtMs: number) {
+    this.club?.update(dtMs);
     this.time += dtMs / 1000;
     const t = this.time;
     for (const gl of this.glows) gl.s.alpha = gl.a * (0.85 + Math.sin(t * 7 + gl.ph) * 0.08 + Math.sin(t * 13.7 + gl.ph * 2) * 0.06);
@@ -598,6 +603,7 @@ export class RoomExtras {
   }
 
   destroy() {
+    this.club?.destroy();
     this.off();
     this.clear();
   }

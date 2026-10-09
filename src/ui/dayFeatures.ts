@@ -15,6 +15,7 @@ import { StampCardPanel, StampPopup } from './stampCard';
 import { GameChip } from './gameChip';
 import { ProgramPanel } from './program';
 import { reducedMotion } from '../core/fx';
+import { takeCurio } from '../core/curios';
 
 interface Overlay {
   view: Container;
@@ -140,6 +141,11 @@ export class DayFeatures {
 
   /** A guest with a task or the stamp card stand. */
   interact(id: string) {
+    if (id.startsWith('curio:')) {
+      if (takeCurio(this.state, id.slice(6), this.deps.toast)) sfx.shimmer();
+      else sfx.click();
+      return;
+    }
     if (id === 'stamps') {
       sfx.deskBell();
       this.deps.showOverlay(new StampCardPanel(this.state, () => this.deps.closeOverlay()));

@@ -3,6 +3,7 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { RoomDefinition, RoomTheme } from '../../core/registry';
 import { styleFloor, styleWall } from './styleShell';
+import { clubWallFinish, isClubStyle } from './clubShell';
 import { glowTexture } from '../../core/fx';
 import { INK, dark, glowAt, gold, light, paint, rgb, rrect, seeded, type Ctx } from './brush';
 
@@ -22,13 +23,24 @@ export function paintShell(def: RoomDefinition, lights: LightSpot[]) {
   const W = def.width;
   const H = def.height;
   const t = def.theme;
-  return new Sprite(
-    paint(W, H, (c) => {
-      floor(c, W, H, t, lights);
-      wall(c, W, t, lights);
-      sides(c, W, H, t.wall);
-    }, 1.5),
-  );
+  const draw = (c: Ctx) => {
+    floor(c, W, H, t, lights);
+    wall(c, W, t, lights);
+    sides(c, W, H, t.wall);
+  };
+  if (W * 1.5 <= 4096) return new Sprite(paint(W, H, draw, 1.5));
+  // Long rooms (the boss corridor): painted in strips, so no texture is wider than a GPU allows.
+  const c = new Container();
+  const TILE = 2048;
+  for (let x0 = 0; x0 < W; x0 += TILE) {
+    const s = new Sprite(paint(Math.min(TILE, W - x0), H, (ctx) => {
+      ctx.translate(-x0, 0);
+      draw(ctx);
+    }, 1.5));
+    s.x = x0;
+    c.addChild(s);
+  }
+  return c;
 }
 
 // ---- Floor -----------------------------------------------------------------------------------
@@ -223,6 +235,8 @@ function wall(c: Ctx, W: number, t: RoomTheme, lights: LightSpot[]) {
   }
   // Each floor has its own wall pattern; the foyer has panels with gold sunburst fans.
   if (t.style !== 'foyer') styleWall(c, W, WH, t);
+  // The club floor has no gold pilasters or mouldings: steel, LED strips and its own trim.
+  if (isClubStyle(t.style)) return clubWallFinish(c, W, WH, t, lights);
   const step = 140;
   for (let x = 0; x <= W; x += step) {
     const px = x + step / 2;
