@@ -6,6 +6,9 @@ const MUSIC_KEY = 'nachtfalter.music';
 
 type Scene = 'off' | 'menu' | 'casino' | 'game';
 
+const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne'] as const;
+type Mood = (typeof MOODS)[number];
+
 class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -368,11 +371,35 @@ class Sfx {
   shimmer() {
     [1046, 1318, 1568, 2093].forEach((f, i) => this.bell(f, 0.04, i * 0.08, 1));
   }
+  /** The Moth Queen enters a new phase: a low drum, a dark minor stab and a wing rush. */
+  bossSting(phase = 2) {
+    const root = phase >= 3 ? 98 : 110;
+    this.tone(root / 2, 1.2, 'sine', 0.4, 0, root / 3);
+    this.noise(0.25, 0.3, 0, 200, 'lowpass', 1);
+    for (const [f, d] of [[1, 0.12], [1.189, 0.12], [1.498, 0.12], [2, 0.34], [2.378, 0.34]] as const) {
+      this.tone(root * 2 * f, 0.9, 'sawtooth', 0.03, d, undefined, this.fx, 0.03);
+      this.tone(root * 2 * f, 1, 'triangle', 0.07, d);
+    }
+    this.noise(0.9, 0.12, 0.3, 600, 'bandpass', 0.8, this.fx, 3500);
+  }
+  /** The Queen laughs: a quick falling "ha-ha-ha". */
+  queenLaugh() {
+    for (let i = 0; i < 4; i++) {
+      this.tone(620 - i * 50, 0.09, 'triangle', 0.07, i * 0.12, 520 - i * 50);
+      this.noise(0.06, 0.05, i * 0.12, 1800, 'bandpass', 2);
+    }
+  }
   /** Shop till. */
   till() {
     this.noise(0.05, 0.2, 0, 2500, 'bandpass', 3);
     this.bell(3136, 0.08, 0.08, 0.8);
     this.bell(3951, 0.06, 0.14, 0.8);
+  }
+  /** Camera shutter: a quick double click with a little spring. */
+  shutter() {
+    this.noise(0.025, 0.4, 0, 3200, 'bandpass', 4);
+    this.noise(0.04, 0.3, 0.07, 1800, 'bandpass', 3);
+    this.tone(1600, 0.05, 'triangle', 0.05, 0.07, 900);
   }
   /** Cloth rustle in the changing room. */
   rustle() {
@@ -650,18 +677,226 @@ class Sfx {
     return Sfx.RECORDS[this.record].name;
   }
 
+  // ---- Floor moods: every floor has its own band, crossfaded when you change floors ----
+
+  private mood: Mood = 'foyer';
+  /** Boss phase on the throne floor (0 = off): the music gets faster and fuller. */
+  private intensity = 0;
+  private moodOut: GainNode | null = null;
+  /** Moods still fading out after a floor change; they keep playing until `until`. */
+  private fading: { mood: Mood; gain: GainNode; until: number }[] = [];
+
+  /** Gives the music the identity of a floor style ('foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne'). */
+  setFloorMood(style: string) {
+    const m: Mood = (MOODS as readonly string[]).includes(style) ? (style as Mood) : 'foyer';
+    if (m === this.mood) return;
+    const old = this.mood;
+    this.mood = m;
+    if (m !== 'throne') this.intensity = 0;
+    if (!this.ctx || !this.musicBus || !this.moodOut) return;
+    const now = this.ctx.currentTime;
+    const XF = 2.4;
+    this.moodOut.gain.cancelScheduledValues(now);
+    this.moodOut.gain.setValueAtTime(this.moodOut.gain.value, now);
+    this.moodOut.gain.linearRampToValueAtTime(0.0001, now + XF);
+    this.fading.push({ mood: old, gain: this.moodOut, until: now + XF });
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(1, now + XF);
+    g.connect(this.musicBus);
+    this.moodOut = g;
+  }
+
+  /** Boss phase 0..3: on the throne floor the band pushes harder from phase 2. */
+  setIntensity(phase: number) {
+    this.intensity = Math.max(0, Math.min(3, phase));
+  }
+
+  private moodBpm() {
+    switch (this.mood) {
+      case 'velvet':
+        return 66;
+      case 'garden':
+        return 62;
+      case 'clockwork':
+        return 104;
+      case 'crystal':
+        return 80;
+      case 'throne':
+        return 84 + Math.max(0, this.intensity - 1) * 10;
+      default:
+        return Sfx.RECORDS[this.record].bpm;
+    }
+  }
+
   private schedule() {
     if (!this.ctx || !this.musicBus) return;
-    const spb = 60 / Sfx.RECORDS[this.record].bpm;
-    while (this.nextBeat < this.ctx.currentTime + 0.25) {
-      this.playBeat(this.beat, this.nextBeat, spb);
+    if (!this.moodOut) {
+      this.moodOut = this.ctx.createGain();
+      this.moodOut.connect(this.musicBus);
+    }
+    const now = this.ctx.currentTime;
+    this.fading = this.fading.filter((f) => {
+      if (f.until + 3 > now) return true;
+      f.gain.disconnect();
+      return false;
+    });
+    const spb = 60 / this.moodBpm();
+    while (this.nextBeat < now + 0.25) {
+      this.playMood(this.mood, this.beat, this.nextBeat, spb, this.moodOut);
+      for (const f of this.fading) if (f.until > this.nextBeat) this.playMood(f.mood, this.beat, this.nextBeat, spb, f.gain);
       this.nextBeat += spb;
       this.beat++;
     }
   }
 
-  private playBeat(beat: number, t: number, spb: number) {
-    const out = this.musicBus!;
+  private playMood(m: Mood, beat: number, t: number, spb: number, out: GainNode) {
+    const d = t - this.ctx!.currentTime;
+    const bar = Math.floor(beat / 4);
+    const b = beat % 4;
+    switch (m) {
+      case 'velvet':
+        return this.velvetBeat(bar, b, d, spb, out);
+      case 'garden':
+        return this.gardenBeat(bar, b, d, spb, out);
+      case 'clockwork':
+        return this.clockBeat(bar, b, d, spb, out);
+      case 'crystal':
+        return this.crystalBeat(bar, b, d, spb, out);
+      case 'throne':
+        return this.throneBeat(bar, b, d, spb, out);
+      default:
+        return this.playBeat(beat, t, spb, out);
+    }
+  }
+
+  /** Kerzensaal: a slow, smoky jazz ballad. Upright bass in halves, soft piano, a muted horn. */
+  private velvetBeat(bar: number, b: number, d: number, spb: number, out: GainNode) {
+    const prog: [number, number[]][] = [
+      [110, [261.6, 329.6, 392, 493.9]], // Am9
+      [146.8, [261.6, 349.2, 440, 523.3]], // Dm9
+      [98, [293.7, 349.2, 440, 493.9]], // G13
+      [130.8, [329.6, 392, 493.9, 587.3]], // Cmaj9
+      [87.3, [261.6, 329.6, 440, 523.3]], // Fmaj7
+      [123.5, [293.7, 349.2, 440, 523.3]], // Bm7b5
+      [164.8, [293.7, 415.3, 493.9, 587.3]], // E7
+      [110, [261.6, 329.6, 392, 493.9]],
+    ];
+    const [root, voicing] = prog[bar % 8];
+    const swing = spb * 0.66;
+    if (b === 0 || b === 2) this.tone(b === 0 ? root : root * 1.5 > 200 ? root * 0.75 : root * 1.5, spb * 1.8, 'triangle', 0.2, d, undefined, out, 0.02);
+    if (b === 0 || (b === 2 && Math.random() < 0.5)) for (const f of voicing) this.tone(f, spb * 2.2, 'sine', 0.035, d + (b ? swing : 0), undefined, out, 0.02);
+    // Muted horn: a slow phrase from the chord tones, now and then.
+    if (Math.random() < 0.3) {
+      const f = voicing[Math.floor(Math.random() * voicing.length)] * (Math.random() < 0.5 ? 1 : 2);
+      this.tone(f * 0.985, spb * 1.4, 'triangle', 0.035, d + (Math.random() < 0.5 ? 0 : swing), f, out, 0.08);
+    }
+    if (b === 1 || b === 3) this.noise(spb * 0.9, 0.04, d, 4500, 'bandpass', 0.6, out);
+    this.noise(0.04, 0.02, d + swing, 7000, 'highpass', 1, out);
+  }
+
+  /** Mondgarten: no drums, a harp rippling over long, soft pads. */
+  private gardenBeat(bar: number, b: number, d: number, spb: number, out: GainNode) {
+    const prog: [number, number[]][] = [
+      [87.3, [349.2, 440, 523.3, 659.3, 493.9]], // Fmaj7#11
+      [82.4, [329.6, 392, 523.3, 587.3, 493.9]], // C/E add9
+      [73.4, [293.7, 349.2, 440, 523.3, 659.3]], // Dm9
+      [116.5, [293.7, 349.2, 440, 466.2, 587.3]], // Bbmaj7
+    ];
+    const [root, voicing] = prog[Math.floor(bar / 2) % 4];
+    if (b === 0 && bar % 2 === 0) {
+      this.tone(root, spb * 8, 'sine', 0.14, d, undefined, out, 0.4);
+      for (const f of voicing.slice(0, 4)) this.tone(f, spb * 8, 'sine', 0.018, d, undefined, out, 1.2);
+    }
+    // Harp: two plucks per beat, rising through the chord and falling back.
+    for (let k = 0; k < 2; k++) {
+      const i = (b * 2 + k + bar * 3) % (voicing.length * 2 - 2);
+      const idx = i < voicing.length ? i : voicing.length * 2 - 2 - i;
+      const f = voicing[idx] * (bar % 4 < 2 ? 1 : 2);
+      this.tone(f, 1.6, 'triangle', 0.045, d + k * spb * 0.5, undefined, out, 0.003);
+      this.tone(f * 2, 0.5, 'sine', 0.012, d + k * spb * 0.5, undefined, out, 0.002);
+    }
+    if (Math.random() < 0.12) this.bell(voicing[Math.floor(Math.random() * voicing.length)] * 4, 0.012, d, 1.6, out);
+  }
+
+  /** Uhrwerk: ticking eighths, a woodblock, staccato bass and pizzicato chords; a music box on top. */
+  private clockBeat(bar: number, b: number, d: number, spb: number, out: GainNode) {
+    const prog: [number, number[]][] = [
+      [110, [261.6, 329.6, 440]], // Am
+      [87.3, [261.6, 349.2, 440]], // F
+      [130.8, [261.6, 329.6, 392]], // C
+      [98, [246.9, 293.7, 392]], // G
+    ];
+    const [root, voicing] = prog[bar % 4];
+    const half = spb / 2;
+    for (let k = 0; k < 2; k++) {
+      this.noise(0.015, 0.05, d + k * half, k ? 2200 : 4200, 'bandpass', 8, out);
+      this.tone(k ? root * 2 : root, 0.12, 'triangle', 0.16, d + k * half, undefined, out, 0.004);
+    }
+    if (b === 0 || b === 2) this.tone(b === 0 ? 880 : 660, 0.06, 'triangle', 0.05, d, undefined, out, 0.002);
+    if (b === 1 || b === 3) for (const f of voicing) this.tone(f, 0.11, 'triangle', 0.03, d + half, undefined, out, 0.003);
+    if (Math.random() < 0.5) this.bell(voicing[(b + bar) % voicing.length] * 4, 0.022, d + (Math.random() < 0.5 ? 0 : half), 0.4, out);
+  }
+
+  /** Kristallsalon: glass bells in slow arpeggios over a quiet pad. */
+  private crystalBeat(bar: number, b: number, d: number, spb: number, out: GainNode) {
+    const prog: [number, number[]][] = [
+      [130.8, [523.3, 659.3, 784, 987.8, 1174.7]], // Cmaj9
+      [110, [523.3, 659.3, 784, 987.8]], // Am9
+      [87.3, [523.3, 659.3, 698.5, 880, 1046.5]], // Fmaj9
+      [98, [587.3, 659.3, 784, 987.8]], // G6
+    ];
+    const [root, voicing] = prog[bar % 4];
+    if (b === 0) {
+      this.tone(root, spb * 4, 'sine', 0.12, d, undefined, out, 0.2);
+      for (const f of voicing.slice(0, 3)) this.tone(f / 2, spb * 4, 'sine', 0.016, d, undefined, out, 0.8);
+    }
+    if (b === 2) this.tone(root * 1.5, spb * 2, 'sine', 0.07, d, undefined, out, 0.1);
+    for (let k = 0; k < 2; k++) {
+      if (k === 1 && Math.random() < 0.4) continue;
+      const f = voicing[(b * 2 + k + bar) % voicing.length];
+      this.bell(f, 0.03, d + k * spb * 0.5, 1.4, out);
+    }
+    if (b === 0 && bar % 2 === 0) this.noise(1.2, 0.012, d, 9000, 'highpass', 1, out);
+  }
+
+  /** Thron: dark and pulsing; timpani, a low choir, and more drive in each boss phase. */
+  private throneBeat(bar: number, b: number, d: number, spb: number, out: GainNode) {
+    const prog: [number, number[]][] = [
+      [73.4, [293.7, 349.2, 440]], // Dm
+      [58.3, [293.7, 349.2, 466.2]], // Bb
+      [49, [293.7, 392, 466.2]], // Gm
+      [55, [277.2, 329.6, 440]], // A
+    ];
+    const [root, voicing] = prog[bar % 4];
+    const lvl = this.intensity;
+    const half = spb / 2;
+    // Pulsing bass on every eighth.
+    for (let k = 0; k < 2; k++) {
+      this.tone(root, half * 0.8, 'triangle', 0.17, d + k * half, undefined, out, 0.006);
+      this.tone(root * 2, half * 0.5, 'square', 0.012, d + k * half, undefined, out, 0.006);
+    }
+    if (b === 0) {
+      this.tone(65, 0.7, 'sine', 0.3, d, 44, out, 0.004);
+      this.noise(0.25, 0.08, d, 200, 'lowpass', 1, out);
+      for (const f of voicing) {
+        this.tone(f / 2, spb * 4, 'sine', 0.03, d, undefined, out, 0.6);
+        this.tone((f / 2) * 1.004, spb * 4, 'triangle', 0.012, d, undefined, out, 0.8);
+      }
+    }
+    if (b === 2 && bar % 2 === 1) this.tone(65, 0.5, 'sine', 0.2, d, 48, out, 0.004);
+    if (lvl >= 2) {
+      if (b === 1 || b === 3) this.noise(0.12, 0.06, d, 1800, 'bandpass', 1.2, out);
+      this.noise(0.02, 0.02, d + half, 6000, 'highpass', 1, out);
+    }
+    if (lvl >= 3) {
+      // String tremolo on the top note.
+      for (let k = 0; k < 4; k++) this.tone(voicing[2], spb / 4, 'triangle', 0.018, d + (k * spb) / 4, undefined, out, 0.01);
+      if (b === 0) this.bell(voicing[0] * 2, 0.03, d, 1.2, out);
+    }
+  }
+
+  private playBeat(beat: number, t: number, spb: number, out: GainNode) {
     const d = t - this.ctx!.currentTime;
     const bar = Math.floor(beat / 4) % 8;
     const b = beat % 4;

@@ -14,6 +14,7 @@ import { fillInk, glowAt, paint, rrect } from '../world/painted/brush';
 import { drawStone } from './stone';
 import { CREAM, MUTED, PANEL_PAD, bodyText, enterMotion, leaveMotion, panelTexture, plaque } from './kit';
 import { paintedMedal, paintedTrophy } from './trophyArt';
+import { curveCard } from './recapCurve';
 
 const MARKERS: [number, Medal][] = [
   [1, 'bronze'],
@@ -407,7 +408,8 @@ export class Recap {
       void this.anim(300, (k) => (label.alpha = k));
     }
 
-    // Reality check, then continue.
+    // With rounds played, the honest numbers come on the next page with the curve.
+    const curvePage = (r.history?.length ?? 0) > 1;
     const kept = r.wagered - r.won;
     const note = bodyText(
       kept > 0
@@ -419,10 +421,103 @@ export class Recap {
     );
     note.anchor.set(0.5);
     note.position.set(W / 2, H - (n ? 108 : 104));
-    p.addChild(note);
+    if (!curvePage) p.addChild(note);
+    else note.destroy();
     this.skipHint?.destroy();
     this.skipHint = null;
-    const nb = button({ label: r.seasonWon || (!r.passed && !r.rescued) ? 'NEUE SAISON' : 'INS FOYER', width: n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.close() });
+    const nb = curvePage
+      ? button({ label: 'WEITER', width: n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.curvePage() })
+      : this.closeButton();
+    nb.position.set(W / 2, H - 48);
+    p.addChild(nb);
+    this.done = true;
+    nb.alpha = 0;
+    await this.anim(300, (k) => (nb.alpha = k));
+    this.fast = false;
+  }
+
+  private closeButton() {
+    const r = this.r;
+    return button({ label: r.seasonWon || (!r.passed && !r.rescued) ? 'NEUE SAISON' : 'INS FOYER', width: this.n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.close() });
+  }
+
+  /** Second page: the day's balance as an inked curve, and the honest numbers. */
+  private async curvePage() {
+    if (this.view.destroyed || !this.done) return;
+    // The tap that pressed "Weiter" must not skip the new page.
+    this.startedAt = this.time;
+    this.done = false;
+    this.fast = false;
+    const r = this.r;
+    const p = this.panel;
+    const n = this.n;
+    const W = this.W;
+    const H = this.H;
+    // Page turn: everything but the panel fades out.
+    const old = p.children.slice(1);
+    for (const c of old) c.eventMode = 'none';
+    await this.anim(220, (k) => old.forEach((c) => (c.alpha = Math.min(c.alpha, 1 - k))));
+    for (const c of old) c.destroy({ children: true });
+    this.spinning = this.medalFloat = this.raysSpr = null;
+    this.startedAt = this.time;
+    this.fast = false;
+
+    const pl = plaque(`TAG ${r.evening} · DEIN VERLAUF`, { size: n ? 21 : 28, minW: n ? 300 : 420 });
+    pl.position.set(W / 2, 4);
+    p.addChild(pl);
+    this.skipHint = bodyText(n ? 'Tippen zum Überspringen' : 'Klicken zum Überspringen', 15, MUTED);
+    this.skipHint.anchor.set(0.5);
+    this.skipHint.position.set(W / 2, H - 30);
+    p.addChild(this.skipHint);
+
+    const rounds = r.history.length - 1;
+    const sub = bodyText(`Dein Kontostand nach jeder Runde · ${rounds === 1 ? '1 Runde' : `${rounds} Runden`}`, n ? 16 : 19, 0xd9c6a0, { wrap: W - 40 });
+    sub.anchor.set(0.5, 0);
+    sub.position.set(W / 2, n ? 54 : 62);
+    p.addChild(sub);
+
+    const cx = n ? 14 : 56;
+    const cw = W - 2 * cx;
+    const cy = n ? 100 : 106;
+    const ch = n ? 440 : 470;
+    const card = curveCard(r.history, r.startBalance, r.startBalance + r.quota, cw, ch, n);
+    card.view.position.set(cx, cy);
+    p.addChild(card.view);
+    card.view.alpha = 0;
+    await this.anim(200, (k) => (card.view.alpha = k));
+    let lastTick = 0;
+    await this.anim(
+      reducedMotion() ? 0 : 1100,
+      (k) => {
+        card.reveal(k);
+        if (k - lastTick > 0.1 && k < 1) {
+          lastTick = k;
+          this.play2(() => this.sfx.tick());
+        }
+      },
+      ease.inOutCubic,
+    );
+    card.reveal(1);
+
+    // Honest numbers: what went in, what came back, and what the house edge takes on average.
+    const sy = cy + ch + (n ? 22 : 28);
+    const parts = [`Eingesetzt ${formatChips(r.wagered)}`, `Ausgezahlt ${formatChips(r.won)}`, `Auf Dauer behält das Haus etwa ${formatChips(Math.round(r.houseExpected))} Falter`];
+    const stats = bodyText(n ? `${parts[0]} · ${parts[1]}\n${parts[2]}` : parts.join(' · '), n ? 17 : 20, CREAM, { bold: true, wrap: W - 2 * (n ? 18 : 40) });
+    stats.anchor.set(0.5, 0);
+    stats.position.set(W / 2, sy);
+    p.addChild(stats);
+    const kept = r.wagered - r.won;
+    const today = kept > 0 ? `Heute hat das Haus ${formatChips(kept)} behalten.` : kept < 0 ? `Heute lagst du ${formatChips(-kept)} vorn.` : 'Heute ging es plus minus null aus.';
+    const honest = bodyText(`${today}${n ? '\n' : ' '}Glück schwankt, der Hausvorteil nicht.`, n ? 15 : 17, MUTED, { wrap: W - 2 * (n ? 22 : 60) });
+    honest.anchor.set(0.5, 0);
+    honest.position.set(W / 2, sy + stats.height + (n ? 10 : 12));
+    p.addChild(honest);
+    stats.alpha = honest.alpha = 0;
+    await this.anim(300, (k) => (stats.alpha = honest.alpha = k));
+
+    this.skipHint?.destroy();
+    this.skipHint = null;
+    const nb = this.closeButton();
     nb.position.set(W / 2, H - 48);
     p.addChild(nb);
     this.done = true;
@@ -442,7 +537,7 @@ export class Recap {
     glow.blendMode = 'add';
     glow.alpha = 0;
     this.panel.addChild(glow);
-    const t = paintedTrophy(tr.kind, tr.medal);
+    const t = paintedTrophy(tr.kind, tr.medal, tr.heat ?? 0);
     const sc = n ? 0.95 : 1.3;
     t.scale.set(sc);
     t.position.set(x, y + 120);

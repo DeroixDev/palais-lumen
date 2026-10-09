@@ -7,7 +7,7 @@ import { announce, glowTexture, plaqueTexture, reducedMotion } from '../core/fx'
 import { ease, tween, wait } from '../core/tween';
 
 /** Builds the card, centred in the upper third of the screen below the HUD, and runs its animation. */
-export function dayCard(title: string, sub: string, screenW: number, screenH: number, top = 64) {
+export function dayCard(title: string, sub: string, screenW: number, screenH: number, top = 64, extra: Container | null = null) {
   // On narrow screens the goal line breaks in two, so it stays at least 14 px tall.
   const narrow = screenW < 560;
   const { tex, fullW, visW } = plaqueTexture(title, 0xff5fa2, { size: 60, sub: narrow ? sub.replace(' · ', '\n') : sub, subSize: narrow ? 30 : 26 });
@@ -22,6 +22,11 @@ export function dayCard(title: string, sub: string, screenW: number, screenH: nu
   const s = new Sprite(tex);
   s.anchor.set(0.5);
   c.addChild(glow, s);
+  // Today's event hangs under the plaque as a velvet ribbon (src/ui/dayBoard.ts).
+  if (extra) {
+    extra.y = tex.height / 2 - 46;
+    c.addChild(extra);
+  }
   const fit = Math.min(1, (screenW - 24) / visW);
   c.position.set(screenW / 2, Math.max(top + (tex.height * fit) / 2, screenH * 0.34));
   c.alpha = 0;
@@ -33,7 +38,7 @@ export function dayCard(title: string, sub: string, screenW: number, screenH: nu
     tex.destroy(true);
   };
   void Promise.all([tween(c, { alpha: 1 }, 280, ease.outCubic), calm ? Promise.resolve() : tween(c.scale, { x: fit, y: fit }, 280, ease.outBack)])
-    .then(() => wait(2400))
+    .then(() => wait(extra ? 3600 : 2400))
     .then(() => Promise.all([tween(c, { alpha: 0 }, 180, ease.inCubic), calm ? Promise.resolve() : tween(c.scale, { x: fit * 0.97, y: fit * 0.97 }, 180, ease.inCubic)]))
     .then(() => {
       if (!c.destroyed) c.destroy({ children: true });

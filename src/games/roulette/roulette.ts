@@ -685,6 +685,9 @@ class RouletteGame implements GameInstance {
         bestMult = Math.max(bestMult, m);
       }
     }
+    const tags = ['roulette', n === 0 ? 'zero' : REDS.has(n) ? 'red' : 'black'];
+    if (winners.some((k) => k.startsWith('n:'))) tags.push('straight');
+    const report = () => this.ctx.state.report({ game: 'roulette', stake: [...this.bets.values()].reduce((a, b) => a + b, 0), win: payout, rtp: 36 / 37, tags });
 
     // Losing chips are raked off towards the wheel side, winners get paid beside their stack.
     const toScreen = (x: number, y: number) => this.boardGroup.toGlobal({ x, y });
@@ -726,6 +729,7 @@ class RouletteGame implements GameInstance {
         this.ctx.sfx.chip();
       }
       this.ctx.state.payout(payout);
+      report();
       const total = this.totalBet;
       const mult = payout / total;
       const level = rewardLevel(mult);
@@ -762,6 +766,7 @@ class RouletteGame implements GameInstance {
       }
       await wait(400);
     } else {
+      report();
       this.ctx.sfx.lose();
       await wait(1100);
     }

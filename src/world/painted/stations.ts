@@ -175,7 +175,8 @@ function rouletteTable(options: Record<string, unknown>): PaintedStation {
   const vip = Number(options.minBet ?? 10) >= 50;
   const W = 150;
   const H = 84;
-  const felt = vip ? 0x1d3a5a : 0x1d5a3a;
+  // Gold felt: a regulars' upgrade from a full stamp card (src/core/stamps.ts).
+  const felt = options.goldFelt ? 0xd4a52a : vip ? 0x1d3a5a : 0x1d5a3a;
   const c: PaintedStation = new Container();
   const sp = propSprite(W / 2, H / 2, 210, 170, 105, 70, (x) => {
     shadow(x, 0, 26, 92, 30, 0.6);

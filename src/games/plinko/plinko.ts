@@ -530,6 +530,7 @@ class PlinkoGame implements GameInstance {
     const local = this.view.toLocal(screen);
     const fs = Math.max(0.75, this.board.scale.x);
     if (win > 0) this.ctx.state.payout(win);
+    this.ctx.state.report({ game: 'plinko', stake: bet, win, rtp: returnToPlayer(risk), tags: k === 0 || k === ROWS ? ['plinko', 'edge'] : ['plinko'] });
     if (m > 1) {
       const centre = this.board.toGlobal({ x: CX, y: TOP + (ROWS * DY) / 2 });
       this.ctx.celebrate(m, screen.x, screen.y, { x: centre.x, y: centre.y, r: 200 * this.board.scale.x });

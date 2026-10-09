@@ -17,6 +17,8 @@ import { paintedStation } from './painted/stations';
 import { buildPaintedDecor } from './painted';
 import { paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
+import { RoomExtras, type ExtraInteractable } from './roomExtras';
+import { guestFactor } from '../core/events';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
@@ -28,7 +30,8 @@ export type Interactable =
   | { kind: 'elevator'; x: number; y: number; title: string }
   | { kind: 'shelf'; x: number; y: number; title: string }
   | { kind: 'achievements'; x: number; y: number; title: string }
-  | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void };
+  | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void }
+  | ExtraInteractable;
 
 /** Things on the floors you can use, and what the prompt says. */
 const USE_TITLE: Partial<Record<DecorKind, string>> = {
@@ -70,6 +73,8 @@ export class RoomScene {
   private animated: NonNullable<BuiltDecor['update']>[] = [];
   private spots: Spot[] = [];
   private guests: Guests | null = null;
+  /** Day event, task guests and stamp-card upgrades (src/world/roomExtras.ts). */
+  extras!: RoomExtras;
   private fxLayer = new Container();
   private prompt = new Container();
   private promptText: Text;
@@ -81,7 +86,7 @@ export class RoomScene {
   private shelfSize = { w: 300, h: 44 };
   private sign!: Container;
   private elevator!: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number };
-  private throne: (Container & { hit?: () => void }) | null = null;
+  private throne: (Container & { hit?: () => void; phase?: (n: number) => void; laugh?: () => void }) | null = null;
   /** Direction the player faces while a cutscene moves them. */
   private scripted: number | null | undefined = undefined;
   private keys = new Set<string>();
@@ -102,6 +107,8 @@ export class RoomScene {
   topInset = 64;
   /** Disables movement while a game or menu is open. */
   frozen = false;
+  /** Photo mode moves the camera itself; the room leaves it alone. */
+  cameraLocked = false;
   private dead = false;
 
   constructor(
@@ -130,7 +137,8 @@ export class RoomScene {
     this.entities.addChild(this.player.view);
     this.buildCompanion();
     this.placeUseSpots();
-    const guestCount = Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7)));
+    this.extras = new RoomExtras(state, this.def, { spots: this.spots, world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position });
+    const guestCount = Math.round(Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7))) * guestFactor(state.data));
     this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height }, this.painted ? (c, l) => new Chibi(c, l) : undefined);
 
     // Interaction prompt bubble.
@@ -853,6 +861,15 @@ export class RoomScene {
     this.throne?.hit?.();
   }
 
+  /** The Moth Queen's boss phase (1..3): she grows and her aura changes (src/ui/boss.ts). */
+  bossPhase(n: number) {
+    this.throne?.phase?.(n);
+  }
+
+  bossLaugh() {
+    this.throne?.laugh?.();
+  }
+
   /** Where the Moth Queen floats, for effects aimed at her. */
   bossPoint() {
     const d = this.def.decor.find((x) => x.kind === 'throne');
@@ -1070,6 +1087,7 @@ export class RoomScene {
     for (const a of this.animated) a(this.time, dtMs);
     this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
+    this.extras.update(dtMs);
     this.updateCompanion(dt);
     this.drawStick();
 
@@ -1105,7 +1123,21 @@ export class RoomScene {
     this.updateCamera();
   }
 
+  /** Photo mode: no walking, no prompt, the camera belongs to the photographer. */
+  setPhotoMode(on: boolean) {
+    this.frozen = on;
+    this.cameraLocked = on;
+    this.drag = null;
+    this.target = null;
+    this.pending = null;
+    this.keys.clear();
+    this.prompt.visible = false;
+    this.nearest = null;
+    if (!on) this.resize(this.screenW, this.screenH);
+  }
+
   private updateCamera() {
+    if (this.cameraLocked) return;
     const z = this.world.scale.x;
     const W = this.def.width * z;
     const H = this.def.height * z;
@@ -1125,6 +1157,7 @@ export class RoomScene {
 
   destroy() {
     this.dead = true;
+    this.extras?.destroy();
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.clearKeys);

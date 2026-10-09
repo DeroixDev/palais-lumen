@@ -112,6 +112,7 @@ export class Guests {
       const start = this.free() ?? spots[0];
       if (!start) return;
       p.view.position.set(start.x, start.y);
+      p.view.label = 'guest'; // found by the quips for speech bubbles
       this.layer.addChild(p.view);
       const g: Guest = { p, target: start, path: [], stay: 2 + Math.random() * 8, nextWin: 3 + Math.random() * 6, stuck: 0, speed: 0, wait: 0, blockedFor: 0, replan: false };
       this.taken.add(start);

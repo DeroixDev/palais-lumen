@@ -1,0 +1,49 @@
+# Builds the Windows installers (.msi + .exe) for Casino Nachtfalter.
+# Runs on every push of a version tag (v0.1.0, ...) and on demand from the Actions tab.
+name: Desktop (Windows)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - run: npm ci
+
+      # On a tag: creates a draft GitHub release with the installers attached.
+      # On a manual run: just builds; the installers are uploaded as a workflow artifact below.
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: 'Casino Nachtfalter ${{ github.ref_name }}'
+          releaseBody: 'Windows-Installer (.msi oder .exe) herunterladen und starten.'
+          releaseDraft: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: casino-nachtfalter-windows
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe

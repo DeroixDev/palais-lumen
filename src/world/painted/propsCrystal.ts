@@ -1669,21 +1669,41 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
       v.addChild(queen);
       const ph = rnd() * 10;
       let hit = 0;
+      // Boss phases (1..3): she grows, flaps faster and her aura turns red. `rise` plays the change.
+      let phase = 1;
+      let size = 1;
+      let rise = 0;
+      let laugh = 0;
+      let flapT = 0;
+      const AURA = [0xc9a0ff, 0xc9a0ff, 0xff6ad0, 0xff4a4a];
       // room.ts calls hit() on the view when the player wins on the boss day.
-      (v as Container & { hit?: () => void }).hit = () => (hit = 1);
+      const api = v as Container & { hit?: () => void; phase?: (n: number) => void; laugh?: () => void };
+      api.hit = () => (hit = 1);
+      api.phase = (n: number) => {
+        if (n > phase) rise = 1;
+        phase = n;
+        aura.tint = AURA[Math.max(0, Math.min(3, n))];
+      };
+      api.laugh = () => (laugh = 1);
       return [
         ent(v, [{ x: x - W2 / 2, y: y - 60, w: W2, h: 120 }], y + 60, (time, dt) => {
             hit = Math.max(0, hit - dt / 500);
+            rise = Math.max(0, rise - dt / 1600);
+            laugh = Math.max(0, laugh - dt / 1200);
+            const goal = 1 + 0.12 * (phase - 1);
+            size += (goal - size) * Math.min(1, dt / 250);
+            queen.scale.set(0.86 * size * (1 + Math.sin(rise * Math.PI) * 0.12));
             flames.forEach((f) => f(time));
-            const flap = 0.72 + 0.28 * Math.abs(Math.cos(time * 1.6));
+            flapT += (dt / 1000) * 1.6 * (1 + 0.45 * (phase - 1) + rise * 3);
+            const flap = 0.72 + 0.28 * Math.abs(Math.cos(flapT));
             wR.scale.x = fR.scale.x = flap;
             wL.scale.x = fL.scale.x = -flap;
             const bob = Math.sin(time * 1.2);
-            queen.y = y + QY + bob * 6;
+            queen.y = y + QY + bob * 6 - rise * 18 + (laugh > 0 ? Math.abs(Math.sin(time * 22)) * -5 * laugh : 0);
             queen.x = x + (hit > 0 ? Math.sin(time * 60) * 6 * hit : 0);
             fR.alpha = fL.alpha = hit > 0.3 ? 0.9 : hit * 2;
             body.tint = hit > 0.3 ? 0xffd0f0 : 0xffffff;
-            aura.alpha = 0.4 + Math.sin(time * 2) * 0.08 + hit * 0.4;
+            aura.alpha = 0.4 + Math.sin(time * 2) * 0.08 + hit * 0.4 + rise * 0.5 + (phase - 1) * 0.08;
             halo.rotation = time * 0.25;
             halo.alpha = 0.85 + Math.sin(time * 2 + ph) * 0.15;
             qShadow.scale.set(1 - bob * 0.08);

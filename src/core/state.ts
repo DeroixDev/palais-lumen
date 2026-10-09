@@ -17,6 +17,8 @@ export interface Trophy {
   title: string;
   evening: number;
   earnedAt: number;
+  /** Moon level of the season it was won in (moon-tinted variant), 0 or missing for normal. */
+  heat?: number;
 }
 
 export interface PlayerProfile {
@@ -94,6 +96,8 @@ export interface Quest {
   have: number;
   reward: { moonstones?: number; stamps?: number };
   done: boolean;
+  /** The player has talked to the guest; only accepted tasks count rounds. */
+  accepted?: boolean;
 }
 
 /** Sent by every game once per finished round. */
@@ -135,6 +139,10 @@ export interface EveningResult {
   rescued: boolean;
   /** Bonus Falter from charms at the start of the next day. */
   bonus: number;
+  /** Balance after each round of the day (first = day start), for the recap curve. */
+  history: number[];
+  /** What the house keeps on average from the day's stakes. */
+  houseExpected: number;
 }
 
 export const START_BALANCE = 1000;
@@ -259,6 +267,8 @@ export class GameState {
   quotaFactors: ((data: SaveData) => number)[] = [];
   /** Extra factors on the stake unit (events, boss phase). Multiplied together. */
   stakeFactors: ((data: SaveData) => number)[] = [];
+  /** Extra Mondsteine at the end of a day (perks, moon level), from the medal's base amount. */
+  moonstoneBonus: ((data: SaveData, medal: Medal, base: number, seasonWon: boolean) => number)[] = [];
   /** Per-evening counters, kept outside the save so a reload starts the evening's tally fresh. */
   private eveningWagered = 0;
   private eveningWon = 0;
@@ -476,6 +486,7 @@ export class GameState {
       title,
       evening: this.data.evening.number,
       earnedAt: Date.now(),
+      ...(this.data.heat > 0 ? { heat: this.data.heat } : {}),
     };
     this.data.trophies.push(t);
     this.emit();
@@ -501,7 +512,8 @@ export class GameState {
     const goesOn = (passed || rescued) && !seasonWon;
     const newFloor = goesOn && floorForDay(ev.number + 1) > floorForDay(ev.number) ? floorForDay(ev.number + 1) : 0;
     const cleared = passed ? ev.number : ev.number - 1;
-    const stones = MOONSTONES_FOR[medal] + (seasonWon ? MOONSTONES_BOSS : 0);
+    const baseStones = MOONSTONES_FOR[medal] + (seasonWon ? MOONSTONES_BOSS : 0);
+    const stones = baseStones + this.moonstoneBonus.reduce((s, f) => s + Math.max(0, Math.floor(f(this.data, medal, baseStones, seasonWon))), 0);
     this.data.moonstones += stones;
     const rec = this.data.records;
     const newRecord = cleared > rec.bestEvening;
@@ -527,6 +539,8 @@ export class GameState {
       moonstones: stones,
       rescued,
       bonus: 0,
+      history: this.data.history.slice(),
+      houseExpected: this.data.houseExpected,
     };
     if (goesOn) {
       const n = ev.number + 1;

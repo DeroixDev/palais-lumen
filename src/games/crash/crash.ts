@@ -511,6 +511,10 @@ class CrashGame implements GameInstance {
     this.stopHum();
     const win = Math.floor(this.stake * m);
     this.ctx.state.payout(win);
+    const tags = ['crash'];
+    if (m >= 2) tags.push('cashout2');
+    if (m >= 5) tags.push('cashout5');
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win, rtp: RTP, tags });
     this.mult = m;
     this.setDisplay(m, GOLD, 'EINGESAMMELT');
     this.setControlsLocked(false);
@@ -562,6 +566,8 @@ class CrashGame implements GameInstance {
   private wind() {
     this.phase = 'done';
     this.stopHum();
+    // The game id and the 'crash' tag are the same word here.
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win: 0, rtp: RTP, tags: ['crash'] });
     this.ctx.sfx.fizzle();
     this.cold = true;
     this.setDisplay(this.windAt, COLD, 'WINDSTOSS');

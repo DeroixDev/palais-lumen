@@ -274,6 +274,12 @@ export class ShopPanel extends Panel {
     c.addChild(d);
     // Hairline under the row.
     const slot = owned ? this.ownedPlate('✓ AKTIV', btnW) : this.buyButton(it, c, btnW);
+    // Mondstufe 2 and up: no "Zweite Chance" this season.
+    if (!owned && it.id === 'zweiteChance' && this.state.data.heat >= 2) {
+      const b = slot as ReturnType<typeof this.buyButton>;
+      b.setLocked('Auf Mondstufe 2 und höher gibt es keine Zweite Chance.');
+      b.onLocked = (r) => this.toast(r);
+    }
     slot.position.set(w - btnW / 2, h / 2);
     c.addChild(slot);
     return c;

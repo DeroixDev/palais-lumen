@@ -199,11 +199,11 @@ export class Vitrine {
       glow.anchor.set(0.5);
       glow.position.set(tx, ty - 50);
       glow.width = glow.height = n ? 130 : 160;
-      glow.tint = MEDAL_COLORS[tr.medal].base;
+      glow.tint = tr.heat ? (tr.heat >= 5 ? 0xff6a5a : 0x9fb4ff) : MEDAL_COLORS[tr.medal].base;
       glow.alpha = 0.3;
       glow.blendMode = 'add';
       p.addChild(glow);
-      const t = paintedTrophy(tr.kind, tr.medal);
+      const t = paintedTrophy(tr.kind, tr.medal, tr.heat ?? 0);
       const sc = n ? 0.82 : 0.9;
       t.scale.set(sc);
       t.position.set(tx, ty);

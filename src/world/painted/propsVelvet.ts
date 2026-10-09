@@ -10,6 +10,7 @@ import { FONT_BODY } from '../../core/fx';
 import type { BuiltDecor } from '../decor';
 import { P_WALL_H } from './foyerShell';
 import { box, ent, flame, glow, kicker } from './foyerProps';
+import { Chibi } from './chibi';
 import { GOLD, INK, dark, ellipse, fillInk, glowAt, gold, grain, light, mix, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from './brush';
 
 // ---- Theme materials ----------------------------------------------------------------------------
@@ -471,6 +472,27 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
           });
         }, kick.poke),
       ];
+      // The bartender stands behind the counter; a mask hides everything below its top.
+      {
+        const bx = x - bw * 0.27;
+        const keeper = new Chibi(t.neon, { jacket: icy ? 0x26305a : 0x1b1b22, hairStyle: 'sidePart', hair: 0x3a2418, accessory: 'bowTie', skin: 0xe0ac84 });
+        keeper.view.position.set(bx, y + topY + 26);
+        keeper.faceTowards(Math.PI / 2);
+        const kv = new Container();
+        kv.label = 'bartender';
+        const clip = new Graphics().rect(bx - 60, y + backTop - 60, 120, topY - backTop + 64).fill(0xffffff);
+        kv.addChild(keeper.view, clip);
+        keeper.view.mask = clip;
+        const kph = rnd() * 10;
+        parts.push(
+          ent(kv, [], T + bh + 0.5, (time, dt) => {
+            // Polishes a glass, glances along the bar now and then.
+            const look = Math.sin(time * 0.23 + kph);
+            keeper.faceTowards(look > 0.6 ? 0 : look < -0.7 ? Math.PI : Math.PI / 2);
+            keeper.update(dt, null);
+          }),
+        );
+      }
       // Bar stools: their own entities so guests sitting at them sort correctly.
       const seat = t.sofa ?? 0x3a2230;
       for (const sx of stoolsX) {

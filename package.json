@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "pixi-filters": "^6.0.5",
     "pixi.js": "^8.6.6"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }

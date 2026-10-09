@@ -153,7 +153,7 @@
   .hud-btn.icon:hover .lbl, .hud-btn.icon:focus-visible .lbl { opacity: 1; transform: translate(50%, 0); }
   .hud-btns .hud-btn.icon:last-child .lbl { right: 0; transform: translate(0, -4px); }
   .hud-btns .hud-btn.icon:last-child:hover .lbl, .hud-btns .hud-btn.icon:last-child:focus-visible .lbl { transform: none; }
-  @media (max-width: 1180px) and (min-width: 901px) {
+  @media (max-width: 1440px) and (min-width: 901px) {
     .hud-btns .hud-btn:not(.icon) { width: 44px; padding: 0; justify-content: center; }
     .hud-btns .hud-btn:not(.icon) .lbl { position: absolute; top: calc(100% + 9px); right: 50%; transform: translateX(50%); opacity: 0; pointer-events: none; font: 700 .9rem/1 var(--body); color: #2a1406; text-shadow: none; padding: 6px 10px; border-radius: 6px; background: var(--brass-grad); box-shadow: 0 0 0 1.5px rgba(22,10,20,.9); transition: opacity .15s; }
     .hud-btns .hud-btn:not(.icon):hover .lbl, .hud-btns .hud-btn:not(.icon):focus-visible .lbl { opacity: 1; }
@@ -373,6 +373,8 @@
   <div class="hud-btns" id="hud-menu">
     <button id="btn-save" class="hud-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="2"/><path d="M4 12h16M10 8.3h4M10 15.8h4"/></svg><span class="lbl">Spielstände</span></button>
     <button id="btn-end" class="hud-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 14.6A8 8 0 1 1 9.4 4.5a6.4 6.4 0 0 0 10.1 10.1z"/></svg><span class="lbl">Tag beenden</span></button>
+    <button id="btn-photo" class="hud-btn icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3.2l1.6-2.5h6.4l1.6 2.5H20v10H4z"/><circle cx="12" cy="13" r="3.4"/></svg><span class="lbl">Fotomodus</span></button>
+    <button id="btn-haptics" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="4" width="7" height="16" rx="1.6"/><path class="wave" d="M5.5 9v6M3 10.5v3M18.5 9v6M21 10.5v3"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Vibration an</span></button>
     <button id="btn-music" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Musik an</span></button>
     <button id="btn-mute" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Ton an</span></button>
     <button id="btn-debug" class="hud-btn icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4.5 16.5a1.8 1.8 0 0 0 2.5 2.5l5-5a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.1-.4-.4-2.1z"/></svg><span class="lbl">Debug</span></button>

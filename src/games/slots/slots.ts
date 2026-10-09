@@ -868,9 +868,20 @@ class SlotGame implements GameInstance {
     void tween(f.scale, { x: 1, y: 1 }, 260, ease.outBack);
   }
 
+  /** One report per spin, right after it is settled. */
+  private reportRound(grid: SymbolId[][], lines: number, win: number, mult: number) {
+    const tags = ['slots'];
+    if (lines >= 2) tags.push('lines2');
+    if (lines >= 3) tags.push('lines3');
+    if (grid.some((col) => col.includes('moth'))) tags.push('moth');
+    if (rewardLevel(mult) === 4) tags.push('jackpot');
+    this.ctx.state.report({ game: 'slots', stake: this.bet, win, rtp: RTP, tags });
+  }
+
   private async resolve(grid: SymbolId[][]) {
     const { wins, combo, mult } = evaluate(grid);
     if (wins.length === 0) {
+      this.reportRound(grid, 0, 0, 0);
       this.ctx.sfx.lose();
       return;
     }
@@ -918,6 +929,7 @@ class SlotGame implements GameInstance {
     }
 
     this.ctx.state.payout(win);
+    this.reportRound(grid, wins.length, win, mult);
     const centre = toScreen(W / 2, REELS_Y + SYM * 1.5);
     const local = this.view.toLocal(toScreen(W / 2, WIN_Y + 10));
     if (!real) {

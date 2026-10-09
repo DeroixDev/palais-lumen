@@ -20,6 +20,10 @@ import { ShopPanel } from './ui/shop';
 import { WardrobePanel } from './ui/wardrobe';
 import { PianoPanel } from './ui/piano';
 import { dayCard } from './ui/dayCard';
+import { DayFeatures } from './ui/dayFeatures';
+import { Season } from './ui/season';
+import { StampCardPanel } from './ui/stampCard';
+import { setupFeel } from './ui/feel';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -179,7 +183,9 @@ async function boot() {
     if (mode !== 'game' && mode !== 'transition') room?.resize(w, h);
     game?.resize(w, h - TOP);
     overlay?.resize(w, h);
+    days.layout(w, h, TOP);
     street?.resize(w, h);
+    feel.resize(w, h);
   }
   window.addEventListener('resize', () => requestAnimationFrame(layout));
 
@@ -190,6 +196,7 @@ async function boot() {
     const def = getRoom(id);
     state.data.roomId = def.id;
     room = new RoomScene(def.id, state, onInteract);
+    sfx.setFloorMood(def.theme.style);
     hud.setFoyer(def.floor === 0);
     room.topInset = TOP || 64;
     roomLayer.addChild(room.view);
@@ -254,7 +261,9 @@ async function boot() {
 
   function onInteract(i: Interactable) {
     if (mode !== 'room' || hud.modalOpen || room.frozen) return;
-    if (i.kind === 'station') void openGame(i.station);
+    if (i.kind === 'station') {
+      if (days.canPlay(i.station)) void openGame(i.station);
+    } else if (i.kind === 'extra') days.interact(i.id);
     else if (i.kind === 'shelf') openVitrine();
     else if (i.kind === 'achievements') {
       sfx.door();
@@ -430,6 +439,7 @@ async function boot() {
     game.view.alpha = 0;
     await tween(game.view, { alpha: 1 }, 250);
     hud.setInGame(true);
+    feel.gameOpened(st.game);
     sfx.setScene('game');
     mode = 'game';
   }
@@ -442,6 +452,7 @@ async function boot() {
     }
     mode = 'transition';
     hud.setInGame(false);
+    feel.gameOpened(null);
     sfx.setScene('casino');
     const g = game;
     game = null;
@@ -482,6 +493,7 @@ async function boot() {
    */
   function celebrate(mult: number, x: number, y: number, orbit?: { x: number; y: number; r: number }) {
     const level = rewardLevel(mult);
+    feel.celebrate(mult);
     if (!level) return;
     const w = app.screen.width;
     if (level === 1) {
@@ -549,6 +561,7 @@ async function boot() {
     }
     if (mode !== 'room') return;
     const result = state.endEvening();
+    season.dayEnded(result);
     autosave();
     showOverlay(
       new Recap(result, sfx, particles, () => {
@@ -558,7 +571,7 @@ async function boot() {
         // A new day gets its title card, a new floor sends you to the elevator,
         // and a new season starts with a new arrival.
         if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
-        else void toFoyer(result.newFloor, result.bonus);
+        else season.afterRecap(() => void toFoyer(result.newFloor, result.bonus));
       }),
     );
   }
@@ -619,6 +632,7 @@ async function boot() {
     }
     room.frozen = false;
     mode = 'room';
+    season.resume();
   }
 
   const hud = new Hud(state, {
@@ -637,12 +651,35 @@ async function boot() {
     debugDay: (day) => void debugDay(day),
   });
 
+  // Day events, guest tasks and the stamp card (src/ui/dayFeatures.ts).
+  const days = new DayFeatures(state, { toast: (t) => hud.toast(t), showOverlay, closeOverlay });
+  app.stage.addChildAt(days.view, app.stage.getChildIndex(overlayLayer));
+
+  // Perk draft, moon levels and the boss phases (src/ui/season.ts).
+  const season = new Season(state, {
+    showOverlay,
+    closeOverlay,
+    toast: (t) => hud.toast(t),
+    modal: (title, body) => hud.modal(title, body, [{ label: 'Schließen', primary: true, onClick: () => hud.closeModal() }]),
+    particles,
+    layer: particles.view,
+    screen: () => ({ w: app.screen.width, h: app.screen.height, top: TOP }),
+    room: () => room ?? null,
+    mode: () => mode,
+    leaveGame: () => void closeGame(),
+    gameBusy: () => !!game?.busy(),
+  });
+
+  // Staff quips, photo mode, vibration and floor music (src/ui/feel.ts).
+  const feel = setupFeel({ app, state, hud, quipsBelow: overlayLayer, photoBelow: fade, mode: () => mode, room: () => room ?? null, top: () => TOP, layout });
+
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape') return;
     if (hud.modalOpen) return hud.closeModal();
     if (mode === 'game') void closeGame();
     else if (mode === 'overlay' && (overlay instanceof Vitrine || overlay instanceof ShopPanel || overlay instanceof PianoPanel)) closeOverlay();
     else if (mode === 'overlay' && overlay instanceof WardrobePanel) closeOverlay();
+    else if (mode === 'overlay' && overlay instanceof StampCardPanel) closeOverlay();
   });
 
   enterRoom(state.data.roomId);
@@ -678,6 +715,10 @@ async function boot() {
       arrival: () => arrival(),
       go: () => lobbyGo(),
       mode: () => mode,
+      days,
+      season,
+      eveningCard: () => eveningCard(),
+      feel,
       app,
     };
   }
@@ -690,6 +731,9 @@ async function boot() {
     game?.update(dt);
     overlay?.update(dt);
     particles.update(dt);
+    days.update(dt, mode);
+    feel.update(dt);
+    season.update();
   });
 
   // ---- Start screen, lobby and arrival -----------------------------------
@@ -706,7 +750,7 @@ async function boot() {
   function eveningCard() {
     const d = state.data;
     const goal = `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`;
-    const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP);
+    const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP, days.ribbon(app.screen.width));
     particles.view.addChild(c);
     sfx.win();
   }
@@ -748,6 +792,7 @@ async function boot() {
     await room.enterThroughDoor();
     showFloorTitle();
     autosave();
+    setTimeout(() => season.resume(), 1400);
     dayCardFor = -1;
     setTimeout(() => hud.toast(`Willkommen im Foyer! Tag ${state.data.evening.number} wartet auf Etage ${state.topFloor}. Der Aufzug ist hinten rechts.`), 1600);
     if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => mode === 'room' && !hud.modalOpen && hud.help(), 3600);

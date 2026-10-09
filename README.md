@@ -10,6 +10,30 @@ npm run dev      # Entwicklungsserver auf http://localhost:5173
 npm run build    # fertige Dateien in dist/
 ```
 
+## Desktop-Version (Tauri)
+
+Das Spiel lässt sich mit [Tauri 2](https://tauri.app) als eigenes Programm verpacken. Die Dateien dafür liegen in `src-tauri/`. Das Fenster heißt „Casino Nachtfalter“, startet mit 1280 × 800, lässt sich frei vergrößern (mindestens 960 × 600), und `F11` schaltet Vollbild an und aus. Spielstände bleiben wie im Browser im `localStorage` und überleben einen Neustart des Programms.
+
+Was man unter Windows braucht:
+
+- **Node.js** (LTS) von nodejs.org
+- **Rust** über [rustup](https://rustup.rs) (dabei die „Visual Studio C++ Build Tools“ mit installieren, rustup fragt danach)
+- **WebView2** ist bei Windows 10 und 11 schon vorhanden. Fehlt es doch, lädt der Installer es nach.
+
+Befehle im Projektordner:
+
+```bash
+npm install
+npm run tauri:dev     # Spiel im Desktop-Fenster mit Live-Neuladen
+npm run tauri:build   # Installer bauen
+```
+
+Die fertigen Installer liegen danach in `src-tauri/target/release/bundle/` (`msi/…msi` und `nsis/…-setup.exe`). Der erste Build dauert einige Minuten, weil Rust alles einmal kompiliert.
+
+Ohne eigenen Windows-Rechner geht es auch über GitHub: Sobald das Projekt dort liegt, baut der Workflow `.github/workflows/desktop.yml` die Windows-Installer automatisch. Unter „Actions“ → „Desktop (Windows)“ → „Run workflow“ starten und die Dateien unten beim Lauf unter „Artifacts“ herunterladen. Wird ein Tag wie `v0.1.0` gepusht, legt der Workflow zusätzlich einen Release-Entwurf mit den Installern an.
+
+Hinweis: Der Installer ist nicht signiert. Windows SmartScreen zeigt deshalb beim ersten Start „Der Computer wurde durch Windows geschützt“ an; über „Weitere Informationen“ → „Trotzdem ausführen“ geht es weiter.
+
 ## Steuerung
 
 - Laufen: WASD, Pfeiltasten oder irgendwo hintippen

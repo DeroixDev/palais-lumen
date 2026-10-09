@@ -27,14 +27,44 @@ function metal(c: Ctx, m: Medal, x0: number, y0: number, x1: number, y1: number)
   return g;
 }
 
+/**
+ * Trophies won on a moon level (Mondstufe): the metal gets a cool moonlit glaze (blood red on
+ * level 5), a crescent on the plinth and one star per level.
+ */
+function moonGlaze(c: Ctx, heat: number) {
+  const blood = heat >= 5;
+  c.save();
+  c.globalCompositeOperation = 'source-atop';
+  const g = c.createLinearGradient(-40, -120, 40, 0);
+  g.addColorStop(0, blood ? 'rgba(255,120,110,0.35)' : 'rgba(200,225,255,0.38)');
+  g.addColorStop(0.5, blood ? 'rgba(200,30,40,0.3)' : 'rgba(110,120,230,0.32)');
+  g.addColorStop(1, blood ? 'rgba(90,10,20,0.3)' : 'rgba(60,50,150,0.3)');
+  c.fillStyle = g;
+  c.fillRect(-AX, -AY, TW, TH);
+  c.restore();
+  // Crescent on the plinth plate.
+  c.beginPath();
+  c.arc(-24, -11, 5, Math.PI * 0.3, Math.PI * 1.7);
+  c.arc(-22, -12, 4, Math.PI * 1.6, Math.PI * 0.4, true);
+  c.closePath();
+  c.fillStyle = blood ? '#ff8a7a' : '#e8f2ff';
+  c.fill();
+  for (let i = 0; i < heat; i++) {
+    c.beginPath();
+    c.arc(-8 + i * 6.5, -4.5, 1.8, 0, Math.PI * 2);
+    c.fillStyle = blood ? '#ffb0a0' : '#cfe8ff';
+    c.fill();
+  }
+}
+
 const TW = 120;
 const TH = 150;
 const AX = 60;
 const AY = 140;
 
 /** A trophy about 110 px tall; the sprite's anchor is the bottom centre (like drawTrophy). */
-export function paintedTrophy(kind: TrophyKind, medal: Medal): Sprite {
-  const tex = once(`tr-${kind}-${medal}`, () =>
+export function paintedTrophy(kind: TrophyKind, medal: Medal, heat = 0): Sprite {
+  const tex = once(`tr-${kind}-${medal}${heat > 0 ? `-moon${heat}` : ''}`, () =>
     paint(TW, TH, (c) => {
       c.translate(AX, AY);
       const k = MEDAL_COLORS[medal];
@@ -184,6 +214,7 @@ export function paintedTrophy(kind: TrophyKind, medal: Medal): Sprite {
         c.arc(29, -100, 7, 0, Math.PI * 2);
         fillInk(c, '#e8324a', 1.6);
       }
+      if (heat > 0) moonGlaze(c, heat);
     }, 2),
   );
   const s = new Sprite(tex);
