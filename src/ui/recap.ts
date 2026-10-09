@@ -60,7 +60,7 @@ export class Recap {
     p.alpha = 0;
     await tween(p, { alpha: 1 }, 400);
 
-    const title = glowText(`ABEND ${r.evening} · ABRECHNUNG`, { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 2 }, { color: COLORS.neon, distance: 16, outerStrength: 2.5 });
+    const title = glowText(`TAG ${r.evening} · ABRECHNUNG`, { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 2 }, { color: COLORS.neon, distance: 16, outerStrength: 2.5 });
     title.position.set(W / 2, 40);
     p.addChild(title);
     title.y = -20;
@@ -70,7 +70,7 @@ export class Recap {
     const rows: [string, number, string][] = [
       ['Eingesetzt', r.wagered, ''],
       ['Ausgezahlt', r.won, ''],
-      ['Ergebnis des Abends', r.profit, r.profit >= 0 ? '+' : '−'],
+      ['Ergebnis des Tages', r.profit, r.profit >= 0 ? '+' : '−'],
     ];
     for (let i = 0; i < rows.length; i++) {
       const [name, value, sign] = rows[i];
@@ -97,7 +97,7 @@ export class Recap {
     p.addChild(bar);
     const fill = new Graphics();
     p.addChild(fill);
-    const quotaLabel = this.text(`Ziel für Abend ${r.evening}: +${formatChips(r.quota)}`, 22, 0xd9c6a0);
+    const quotaLabel = this.text(`Ziel für Tag ${r.evening}: +${formatChips(r.quota)}`, 22, 0xd9c6a0);
     quotaLabel.position.set(barX, barY - 34);
     const markerViews = MARKERS.map(([m, medal]) => {
       const x = barX + (m / maxRatio) * barW;
@@ -169,6 +169,16 @@ export class Recap {
         void tween(this.halo, { x: mx - 170 }, 450, ease.inOutCubic);
         await this.revealTrophy(mx + 170, my + 60);
       }
+      if (r.seasonWon) {
+        // The Moth Queen is beaten: the whole season is won.
+        const gp = this.panel.toGlobal({ x: mx, y: my - 150 });
+        void banner(this.particles.view, 'SAISON GEWONNEN!', COLORS.lamp, gp.x, gp.y, this.screenW * 0.9);
+        this.particles.confetti(this.screenW, 220);
+        this.sfx.bigWin();
+      } else if (r.newFloor) {
+        const gp = this.panel.toGlobal({ x: mx, y: my - 150 });
+        void banner(this.particles.view, r.newFloor === 5 ? 'BOSS-ETAGE OFFEN' : `ETAGE ${r.newFloor} OFFEN`, COLORS.cyan, gp.x, gp.y, this.screenW * 0.8);
+      }
     } else {
       // Season over: a calm summary of how far this season got.
       this.sfx.seasonOver();
@@ -177,7 +187,7 @@ export class Recap {
       head.position.set(mx, my - 70);
       head.alpha = 0;
       void tween(head, { alpha: 1 }, 500);
-      const cleared = r.cleared === 1 ? '1 Abend' : `${r.cleared} Abende`;
+      const cleared = r.cleared === 1 ? '1 Tag' : `${r.cleared} Tage`;
       const t = this.text(`Ziel verfehlt. Geschafft: ${cleared}.\nTrophäen, Medaillen und Rekorde bleiben in deiner Vitrine.`, 24, 0xd9c6a0);
       t.style.align = 'center';
       t.anchor.set(0.5);
@@ -202,7 +212,7 @@ export class Recap {
     );
     note.anchor.set(0.5);
     note.position.set(W / 2, H - 104);
-    const next = button({ label: r.passed ? 'NÄCHSTER ABEND' : 'NEUE SAISON', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
+    const next = button({ label: r.seasonWon || !r.passed ? 'NEUE SAISON' : r.newFloor ? 'ZUM AUFZUG' : 'NÄCHSTER TAG', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
     next.position.set(W / 2, H - 48);
     next.alpha = 0;
     p.addChild(next);

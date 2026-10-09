@@ -1,42 +1,43 @@
-// A casino room seen from above: floor, walls, machines, decor, the player and the camera.
+// A casino floor seen from above: floor, walls, machines, furniture, the elevator,
+// the player and the camera.
 
 import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
-import { getGame, getRoom, type DecorPlacement, type DoorPlacement, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { getGame, getRoom, type RoomDefinition, type StationPlacement } from '../core/registry';
 import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from '../core/fx';
 import type { GameState } from '../core/state';
-import { formatChips } from '../core/state';
+import { animate, ease, wait } from '../core/tween';
 import { drawTrophy } from './trophies';
 import { Player } from './player';
 import { Guests, type Spot } from './guests';
+import { buildDecor, type BuiltDecor, type Rect } from './decor';
+import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
 
-export const WALL_H = 150;
-const SIDE = 24;
+export { WALL_H };
 
 export type Interactable =
   | { kind: 'station'; station: StationPlacement; x: number; y: number; title: string }
-  | { kind: 'door'; door: DoorPlacement; x: number; y: number; title: string }
+  | { kind: 'elevator'; x: number; y: number; title: string }
   | { kind: 'shelf'; x: number; y: number; title: string };
 
-interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+/** Half the width of the elevator doorway. */
+const DOOR_W = 46;
 
 export class RoomScene {
   readonly view = new Container();
   readonly world = new Container();
   readonly def: RoomDefinition;
   readonly player: Player;
+  private floorDecor = new Container();
+  private wallDecor = new Container();
   private entities = new Container();
   private lights = new Container();
   private obstacles: Rect[] = [];
   private interactables: Interactable[] = [];
   private stationLamps: { g: Container; phase: number }[] = [];
   private lampMoths: { c: Container; wings: Sprite; base: number; cx: number; cy: number; r: number; ph: number; sp: number }[] = [];
+  private animated: NonNullable<BuiltDecor['update']>[] = [];
   private spots: Spot[] = [];
   private guests: Guests | null = null;
   private fxLayer = new Container();
@@ -45,6 +46,10 @@ export class RoomScene {
   private shelf: Container | null = null;
   private shelfSize = { w: 300, h: 44 };
   private sign!: Sprite;
+  private elevator!: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number };
+  private throne: (Container & { hit?: () => void }) | null = null;
+  /** Direction the player faces while a cutscene moves them. */
+  private scripted: number | null | undefined = undefined;
   private keys = new Set<string>();
   private target: { x: number; y: number } | null = null;
   private pending: Interactable | null = null;
@@ -58,6 +63,7 @@ export class RoomScene {
   topInset = 64;
   /** Disables movement while a game or menu is open. */
   frozen = false;
+  private dead = false;
 
   constructor(
     roomId: string,
@@ -66,14 +72,15 @@ export class RoomScene {
   ) {
     this.def = getRoom(roomId);
     this.view.addChild(this.world);
-    this.buildFloor();
-    this.buildWalls();
+    this.buildShell();
+    this.world.addChild(this.floorDecor, this.wallDecor);
+    this.buildElevator();
+    this.buildSign();
     this.world.addChild(this.entities);
     this.entities.sortableChildren = true;
+    this.world.addChild(this.lights);
     this.buildStations();
     this.buildDecor();
-    this.buildDoors();
-    this.world.addChild(this.lights);
     this.buildLights();
     this.world.addChild(this.fxLayer);
 
@@ -82,7 +89,7 @@ export class RoomScene {
     this.player = new Player(host?.color ?? COLORS.lamp, { skin: host?.skin });
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
-    const guestCount = Math.min(6, Math.max(2, Math.round(this.def.stations.length / 2)));
+    const guestCount = Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7)));
     this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position);
 
     // Interaction prompt bubble.
@@ -108,56 +115,135 @@ export class RoomScene {
 
   // ---- Building ---------------------------------------------------------
 
-  private buildFloor() {
+  /** Floor and walls, painted once and baked into one texture. */
+  private buildShell() {
     const { width: W, height: H, theme } = this.def;
+    const c = new Container();
     const g = new Graphics();
-    g.rect(0, 0, W, H).fill(theme.carpet);
-    // Classic casino carpet: diamond lattice with small medallions.
-    const s = 64;
-    for (let y = WALL_H - s; y < H + s; y += s) {
-      for (let x = -s; x < W + s; x += s) {
-        const ox = (Math.floor(y / s) % 2) * (s / 2);
-        const cx = x + ox;
-        g.poly([cx, y - s / 2, cx + s / 2, y, cx, y + s / 2, cx - s / 2, y]).stroke({ color: theme.carpetPattern, width: 3 });
-        g.circle(cx, y, 5).fill({ color: theme.carpetAccent, alpha: 0.45 });
-        g.circle(cx + s / 4, y - s / 4, 2).fill({ color: theme.carpetAccent, alpha: 0.3 });
-      }
-    }
-    const floor = new Sprite(bake(g));
-    floor.position.set(0, 0);
-    this.world.addChild(floor);
+    paintFloor(g, theme, W, H);
+    paintWalls(g, theme, W, H);
+    c.addChild(g);
+    const b = c.getLocalBounds();
+    const sprite = new Sprite(bake(c));
+    sprite.position.set(b.x, b.y);
+    this.world.addChild(sprite);
+    this.obstacles.push({ x: 0, y: 0, w: W, h: WALL_H + 6 }, { x: 0, y: 0, w: SIDE, h: H }, { x: W - SIDE, y: 0, w: SIDE, h: H }, { x: 0, y: H - SIDE, w: W, h: SIDE });
   }
 
-  private buildWalls() {
-    const { width: W, height: H, theme } = this.def;
-    const g = new Graphics();
-    // Back wall (seen at an angle, so it has height).
-    g.rect(0, 0, W, WALL_H).fill(theme.wall);
-    for (let x = 40; x < W; x += 80) g.rect(x, 10, 2, WALL_H - 30).fill({ color: 0x000000, alpha: 0.25 });
-    g.rect(0, WALL_H - 22, W, 22).fill({ color: 0x000000, alpha: 0.35 });
-    g.rect(0, WALL_H - 24, W, 4).fill(theme.wallTrim);
-    g.rect(0, WALL_H, W, 10).fill({ color: 0x000000, alpha: 0.35 });
-    // Side and front walls.
-    g.rect(0, 0, SIDE, H).fill(theme.wall);
-    g.rect(W - SIDE, 0, SIDE, H).fill(theme.wall);
-    g.rect(0, H - SIDE, W, SIDE).fill(theme.wall);
-    g.rect(SIDE, 0, 3, H).fill({ color: theme.wallTrim, alpha: 0.5 });
-    g.rect(W - SIDE - 3, 0, 3, H).fill({ color: theme.wallTrim, alpha: 0.5 });
-    g.rect(0, H - SIDE, W, 3).fill({ color: theme.wallTrim, alpha: 0.5 });
-    this.world.addChild(g);
-
-    // Neon sign, baked once with its glow so the filter doesn't run every frame.
+  /** Neon sign, baked once with its glow so the filter doesn't run every frame. */
+  private buildSign() {
     const signText = new Text({ text: this.def.sign, style: { fontFamily: FONT_DISPLAY, fontSize: 44, fill: 0xfff6e6, letterSpacing: 6 } });
     const signWrap = new Container();
     signWrap.addChild(new Graphics().rect(-30, -30, signText.width + 60, signText.height + 60).fill({ color: 0, alpha: 0.001 }));
-    signText.filters = [new GlowFilter({ color: theme.neon, distance: 20, outerStrength: 3.5, innerStrength: 0.6, quality: 0.2 })];
+    signText.filters = [new GlowFilter({ color: this.def.theme.neon, distance: 20, outerStrength: 3.5, innerStrength: 0.6, quality: 0.2 })];
     signWrap.addChild(signText);
     this.sign = new Sprite(bake(signWrap));
     this.sign.anchor.set(0.5);
-    this.sign.position.set(W / 2, 62);
+    this.sign.position.set(this.def.width / 2, 62);
     this.world.addChild(this.sign);
+  }
 
-    this.obstacles.push({ x: 0, y: 0, w: W, h: WALL_H + 6 }, { x: 0, y: 0, w: SIDE, h: H }, { x: W - SIDE, y: 0, w: SIDE, h: H }, { x: 0, y: H - SIDE, w: W, h: SIDE });
+  /** Art-deco elevator in the back wall: floor dial, brass doors, call button. */
+  private buildElevator() {
+    const ex = this.def.elevatorX;
+    const t = this.def.theme;
+    const c = new Container();
+    c.position.set(ex, 0);
+    const top = 62;
+    const g = new Graphics();
+    // Frame with a stepped art-deco crown.
+    g.rect(-DOOR_W - 20, top - 10, (DOOR_W + 20) * 2, WALL_H - top + 10).fill({ color: 0x000000, alpha: 0.35 });
+    g.rect(-DOOR_W - 14, top - 6, (DOOR_W + 14) * 2, WALL_H - top + 6).fill(COLORS.brassDark);
+    g.rect(-DOOR_W - 10, top - 2, (DOOR_W + 10) * 2, WALL_H - top + 2).fill(COLORS.brass);
+    for (let i = 0; i < 3; i++) g.rect(-DOOR_W - 6 + i * 6, top - 12 - i * 6, (DOOR_W + 6 - i * 6) * 2, 6).fill(i % 2 ? COLORS.brass : COLORS.brassDark);
+    // Floor dial above the doors.
+    const dy = top - 22;
+    g.circle(0, dy, 30).fill(COLORS.brassDark);
+    g.moveTo(-28, dy).arc(0, dy, 28, Math.PI, 0).closePath().fill(0x1b1013);
+    g.moveTo(-26, dy).arc(0, dy, 26, Math.PI, 0).stroke({ color: COLORS.brass, width: 1.5 });
+    for (let f = 1; f <= 5; f++) {
+      const a = Math.PI + ((f - 0.5) / 5) * Math.PI;
+      g.circle(Math.cos(a) * 20, dy + Math.sin(a) * 20, f === 5 ? 3 : 2.2).fill(f === 5 ? 0xc9a0ff : 0xfff1c4);
+    }
+    g.rect(-30, dy, 60, 4).fill(COLORS.brass);
+    // Cabin behind the doors: warm light, wood panels, a mirror at the back.
+    g.rect(-DOOR_W, top, DOOR_W * 2, WALL_H - top).fill(0x2a1a10);
+    g.rect(-DOOR_W + 8, top + 6, DOOR_W * 2 - 16, WALL_H - top - 24).fill(0x4a2a18);
+    g.roundRect(-16, top + 14, 32, 44, 12).fill(0x9ab8d0).stroke({ color: COLORS.brass, width: 2 });
+    g.rect(-DOOR_W, WALL_H - 14, DOOR_W * 2, 14).fill(shade(t.carpet, -0.2));
+    c.addChild(g);
+    const inner = new Sprite(glowTexture());
+    inner.anchor.set(0.5);
+    inner.position.set(0, top + 30);
+    inner.width = 120;
+    inner.height = 90;
+    inner.tint = 0xffd9a0;
+    inner.alpha = 0.5;
+    inner.blendMode = 'add';
+    c.addChild(inner);
+    // Doors, masked to the doorway so they slide into the wall.
+    const leaf = (side: number) => {
+      const d = new Container();
+      const lg = new Graphics();
+      const x0 = side < 0 ? -DOOR_W : 0;
+      lg.rect(x0, top, DOOR_W, WALL_H - top).fill(0xc9a04a).stroke({ color: COLORS.brassDark, width: 1.5 });
+      lg.rect(x0 + 5, top + 5, DOOR_W - 10, WALL_H - top - 10).stroke({ color: COLORS.brassDark, width: 1.5 });
+      // Sunburst rays fanning from the seam.
+      const sx = side < 0 ? 0 : 0;
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 5) * (Math.PI / 2) * 0.9 + 0.08;
+        const ex2 = sx + side * Math.sin(a) * 40;
+        const ey2 = top + 46 - Math.cos(a) * 40;
+        lg.moveTo(sx + side * 3, top + 46).lineTo(ex2, Math.max(top + 6, ey2)).stroke({ color: COLORS.brassDark, width: 1.2, alpha: 0.8 });
+      }
+      lg.moveTo(x0 + 6, top + 64).lineTo(x0 + DOOR_W - 6, top + 64).stroke({ color: COLORS.brassDark, width: 1.2 });
+      lg.rect(x0 + 2, top + 2, 3, WALL_H - top - 4).fill({ color: 0xffffff, alpha: 0.18 });
+      d.addChild(lg);
+      return d;
+    };
+    const doorL = leaf(-1);
+    const doorR = leaf(1);
+    const mask = new Graphics().rect(-DOOR_W, top, DOOR_W * 2, WALL_H - top).fill(0xffffff);
+    c.addChild(doorL, doorR, mask);
+    doorL.mask = mask;
+    doorR.mask = mask;
+    const seam = new Graphics().rect(-0.75, top, 1.5, WALL_H - top).fill({ color: COLORS.brassDark, alpha: 0.8 });
+    doorL.addChild(seam);
+    // Needle on the dial, and the call button.
+    const needle = new Graphics().rect(-1.2, -22, 2.4, 22).fill(COLORS.red);
+    needle.circle(0, 0, 3).fill(COLORS.brass);
+    needle.position.set(0, dy);
+    c.addChild(needle);
+    const plate = new Graphics().roundRect(DOOR_W + 18, 92, 16, 30, 4).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 1.5 });
+    plate.circle(DOOR_W + 26, 107, 4).fill(0xfff1c4);
+    c.addChild(plate);
+    const lamp = new Sprite(glowTexture());
+    lamp.anchor.set(0.5);
+    lamp.position.set(DOOR_W + 26, 107);
+    lamp.width = lamp.height = 40;
+    lamp.tint = t.neon;
+    lamp.blendMode = 'add';
+    c.addChild(lamp);
+    // Threshold plate on the floor.
+    const th = new Graphics().rect(-DOOR_W - 6, WALL_H, (DOOR_W + 6) * 2, 7).fill(COLORS.brassDark);
+    th.rect(-DOOR_W - 6, WALL_H, (DOOR_W + 6) * 2, 2).fill(COLORS.brass);
+    c.addChild(th);
+    this.world.addChild(c);
+    this.elevator = { doorL, doorR, needle, lamp, open: 0 };
+    this.setDial(this.def.floor);
+    this.interactables.push({ kind: 'elevator', x: ex, y: WALL_H + 40, title: 'Aufzug nehmen' });
+  }
+
+  /** Points the dial above the elevator at a floor (fractions move the needle in between). */
+  setDial(floor: number) {
+    this.elevator.needle.rotation = -Math.PI / 2 + ((floor - 0.5) / 5 - 0.5) * Math.PI;
+  }
+
+  private setDoors(open: number) {
+    if (this.dead) return;
+    this.elevator.open = open;
+    this.elevator.doorL.x = -open * DOOR_W;
+    this.elevator.doorR.x = open * DOOR_W;
   }
 
   private buildStations() {
@@ -189,101 +275,64 @@ export class RoomScene {
   }
 
   private buildDecor() {
+    const layers = { floor: this.floorDecor, wall: this.wallDecor, entities: this.entities, lights: this.lights };
     for (const d of this.def.decor) {
-      const c = this.drawDecor(d);
-      c.position.set(d.x, d.y);
-      this.entities.addChild(c);
+      if (d.kind === 'trophyShelf') {
+        this.buildShelf(d.x, d.y, d.w ?? 300);
+        continue;
+      }
+      const b = buildDecor(d, this.def.theme);
+      if (!b) continue;
+      if (b.z !== undefined) b.view.zIndex = b.z;
+      layers[b.layer].addChild(b.view);
+      this.obstacles.push(...b.obstacles);
+      if (b.update) this.animated.push(b.update);
+      if (d.kind === 'throne') this.throne = b.view as Container & { hit?: () => void };
+      // Places where guests like to hang out.
+      const w = d.w ?? 0;
+      const h = d.h ?? 0;
+      if (d.kind === 'bar') {
+        const bw = w || 300;
+        const bh = h || 70;
+        for (let i = 0; i < Math.floor(bw / 60); i++) this.spots.push({ kind: 'lounge', x: d.x - bw / 2 + 30 + i * 60, y: d.y + bh / 2 + 44 });
+      } else if (d.kind === 'sofa' && (d.r ?? 0) % 2 === 0) {
+        const sw = w || 160;
+        const sh = h || 54;
+        const fy = (d.r ?? 0) === 2 ? d.y - sh / 2 - 26 : d.y + sh / 2 + 26;
+        this.spots.push({ kind: 'lounge', x: d.x - sw * 0.25, y: fy }, { kind: 'lounge', x: d.x + sw * 0.25, y: fy });
+      } else if (d.kind === 'bench') this.spots.push({ kind: 'lounge', x: d.x, y: d.y + 36 });
+      else if (d.kind === 'fountain' || d.kind === 'moonPool' || d.kind === 'iceSwan' || d.kind === 'champagne' || d.kind === 'piano')
+        this.spots.push({ kind: 'lounge', x: d.x + 30, y: d.y + (d.kind === 'fountain' ? (w || 90) + 26 : d.kind === 'moonPool' ? (w || 100) * 0.7 + 26 : d.kind === 'piano' ? 120 : 52) });
     }
   }
 
-  private drawDecor(d: DecorPlacement): Container {
+  /** Glass trophy cabinet; it shows the player's latest trophies. */
+  private buildShelf(x: number, y: number, w: number) {
+    const h = 44;
     const c = new Container();
     const g = new Graphics();
     c.addChild(g);
-    const th = this.def.theme;
-    switch (d.kind) {
-      case 'plant': {
-        g.circle(0, 6, 22).fill({ color: 0x000000, alpha: 0.35 });
-        g.circle(0, 0, 18).fill(0x6b3a1e).stroke({ color: COLORS.brass, width: 2 });
-        for (let i = 0; i < 7; i++) {
-          const a = (i / 7) * Math.PI * 2;
-          g.ellipse(Math.cos(a) * 14, Math.sin(a) * 14 - 6, 14, 8).fill(i % 2 ? 0x2f7d32 : 0x3f9a45);
-        }
-        g.circle(0, -6, 10).fill(0x4caf50);
-        c.zIndex = d.y + 18;
-        this.obstacles.push({ x: d.x - 18, y: d.y - 18, w: 36, h: 36 });
-        break;
-      }
-      case 'pillar': {
-        g.circle(0, 8, 30).fill({ color: 0x000000, alpha: 0.35 });
-        g.circle(0, 0, 28).fill(th.wall).stroke({ color: th.wallTrim, width: 4 });
-        g.circle(0, 0, 18).fill({ color: th.wallTrim, alpha: 0.25 });
-        c.zIndex = d.y + 28;
-        this.obstacles.push({ x: d.x - 26, y: d.y - 26, w: 52, h: 52 });
-        break;
-      }
-      case 'bar': {
-        const w = d.w ?? 300;
-        const h = d.h ?? 70;
-        g.roundRect(4, 8, w, h, 14).fill({ color: 0x000000, alpha: 0.4 });
-        g.roundRect(0, 0, w, h, 14).fill(0x4a2414).stroke({ color: COLORS.brass, width: 3 });
-        g.roundRect(8, 8, w - 16, 22, 8).fill(0x6b3a1e);
-        const bottles = [COLORS.cyan, COLORS.neon, COLORS.lamp, 0x7bd47b, COLORS.cyan, COLORS.lamp];
-        for (let i = 0; i < Math.floor(w / 36); i++) g.circle(22 + i * 36, 19, 6).fill(bottles[i % bottles.length]);
-        for (let i = 0; i < Math.floor(w / 60); i++) {
-          g.circle(30 + i * 60, h + 18, 11).fill(0x3a2230).stroke({ color: COLORS.brassDark, width: 2 });
-          this.spots.push({ kind: 'lounge', x: d.x + 30 + i * 60, y: d.y + h + 26 });
-        }
-        const t = new Text({ text: 'BAR · Limo & Mocktails', style: { fontFamily: FONT_BODY, fontSize: 15, fontWeight: '700', fill: 0xfff1c4 } });
-        t.anchor.set(0.5);
-        t.position.set(w / 2, 50);
-        c.addChild(t);
-        c.zIndex = d.y + h;
-        this.obstacles.push({ x: d.x, y: d.y, w, h });
-        break;
-      }
-      case 'sofa': {
-        const w = d.w ?? 160;
-        const h = d.h ?? 50;
-        g.roundRect(4, 8, w, h, 16).fill({ color: 0x000000, alpha: 0.4 });
-        g.roundRect(0, 0, w, h, 16).fill(0x5a1a3a);
-        g.roundRect(0, 0, w, 16, 8).fill(0x7a2550);
-        g.roundRect(0, 0, 16, h, 8).fill(0x7a2550);
-        g.roundRect(w - 16, 0, 16, h, 8).fill(0x7a2550);
-        this.spots.push({ kind: 'lounge', x: d.x + w * 0.3, y: d.y + h + 24 }, { kind: 'lounge', x: d.x + w * 0.7, y: d.y + h + 24 });
-        c.zIndex = d.y + h;
-        this.obstacles.push({ x: d.x, y: d.y, w, h });
-        break;
-      }
-      case 'rope': {
-        const w = d.w ?? 200;
-        g.moveTo(0, 0).quadraticCurveTo(w / 2, 22, w, 0).stroke({ color: 0xb3132b, width: 6 });
-        g.circle(0, 0, 9).fill(COLORS.brass);
-        g.circle(w, 0, 9).fill(COLORS.brass);
-        c.zIndex = d.y + 10;
-        break;
-      }
-      case 'trophyShelf': {
-        const w = d.w ?? 300;
-        const h = d.h ?? 44;
-        g.roundRect(0, -60, w, h + 60, 8).fill(0x1a0b10).stroke({ color: COLORS.brass, width: 3 });
-        g.rect(6, h - 8, w - 12, 6).fill(COLORS.brass);
-        g.rect(6, -54, w - 12, 50).fill({ color: 0xffffff, alpha: 0.04 });
-        const t = new Text({ text: 'VITRINE', style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 2 } });
-        t.anchor.set(0.5);
-        t.position.set(w / 2, h + 12);
-        c.addChild(t);
-        this.shelf = new Container();
-        c.addChild(this.shelf);
-        this.shelfSize = { w, h };
-        this.refreshShelf();
-        c.zIndex = d.y + h;
-        this.obstacles.push({ x: d.x, y: d.y - 60, w, h: h + 60 });
-        this.interactables.push({ kind: 'shelf', x: d.x + w / 2, y: d.y + h + 30, title: 'Vitrine ansehen' });
-        break;
-      }
-    }
-    return c;
+    g.roundRect(4, -54, w, h + 64, 8).fill({ color: 0x000000, alpha: 0.4 });
+    g.roundRect(0, -60, w, h + 60, 8).fill(0x1a0b10).stroke({ color: COLORS.brass, width: 3 });
+    g.rect(6, h - 8, w - 12, 6).fill(COLORS.brass);
+    g.rect(6, -54, w - 12, 50).fill({ color: 0xffffff, alpha: 0.04 });
+    g.rect(6, -20, w - 12, 3).fill({ color: 0xffffff, alpha: 0.12 });
+    g.poly([14, -54, 40, -54, 20, h - 10, 6, h - 10]).fill({ color: 0xffffff, alpha: 0.05 });
+    const t = new Text({ text: 'VITRINE', style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 2 } });
+    t.anchor.set(0.5);
+    t.position.set(w / 2, h + 12);
+    c.addChild(t);
+    this.shelf = new Container();
+    c.addChild(this.shelf);
+    this.shelfSize = { w, h };
+    this.refreshShelf();
+    const L = x - w / 2;
+    const T = y - 50;
+    c.position.set(L, T);
+    c.zIndex = T + h;
+    this.entities.addChild(c);
+    this.obstacles.push({ x: L, y: T - 60, w, h: h + 60 });
+    this.interactables.push({ kind: 'shelf', x, y: T + h + 30, title: 'Vitrine ansehen' });
   }
 
   refreshShelf() {
@@ -307,60 +356,20 @@ export class RoomScene {
     });
   }
 
-  private buildDoors() {
-    for (const door of this.def.doors) {
-      const target = getRoom(door.to);
-      const locked = !!target.unlockCost && !this.state.data.unlockedRooms.includes(target.id);
-      const c = new Container();
-      const g = new Graphics();
-      g.roundRect(-46, 20, 92, WALL_H - 20, 10).fill(0x050304).stroke({ color: this.def.theme.wallTrim, width: 4 });
-      g.roundRect(-38, 28, 76, WALL_H - 28, 8).fill(locked ? 0x1a0b10 : 0x2a1a10);
-      if (!locked) {
-        const glow = new Sprite(glowTexture());
-        glow.anchor.set(0.5);
-        glow.position.set(0, WALL_H - 10);
-        glow.width = 160;
-        glow.height = 90;
-        glow.tint = target.theme.neon;
-        glow.alpha = 0.5;
-        glow.blendMode = 'add';
-        c.addChild(glow);
-      }
-      c.addChildAt(g, 0);
-      const t = new Text({
-        text: locked ? `${door.label}\n🔒 ${formatChips(target.unlockCost!)}` : door.label,
-        style: { fontFamily: FONT_BODY, fontSize: 15, fontWeight: '700', fill: 0xfff6e6, align: 'center' },
-      });
-      t.anchor.set(0.5);
-      t.position.set(0, 82);
-      c.addChild(t);
-      c.position.set(door.x, 0);
-      this.world.addChild(c);
-      this.interactables.push({
-        kind: 'door',
-        door,
-        x: door.x,
-        y: WALL_H + 30,
-        title: locked ? `${door.label} öffnen (${formatChips(target.unlockCost!)})` : `Zur ${door.label}`,
-      });
-    }
-  }
-
   private buildLights() {
     const th = this.def.theme;
-    // Ceiling lamps: soft pools of light on the carpet.
-    for (let y = WALL_H + 120; y < this.def.height; y += 260) {
-      for (let x = 160; x < this.def.width; x += 320) {
+    // Soft pools of light on the floor, with a few moths circling each.
+    for (let y = WALL_H + 140; y < this.def.height; y += 280) {
+      for (let x = 200; x < this.def.width; x += 340) {
         const s = new Sprite(glowTexture());
         s.anchor.set(0.5);
         s.position.set(x, y);
         s.width = s.height = 420;
         s.tint = th.light;
-        s.alpha = 0.16;
+        s.alpha = 0.12;
         s.blendMode = 'add';
         this.lights.addChild(s);
-        // A few moths always circle the light.
-        for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+        for (let i = 0; i < 1 + Math.floor(Math.random() * 2); i++) {
           const c = new Container();
           const glow = new Sprite(glowTexture());
           glow.anchor.set(0.5);
@@ -387,7 +396,7 @@ export class RoomScene {
       s.width = game.footprint.w * 2.6;
       s.height = game.footprint.h * 2.6;
       s.tint = th.neon;
-      s.alpha = 0.22;
+      s.alpha = 0.2;
       s.blendMode = 'add';
       this.lights.addChild(s);
     }
@@ -400,6 +409,83 @@ export class RoomScene {
     signGlow.alpha = 0.25;
     signGlow.blendMode = 'add';
     this.lights.addChild(signGlow);
+  }
+
+  // ---- Elevator and boss ----------------------------------------------------
+
+  /** Moves the player in a straight line while the walk animation plays. */
+  private async walkTo(x: number, y: number, speed = 200) {
+    const pv = this.player.view;
+    const sx = pv.x;
+    const sy = pv.y;
+    const d = Math.hypot(x - sx, y - sy);
+    if (d < 2) return;
+    this.scripted = Math.atan2(y - sy, x - sx);
+    await animate((d / speed) * 1000, (k) => !this.dead && pv.position.set(sx + (x - sx) * k, sy + (y - sy) * k));
+    this.scripted = null;
+  }
+
+  private async doors(open: boolean) {
+    sfx.elevatorDoor();
+    const from = this.elevator.open;
+    await animate(650, (k) => this.setDoors(from + ((open ? 1 : 0) - from) * k), ease.inOutCubic);
+  }
+
+  /** Walk to the elevator, doors open, step in, turn around, doors close. */
+  async boardElevator() {
+    this.frozen = true;
+    this.target = null;
+    this.pending = null;
+    this.prompt.visible = false;
+    const ex = this.def.elevatorX;
+    await this.walkTo(ex, WALL_H + 40);
+    sfx.elevatorButton();
+    this.elevator.lamp.alpha = 1;
+    await this.doors(true);
+    const pv = this.player.view;
+    const a0 = pv.alpha;
+    const fade = animate(500, (k) => !this.dead && (pv.alpha = a0 * (1 - k * 0.6)));
+    await this.walkTo(ex, WALL_H - 8, 150);
+    await fade;
+    this.scripted = null;
+    this.player.faceTowards(Math.PI / 2);
+    await wait(450);
+    const close = this.doors(false);
+    await animate(500, (k) => !this.dead && (pv.alpha = a0 * 0.4 * (1 - k)));
+    await close;
+    this.scripted = undefined;
+  }
+
+  /** The player arrives by elevator: doors open, step out, doors close. */
+  async exitElevator() {
+    this.frozen = true;
+    const ex = this.def.elevatorX;
+    const pv = this.player.view;
+    pv.position.set(ex, WALL_H - 8);
+    pv.alpha = 0;
+    this.scripted = null;
+    this.player.faceTowards(Math.PI / 2);
+    this.updateCamera();
+    sfx.elevatorDing();
+    await wait(300);
+    const open = this.doors(true);
+    await animate(400, (k) => !this.dead && (pv.alpha = k));
+    await open;
+    await this.walkTo(ex, WALL_H + 60, 150);
+    this.scripted = undefined;
+    void this.doors(false);
+    this.frozen = false;
+  }
+
+  /** The Moth Queen flinches (boss floor only). */
+  bossHit() {
+    this.throne?.hit?.();
+  }
+
+  /** Where the Moth Queen floats, for effects aimed at her. */
+  bossPoint() {
+    const d = this.def.decor.find((x) => x.kind === 'throne');
+    return d ? this.toScreen(d.x, d.y - 90) : null;
   }
 
   // ---- Input ------------------------------------------------------------
@@ -497,7 +583,7 @@ export class RoomScene {
         if (p && close) this.onInteract(p);
       }
     }
-    this.player.update(dtMs, len > 0 ? Math.atan2(dy, dx) : null);
+    this.player.update(dtMs, this.scripted !== undefined ? this.scripted : len > 0 ? Math.atan2(dy, dx) : null);
     pv.zIndex = pv.y + 16;
 
     // Nearest interactable and prompt.
@@ -527,6 +613,8 @@ export class RoomScene {
       m.c.position.set(x, y);
       m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 22 + m.ph)));
     }
+    for (const a of this.animated) a(this.time, dtMs);
+    this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
 
     this.updateCamera();
@@ -580,6 +668,7 @@ export class RoomScene {
   }
 
   destroy() {
+    this.dead = true;
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.clearKeys);

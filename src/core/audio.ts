@@ -302,6 +302,29 @@ class Sfx {
     this.bell(1568, 0.06, 0.12, 0.8);
     this.bell(2093, 0.05, 0.2, 0.8);
   }
+  /** Brass elevator doors sliding, with a soft thump at the end. */
+  elevatorDoor() {
+    this.noise(0.7, 0.07, 0, 900, 'bandpass', 2, this.fx, 500);
+    this.tone(70, 0.25, 'sine', 0.15, 0.62, 50);
+    this.noise(0.08, 0.12, 0.62, 400, 'lowpass', 1);
+  }
+  /** Floor button press: a click and a small lit-up tone. */
+  elevatorButton() {
+    this.noise(0.03, 0.2, 0, 2500, 'bandpass', 3);
+    this.tone(1046, 0.12, 'triangle', 0.06, 0.02);
+  }
+  /** The ride: motor hum and cable rattle for `dur` seconds. */
+  elevatorRide(dur: number, up: boolean) {
+    this.tone(up ? 55 : 70, dur, 'sawtooth', 0.04, 0, up ? 70 : 55, this.fx, 0.4);
+    this.tone(110, dur, 'sine', 0.06, 0, undefined, this.fx, 0.4);
+    this.noise(dur, 0.04, 0, 250, 'lowpass', 1);
+    for (let t = 0.3; t < dur - 0.2; t += 0.45 + Math.random() * 0.3) this.noise(0.04, 0.05, t, 1800, 'bandpass', 4);
+  }
+  /** Arrival ding. */
+  elevatorDing() {
+    this.bell(1318, 0.12, 0, 1.4);
+    this.bell(1046, 0.1, 0.32, 1.6);
+  }
   footstep() {
     this.noise(0.05, 0.08, 0, 500 + Math.random() * 200, 'lowpass', 1);
   }

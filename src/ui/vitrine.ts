@@ -48,7 +48,7 @@ export class Vitrine {
       p.addChild(t);
     });
     const stats = new Text({
-      text: `${d.stats.rounds} Runden gespielt  ·  größter Gewinn ${formatChips(d.stats.biggestWin)}  ·  Abend ${d.evening.number}`,
+      text: `${d.stats.rounds} Runden gespielt  ·  größter Gewinn ${formatChips(d.stats.biggestWin)}  ·  Tag ${d.evening.number}`,
       style: { fontFamily: FONT_BODY, fontSize: 19, fill: 0xb69a6a },
     });
     stats.anchor.set(0.5, 0);
@@ -63,7 +63,7 @@ export class Vitrine {
     }
     if (list.length === 0) {
       const t = new Text({
-        text: 'Noch keine Trophäen.\nHol dir an einem Abend Silber, Gold oder Diamant, oder knack einen Jackpot.',
+        text: 'Noch keine Trophäen.\nHol dir an einem Tag Silber, Gold oder Diamant, oder knack einen Jackpot.',
         style: { fontFamily: FONT_BODY, fontSize: 22, fill: 0xd9c6a0, align: 'center' },
       });
       t.anchor.set(0.5);

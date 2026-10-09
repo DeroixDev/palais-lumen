@@ -1,7 +1,7 @@
 // The whole game state lives in one serialisable object (SaveData).
 // In coop the host owns this object and the save file; guests only send actions.
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -39,7 +39,7 @@ export interface SaveData {
   /** A season is one run of evenings; it ends when an evening's goal is missed. */
   season: { number: number; startedAt: number };
   /** Bests across all seasons; they survive a lost season. */
-  records: { bestEvening: number; bestBalance: number; seasonsPlayed: number };
+  records: { bestEvening: number; bestBalance: number; seasonsPlayed: number; seasonsWon: number };
 }
 
 export interface EveningResult {
@@ -60,13 +60,28 @@ export interface EveningResult {
   cleared: number;
   /** True if this season reached further than any before. */
   newRecord: boolean;
+  /** The boss day was won: the whole season is won. */
+  seasonWon: boolean;
+  /** Floor that opened with this result (the next day is on a new floor), or 0. */
+  newFloor: number;
 }
 
 export const START_BALANCE = 1000;
 
-/** Profit goal for an evening of the season. It rises every evening. */
-export function quotaFor(evening: number) {
-  return Math.round((250 * Math.pow(1.4, evening - 1)) / 50) * 50;
+/** A season: four floors with three days each, then one day on the boss floor. */
+export const DAYS_PER_FLOOR = 3;
+export const BOSS_DAY = 13;
+export const FLOORS = 5;
+
+/** Floor (1–5) the given day belongs to. */
+export function floorForDay(day: number) {
+  return day >= BOSS_DAY ? FLOORS : Math.min(FLOORS - 1, Math.ceil(day / DAYS_PER_FLOOR));
+}
+
+/** Profit goal for a day of the season. It rises every day; the boss day asks for more. */
+export function quotaFor(day: number) {
+  const base = 250 * Math.pow(1.25, Math.min(day, BOSS_DAY) - 1);
+  return Math.round((day >= BOSS_DAY ? base * 1.6 : base) / 50) * 50;
 }
 
 export function newSave(): SaveData {
@@ -77,15 +92,15 @@ export function newSave(): SaveData {
     savedAt: now,
     balance: START_BALANCE,
     evening: { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) },
-    roomId: 'lobby',
+    roomId: 'f1',
     position: { x: -1, y: -1 },
-    unlockedRooms: ['lobby'],
+    unlockedRooms: ['f1'],
     trophies: [],
     medals: { none: 0, bronze: 0, silver: 0, gold: 0, diamond: 0 },
     stats: { rounds: 0, wagered: 0, won: 0, biggestWin: 0, rescues: 0 },
     players: { host: { name: 'Du', color: 0xffcf7a } },
     season: { number: 1, startedAt: now },
-    records: { bestEvening: 0, bestBalance: START_BALANCE, seasonsPlayed: 0 },
+    records: { bestEvening: 0, bestBalance: START_BALANCE, seasonsPlayed: 0, seasonsWon: 0 },
   };
 }
 
@@ -170,15 +185,9 @@ export class GameState {
     return this.data.balance - this.data.evening.startBalance;
   }
 
-  unlockRoom(id: string, cost: number): boolean {
-    if (this.data.unlockedRooms.includes(id)) return true;
-    if (this.data.balance < cost) return false;
-    this.data.balance -= cost;
-    // Spending on rooms is an investment, it does not count against tonight's quota.
-    this.data.evening.startBalance -= cost;
-    this.data.unlockedRooms.push(id);
-    this.emit();
-    return true;
+  /** Highest floor the elevator can go to today. */
+  get topFloor() {
+    return floorForDay(this.data.evening.number);
   }
 
   addTrophy(kind: TrophyKind, medal: Medal, title: string): Trophy {
@@ -205,8 +214,11 @@ export class GameState {
     let trophy: Trophy | null = null;
     if (medal === 'silver' || medal === 'gold' || medal === 'diamond') {
       const kind: TrophyKind = medal === 'diamond' ? 'crown' : medal === 'gold' ? 'crystal' : 'cup';
-      trophy = this.addTrophy(kind, medal, `Saison ${this.data.season.number}, Abend ${ev.number}: ${MEDAL_LABEL[medal]}`);
+      trophy = this.addTrophy(kind, medal, `Saison ${this.data.season.number}, Tag ${ev.number}: ${MEDAL_LABEL[medal]}`);
     }
+    const seasonWon = passed && ev.number >= BOSS_DAY;
+    if (seasonWon) trophy = this.addTrophy('crown', 'diamond', `Saison ${this.data.season.number}: Mottenkönigin besiegt`);
+    const newFloor = passed && !seasonWon && floorForDay(ev.number + 1) > floorForDay(ev.number) ? floorForDay(ev.number + 1) : 0;
     const cleared = passed ? ev.number : ev.number - 1;
     const rec = this.data.records;
     const newRecord = cleared > rec.bestEvening;
@@ -227,13 +239,18 @@ export class GameState {
       season: this.data.season.number,
       cleared,
       newRecord,
+      seasonWon,
+      newFloor,
     };
-    if (passed) {
+    if (passed && !seasonWon) {
       const n = ev.number + 1;
       this.data.evening = { number: n, startBalance: this.data.balance, quota: quotaFor(n) };
     } else {
       // Season over: fresh money and evening 1. Trophies, medals, rooms and records stay.
       rec.seasonsPlayed++;
+      if (seasonWon) rec.seasonsWon++;
+      this.data.unlockedRooms = ['f1'];
+      this.data.roomId = 'f1';
       this.data.season = { number: this.data.season.number + 1, startedAt: Date.now() };
       this.data.balance = START_BALANCE;
       this.data.evening = { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) };

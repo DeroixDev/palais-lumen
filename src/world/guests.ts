@@ -5,7 +5,7 @@ import { Container, Sprite } from 'pixi.js';
 import { COLORS, floatText, glowTexture, mothTexture } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
-import { Player } from './player';
+import { Player, type PlayerLook, type HairStyle } from './player';
 
 export interface Spot {
   x: number;
@@ -18,9 +18,41 @@ export interface Spot {
 const SKIN = [0xe8b48a, 0xc68a5e, 0x8d5a3b, 0xf1c9a5, 0x6b4127];
 const HAIR = [0x2a1a10, 0x6b3a1e, 0xd9b26a, 0x1b1b22, 0x9a9a9a, 0xb3402a];
 const JACKET = [0x1d2a4a, 0x3a1a2a, 0x1f3a2a, 0x2a2a2a, 0x4a2a14];
-const ACCENT = [COLORS.neon, COLORS.cyan, 0x7bd47b, 0xffa94a, 0xc9a0ff];
+const ACCENT = [COLORS.neon, COLORS.cyan, 0x7bd47b, 0xffa94a, 0xc9a0ff, COLORS.lamp, 0xff6b5f];
+const DRESS = [0x6b1a2e, 0x1f5a44, 0x26305a, 0xb8862f, 0x5a2a6a, 0x1b1b22, 0xa24a6a, 0x2f6f7a];
+const HAT = [0x1b1b22, 0x3a2a20, 0x2a2a3a, 0xd8c8a8, 0x4a1a24];
+const SUIT_HAIR: HairStyle[] = ['short', 'short', 'sidePart', 'sidePart', 'curly', 'bald', 'long'];
+const DRESS_HAIR: HairStyle[] = ['long', 'long', 'bun', 'bun', 'curly', 'short', 'sidePart'];
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+
+/** A random, varied evening outfit for one guest. */
+function randomLook(): PlayerLook {
+  const dress = Math.random() < 0.45;
+  const hair = pick(HAIR);
+  if (dress) {
+    return {
+      skin: pick(SKIN),
+      hair,
+      outfit: 'dress',
+      jacket: pick(DRESS),
+      hairStyle: pick(DRESS_HAIR),
+      accessory: Math.random() < 0.85 ? 'necklace' : 'none',
+    };
+  }
+  const r = Math.random();
+  return {
+    skin: pick(SKIN),
+    hair,
+    outfit: 'suit',
+    jacket: pick(JACKET),
+    // Grey hair goes thin a little more often.
+    hairStyle: hair === 0x9a9a9a && Math.random() < 0.5 ? 'bald' : pick(SUIT_HAIR),
+    hat: r < 0.12 ? 'fedora' : r < 0.19 ? 'topHat' : 'none',
+    hatColor: pick(HAT),
+    accessory: Math.random() < 0.6 ? 'bowTie' : 'tie',
+  };
+}
 
 interface Guest {
   p: Player;
@@ -45,7 +77,7 @@ export class Guests {
     private listener: () => { x: number; y: number },
   ) {
     for (let i = 0; i < count; i++) {
-      const p = new Player(pick(ACCENT), { skin: pick(SKIN), hair: pick(HAIR), jacket: pick(JACKET) });
+      const p = new Player(pick(ACCENT), randomLook());
       p.view.scale.set(1.3);
       const start = this.free() ?? spots[0];
       if (!start) return;

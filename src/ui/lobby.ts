@@ -83,7 +83,7 @@ export class Lobby {
     $('#m-play').textContent = fresh ? 'Spielen' : 'Weiterspielen';
     $('#title-info').textContent = fresh
       ? 'Du startest mit 1.000 Falter.'
-      : `Saison ${d.season.number} · Abend ${d.evening.number} · ${formatChips(d.balance)} Falter · ${d.trophies.length} Trophäen`;
+      : `Saison ${d.season.number} · Tag ${d.evening.number} · ${formatChips(d.balance)} Falter · ${d.trophies.length} Trophäen`;
     $('#m-play').focus();
   }
 
@@ -105,8 +105,8 @@ export class Lobby {
     }
     this.drawAvatar();
     const d = this.state.data;
-    const rec = d.records.bestEvening > 0 ? ` · Rekord: ${d.records.bestEvening} ${d.records.bestEvening === 1 ? 'Abend' : 'Abende'}` : '';
-    $('#lobby-info').textContent = `Saison ${d.season.number} · Abend ${d.evening.number} · Ziel heute +${formatChips(d.evening.quota || quotaFor(d.evening.number))} Falter${rec}`;
+    const rec = d.records.bestEvening > 0 ? ` · Rekord: ${d.records.bestEvening} ${d.records.bestEvening === 1 ? 'Tag' : 'Tage'}` : '';
+    $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute +${formatChips(d.evening.quota || quotaFor(d.evening.number))} Falter${rec}`;
   }
 
   private drawAvatar() {

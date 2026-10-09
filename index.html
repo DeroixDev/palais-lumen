@@ -49,6 +49,9 @@
   #ev-goal { color: var(--muted); font-variant-numeric: tabular-nums; }
   #ev-bar { position: relative; height: 10px; border-radius: 6px; background: rgba(0,0,0,.5); border: 1px solid rgba(224,178,90,.4); overflow: hidden; }
   #ev-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #c07a3a, var(--lamp)); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  #ev-bar.boss { border-color: rgba(201,160,255,.7); box-shadow: 0 0 10px rgba(201,160,255,.45); }
+  #ev-bar.boss #ev-fill { background: linear-gradient(90deg, #6a1a8a, #c9a0ff); }
+  #ev-bar.boss .tick { display: none; }
   .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,246,230,.5); }
   .hud-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
   #btn-back { background: var(--neon); color: #1a0610; border-color: transparent; }
@@ -130,8 +133,8 @@
     <div><div id="balance">0</div><small>Falter</small></div>
   </div>
   <div class="evening">
-    <div class="evening-top"><span id="ev-num">Abend 1</span><span id="ev-goal"></span></div>
-    <div id="ev-bar" role="progressbar" aria-label="Fortschritt zum Abendziel" aria-valuemin="0" aria-valuemax="300">
+    <div class="evening-top"><span id="ev-num">Tag 1</span><span id="ev-goal"></span></div>
+    <div id="ev-bar" role="progressbar" aria-label="Fortschritt zum Tagesziel" aria-valuemin="0" aria-valuemax="300">
       <div id="ev-fill"></div>
       <div class="tick" style="left:33.3%"></div><div class="tick" style="left:50%"></div><div class="tick" style="left:66.6%"></div>
     </div>
@@ -139,7 +142,7 @@
   <div class="hud-btns">
     <button id="btn-back" hidden>← Zurück</button>
     <button id="btn-save"><span class="long">Spielstände</span><span class="short">Speichern</span></button>
-    <button id="btn-end"><span class="long">Abend beenden</span><span class="short">Abrechnen</span></button>
+    <button id="btn-end"><span class="long">Tag beenden</span><span class="short">Abrechnen</span></button>
     <button id="btn-music" aria-pressed="true"><span class="long">Musik an</span><span class="short">♪</span></button>
     <button id="btn-mute" aria-pressed="true">Ton an</button>
     <button id="btn-help" aria-label="Hilfe">?</button>

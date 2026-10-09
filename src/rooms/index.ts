@@ -1,8 +1,10 @@
-// Every room in the casino. To add one: copy lobby.ts, change layout and theme,
-// register it here and add a door to it from an existing room.
+// Every floor of the casino. To add one: copy a floor file, change layout and theme,
+// and register it here. The elevator lists floors by their `floor` number.
 import { registerRoom } from '../core/registry';
-import { lobby } from './lobby';
-import { vip } from './vip';
+import { f1 } from './f1';
+import { f2 } from './f2';
+import { f3 } from './f3';
+import { f4 } from './f4';
+import { f5 } from './f5';
 
-registerRoom(lobby);
-registerRoom(vip);
+for (const f of [f1, f2, f3, f4, f5]) registerRoom(f);

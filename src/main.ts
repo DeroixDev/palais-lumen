@@ -3,13 +3,14 @@ import 'pixi.js/unsafe-eval';
 import { Application, Container, Filter, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import './games';
 import './rooms';
-import { getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
-import { GameState, newSave, type SaveData } from './core/state';
+import { allRooms, getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
+import { BOSS_DAY, GameState, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
 import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, banner, glowText, purse, setRenderer, shake, tierFor } from './core/fx';
 import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
 import { sfx } from './core/audio';
-import { RoomScene, WALL_H, type Interactable } from './world/room';
+import { RoomScene, type Interactable } from './world/room';
+import { ElevatorPanel, floorTitle } from './ui/elevator';
 import { Hud } from './ui/hud';
 import { Recap } from './ui/recap';
 import { Vitrine } from './ui/vitrine';
@@ -94,7 +95,12 @@ async function boot() {
     room?.savePosition();
     writeSlot('auto', state.data);
   };
+  // Boss day: every Falter won is a hit on the Moth Queen.
+  let bossProfit = 0;
   state.onChange(() => {
+    const p = state.eveningProfit;
+    if (state.data.evening.number >= BOSS_DAY && room?.def.floor === 5 && p > bossProfit) room.bossHit();
+    bossProfit = p;
     clearTimeout(saveTimer);
     saveTimer = window.setTimeout(autosave, 1200);
     checkRescue();
@@ -148,14 +154,9 @@ async function boot() {
 
   // ---- Rooms ------------------------------------------------------------
 
-  function enterRoom(id: string, fromRoom?: string) {
+  function enterRoom(id: string) {
     room?.destroy();
     const def = getRoom(id);
-    if (fromRoom) {
-      // Arrive in front of the door that leads back.
-      const back = def.doors.find((d) => d.to === fromRoom);
-      state.data.position = back ? { x: back.x, y: WALL_H + 60 } : { ...def.spawn };
-    }
     state.data.roomId = def.id;
     room = new RoomScene(def.id, state, onInteract);
     room.topInset = TOP || 64;
@@ -163,49 +164,56 @@ async function boot() {
     room.resize(app.screen.width, app.screen.height);
   }
 
-  async function switchRoom(id: string) {
-    mode = 'transition';
-    sfx.door();
-    await tween(fade, { alpha: 1 }, 300);
-    const from = room.def.id;
-    enterRoom(id, from);
-    autosave();
-    await tween(fade, { alpha: 0 }, 350);
+  const roomForFloor = (f: number) => allRooms().find((r) => r.floor === f) ?? getRoom('f1');
+
+  /** Step into the elevator and open the floor panel. `highlight` marks a floor that just opened. */
+  async function rideElevator(highlight: number | null = null) {
+    if (mode !== 'room') return;
+    await room.boardElevator();
+    showOverlay(new ElevatorPanel(state, room.def.floor, (f) => void arriveOnFloor(f), highlight));
+  }
+
+  /** After the ride: the doors open on the chosen floor and the player steps out. */
+  async function arriveOnFloor(f: number) {
+    const fresh = f !== room.def.floor;
+    if (fresh) fade.alpha = 1;
+    overlay?.destroy();
+    overlay = null;
+    hud.show(true);
+    if (fresh) {
+      state.data.position = { x: -1, y: -1 };
+      enterRoom(roomForFloor(f).id);
+    }
+    layout();
+    room.frozen = true;
     mode = 'room';
+    if (fresh) void tween(fade, { alpha: 0 }, 400);
+    await room.exitElevator();
+    if (fresh) showFloorTitle();
+    room.savePosition();
+    autosave();
+  }
+
+  /** "ETAGE 2 · MONDGARTEN" when you arrive on a floor. */
+  function showFloorTitle() {
+    const c = floorTitle(room.def);
+    const w = app.screen.width;
+    const s = Math.min(1, (w * 0.9) / c.width);
+    c.scale.set(s * 0.8);
+    c.position.set(w / 2, app.screen.height * 0.3);
+    c.alpha = 0;
+    particles.view.addChild(c);
+    void Promise.all([tween(c, { alpha: 1 }, 350), tween(c.scale, { x: s, y: s }, 500, ease.outBack)])
+      .then(() => wait(1600))
+      .then(() => tween(c, { alpha: 0 }, 500))
+      .then(() => c.destroy({ children: true }));
   }
 
   function onInteract(i: Interactable) {
-    if (mode !== 'room' || hud.modalOpen) return;
+    if (mode !== 'room' || hud.modalOpen || room.frozen) return;
     if (i.kind === 'station') void openGame(i.station);
     else if (i.kind === 'shelf') openVitrine();
-    else {
-      const target = getRoom(i.door.to);
-      const locked = !!target.unlockCost && !state.data.unlockedRooms.includes(target.id);
-      if (!locked) return void switchRoom(target.id);
-      const cost = target.unlockCost!;
-      const enough = state.balance >= cost;
-      hud.modal(
-        `${target.name} freischalten`,
-        enough
-          ? `Die ${target.name} kostet einmalig ${cost.toLocaleString('de-DE')} Falter und bleibt danach in diesem Spielstand offen.`
-          : `Dafür brauchst du ${cost.toLocaleString('de-DE')} Falter. Dir fehlen noch ${(cost - state.balance).toLocaleString('de-DE')}.`,
-        enough
-          ? [
-              { label: 'Später', onClick: () => hud.closeModal() },
-              {
-                label: 'Freischalten',
-                primary: true,
-                onClick: () => {
-                  hud.closeModal();
-                  state.unlockRoom(target.id, cost);
-                  sfx.medal();
-                  void switchRoom(target.id);
-                },
-              },
-            ]
-          : [{ label: 'Alles klar', primary: true, onClick: () => hud.closeModal() }],
-      );
-    }
+    else void rideElevator();
   }
 
   // ---- Games ------------------------------------------------------------
@@ -372,11 +380,28 @@ async function boot() {
         closeOverlay();
         room.refreshShelf();
         autosave();
-        // A new evening gets its title card; a new season starts with a new arrival.
-        if (result.passed) eveningCard();
-        else void arrival();
+        // A new day gets its title card, a new floor sends you to the elevator,
+        // and a new season starts with a new arrival.
+        if (result.seasonWon || !result.passed) void arrival();
+        else if (result.newFloor) void toNewFloor(result.newFloor);
+        else eveningCard();
       }),
     );
+  }
+
+  /** A floor just opened: fade, stand at the elevator, ride up with the new floor marked. */
+  async function toNewFloor(f: number) {
+    mode = 'transition';
+    room.frozen = true;
+    await tween(fade, { alpha: 1 }, 300);
+    room.player.view.position.set(room.def.elevatorX, room.def.spawn.y);
+    room.resize(app.screen.width, app.screen.height);
+    mode = 'room';
+    await tween(fade, { alpha: 0 }, 300);
+    eveningCard();
+    await wait(1400);
+    room.frozen = false;
+    await rideElevator(f);
   }
 
   // ---- Loading ----------------------------------------------------------
@@ -438,7 +463,13 @@ async function boot() {
       closeGame,
       endEvening,
       openVitrine,
-      switchRoom,
+      rideElevator: (h?: number) => rideElevator(h ?? null),
+      toFloor: (f: number) => {
+        state.data.position = { x: -1, y: -1 };
+        enterRoom(roomForFloor(f).id);
+        layout();
+      },
+      room: () => room,
       arrival: () => arrival(),
       go: () => lobbyGo(),
       mode: () => mode,
@@ -466,13 +497,13 @@ async function boot() {
     return street;
   }
 
-  /** "Abend 3 · Ziel heute +500 Falter" card at the start of every evening. */
+  /** "Tag 3 · Ziel heute +500 Falter" card at the start of every evening. */
   function eveningCard() {
     const d = state.data;
     const w = app.screen.width;
     const h = app.screen.height;
     const c = new Container();
-    const t1 = glowText(`ABEND ${d.evening.number}`, { fontFamily: FONT_DISPLAY, fontSize: 76, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.neon, distance: 20, outerStrength: 3 });
+    const t1 = glowText(`TAG ${d.evening.number}`, { fontFamily: FONT_DISPLAY, fontSize: 76, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.neon, distance: 20, outerStrength: 3 });
     const t2 = new Text({
       text: `Saison ${d.season.number} · Ziel heute: +${d.evening.quota.toLocaleString('de-DE')} Falter`,
       style: { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: COLORS.lamp, stroke: { color: COLORS.ink, width: 5 } },
@@ -517,16 +548,18 @@ async function boot() {
     lobby.arriving(false);
     lobby.hide();
     state.data.position = { x: -1, y: -1 };
-    enterRoom('lobby');
+    enterRoom(roomForFloor(state.topFloor).id);
     roomLayer.visible = true;
     hud.show(true);
     layout();
     sfx.setScene('casino');
-    await tween(fade, { alpha: 0 }, 500);
-    room.frozen = false;
+    room.frozen = true;
     mode = 'room';
+    void tween(fade, { alpha: 0 }, 500);
+    await room.exitElevator();
+    showFloorTitle();
     autosave();
-    eveningCard();
+    setTimeout(eveningCard, 1500);
     if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => hud.help(), 3200);
   }
 

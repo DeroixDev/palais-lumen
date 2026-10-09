@@ -48,7 +48,11 @@ export interface GameDefinition {
   create(ctx: GameContext): GameInstance;
 }
 
+/** Look of a floor: decides how carpet and walls are painted. */
+export type RoomStyle = 'velvet' | 'garden' | 'clockwork' | 'crystal' | 'throne';
+
 export interface RoomTheme {
+  style: RoomStyle;
   carpet: number;
   carpetPattern: number;
   carpetAccent: number;
@@ -56,6 +60,14 @@ export interface RoomTheme {
   wallTrim: number;
   neon: number;
   light: number;
+  /** Rug colour. */
+  accent?: number;
+  /** Upholstery of sofas, armchairs and stools. */
+  sofa?: number;
+  barLabel?: string;
+  crystal?: number;
+  /** Curtains and banners. */
+  curtain?: number;
 }
 
 export interface StationPlacement {
@@ -66,14 +78,24 @@ export interface StationPlacement {
   options?: Record<string, unknown>;
 }
 
-export interface DoorPlacement {
-  to: string;
-  /** x position on the top wall (doors sit in the back wall). */
-  x: number;
-  label: string;
-}
-
-export type DecorKind = 'plant' | 'pillar' | 'trophyShelf' | 'bar' | 'sofa' | 'rope';
+/**
+ * Furniture and ornaments. Floor objects use (x, y) as their centre; wall pieces
+ * (painting, sconce, curtain, window, mirror, wallClock, ivy, banner, relief, gauge) hang on
+ * the back wall at x. `w`/`h` size things that come in different sizes; `r` is a rotation in
+ * quarter turns for pieces that stand along a side wall.
+ */
+export type DecorKind =
+  // floor, walk-over
+  | 'rug' | 'gearInlay' | 'mosaic'
+  // furniture and objects
+  | 'plant' | 'palm' | 'tree' | 'hedge' | 'flowerbed' | 'pillar' | 'glassPillar' | 'sofa' | 'armchair' | 'bench'
+  | 'table' | 'piano' | 'bar' | 'cabinet' | 'bookshelf' | 'floorLamp' | 'statue' | 'fountain' | 'moonPool'
+  | 'lanternPost' | 'boiler' | 'pipes' | 'workbench' | 'clockTower' | 'crystal' | 'iceSwan' | 'champagne'
+  | 'brazier' | 'throne' | 'rope' | 'trophyShelf'
+  // above everything
+  | 'chandelier'
+  // back wall
+  | 'painting' | 'sconce' | 'curtain' | 'window' | 'mirror' | 'wallClock' | 'ivy' | 'banner' | 'relief' | 'gauge';
 
 export interface DecorPlacement {
   kind: DecorKind;
@@ -81,21 +103,25 @@ export interface DecorPlacement {
   y: number;
   w?: number;
   h?: number;
+  r?: number;
 }
 
 export interface RoomDefinition {
   id: string;
   name: string;
+  /** Floor number 1–5; the elevator goes between floors. */
+  floor: number;
+  /** x position of the elevator in the back wall. */
+  elevatorX: number;
+  /** Short theme line shown on the elevator panel. */
+  tagline: string;
   /** Neon sign on the back wall. */
   sign: string;
   width: number;
   height: number;
   theme: RoomTheme;
-  /** Play money needed to open this room for the first time. */
-  unlockCost?: number;
   spawn: { x: number; y: number };
   stations: StationPlacement[];
-  doors: DoorPlacement[];
   decor: DecorPlacement[];
 }
 
@@ -117,7 +143,7 @@ export function getGame(id: string) {
 }
 
 export function getRoom(id: string) {
-  return rooms.get(id) ?? rooms.get('lobby')!;
+  return rooms.get(id) ?? rooms.get('f1')!;
 }
 
 export function allRooms() {

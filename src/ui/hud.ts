@@ -1,6 +1,7 @@
 // HTML overlay: top bar, toasts and dialogs. Pixi draws the game, the DOM draws the menus.
 
-import { formatChips, quotaFor, type GameState } from '../core/state';
+import { BOSS_DAY, floorForDay, formatChips, quotaFor, type GameState } from '../core/state';
+import { allRooms } from '../core/registry';
 import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '../core/save';
 import type { SaveData } from '../core/state';
 import { sfx } from '../core/audio';
@@ -77,9 +78,22 @@ export class Hud {
     const d = this.state.data;
     const profit = this.state.eveningProfit;
     const ratio = Math.max(0, profit / d.evening.quota);
-    $('#ev-num').textContent = `Saison ${d.season.number} · Abend ${d.evening.number}`;
-    $('#ev-goal').textContent = `${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} / +${formatChips(d.evening.quota)}`;
-    $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
+    const day = d.evening.number;
+    const floor = floorForDay(day);
+    const boss = day >= BOSS_DAY;
+    const floorName = allRooms().find((r) => r.floor === floor)?.name ?? '';
+    $('#ev-num').textContent = boss ? `Tag ${day} · Boss` : `Tag ${day} · Etage ${floor}`;
+    $('#ev-num').title = `Saison ${d.season.number} · Etage ${floor}: ${floorName}`;
+    $('#ev-bar').classList.toggle('boss', boss);
+    if (boss) {
+      // On the boss day the goal bar is the Moth Queen's life: every Falter won hurts her.
+      const hp = Math.max(0, d.evening.quota - Math.max(0, profit));
+      $('#ev-goal').textContent = hp > 0 ? `Königin: ${formatChips(hp)}` : 'Königin besiegt!';
+      $('#ev-fill').style.width = `${(hp / d.evening.quota) * 100}%`;
+    } else {
+      $('#ev-goal').textContent = `${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} / +${formatChips(d.evening.quota)}`;
+      $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
+    }
     $('#ev-bar').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
     // Roll the balance towards its new value.
     cancelAnimationFrame(this.raf);
@@ -157,9 +171,11 @@ export class Hud {
     const profit = this.state.eveningProfit;
     const ratio = profit / d.evening.quota;
     this.modal(
-      `Abend ${d.evening.number} beenden?`,
-      ratio >= 1
-        ? `Ziel geschafft (${Math.round(ratio * 100)} %). Der nächste Abend hat ein höheres Ziel: +${formatChips(quotaFor(d.evening.number + 1))}.`
+      `Tag ${d.evening.number} beenden?`,
+      ratio >= 1 && d.evening.number >= BOSS_DAY
+        ? 'Die Mottenkönigin ist besiegt. Rechne ab und die Saison ist gewonnen!'
+        : ratio >= 1
+        ? `Ziel geschafft (${Math.round(ratio * 100)} %). Der nächste Tag hat ein höheres Ziel: +${formatChips(quotaFor(d.evening.number + 1))}.`
         : `Du stehst erst bei ${Math.round(Math.max(0, ratio) * 100)} % vom Ziel. Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 Falter. Trophäen und Rekorde bleiben.`,
       [
         { label: 'Weiterspielen', onClick: () => this.closeModal() },
@@ -188,7 +204,7 @@ export class Hud {
       name.textContent = names[s.id];
       const meta = document.createElement('span');
       meta.textContent = s.data
-        ? `Abend ${s.data.evening.number} · ${formatChips(s.data.balance)} Falter · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
+        ? `Tag ${s.data.evening.number} · ${formatChips(s.data.balance)} Falter · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
         : 'leer';
       info.append(name, meta);
       row.appendChild(info);
@@ -256,8 +272,9 @@ export class Hud {
     body.innerHTML = `
       <p><strong>Laufen:</strong> WASD oder Pfeiltasten, oder irgendwo hintippen.</p>
       <p><strong>Spielen:</strong> an einen Automaten oder Tisch gehen und <kbd>E</kbd> drücken oder tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
-      <p><strong>Saison:</strong> Jeder Abend hat ein Gewinnziel, und es steigt von Abend zu Abend. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
-      <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen, Rekorde und freigeschaltete Räume bleiben.</p>
+      <p><strong>Saison:</strong> Jeder Tag hat ein Gewinnziel, und es steigt von Tag zu Tag. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
+      <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet die Mottenkönigin ganz oben im Thronsaal. Besiegst du sie, hast du die Saison gewonnen.</p>
+      <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
       <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;
     this.modal('So geht’s', body, [

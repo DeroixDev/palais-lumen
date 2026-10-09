@@ -1,7 +1,7 @@
 // Save slots on the host. In the browser they live in localStorage; a desktop build
 // can swap `storage` for real files without touching the rest of the game.
 
-import { SAVE_VERSION, newSave, quotaFor, type SaveData } from './state';
+import { BOSS_DAY, SAVE_VERSION, newSave, quotaFor, type SaveData } from './state';
 
 export type SlotId = 'auto' | 'slot1' | 'slot2' | 'slot3';
 export const MANUAL_SLOTS: SlotId[] = ['slot1', 'slot2', 'slot3'];
@@ -58,6 +58,14 @@ export function migrate(raw: unknown): SaveData | null {
   merged.balance = Math.max(0, Math.floor(merged.balance));
   // Version 2 introduced seasons with a goal that rises every evening.
   if ((d.version ?? 1) < 2) merged.evening.quota = quotaFor(merged.evening.number);
+  // Version 3: five floors instead of lobby + VIP room; the goal curve changed too.
+  if ((d.version ?? 1) < 3) {
+    merged.evening.number = Math.min(merged.evening.number, BOSS_DAY);
+    merged.evening.quota = quotaFor(merged.evening.number);
+    merged.roomId = 'f1';
+    merged.position = { x: -1, y: -1 };
+    merged.unlockedRooms = ['f1'];
+  }
   return merged;
 }
 
