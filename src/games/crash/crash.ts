@@ -2,9 +2,8 @@
 // Collect before the night wind catches it.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, floatText, glowTexture, gradientTexture, mothTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, floatText, glowTexture, gradientTexture, mothTexture } from '../../core/fx';
 import { animate, ease, tween } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -108,10 +107,8 @@ class CrashGame implements GameInstance {
     b.addChild(new Graphics().roundRect(8, 16, W, H, 36).fill({ color: 0x000000, alpha: 0.5 }));
     b.addChild(new Graphics().roundRect(0, 0, W, H, 36).fill(0x170a1a).stroke({ color: COLORS.brass, width: 6 }));
 
-    const title = new Text({ text: 'MONDFLUG', style: { fontFamily: FONT_DISPLAY, fontSize: 44, fill: 0xfff6e6, letterSpacing: 4 } });
-    title.anchor.set(0.5);
+    const title = glowText('MONDFLUG', { fontFamily: FONT_DISPLAY, fontSize: 44, fill: 0xfff6e6, letterSpacing: 4 }, { color: 0x9fd8ff, distance: 16, outerStrength: 2.5 });
     title.position.set(W / 2, 48);
-    title.filters = [new GlowFilter({ color: 0x9fd8ff, distance: 16, outerStrength: 2.5, quality: 0.2 })];
     b.addChild(title);
 
     // Sky window.

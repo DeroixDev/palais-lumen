@@ -1,9 +1,8 @@
 // "Mottenfall": a glowing moth drops through lantern pegs into multiplier buckets.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, floatText, glowTexture, gradientTexture, mothTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, floatText, glowTexture, gradientTexture, mothTexture } from '../../core/fx';
 import { animate, ease, tween } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -115,10 +114,8 @@ class PlinkoGame implements GameInstance {
     b.addChild(velvet, mask);
     b.addChild(new Graphics().roundRect(0, 0, W, H, 36).stroke({ color: COLORS.brass, width: 6 }));
 
-    const title = new Text({ text: 'MOTTENFALL', style: { fontFamily: FONT_DISPLAY, fontSize: 46, fill: 0xfff6e6, letterSpacing: 4 } });
-    title.anchor.set(0.5);
+    const title = glowText('MOTTENFALL', { fontFamily: FONT_DISPLAY, fontSize: 46, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.lamp, distance: 16, outerStrength: 2.5 });
     title.position.set(CX, 52);
-    title.filters = [new GlowFilter({ color: COLORS.lamp, distance: 16, outerStrength: 2.5, quality: 0.2 })];
     b.addChild(title);
     this.historyLayer.position.set(CX, 104);
     b.addChild(this.historyLayer);
@@ -301,6 +298,7 @@ class PlinkoGame implements GameInstance {
     bk.c.scale.set(1.25);
     void tween(bk.c.scale, { x: 1, y: 1 }, 400, ease.outBack);
     ball.destroy({ children: true });
+    this.ctx.sfx.bucket(m);
     this.inFlight--;
     const win = Math.round(bet * m);
     this.addHistory(m);

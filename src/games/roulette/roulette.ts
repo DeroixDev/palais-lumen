@@ -1,9 +1,8 @@
 // European roulette (single zero) with an animated wheel and a betting board.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, drawChip, floatText, glowTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, drawChip, floatText, glowTexture, sharedGlow } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -447,7 +446,7 @@ class RouletteGame implements GameInstance {
     // Highlight the winning number on the board.
     const c = this.cells.get(`n:${n}`)!;
     this.highlight.clear().rect(c.x + 2, c.y + 2, c.w - 4, c.h - 4).stroke({ color: COLORS.lamp, width: 5 });
-    this.highlight.filters = [new GlowFilter({ color: COLORS.lamp, distance: 14, outerStrength: 3, quality: 0.2 })];
+    this.highlight.filters = [sharedGlow(COLORS.lamp, 14)];
 
     let payout = 0;
     let bestMult = -1;

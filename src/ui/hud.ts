@@ -37,6 +37,18 @@ export class Hud {
       sfx.setMuted(!sfx.muted);
       syncMute();
     });
+    const music = $('#btn-music');
+    const syncMusic = () => {
+      music.querySelector('.long')!.textContent = sfx.musicOn ? 'Musik an' : 'Musik aus';
+      music.setAttribute('aria-pressed', String(sfx.musicOn));
+      music.style.opacity = sfx.musicOn ? '1' : '0.6';
+    };
+    syncMusic();
+    music.addEventListener('click', () => {
+      sfx.unlock();
+      sfx.setMusic(!sfx.musicOn);
+      syncMusic();
+    });
     $('#btn-help').addEventListener('click', () => this.help());
     state.onChange(() => this.render());
     // Brand coin in the purse, and a little bump whenever a coin lands in it.
@@ -65,7 +77,7 @@ export class Hud {
     const d = this.state.data;
     const profit = this.state.eveningProfit;
     const ratio = Math.max(0, profit / d.evening.quota);
-    $('#ev-num').textContent = `Abend ${d.evening.number}`;
+    $('#ev-num').textContent = `Saison ${d.season.number} · Abend ${d.evening.number}`;
     $('#ev-goal').textContent = `${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} / +${formatChips(d.evening.quota)}`;
     $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
     $('#ev-bar').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
@@ -146,7 +158,9 @@ export class Hud {
     const ratio = profit / d.evening.quota;
     this.modal(
       `Abend ${d.evening.number} beenden?`,
-      `Du stehst bei ${Math.round(Math.max(0, ratio) * 100)} % vom Ziel. Danach wird abgerechnet, und der nächste Abend startet mit einem Ziel von +${formatChips(quotaFor(Math.max(d.balance, 50)))}.`,
+      ratio >= 1
+        ? `Ziel geschafft (${Math.round(ratio * 100)} %). Der nächste Abend hat ein höheres Ziel: +${formatChips(quotaFor(d.evening.number + 1))}.`
+        : `Du stehst erst bei ${Math.round(Math.max(0, ratio) * 100)} % vom Ziel. Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 Falter. Trophäen und Rekorde bleiben.`,
       [
         { label: 'Weiterspielen', onClick: () => this.closeModal() },
         {
@@ -242,7 +256,8 @@ export class Hud {
     body.innerHTML = `
       <p><strong>Laufen:</strong> WASD oder Pfeiltasten, oder irgendwo hintippen.</p>
       <p><strong>Spielen:</strong> an einen Automaten oder Tisch gehen und <kbd>E</kbd> drücken oder tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
-      <p><strong>Abende:</strong> Jeder Abend hat ein Gewinnziel. Wer es übertrifft, bekommt Bronze, Silber, Gold oder Diamant. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
+      <p><strong>Saison:</strong> Jeder Abend hat ein Gewinnziel, und es steigt von Abend zu Abend. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
+      <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen, Rekorde und freigeschaltete Räume bleiben.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
       <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;
     this.modal('So geht’s', body, [

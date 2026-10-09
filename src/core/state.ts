@@ -1,7 +1,7 @@
 // The whole game state lives in one serialisable object (SaveData).
 // In coop the host owns this object and the save file; guests only send actions.
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -19,6 +19,7 @@ export interface Trophy {
 export interface PlayerProfile {
   name: string;
   color: number;
+  skin?: number;
 }
 
 export interface SaveData {
@@ -35,6 +36,10 @@ export interface SaveData {
   stats: { rounds: number; wagered: number; won: number; biggestWin: number; rescues: number };
   /** Coop players stored in the host's save, keyed by player id. */
   players: Record<string, PlayerProfile>;
+  /** A season is one run of evenings; it ends when an evening's goal is missed. */
+  season: { number: number; startedAt: number };
+  /** Bests across all seasons; they survive a lost season. */
+  records: { bestEvening: number; bestBalance: number; seasonsPlayed: number };
 }
 
 export interface EveningResult {
@@ -48,13 +53,20 @@ export interface EveningResult {
   trophy: Trophy | null;
   wagered: number;
   won: number;
+  /** Goal reached: the season goes on with the next evening. */
+  passed: boolean;
+  season: number;
+  /** Evenings cleared in this season, including this one if passed. */
+  cleared: number;
+  /** True if this season reached further than any before. */
+  newRecord: boolean;
 }
 
 export const START_BALANCE = 1000;
-export const RESCUE_AMOUNT = 500;
 
-export function quotaFor(startBalance: number) {
-  return Math.max(200, Math.round((startBalance * 0.25) / 50) * 50);
+/** Profit goal for an evening of the season. It rises every evening. */
+export function quotaFor(evening: number) {
+  return Math.round((250 * Math.pow(1.4, evening - 1)) / 50) * 50;
 }
 
 export function newSave(): SaveData {
@@ -64,7 +76,7 @@ export function newSave(): SaveData {
     createdAt: now,
     savedAt: now,
     balance: START_BALANCE,
-    evening: { number: 1, startBalance: START_BALANCE, quota: quotaFor(START_BALANCE) },
+    evening: { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) },
     roomId: 'lobby',
     position: { x: -1, y: -1 },
     unlockedRooms: ['lobby'],
@@ -72,6 +84,8 @@ export function newSave(): SaveData {
     medals: { none: 0, bronze: 0, silver: 0, gold: 0, diamond: 0 },
     stats: { rounds: 0, wagered: 0, won: 0, biggestWin: 0, rescues: 0 },
     players: { host: { name: 'Du', color: 0xffcf7a } },
+    season: { number: 1, startedAt: now },
+    records: { bestEvening: 0, bestBalance: START_BALANCE, seasonsPlayed: 0 },
   };
 }
 
@@ -156,19 +170,6 @@ export class GameState {
     return this.data.balance - this.data.evening.startBalance;
   }
 
-  /** Player is broke: hand out play money so the save never dead-ends. */
-  needsRescue(minBet: number) {
-    return this.data.balance < minBet;
-  }
-
-  rescue() {
-    this.data.balance = clampChips(this.data.balance + RESCUE_AMOUNT);
-    this.data.stats.rescues++;
-    // The rescue counts as part of the evening's starting money, not as profit.
-    this.data.evening.startBalance += RESCUE_AMOUNT;
-    this.emit();
-  }
-
   unlockRoom(id: string, cost: number): boolean {
     if (this.data.unlockedRooms.includes(id)) return true;
     if (this.data.balance < cost) return false;
@@ -199,12 +200,18 @@ export class GameState {
     const profit = this.data.balance - ev.startBalance;
     const ratio = profit / ev.quota;
     const medal = medalFor(ratio);
-    this.data.medals[medal]++;
+    const passed = medal !== 'none';
+    if (passed) this.data.medals[medal]++;
     let trophy: Trophy | null = null;
     if (medal === 'silver' || medal === 'gold' || medal === 'diamond') {
       const kind: TrophyKind = medal === 'diamond' ? 'crown' : medal === 'gold' ? 'crystal' : 'cup';
-      trophy = this.addTrophy(kind, medal, `Abend ${ev.number}: ${MEDAL_LABEL[medal]}`);
+      trophy = this.addTrophy(kind, medal, `Saison ${this.data.season.number}, Abend ${ev.number}: ${MEDAL_LABEL[medal]}`);
     }
+    const cleared = passed ? ev.number : ev.number - 1;
+    const rec = this.data.records;
+    const newRecord = cleared > rec.bestEvening;
+    rec.bestEvening = Math.max(rec.bestEvening, cleared);
+    rec.bestBalance = Math.max(rec.bestBalance, this.data.balance);
     const result: EveningResult = {
       evening: ev.number,
       startBalance: ev.startBalance,
@@ -216,10 +223,21 @@ export class GameState {
       trophy,
       wagered: this.eveningWagered,
       won: this.eveningWon,
+      passed,
+      season: this.data.season.number,
+      cleared,
+      newRecord,
     };
-    if (this.data.balance < 50) this.rescue();
-    const start = this.data.balance;
-    this.data.evening = { number: ev.number + 1, startBalance: start, quota: quotaFor(start) };
+    if (passed) {
+      const n = ev.number + 1;
+      this.data.evening = { number: n, startBalance: this.data.balance, quota: quotaFor(n) };
+    } else {
+      // Season over: fresh money and evening 1. Trophies, medals, rooms and records stay.
+      rec.seasonsPlayed++;
+      this.data.season = { number: this.data.season.number + 1, startedAt: Date.now() };
+      this.data.balance = START_BALANCE;
+      this.data.evening = { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) };
+    }
     this.eveningWagered = 0;
     this.eveningWon = 0;
     this.emit();

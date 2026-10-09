@@ -1,8 +1,7 @@
 // End-of-evening settlement: animated numbers, quota bar, medal and trophy reveal.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { GlowFilter } from 'pixi-filters';
-import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, countUp, glowTexture } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, banner, countUp, glowText, glowTexture } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { button } from '../core/ui';
 import { MEDAL_LABEL, formatChips, type EveningResult, type Medal } from '../core/state';
@@ -61,10 +60,9 @@ export class Recap {
     p.alpha = 0;
     await tween(p, { alpha: 1 }, 400);
 
-    const title = this.text(`ABEND ${r.evening} · ABRECHNUNG`, 40, 0xfff6e6, true);
-    title.anchor.set(0.5);
+    const title = glowText(`ABEND ${r.evening} · ABRECHNUNG`, { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 2 }, { color: COLORS.neon, distance: 16, outerStrength: 2.5 });
     title.position.set(W / 2, 40);
-    title.filters = [new GlowFilter({ color: COLORS.neon, distance: 16, outerStrength: 2.5, quality: 0.2 })];
+    p.addChild(title);
     title.y = -20;
     await tween(title, { y: 40 }, 500, ease.outBack);
 
@@ -99,7 +97,7 @@ export class Recap {
     p.addChild(bar);
     const fill = new Graphics();
     p.addChild(fill);
-    const quotaLabel = this.text(`Ziel heute: +${formatChips(r.quota)}`, 22, 0xd9c6a0);
+    const quotaLabel = this.text(`Ziel für Abend ${r.evening}: +${formatChips(r.quota)}`, 22, 0xd9c6a0);
     quotaLabel.position.set(barX, barY - 34);
     const markerViews = MARKERS.map(([m, medal]) => {
       const x = barX + (m / maxRatio) * barW;
@@ -172,12 +170,25 @@ export class Recap {
         await this.revealTrophy(mx + 170, my + 60);
       }
     } else {
-      const t = this.text('Ziel heute nicht erreicht.\nKein Spielstand geht verloren, morgen ist ein neuer Abend.', 24, 0xd9c6a0);
+      // Season over: a calm summary of how far this season got.
+      this.sfx.seasonOver();
+      const head = this.text(`SAISON ${r.season} IST VORBEI`, 34, 0xff8a9a, true);
+      head.anchor.set(0.5);
+      head.position.set(mx, my - 70);
+      head.alpha = 0;
+      void tween(head, { alpha: 1 }, 500);
+      const cleared = r.cleared === 1 ? '1 Abend' : `${r.cleared} Abende`;
+      const t = this.text(`Ziel verfehlt. Geschafft: ${cleared}.\nTrophäen, Medaillen und Rekorde bleiben in deiner Vitrine.`, 24, 0xd9c6a0);
       t.style.align = 'center';
       t.anchor.set(0.5);
-      t.position.set(mx, my);
+      t.position.set(mx, my + 10);
       t.alpha = 0;
       await tween(t, { alpha: 1 }, 500);
+      if (r.newRecord && r.cleared > 0) {
+        const gp = this.panel.toGlobal({ x: mx, y: my + 80 });
+        void banner(this.particles.view, 'NEUER REKORD!', COLORS.lamp, gp.x, gp.y, this.screenW * 0.8);
+        this.sfx.medal();
+      }
     }
 
     // Reality check, then continue.
@@ -191,7 +202,7 @@ export class Recap {
     );
     note.anchor.set(0.5);
     note.position.set(W / 2, H - 104);
-    const next = button({ label: 'NÄCHSTER ABEND', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
+    const next = button({ label: r.passed ? 'NÄCHSTER ABEND' : 'NEUE SAISON', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
     next.position.set(W / 2, H - 48);
     next.alpha = 0;
     p.addChild(next);

@@ -9,6 +9,7 @@ import { formatChips } from '../core/state';
 import { drawTrophy } from './trophies';
 import { Player } from './player';
 import { Guests, type Spot } from './guests';
+import { sfx } from '../core/audio';
 
 export const WALL_H = 150;
 const SIDE = 24;
@@ -49,6 +50,7 @@ export class RoomScene {
   private pending: Interactable | null = null;
   private nearest: Interactable | null = null;
   private time = 0;
+  private stepAcc = 0;
   private screenW = 800;
   private screenH = 600;
   zoom = 1;
@@ -76,7 +78,8 @@ export class RoomScene {
     this.world.addChild(this.fxLayer);
 
     const pos = state.data.roomId === this.def.id && state.data.position.x > 0 ? state.data.position : this.def.spawn;
-    this.player = new Player(state.data.players.host?.color ?? COLORS.lamp);
+    const host = state.data.players.host;
+    this.player = new Player(host?.color ?? COLORS.lamp, { skin: host?.skin });
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
     const guestCount = Math.min(6, Math.max(2, Math.round(this.def.stations.length / 2)));
@@ -480,6 +483,11 @@ export class RoomScene {
       const oy = pv.y;
       if (!this.collides(pv.x + mx, pv.y)) pv.x += mx;
       if (!this.collides(pv.x, pv.y + my)) pv.y += my;
+      this.stepAcc += dt;
+      if (this.stepAcc > 0.3) {
+        this.stepAcc = 0;
+        sfx.footstep();
+      }
       // Stuck while walking to a tap target: give up, but still use the thing if we're close.
       if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < 0.5) {
         const p = this.pending;

@@ -4,7 +4,7 @@
 import { BlurFilter, Container, Graphics, Sprite, Text } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, countUp, floatText, glowTexture, gradientTexture, tierFor } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, countUp, glowText, sharedGlow, floatText, glowTexture, gradientTexture, tierFor } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -199,13 +199,8 @@ class SlotGame implements GameInstance {
       this.bulbs.push(b);
       c.addChild(b);
     }
-    const title = new Text({
-      text: t.title,
-      style: { fontFamily: FONT_DISPLAY, fontSize: 52, fill: 0xfff6e6, letterSpacing: 4 },
-    });
-    title.anchor.set(0.5);
+    const title = glowText(t.title, { fontFamily: FONT_DISPLAY, fontSize: 52, fill: 0xfff6e6, letterSpacing: 4 }, { color: t.neon, distance: 18, outerStrength: 3, innerStrength: 0.5 });
     title.position.set(W / 2, 86);
-    title.filters = [new GlowFilter({ color: t.neon, distance: 18, outerStrength: 3, innerStrength: 0.5, quality: 0.2 })];
     c.addChild(title);
 
     // Reel window.
@@ -224,7 +219,7 @@ class SlotGame implements GameInstance {
       const strip = new Container();
       const blur = new BlurFilter({ strength: 0, quality: 2 });
       blur.strengthX = 0;
-      strip.filters = [blur];
+      // The blur filter is only attached while the reel spins (see spinReel).
       holder.addChild(strip);
       c.addChild(holder, mask);
       const start = [roll(), roll(), roll()];
@@ -433,6 +428,7 @@ class SlotGame implements GameInstance {
     await tween(reel.strip, { y: startY - 24 }, 140, ease.outCubic);
     let lastY = reel.strip.y;
     let tickAcc = 0;
+    reel.strip.filters = [reel.blur];
     await animate(
       duration,
       (k) => {
@@ -449,6 +445,7 @@ class SlotGame implements GameInstance {
       (t) => 1 - Math.pow(1 - t, 3),
     );
     reel.blur.strengthY = 0;
+    reel.strip.filters = [];
     this.ctx.sfx.thud();
     // Settle bounce.
     reel.strip.y = 14;
@@ -485,7 +482,7 @@ class SlotGame implements GameInstance {
     g.moveTo(first.x - dx, first.y - dy).lineTo(last.x + dx, last.y + dy).stroke({ color, width: 8, cap: 'round', alpha: 0.9 });
     g.moveTo(first.x - dx, first.y - dy).lineTo(last.x + dx, last.y + dy).stroke({ color: 0xffffff, width: 3, cap: 'round' });
     for (const p of pts) g.circle(p.x, p.y, 9).fill(color);
-    g.filters = [new GlowFilter({ color, distance: 14, outerStrength: 3, quality: 0.2 })];
+    g.filters = [sharedGlow(color, 14)];
     this.lineLayer.addChild(g);
     g.alpha = 0;
     void tween(g, { alpha: 1 }, 150);
@@ -510,7 +507,7 @@ class SlotGame implements GameInstance {
       this.drawLine(w.line, real ? this.theme.neon : 0xb69a6a);
       for (const [c, r] of LINES[w.line].cells) {
         const sp = this.reels[c].sprites[r];
-        sp.filters = [new GlowFilter({ color: this.theme.neon, distance: 12, outerStrength: 3, quality: 0.2 })];
+        sp.filters = [sharedGlow(this.theme.neon, 12)];
         const base = 100 / sp.texture.width;
         sp.scale.set(base * 1.18);
         void tween(sp.scale, { x: base, y: base }, 380, ease.outBack);
@@ -586,6 +583,7 @@ class SlotGame implements GameInstance {
       b.alpha = flashing ? (Math.floor(this.bulbPhase * 10) % 2 ? 1 : 0.25) : on ? 1 : 0.3;
     });
     this.tensionGlow.alpha = this.tension ? 0.55 + 0.45 * Math.sin(this.bulbPhase * 18) : Math.max(0, this.tensionGlow.alpha - dtMs / 300);
+    this.tensionGlow.visible = this.tensionGlow.alpha > 0.01;
   }
 
   busy() {

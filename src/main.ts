@@ -1,18 +1,20 @@
 // Works under strict Content-Security-Policy (no eval), e.g. when embedded.
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Filter, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Filter, Graphics, Sprite, Text, Texture } from 'pixi.js';
 import './games';
 import './rooms';
 import { getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
 import { GameState, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
-import { COLORS, Particles, banner, purse, setRenderer, shake, tierFor } from './core/fx';
-import { animate, cancelAllTweens, ease, tween, updateTweens } from './core/tween';
+import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, banner, glowText, purse, setRenderer, shake, tierFor } from './core/fx';
+import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
 import { sfx } from './core/audio';
 import { RoomScene, WALL_H, type Interactable } from './world/room';
 import { Hud } from './ui/hud';
 import { Recap } from './ui/recap';
 import { Vitrine } from './ui/vitrine';
+import { Lobby } from './ui/lobby';
+import { Street } from './world/street';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -58,6 +60,7 @@ async function boot() {
   app.ticker.minFPS = 4;
   setRenderer(app.renderer);
 
+  const streetLayer = new Container();
   const roomLayer = new Container();
   const vignette = new Sprite(vignetteTexture());
   const backdrop = new Graphics();
@@ -68,7 +71,7 @@ async function boot() {
   const fade = new Graphics();
   fade.alpha = 0;
   fade.eventMode = 'none';
-  app.stage.addChild(roomLayer, vignette, backdrop, gameLayer, overlayLayer, particles.view, fade);
+  app.stage.addChild(streetLayer, roomLayer, vignette, backdrop, gameLayer, overlayLayer, particles.view, fade);
 
   /** Space the HTML bar takes at the top of the screen. */
   const hudEl = document.getElementById('hud')!;
@@ -80,6 +83,9 @@ async function boot() {
   let room!: RoomScene;
   let game: GameInstance | null = null;
   let overlay: Overlay | null = null;
+  let street: Street | null = null;
+  /** Speeds up the arrival when the player skips it. */
+  let timeScale = 1;
 
   // ---- Saving -----------------------------------------------------------
 
@@ -96,21 +102,20 @@ async function boot() {
   window.addEventListener('beforeunload', autosave);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && autosave());
 
-  let rescueOpen = false;
+  let brokeOpen = false;
+  /** Out of Falter: the evening can only be settled, and that ends the season. */
   function checkRescue() {
-    if (rescueOpen || state.balance >= 10 || (game && game.busy())) return;
-    rescueOpen = true;
+    if (brokeOpen || state.balance >= 10 || (game && game.busy()) || mode === 'title' || mode === 'overlay') return;
+    brokeOpen = true;
     setTimeout(() => {
-      hud.modal('Falter alle', 'Kein Problem: Der Nachtfalter spendiert dir 500 Falter, damit es weitergeht. Falter sind reines Spielgeld, echtes Geld gibt es hier nie.', [
+      hud.modal('Keine Falter mehr', 'Damit ist diese Saison vorbei. Deine Trophäen, Medaillen und Rekorde bleiben. Die nächste Saison startet wieder mit 1.000 Falter.', [
         {
-          label: 'Danke!',
+          label: 'Abrechnen',
           primary: true,
           onClick: () => {
             hud.closeModal();
-            state.rescue();
-            particles.coinRain(app.screen.width, 50);
-            sfx.bigWin();
-            rescueOpen = false;
+            brokeOpen = false;
+            void endEvening();
           },
         },
       ]);
@@ -137,6 +142,7 @@ async function boot() {
     if (mode !== 'game' && mode !== 'transition') room?.resize(w, h);
     game?.resize(w, h - TOP);
     overlay?.resize(w, h);
+    street?.resize(w, h);
   }
   window.addEventListener('resize', () => requestAnimationFrame(layout));
 
@@ -250,6 +256,7 @@ async function boot() {
     game.view.alpha = 0;
     await tween(game.view, { alpha: 1 }, 250);
     hud.setInGame(true);
+    sfx.setScene('game');
     mode = 'game';
   }
 
@@ -261,6 +268,7 @@ async function boot() {
     }
     mode = 'transition';
     hud.setInGame(false);
+    sfx.setScene('casino');
     const g = game;
     game = null;
     await tween(g.view, { alpha: 0 }, 200);
@@ -364,6 +372,9 @@ async function boot() {
         closeOverlay();
         room.refreshShelf();
         autosave();
+        // A new evening gets its title card; a new season starts with a new arrival.
+        if (result.passed) eveningCard();
+        else void arrival();
       }),
     );
   }
@@ -384,9 +395,14 @@ async function boot() {
     particles.clear();
     state.replace(data);
     enterRoom(data.roomId);
+    autosave();
+    if (mode === 'title') {
+      room.frozen = true;
+      lobby.showMain();
+      return;
+    }
     room.frozen = false;
     mode = 'room';
-    autosave();
   }
 
   const hud = new Hud(state, {
@@ -399,7 +415,7 @@ async function boot() {
     leaveGame: () => void closeGame(),
     newGame: () => {
       loadSave(newSave());
-      hud.toast('Neues Spiel gestartet. Viel Glück!');
+      if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
     },
   });
 
@@ -423,42 +439,111 @@ async function boot() {
       endEvening,
       openVitrine,
       switchRoom,
+      arrival: () => arrival(),
+      go: () => lobbyGo(),
       mode: () => mode,
       app,
     };
   }
 
   app.ticker.add((t) => {
-    const dt = t.deltaMS;
+    const dt = t.deltaMS * timeScale;
     updateTweens(dt);
-    if (mode === 'room' || mode === 'title') room.update(dt);
+    street?.update(dt);
+    if (mode === 'room') room.update(dt);
     game?.update(dt);
     overlay?.update(dt);
     particles.update(dt);
   });
 
-  // ---- Title screen -----------------------------------------------------
+  // ---- Start screen, lobby and arrival -----------------------------------
 
-  const title = document.getElementById('title')!;
-  const cont = document.getElementById('title-continue') as HTMLButtonElement;
-  const info = document.getElementById('title-info')!;
-  const hasSave = !!latestSave();
-  cont.textContent = hasSave ? 'Weiterspielen' : 'Casino betreten';
-  info.textContent = hasSave
-    ? `Abend ${state.data.evening.number} · ${state.balance.toLocaleString('de-DE')} Falter · ${state.data.trophies.length} Trophäen`
-    : 'Du startest mit 1.000 Falter.';
-  const start = () => {
-    sfx.unlock();
-    title.classList.add('out');
-    setTimeout(() => (title.hidden = true), 500);
+  function showStreet() {
+    if (street) return street;
+    street = new Street();
+    streetLayer.addChild(street.view);
+    street.resize(app.screen.width, app.screen.height);
+    return street;
+  }
+
+  /** "Abend 3 · Ziel heute +500 Falter" card at the start of every evening. */
+  function eveningCard() {
+    const d = state.data;
+    const w = app.screen.width;
+    const h = app.screen.height;
+    const c = new Container();
+    const t1 = glowText(`ABEND ${d.evening.number}`, { fontFamily: FONT_DISPLAY, fontSize: 76, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.neon, distance: 20, outerStrength: 3 });
+    const t2 = new Text({
+      text: `Saison ${d.season.number} · Ziel heute: +${d.evening.quota.toLocaleString('de-DE')} Falter`,
+      style: { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: COLORS.lamp, stroke: { color: COLORS.ink, width: 5 } },
+    });
+    t2.anchor.set(0.5);
+    t2.y = 72;
+    c.addChild(t1, t2);
+    const s = Math.min(1, (w * 0.9) / Math.max(t1.width, t2.width));
+    c.scale.set(s * 0.6);
+    c.position.set(w / 2, h * 0.38);
+    c.alpha = 0;
+    particles.view.addChild(c);
+    sfx.win();
+    void Promise.all([tween(c, { alpha: 1 }, 400), tween(c.scale, { x: s, y: s }, 600, ease.outBack)])
+      .then(() => wait(2200))
+      .then(() => tween(c, { alpha: 0, y: c.y - 30 }, 600, ease.inCubic))
+      .then(() => c.destroy({ children: true }));
+  }
+
+  /** Taxi to the door, walk in, then the casino floor. Tap or any key speeds it up. */
+  async function arrival() {
+    mode = 'transition';
+    if (room) room.frozen = true;
+    hud.show(false);
+    const st = showStreet();
+    roomLayer.visible = false;
+    lobby.arriving(true);
+    sfx.setScene('menu');
+    if (fade.alpha > 0) void tween(fade, { alpha: 0 }, 500);
+    const skip = () => (timeScale = 6);
+    const titleEl = document.getElementById('title')!;
+    titleEl.addEventListener('pointerdown', skip);
+    window.addEventListener('keydown', skip);
+    const host = state.data.players.host;
+    await st.arrive({ color: host?.color ?? COLORS.lamp, skin: host?.skin });
+    titleEl.removeEventListener('pointerdown', skip);
+    window.removeEventListener('keydown', skip);
+    await tween(fade, { alpha: 1 }, 300);
+    timeScale = 1;
+    st.destroy();
+    street = null;
+    lobby.arriving(false);
+    lobby.hide();
+    state.data.position = { x: -1, y: -1 };
+    enterRoom('lobby');
+    roomLayer.visible = true;
     hud.show(true);
+    layout();
+    sfx.setScene('casino');
+    await tween(fade, { alpha: 0 }, 500);
     room.frozen = false;
     mode = 'room';
-    layout();
-    if (!hasSave) setTimeout(() => hud.help(), 600);
-  };
-  cont.addEventListener('click', start);
-  cont.focus();
+    autosave();
+    eveningCard();
+    if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => hud.help(), 3200);
+  }
+
+  function lobbyGo() {
+    sfx.unlock();
+    autosave();
+    void arrival();
+  }
+
+  const lobby = new Lobby(state, {
+    openSaves: () => hud.openSaves(),
+    go: lobbyGo,
+  });
+  roomLayer.visible = false;
+  showStreet();
+  lobby.showMain();
+  sfx.setScene('menu');
   document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 }
 

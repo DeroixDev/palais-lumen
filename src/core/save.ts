@@ -1,7 +1,7 @@
 // Save slots on the host. In the browser they live in localStorage; a desktop build
 // can swap `storage` for real files without touching the rest of the game.
 
-import { SAVE_VERSION, newSave, type SaveData } from './state';
+import { SAVE_VERSION, newSave, quotaFor, type SaveData } from './state';
 
 export type SlotId = 'auto' | 'slot1' | 'slot2' | 'slot3';
 export const MANUAL_SLOTS: SlotId[] = ['slot1', 'slot2', 'slot3'];
@@ -49,11 +49,15 @@ export function migrate(raw: unknown): SaveData | null {
     medals: { ...base.medals, ...d.medals },
     position: { ...base.position, ...d.position },
     players: { ...base.players, ...d.players },
+    season: { ...base.season, ...d.season },
+    records: { ...base.records, ...d.records },
     unlockedRooms: Array.isArray(d.unlockedRooms) ? d.unlockedRooms : base.unlockedRooms,
     trophies: Array.isArray(d.trophies) ? d.trophies : [],
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
+  // Version 2 introduced seasons with a goal that rises every evening.
+  if ((d.version ?? 1) < 2) merged.evening.quota = quotaFor(merged.evening.number);
   return merged;
 }
 

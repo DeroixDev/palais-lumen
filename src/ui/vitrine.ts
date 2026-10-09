@@ -1,8 +1,7 @@
 // The trophy cabinet: every trophy and medal earned in this save.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { GlowFilter } from 'pixi-filters';
-import { COLORS, FONT_BODY, FONT_DISPLAY, glowTexture } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, glowTexture } from '../core/fx';
 import { ease, tween } from '../core/tween';
 import { button } from '../core/ui';
 import { MEDAL_LABEL, formatChips, type GameState, type Medal } from '../core/state';
@@ -30,10 +29,8 @@ export class Vitrine {
     const p = this.panel;
 
     p.addChild(new Graphics().roundRect(0, 0, W, this.H, 28).fill(0x140a10).stroke({ color: COLORS.brass, width: 4 }));
-    const title = new Text({ text: 'DEINE VITRINE', style: { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 3 } });
-    title.anchor.set(0.5, 0);
-    title.position.set(W / 2, 26);
-    title.filters = [new GlowFilter({ color: COLORS.lamp, distance: 14, outerStrength: 2, quality: 0.2 })];
+    const title = glowText('DEINE VITRINE', { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 3 }, { color: COLORS.lamp, distance: 14, outerStrength: 2 });
+    title.position.set(W / 2, 52);
     p.addChild(title);
 
     // Medal tally.

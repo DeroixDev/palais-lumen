@@ -1,6 +1,6 @@
 // Shared visual effects: textures, particles, screen shake, floating text, counters.
 
-import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Texture, type Renderer, type TextStyleOptions } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import { animate, ease, tween } from './tween';
 import { formatChips } from './state';
@@ -500,6 +500,38 @@ export function bake(c: Container): Texture {
   const tex = rendererRef!.generateTexture({ target: c, resolution: 2, antialias: true });
   c.destroy({ children: true });
   return tex;
+}
+
+/**
+ * Neon title text. The glow is rendered once into a texture: a live glow filter
+ * would be recalculated every frame and cost a lot of frame time.
+ */
+export function glowText(
+  text: string,
+  style: Partial<TextStyleOptions>,
+  glow: { color: number; distance?: number; outerStrength?: number; innerStrength?: number },
+): Sprite {
+  const t = new Text({ text, style });
+  const d = glow.distance ?? 16;
+  const wrap = new Container();
+  wrap.addChild(new Graphics().rect(-d * 2, -d * 2, t.width + d * 4, t.height + d * 4).fill({ color: 0, alpha: 0.001 }));
+  t.filters = [new GlowFilter({ ...glow, distance: d, quality: 0.5 })];
+  wrap.addChild(t);
+  const s = new Sprite(bake(wrap));
+  s.anchor.set(0.5);
+  return s;
+}
+
+const glowCache = new Map<string, GlowFilter>();
+/** One shared glow filter per look, so repeated highlights don't create new filters every round. */
+export function sharedGlow(color: number, distance = 12, outerStrength = 3): GlowFilter {
+  const key = `${color}-${distance}-${outerStrength}`;
+  let f = glowCache.get(key);
+  if (!f) {
+    f = new GlowFilter({ color, distance, outerStrength, quality: 0.2 });
+    glowCache.set(key, f);
+  }
+  return f;
 }
 
 export type WinTier = 'small' | 'big' | 'jackpot';
