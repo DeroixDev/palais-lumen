@@ -30,6 +30,43 @@ export function paintFloor(g: Graphics, t: RoomTheme, W: number, H: number) {
   g.rect(0, 0, W, H).fill(t.carpet);
   const top = WALL_H - 10;
   switch (t.style) {
+    case 'foyer': {
+      // Black and cream marble laid on the diagonal, gold seams, a compass star in the middle
+      // and a red runner from the entrance.
+      const s = 70;
+      for (let y = top - s; y < H + s; y += s / 2)
+        for (let x = -s; x < W + s; x += s) {
+          const row = Math.round((y - top) / (s / 2));
+          const cx = x + (row % 2 ? s / 2 : 0);
+          const dark = row % 2 === 1;
+          g.poly([cx, y - s / 2, cx + s / 2, y, cx, y + s / 2, cx - s / 2, y]).fill(dark ? t.carpetPattern : t.carpet);
+          const vx = cx + (rnd() - 0.5) * s * 0.6;
+          g.moveTo(vx - 10, y - 12).bezierCurveTo(vx + 6, y - 2, vx - 8, y + 6, vx + 12, y + 14).stroke({ color: dark ? 0x5a5a66 : 0xbfb29a, width: 1, alpha: 0.4 });
+          g.poly([cx, y - s / 2, cx + s / 2, y, cx, y + s / 2, cx - s / 2, y]).stroke({ color: t.carpetAccent, width: 1, alpha: 0.35 });
+        }
+      const cx = W / 2;
+      const cy = top + (H - top) * 0.47;
+      // Runner from the door to the star.
+      g.rect(cx - 70, cy, 140, H - cy).fill(0x6b1a2e);
+      g.rect(cx - 62, cy, 124, H - cy).stroke({ color: t.carpetAccent, width: 2, alpha: 0.8 });
+      for (let y = cy + 30; y < H; y += 46) g.poly([cx, y - 12, cx + 12, y, cx, y + 12, cx - 12, y]).fill({ color: t.carpetAccent, alpha: 0.4 });
+      // Compass star.
+      g.circle(cx, cy, 190).fill({ color: 0x0e0b10, alpha: 0.85 }).stroke({ color: t.carpetAccent, width: 5 });
+      g.circle(cx, cy, 176).stroke({ color: t.carpetAccent, width: 1.5, alpha: 0.7 });
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const r = i % 2 ? 110 : 168;
+        const a1 = a - Math.PI / 16;
+        const a2 = a + Math.PI / 16;
+        g.poly([cx, cy, cx + Math.cos(a1) * 34, cy + Math.sin(a1) * 34, cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx + Math.cos(a2) * 34, cy + Math.sin(a2) * 34]).fill(i % 2 ? 0x2f6b6b : i % 4 ? 0xe8dcc0 : t.carpetAccent);
+        g.poly([cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r, cx + Math.cos(a2) * 34, cy + Math.sin(a2) * 34]).fill({ color: 0x000000, alpha: 0.18 });
+      }
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        g.circle(cx + Math.cos(a) * 183, cy + Math.sin(a) * 183, 2.2).fill(t.carpetAccent);
+      }
+      break;
+    }
     case 'velvet': {
       // Classic casino carpet: diamond lattice, medallions and little fleurs.
       const s = 64;
@@ -140,6 +177,22 @@ export function paintWalls(g: Graphics, t: RoomTheme, W: number, H: number) {
   // Back wall seen at a slight angle, so it has height.
   g.rect(0, 0, W, WALL_H).fill(t.wall);
   switch (t.style) {
+    case 'foyer':
+      // Teal lacquer with gold art-deco fans between fluted pilasters.
+      for (let x = 0; x < W; x += 140) {
+        const fx = x + 70;
+        for (let k = 0; k <= 8; k++) {
+          const a = Math.PI + (k / 8) * Math.PI;
+          g.moveTo(fx, WALL_H - 34).lineTo(fx + Math.cos(a) * 58, WALL_H - 34 + Math.sin(a) * 58).stroke({ color: t.wallTrim, width: 1.6, alpha: 0.4 });
+        }
+        g.moveTo(fx - 58, WALL_H - 34).arc(fx, WALL_H - 34, 58, Math.PI, 0).stroke({ color: t.wallTrim, width: 2, alpha: 0.45 });
+        g.moveTo(fx - 30, WALL_H - 34).arc(fx, WALL_H - 34, 30, Math.PI, 0).stroke({ color: t.wallTrim, width: 1.5, alpha: 0.45 });
+        g.rect(x - 7, 6, 14, WALL_H - 30).fill({ color: shade(t.wall, 0.12) });
+        for (let k = -4; k <= 4; k += 4) g.rect(x + k - 0.6, 10, 1.2, WALL_H - 38).fill({ color: 0x000000, alpha: 0.25 });
+        g.rect(x - 9, 6, 18, 5).fill({ color: t.wallTrim, alpha: 0.7 });
+      }
+      g.rect(0, 4, W, 3).fill({ color: t.wallTrim, alpha: 0.6 });
+      break;
     case 'velvet':
       // Damask wallpaper above gold-trimmed wainscoting.
       for (let x = 20; x < W; x += 56)

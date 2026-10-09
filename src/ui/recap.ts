@@ -7,9 +7,10 @@ import { button } from '../core/ui';
 import { MEDAL_LABEL, formatChips, type EveningResult, type Medal } from '../core/state';
 import type { Sfx } from '../core/audio';
 import { drawMedal, drawTrophy, MEDAL_COLORS } from '../world/trophies';
+import { drawStone } from './stone';
 
 const W = 900;
-const H = 760;
+const H = 810;
 
 const MARKERS: [number, Medal][] = [
   [1, 'bronze'],
@@ -179,6 +180,22 @@ export class Recap {
         const gp = this.panel.toGlobal({ x: mx, y: my - 150 });
         void banner(this.particles.view, r.newFloor === 5 ? 'BOSS-ETAGE OFFEN' : `ETAGE ${r.newFloor} OFFEN`, COLORS.cyan, gp.x, gp.y, this.screenW * 0.8);
       }
+    } else if (r.rescued) {
+      // The "Zweite Chance" charm catches a missed day once per season.
+      this.sfx.medal();
+      const head = this.text('ZWEITE CHANCE!', 38, 0xff9ac0, true);
+      head.anchor.set(0.5);
+      head.position.set(mx, my - 50);
+      head.alpha = 0;
+      void tween(head, { alpha: 1 }, 400);
+      const t = this.text('Ziel verfehlt, aber dein Glücksbringer hat dich gerettet.\nDie Saison geht weiter. Das klappt nur einmal pro Saison.', 23, 0xd9c6a0);
+      t.style.align = 'center';
+      t.anchor.set(0.5);
+      t.position.set(mx, my + 20);
+      t.alpha = 0;
+      await tween(t, { alpha: 1 }, 500);
+      const gp = this.panel.toGlobal({ x: mx, y: my - 50 });
+      this.particles.sparkle(gp.x, gp.y, 40, 0xff9ac0, 260);
     } else {
       // Season over: a calm summary of how far this season got.
       this.sfx.seasonOver();
@@ -201,6 +218,31 @@ export class Recap {
       }
     }
 
+    // Mondsteine earned today, flying in one by one.
+    if (r.moonstones > 0) {
+      const row = new Container();
+      row.position.set(W / 2, H - 150);
+      p.addChild(row);
+      const label = this.text(`+${r.moonstones} ${r.moonstones === 1 ? 'Mondstein' : 'Mondsteine'}`, 26, 0xdff6ff, true);
+      label.anchor.set(0, 0.5);
+      const n = Math.min(r.moonstones, 12);
+      const gap = 30;
+      const total = n * gap + 16 + label.width;
+      label.position.set(-total / 2 + n * gap + 16, 0);
+      label.alpha = 0;
+      row.addChild(label);
+      for (let i = 0; i < n; i++) {
+        const st = drawStone(12);
+        st.position.set(-total / 2 + i * gap + 12, -60);
+        st.alpha = 0;
+        row.addChild(st);
+        void tween(st, { y: 0, alpha: 1 }, 380, ease.outBack);
+        this.sfx.coin();
+        await wait(110);
+      }
+      void tween(label, { alpha: 1 }, 300);
+    }
+
     // Reality check, then continue.
     const kept = r.wagered - r.won;
     const note = this.text(
@@ -212,7 +254,7 @@ export class Recap {
     );
     note.anchor.set(0.5);
     note.position.set(W / 2, H - 104);
-    const next = button({ label: r.seasonWon || !r.passed ? 'NEUE SAISON' : r.newFloor ? 'ZUM AUFZUG' : 'NÄCHSTER TAG', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
+    const next = button({ label: r.seasonWon || (!r.passed && !r.rescued) ? 'NEUE SAISON' : 'INS FOYER', width: 300, height: 64, color: COLORS.brass, fontSize: 24, onClick: () => this.close() });
     next.position.set(W / 2, H - 48);
     next.alpha = 0;
     p.addChild(next);

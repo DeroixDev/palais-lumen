@@ -42,6 +42,27 @@
   #balance { font: 1.45rem/1 var(--display); color: var(--lamp); font-variant-numeric: tabular-nums; min-width: 4ch; transition: color .3s, text-shadow .3s; }
   #balance.up { text-shadow: 0 0 14px rgba(255,207,122,.8); }
   #balance.down { color: #f3b7c0; }
+  .stones { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.45); border: 1px solid rgba(159,232,255,.45); border-radius: 999px; padding: 6px 14px 6px 6px; }
+  .stone-ic { width: 30px; height: 30px; background-size: contain; background-repeat: no-repeat; }
+  .stones.bump .stone-ic { animation: bump .3s ease-out; }
+  #stones { font: 1.25rem/1 var(--display); color: #dff6ff; font-variant-numeric: tabular-nums; }
+  .stones small { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  #hud.foyer #btn-end { display: none; }
+  .ach { display: grid; gap: 8px; }
+  .ach-item { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(0,0,0,.3); border: 1px solid rgba(224,178,90,.2); }
+  .ach-item.done { border-color: var(--brass); background: rgba(224,178,90,.12); }
+  .ach-ic { font-size: 1.6rem; text-align: center; filter: grayscale(1) opacity(.5); }
+  .ach-item.done .ach-ic { filter: none; }
+  .ach-item strong { display: block; font-size: 1.1rem; }
+  .ach-item span { color: var(--muted); font-size: .95rem; }
+  .ach-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); margin-top: 6px; overflow: hidden; }
+  .ach-bar i { display: block; height: 100%; background: linear-gradient(90deg, #9fe8ff, #e0b25a); }
+  .ach-rew { font: .95rem var(--display); color: #dff6ff; white-space: nowrap; }
+  .ach-sum { color: var(--muted); margin: -4px 0 10px; }
+  .toast.ach-toast { border-color: #9fe8ff; box-shadow: 0 0 24px rgba(159,232,255,.35); }
+  #title.party { background: rgba(8,4,10,.72); backdrop-filter: blur(3px); }
+  #title.party #menu-main { display: none; }
+  #title.party #lobby-back { display: none; }
   .purse small { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
   .evening { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; max-width: 360px; }
   .evening-top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 1rem; }
@@ -115,6 +136,12 @@
     .coin { width: 24px; height: 24px; }
     #balance { font-size: 1.1rem; }
     .purse small { display: none; }
+    .stones { padding: 4px 10px 4px 4px; gap: 6px; }
+    .stone-ic { width: 22px; height: 22px; }
+    #stones { font-size: 1rem; }
+    .stones small { display: none; }
+    .ach-item { grid-template-columns: 30px 1fr; }
+    .ach-rew { grid-column: 2; }
     .hud-btns { gap: 6px; }
     .hud-btns button { padding: .45em .7em; font-size: .9rem; }
     .long { display: none; }
@@ -131,6 +158,10 @@
   <div class="purse" title="Deine Falter (Spielgeld)">
     <div class="coin" aria-hidden="true"></div>
     <div><div id="balance">0</div><small>Falter</small></div>
+  </div>
+  <div class="stones" title="Mondsteine: gibt es nur fürs Spielen, nie für Geld">
+    <div class="stone-ic" aria-hidden="true"></div>
+    <div><div id="stones">0</div><small>Mondsteine</small></div>
   </div>
   <div class="evening">
     <div class="evening-top"><span id="ev-num">Tag 1</span><span id="ev-goal"></span></div>
@@ -164,7 +195,7 @@
     <p class="pledge">Hier kann man nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
   </div>
   <div class="card lobby" id="menu-lobby" hidden>
-    <h2>Lobby</h2>
+    <h2 id="lobby-title">Lobby</h2>
     <div class="seats">
       <div class="seat you">
         <canvas id="lobby-avatar" width="120" height="150" aria-hidden="true"></canvas>

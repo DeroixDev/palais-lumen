@@ -10,7 +10,7 @@ import { button } from '../core/ui';
 import { sfx } from '../core/audio';
 
 const W = 640;
-const H = 720;
+const H = 790;
 const DIAL = { x: W / 2, y: 238, r: 150 };
 const ROW0 = 300;
 const ROW_H = 62;
@@ -87,9 +87,9 @@ export class ElevatorPanel {
     }
     d.rect(DIAL.x - DIAL.r - 14, DIAL.y, (DIAL.r + 14) * 2, 10).fill(COLORS.brassDark);
     p.addChild(d);
-    for (let f = 1; f <= 5; f++) {
+    for (let f = 0; f <= 5; f++) {
       const a = this.angle(f);
-      const n = new Text({ text: String(f), style: { fontFamily: FONT_DISPLAY, fontSize: 26, fill: f === 5 ? 0xc9a0ff : f > top ? 0x6a5a4a : 0xfff1c4 } });
+      const n = new Text({ text: f === 0 ? 'F' : String(f), style: { fontFamily: FONT_DISPLAY, fontSize: 26, fill: f === 5 ? 0xc9a0ff : f > top ? 0x6a5a4a : 0xfff1c4 } });
       n.anchor.set(0.5);
       n.position.set(DIAL.x + Math.cos(a) * (DIAL.r - 54), DIAL.y + Math.sin(a) * (DIAL.r - 54));
       p.addChild(n);
@@ -109,6 +109,7 @@ export class ElevatorPanel {
       const f = room.floor;
       const y = ROW0 + i * ROW_H + ROW_H / 2;
       const locked = f > top;
+      const label = f === 0 ? 'F' : String(f);
       const row = new Container();
       row.position.set(0, y);
       const bgRow = new Graphics().roundRect(46, -ROW_H / 2 + 5, W - 92, ROW_H - 10, 14).fill({ color: 0x000000, alpha: f === current ? 0.28 : 0.14 });
@@ -130,7 +131,7 @@ export class ElevatorPanel {
         btn.circle(96, 0, 20).fill(lit ? 0xfff1c4 : locked ? 0x3a2a1e : 0x1b1013).stroke({ color: 0xffe2a0, width: 1.5, alpha: 0.7 });
       };
       draw(f === current);
-      num = new Text({ text: String(f), style: { fontFamily: FONT_DISPLAY, fontSize: 22, fill: f === current ? 0x1b1013 : locked ? 0x6a5a4a : 0xfff1c4 } });
+      num = new Text({ text: label, style: { fontFamily: FONT_DISPLAY, fontSize: 22, fill: f === current ? 0x1b1013 : locked ? 0x6a5a4a : 0xfff1c4 } });
       num.anchor.set(0.5);
       num.position.set(96, 1);
       row.addChild(lamp, btn, num);
@@ -142,7 +143,7 @@ export class ElevatorPanel {
       tag.position.set(136, 15);
       row.addChild(name, tag);
       const status = new Text({
-        text: f === current ? 'HIER' : locked ? `🔒 ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : '',
+        text: f === current ? 'HIER' : locked ? `🔒 ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : f === top && f > 0 ? 'HEUTE' : '',
         style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '700', fill: f === current ? 0x1b5a2a : locked ? 0x6a4a20 : 0x5a1a6a },
       });
       status.anchor.set(1, 0.5);
@@ -180,14 +181,14 @@ export class ElevatorPanel {
     if (highlight) void this.pulseHint(highlight);
   }
 
-  /** Dial angle of a floor: 1 on the left, 5 on the right. */
+  /** Dial angle of a floor: the foyer on the left, 5 on the right. */
   private angle(f: number) {
-    return Math.PI + ((f - 0.5) / 5) * Math.PI;
+    return Math.PI + ((f + 0.5) / 6) * Math.PI;
   }
 
   private onKey = (e: KeyboardEvent) => {
-    const n = Number(e.key);
-    if (n >= 1 && n <= 5) this.choose(n);
+    const n = e.key.toLowerCase() === 'f' ? 0 : Number(e.key);
+    if (e.key.trim() !== '' && n >= 0 && n <= 5) this.choose(n);
     else if (e.key === 'Escape') this.choose(this.current);
   };
 
@@ -264,7 +265,7 @@ export class ElevatorPanel {
 /** Big "ETAGE 3 · UHRWERK" title shown when the doors open on a floor. */
 export function floorTitle(room: RoomDefinition) {
   const c = new Container();
-  const t = glowText(`ETAGE ${room.floor}`, { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 6 }, { color: room.theme.neon, distance: 10, outerStrength: 1.5 });
+  const t = glowText(room.floor === 0 ? 'ERDGESCHOSS' : `ETAGE ${room.floor}`, { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 6 }, { color: room.theme.neon, distance: 10, outerStrength: 1.5 });
   t.position.set(0, -36);
   const n = glowText(room.name.toUpperCase(), { fontFamily: FONT_DISPLAY, fontSize: 52, fill: 0xfff6e6, letterSpacing: 3 }, { color: room.theme.neon, distance: 16, outerStrength: 2.5 });
   n.position.set(0, 18);

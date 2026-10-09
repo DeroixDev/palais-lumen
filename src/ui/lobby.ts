@@ -1,5 +1,5 @@
-// Start menu and lobby (HTML over the street scene). The lobby is where players gather
-// before the night; for now it has your seat, the other three are kept for coop.
+// Start menu (HTML over the street scene) and the group card at the foyer reception, where
+// players gather: for now it has your seat, the other three are kept for coop.
 
 import { formatChips, quotaFor, type GameState } from '../core/state';
 import { sfx } from '../core/audio';
@@ -24,7 +24,7 @@ export class Lobby {
     $('#m-play').addEventListener('click', () => {
       sfx.unlock();
       sfx.click();
-      this.showLobby();
+      this.actions.go();
     });
     $('#m-saves').addEventListener('click', () => {
       sfx.unlock();
@@ -36,7 +36,10 @@ export class Lobby {
     });
     $('#lobby-go').addEventListener('click', () => {
       sfx.click();
-      this.actions.go();
+      const done = this.onPartyDone;
+      this.onPartyDone = null;
+      this.hideParty();
+      done?.();
     });
     const name = $<HTMLInputElement>('#lobby-name');
     name.addEventListener('input', () => {
@@ -44,6 +47,33 @@ export class Lobby {
     });
     this.buildSwatches('#sw-color', PLAYER_COLORS, () => this.host.color, (c) => (this.host.color = c));
     this.buildSwatches('#sw-skin', SKINS, () => this.host.skin ?? SKINS[1], (c) => (this.host.skin = c));
+  }
+
+  private onPartyDone: (() => void) | null = null;
+
+  /** The group card, opened at the reception desk in the foyer. */
+  showParty(onDone: () => void) {
+    this.onPartyDone = onDone;
+    const t = $('#title');
+    t.hidden = false;
+    t.classList.remove('out', 'arriving');
+    t.classList.add('party');
+    $('#menu-main').hidden = true;
+    $('#skip-hint').hidden = true;
+    $('#lobby-title').textContent = 'Empfang · Deine Gruppe';
+    $('#lobby-go').textContent = 'Fertig';
+    this.showLobby();
+  }
+
+  private hideParty() {
+    $('#menu-lobby').hidden = true;
+    const t = $('#title');
+    t.classList.remove('party');
+    t.hidden = true;
+  }
+
+  get partyOpen() {
+    return this.onPartyDone !== null;
   }
 
   private get host() {
@@ -123,7 +153,8 @@ export class Lobby {
     c.fillStyle = '#1b1b22';
     c.fillRect(46, 100, 11, 40);
     c.fillRect(63, 100, 11, 40);
-    c.fillStyle = '#2a1630';
+    const look = this.state.look;
+    c.fillStyle = hex(look.jacket);
     c.beginPath();
     c.roundRect(38, 52, 44, 56, 12);
     c.fill();
@@ -147,10 +178,17 @@ export class Lobby {
     c.beginPath();
     c.arc(60, 36, 17, 0, Math.PI * 2);
     c.fill();
-    c.fillStyle = '#2a1a10';
-    c.beginPath();
-    c.ellipse(60, 25, 18, 10, 0, Math.PI, Math.PI * 2);
-    c.fill();
+    if (look.hairStyle !== 'bald') {
+      c.fillStyle = hex(look.hair);
+      c.beginPath();
+      c.ellipse(60, 25, 18, 10, 0, Math.PI, Math.PI * 2);
+      c.fill();
+    }
+    if (look.hat !== 'none') {
+      c.fillStyle = hex(look.hatColor);
+      c.fillRect(38, 20, 44, 5);
+      c.fillRect(46, look.hat === 'topHat' ? 0 : 10, 28, look.hat === 'topHat' ? 22 : 12);
+    }
     c.fillStyle = '#1b1b22';
     c.fillRect(53, 36, 3, 3);
     c.fillRect(64, 36, 3, 3);

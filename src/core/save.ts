@@ -53,6 +53,11 @@ export function migrate(raw: unknown): SaveData | null {
     records: { ...base.records, ...d.records },
     unlockedRooms: Array.isArray(d.unlockedRooms) ? d.unlockedRooms : base.unlockedRooms,
     trophies: Array.isArray(d.trophies) ? d.trophies : [],
+    owned: Array.isArray(d.owned) ? d.owned : [],
+    charms: Array.isArray(d.charms) ? d.charms : [],
+    achievements: { ...d.achievements },
+    counters: { ...d.counters },
+    moonstones: typeof d.moonstones === 'number' ? d.moonstones : 0,
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
@@ -65,6 +70,11 @@ export function migrate(raw: unknown): SaveData | null {
     merged.roomId = 'f1';
     merged.position = { x: -1, y: -1 };
     merged.unlockedRooms = ['f1'];
+  }
+  // Version 4: the foyer between days. Old saves start there.
+  if ((d.version ?? 1) < 4) {
+    merged.roomId = 'foyer';
+    merged.position = { x: -1, y: -1 };
   }
   return merged;
 }

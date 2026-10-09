@@ -6,6 +6,7 @@ import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../core/registry';
 import { COLORS, FONT_BODY, glowTexture, mothTexture } from '../core/fx';
 import { WALL_H, seeded, shade } from './styles';
+import { Player } from './player';
 
 export interface Rect {
   x: number;
@@ -21,6 +22,17 @@ export interface BuiltDecor {
   /** Sorting depth for entities (usually the bottom edge). */
   z?: number;
   update?: (time: number, dtMs: number) => void;
+  /** Little reaction when the player uses it (piano keys, a splash, a puff of steam). */
+  poke?: () => void;
+}
+
+/** A kick that fades out over `ms`; poke() starts it again. */
+function kicker(ms = 900) {
+  let k = 0;
+  return {
+    poke: () => void (k = 1),
+    step: (dt: number) => (k = Math.max(0, k - dt / ms)),
+  };
 }
 
 const OUTLINE = 0x14080f;
@@ -342,11 +354,28 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       for (let k = 0; k < 24; k++) body.rect(k * 5, -14, 1, 14).fill({ color: 0x000000, alpha: 0.3 });
       for (let k = 0; k < 24; k++) if (k % 7 !== 2 && k % 7 !== 6) body.rect(k * 5 + 3, -14, 3, 8).fill(0x14080f);
       body.roundRect(30, -40, 60, 18, 6).fill(t.sofa ?? 0x5a1a3a).stroke({ color: OUTLINE, width: 1.5, alpha: 0.6 });
-      c.addChild(p, body);
+      const pressed = new Graphics();
+      c.addChild(p, body, pressed);
       c.position.set(x - 60, y - 70);
       const bx = x - 60;
       const by = y - 70;
-      return { view: c, layer: 'entities', obstacles: [{ x: bx, y: by - 40, w: 120, h: 200 }], z: by + 160 };
+      const kick = kicker(350);
+      let key = 0;
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [{ x: bx, y: by - 40, w: 120, h: 200 }],
+        z: by + 160,
+        update: (_t, dt) => {
+          const k = kick.step(dt);
+          pressed.clear();
+          if (k > 0) pressed.rect(key * 5, -14, 5, 14).fill({ color: COLORS.lamp, alpha: k * 0.9 });
+        },
+        poke: () => {
+          key = Math.floor(Math.random() * 24);
+          kick.poke();
+        },
+      };
     }
     case 'bar': {
       const bw = w || 300;
@@ -504,8 +533,22 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       m.tint = 0xcfd6e0;
       c.addChild(m);
       glow(c, x, y, r * 2.4, 0x5fe3ff, 0.18);
-      return ent([box(r * 1.8, r * 1.8)], y + r, (time) => {
+      const kick = kicker(1100);
+      let sx = x;
+      let sy = y;
+      const fb = ent([box(r * 1.8, r * 1.8)], y + r, (time, dt) => {
         water.clear();
+        const kk = kick.step(dt);
+        if (kk > 0) {
+          const e = 1 - kk;
+          water.circle(sx, sy, 6 + e * r * 0.5).stroke({ color: 0xffffff, width: 2.5, alpha: kk * 0.8 });
+          water.circle(sx, sy, 3 + e * r * 0.3).stroke({ color: 0xbfe6ff, width: 1.5, alpha: kk * 0.6 });
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const d = e * 26;
+            water.circle(sx + Math.cos(a) * d, sy + Math.sin(a) * d - Math.sin(e * Math.PI) * 14, 2).fill({ color: 0xe8fcff, alpha: kk });
+          }
+        }
         for (let i = 0; i < 3; i++) {
           const k = (time * 0.35 + i / 3) % 1;
           water.circle(x, y, r * 0.38 + k * (r * 0.55)).stroke({ color: 0xbfe6ff, width: 2, alpha: (1 - k) * 0.5 });
@@ -515,6 +558,14 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
           water.circle(x + Math.cos(a) * r * 0.34, y + Math.sin(a) * r * 0.34, 2).fill({ color: 0xffffff, alpha: 0.6 });
         }
       });
+      fb.poke = () => {
+        const a = Math.random() * Math.PI * 2;
+        const d = r * (0.5 + Math.random() * 0.3);
+        sx = x + Math.cos(a) * d;
+        sy = y + Math.sin(a) * d;
+        kick.poke();
+      };
+      return fb;
     }
     case 'moonPool': {
       const r = w || 100;
@@ -535,13 +586,22 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       }
       const ripple = new Graphics();
       c.addChild(ripple);
-      return ent([{ x: x - r, y: y - r * 0.7, w: r * 2, h: r * 1.4 }], y + r * 0.7, (time) => {
+      const kick = kicker(1600);
+      const mp = ent([{ x: x - r, y: y - r * 0.7, w: r * 2, h: r * 1.4 }], y + r * 0.7, (time, dt) => {
+        const kk = kick.step(dt);
         disc.scale.x = 1 + Math.sin(time * 1.3) * 0.08;
-        moon.alpha = 0.4 + Math.sin(time * 0.8) * 0.1;
+        moon.alpha = 0.4 + Math.sin(time * 0.8) * 0.1 + kk * 0.5;
+        moon.width = moon.height = r * 0.9 * (1 + kk * 0.6);
         ripple.clear();
         const k = (time * 0.25) % 1;
         ripple.ellipse(x + r * 0.3, y + r * 0.2, 10 + k * 50, (10 + k * 50) * 0.7).stroke({ color: 0xbfe6ff, width: 1.5, alpha: (1 - k) * 0.4 });
+        if (kk > 0) for (let i = 0; i < 3; i++) {
+          const e = Math.min(1, (1 - kk) * 1.6 - i * 0.2);
+          if (e > 0) ripple.ellipse(x - r * 0.2, y - r * 0.1, 8 + e * r * 0.9, (8 + e * r * 0.9) * 0.7).stroke({ color: 0xfff1c4, width: 2, alpha: (1 - e) * 0.7 });
+        }
       });
+      mp.poke = kick.poke;
+      return mp;
     }
     case 'lanternPost': {
       shadow(g, x, y, 14, 9);
@@ -560,15 +620,20 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       }
       const ph = rnd() * 10;
       const base = 12 / 64;
-      return ent([box(20, 20)], y + 8, (time) => {
-        gl.alpha = 0.4 + Math.sin(time * 4 + ph) * 0.05;
+      const kick = kicker(2200);
+      const lp = ent([box(20, 20)], y + 8, (time, dt) => {
+        const kk = kick.step(dt);
+        const spread = 1 + Math.sin(kk * Math.PI) * 3.5;
+        gl.alpha = 0.4 + Math.sin(time * 4 + ph) * 0.05 + kk * 0.2;
         moths.forEach((m, i) => {
-          const a = time * (1.2 + i * 0.4) + i * 2 + ph;
-          m.position.set(x + Math.cos(a) * (18 + i * 6), y - 22 + Math.sin(a * 1.3) * 12);
+          const a = time * (1.2 + i * 0.4) * (1 + kk * 2) + i * 2 + ph;
+          m.position.set(x + Math.cos(a) * (18 + i * 6) * spread, y - 22 + Math.sin(a * 1.3) * 12 * spread);
           m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(time * 22 + i)));
           m.scale.y = base;
         });
       });
+      lp.poke = kick.poke;
+      return lp;
     }
     case 'boiler': {
       const r = w || 40;
@@ -586,7 +651,23 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       needle.position.set(x + r * 0.35, y + r * 0.2);
       c.addChild(needle);
       const ph = rnd() * 10;
-      return ent([box(r * 2, r * 2)], y + r, (time) => (needle.rotation = 0.6 + Math.sin(time * 2 + ph) * 0.4 + Math.sin(time * 13) * 0.05));
+      const steam = new Graphics();
+      c.addChild(steam);
+      const kick = kicker(1800);
+      const bo = ent([box(r * 2, r * 2)], y + r, (time, dt) => {
+        const kk = kick.step(dt);
+        needle.rotation = 0.6 + Math.sin(time * 2 + ph) * 0.4 + Math.sin(time * 13) * 0.05 + kk * 1.6;
+        steam.clear();
+        if (kk > 0)
+          for (let i = 0; i < 7; i++) {
+            const e = Math.min(1, (1 - kk) * 1.4 + i * 0.05);
+            const sx = x - r * 0.4 + Math.sin(i * 2.1) * 10 + e * (i - 3) * 8;
+            const sy = y - r * 0.6 - e * (60 + i * 12);
+            steam.circle(sx, sy, 6 + e * 18).fill({ color: 0xffffff, alpha: (1 - e) * 0.35 });
+          }
+      });
+      bo.poke = kick.poke;
+      return bo;
     }
     case 'workbench': {
       const bw = w || 130;
@@ -616,10 +697,17 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       hands.addChild(hh, mh);
       hands.position.set(x, y);
       c.addChild(hands);
-      return ent([box(48, 48)], y + 24, (time) => {
-        mh.rotation = time * 0.6;
-        hh.rotation = time * 0.05;
+      const kick = kicker(1400);
+      let extra = 0;
+      const ct = ent([box(48, 48)], y + 24, (time, dt) => {
+        const kk = kick.step(dt);
+        extra += kk * dt * 0.012;
+        mh.rotation = time * 0.6 + extra;
+        hh.rotation = time * 0.05 + extra / 12;
+        hands.scale.set(1 + Math.sin(kk * Math.PI * 6) * 0.06 * kk);
       });
+      ct.poke = kick.poke;
+      return ct;
     }
     case 'crystal': {
       const s = w || 1;
@@ -634,7 +722,14 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       c.addChild(cr);
       const gl = glow(c, x, y - 14 * s, 120 * s, t.crystal ?? 0x9fe8ff, 0.4);
       const ph = rnd() * 10;
-      return ent([box(36 * s, 30 * s)], y + 10 * s, (time) => (gl.alpha = 0.3 + 0.18 * Math.sin(time * 1.8 + ph)));
+      const kick = kicker(1200);
+      const cy = ent([box(36 * s, 30 * s)], y + 10 * s, (time, dt) => {
+        const kk = kick.step(dt);
+        gl.alpha = 0.3 + 0.18 * Math.sin(time * 1.8 + ph) + kk * 0.6;
+        cr.scale.set(1 + Math.sin(kk * Math.PI * 5) * 0.05 * kk);
+      });
+      cy.poke = kick.poke;
+      return cy;
     }
     case 'iceSwan': {
       shadow(g, x, y, 30, 18);
@@ -659,13 +754,23 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         }
       const bubbles = new Graphics();
       c.addChild(bubbles);
-      return ent([box(56, 56)], y + 28, (time) => {
+      const kick = kicker(1300);
+      const ch = ent([box(56, 56)], y + 28, (time, dt) => {
+        const kk = kick.step(dt);
         bubbles.clear();
         for (let i = 0; i < 6; i++) {
           const a = i * 1.1 + time * 0.8;
           bubbles.circle(x + Math.cos(a) * 14, y + Math.sin(a * 1.3) * 14, 1).fill({ color: 0xffffff, alpha: 0.8 });
         }
+        if (kk > 0)
+          for (let i = 0; i < 16; i++) {
+            const e = (1 - kk + i / 16) % 1;
+            const a = i * 2.4;
+            bubbles.circle(x + Math.cos(a) * (6 + e * 24), y - e * 40 + Math.sin(a) * 6, 1.6).fill({ color: 0xfff6d0, alpha: kk * (1 - e) });
+          }
       });
+      ch.poke = kick.poke;
+      return ch;
     }
     case 'brazier': {
       shadow(g, x, y, 22, 14);
@@ -959,6 +1064,289 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       const ph = rnd() * 10;
       return { view: c, layer: 'wall', obstacles: [], update: (time) => (n.rotation = Math.sin(time * 1.3 + ph) * 0.8 + Math.sin(time * 9 + ph) * 0.05) };
     }
+    // ---- Foyer -------------------------------------------------------------------
+    case 'shopCounter': {
+      // Glass display counter of the souvenir shop, shelves of goods behind it, and the shopkeeper.
+      const cw = w || 300;
+      const ch = h || 64;
+      const L = x - cw / 2;
+      const T = y - ch / 2;
+      // Shelves against the wall behind the counter.
+      const back = WALL_H + 4;
+      g.rect(L - 10, back - 4, cw + 20, 26).fill(0x3a2010).stroke({ color: COLORS.brass, width: 2 });
+      const goods = [0xc9962e, 0x9fe8ff, 0xff9ac0, 0xfff1c4, 0x5a2a7a, 0x1f5a44, 0xffcf7a];
+      for (let i = 0; i < Math.floor(cw / 26); i++) {
+        const gx = L + 6 + i * 26;
+        const col = goods[i % goods.length];
+        if (i % 3 === 0) g.ellipse(gx + 8, back + 9, 9, 6).fill(col).stroke({ color: OUTLINE, width: 1, alpha: 0.5 });
+        else if (i % 3 === 1) g.poly([gx + 8, back + 1, gx + 15, back + 9, gx + 8, back + 17, gx + 1, back + 9]).fill(col);
+        else g.roundRect(gx + 2, back + 3, 12, 12, 3).fill(col);
+      }
+      const keeper = new Player(0x5fe3ff, { jacket: 0x1f5a44, hairStyle: 'sidePart', hair: 0xcfd6e0, accessory: 'bowTie', skin: 0xd9a27a });
+      keeper.view.position.set(x - cw * 0.18, T - 26);
+      keeper.faceTowards(Math.PI / 2);
+      c.addChild(keeper.view);
+      const top = new Graphics();
+      top.roundRect(L + 4, T + 8, cw, ch, 10).fill({ color: 0x000000, alpha: 0.4 });
+      top.roundRect(L, T, cw, ch, 10).fill(0x4a2414).stroke({ color: COLORS.brass, width: 3 });
+      // Glass top with the goods under it.
+      top.roundRect(L + 10, T + 8, cw - 20, ch - 22, 6).fill(0x1d3a44).stroke({ color: 0xbfe6ff, width: 1.5, alpha: 0.6 });
+      for (let i = 0; i < Math.floor((cw - 40) / 34); i++) {
+        const gx = L + 28 + i * 34;
+        const gy = T + 8 + (ch - 22) / 2;
+        const col = goods[(i + 3) % goods.length];
+        if (i % 2) top.circle(gx, gy, 7).fill(col).stroke({ color: 0xffffff, width: 1, alpha: 0.5 });
+        else top.poly([gx, gy - 9, gx + 7, gy, gx, gy + 9, gx - 7, gy]).fill(col).stroke({ color: 0xffffff, width: 1, alpha: 0.5 });
+      }
+      top.poly([L + 16, T + 10, L + 46, T + 10, L + 30, T + ch - 16, L + 12, T + ch - 16]).fill({ color: 0xffffff, alpha: 0.1 });
+      // Brass till on the right.
+      top.roundRect(L + cw - 54, T - 14, 40, 30, 6).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 2 });
+      top.rect(L + cw - 48, T - 9, 28, 10).fill(0x2a1a10);
+      top.rect(L + cw - 6, T + 10, 3, 3).fill(COLORS.brassDark);
+      c.addChild(top);
+      const label = new Text({ text: 'ANDENKEN · MONDSTEINE', style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 1 } });
+      label.anchor.set(0.5);
+      label.position.set(x, T + ch - 7);
+      c.addChild(label);
+      const tillGlow = glow(c, L + cw - 34, T - 4, 70, COLORS.lamp, 0);
+      const kick = kicker(1200);
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [{ x: L - 10, y: WALL_H, w: cw + 20, h: T + ch - WALL_H }],
+        z: T + ch,
+        update: (time, dt) => {
+          const kk = kick.step(dt);
+          // Idle: looks around now and then; when poked, turns to the player and hops a little.
+          if (kk > 0) keeper.faceTowards(Math.PI / 2);
+          else keeper.faceTowards(Math.PI / 2 + Math.sin(time * 0.4) * 0.7 * (Math.sin(time * 0.13) > 0.3 ? 1 : 0));
+          keeper.update(dt, null);
+          keeper.view.scale.set(1 + Math.sin(kk * Math.PI * 2) * 0.06);
+          tillGlow.alpha = kk * 0.7;
+        },
+        poke: kick.poke,
+      };
+    }
+    case 'reception': {
+      // Curved concierge desk with a bell and the guest book; the concierge stands behind it.
+      const r = w || 80;
+      const host = new Player(0xff5fa2, { outfit: 'dress', jacket: 0x1d2a4a, hairStyle: 'bun', hair: 0x1b1b22, skin: 0xc68a5e });
+      host.view.position.set(x, y - 34);
+      host.faceTowards(Math.PI / 2);
+      c.addChild(host.view);
+      const desk = new Graphics();
+      desk.moveTo(x - r + 4, y + 8).arc(x + 4, y + 8, r, Math.PI, 0, true).lineTo(x + r - 22, y + 8).arc(x + 4, y + 8, r - 26, 0, Math.PI).closePath().fill({ color: 0x000000, alpha: 0.4 });
+      desk.moveTo(x - r, y).arc(x, y, r, Math.PI, 0, true).lineTo(x + r - 26, y).arc(x, y, r - 26, 0, Math.PI).closePath().fill(0x3a2010).stroke({ color: COLORS.brass, width: 3 });
+      desk.moveTo(x - r + 6, y).arc(x, y, r - 6, Math.PI, 0, true).stroke({ color: COLORS.brassDark, width: 1.5 });
+      // Guest book, a pen and the brass bell.
+      desk.roundRect(x - 52, y + 30, 34, 24, 3).fill(0xfff6e6).stroke({ color: 0x6b1a2e, width: 2 });
+      desk.rect(x - 35.5, y + 30, 1, 24).fill({ color: 0x000000, alpha: 0.4 });
+      for (let k = 0; k < 4; k++) desk.rect(x - 49, y + 35 + k * 5, 11, 1).fill({ color: 0x3a3040, alpha: 0.5 });
+      desk.moveTo(x - 14, y + 34).lineTo(x - 4, y + 48).stroke({ color: COLORS.brass, width: 2 });
+      desk.circle(x + 38, y + 40, 10).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 2 });
+      desk.circle(x + 35, y + 37, 3).fill({ color: 0xffffff, alpha: 0.5 });
+      desk.circle(x + 38, y + 40, 2.5).fill(COLORS.brassDark);
+      c.addChild(desk);
+      const label = new Text({ text: 'EMPFANG', style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 2 } });
+      label.anchor.set(0.5);
+      label.position.set(x, y + r + 12);
+      c.addChild(label);
+      const kick = kicker(900);
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [{ x: x - r, y: y - 60, w: r * 2, h: r + 60 }],
+        z: y + r,
+        update: (time, dt) => {
+          const kk = kick.step(dt);
+          host.faceTowards(Math.PI / 2 + (kk > 0 ? 0 : Math.sin(time * 0.3) * 0.5));
+          host.update(dt, null);
+          host.view.scale.set(1 + Math.sin(kk * Math.PI * 2) * 0.05);
+        },
+        poke: kick.poke,
+      };
+    }
+    case 'wardrobe': {
+      // Changing booth: velvet curtain on a brass rail, a standing mirror and a hat stand.
+      const bw = w || 150;
+      const bh = h || 110;
+      const L = x - bw / 2;
+      const T = y - bh / 2;
+      shadow(g, x, y, bw / 2 + 6, bh / 2, 0.3);
+      g.roundRect(L, T, bw, bh, 8).fill(0x1b1013);
+      g.roundRect(L + 6, T + 6, bw - 12, bh - 12, 6).fill(shade(t.carpet, -0.4));
+      // A stool inside.
+      g.circle(x, T + bh * 0.45, 13).fill(t.sofa ?? 0x5a1a3a).stroke({ color: COLORS.brassDark, width: 2 });
+      g.roundRect(L - 3, T - 3, bw + 6, bh + 6, 10).stroke({ color: COLORS.brass, width: 4 });
+      const curtain = new Graphics();
+      const col = t.curtain ?? 0x8a1a2e;
+      const drawCurtain = (open: number) => {
+        curtain.clear();
+        // Folds along the front, bunched to the left when open.
+        const span = (bw - 8) * (1 - open * 0.75);
+        const n = 9;
+        for (let i = 0; i < n; i++) {
+          const fx = L + 4 + (span / n) * i;
+          curtain.roundRect(fx, T + bh - 22, span / n + 2, 24, 4).fill(i % 2 ? col : shade(col, -0.25));
+          curtain.rect(fx + 2, T + bh - 20, 2, 20).fill({ color: 0xffffff, alpha: 0.12 });
+        }
+        curtain.rect(L, T + bh - 24, bw, 3).fill(COLORS.brass);
+        for (let i = 0; i <= 8; i++) curtain.circle(L + 4 + (span / 8) * i, T + bh - 23, 2.4).fill(COLORS.brassDark);
+      };
+      drawCurtain(0.35);
+      c.addChild(curtain);
+      // Standing mirror to the right.
+      const mx = L + bw + 34;
+      g.ellipse(mx + 3, y + 22, 22, 9).fill({ color: 0x000000, alpha: 0.3 });
+      g.roundRect(mx - 20, y - 30, 40, 54, 18).fill(COLORS.brassDark);
+      g.roundRect(mx - 16, y - 26, 32, 46, 15).fill(0x9ab8d0);
+      g.poly([mx - 10, y - 18, mx - 2, y - 22, mx - 12, y + 10]).fill({ color: 0xffffff, alpha: 0.35 });
+      const shine = glow(c, mx, y - 4, 70, 0xdff6ff, 0.15);
+      // Hat stand to the left with a top hat and a scarf.
+      const hx = L - 30;
+      g.circle(hx + 2, y + 4, 14).fill({ color: 0x000000, alpha: 0.3 });
+      g.circle(hx, y, 12).fill(0x3a2010).stroke({ color: COLORS.brass, width: 2 });
+      g.circle(hx, y, 8).fill(0x1b1b22);
+      g.circle(hx, y, 5).fill(0x2a2a30);
+      g.moveTo(hx + 6, y + 4).bezierCurveTo(hx + 18, y + 12, hx + 10, y + 26, hx + 16, y + 34).stroke({ color: 0xc0504a, width: 5, cap: 'round' });
+      const label = new Text({ text: 'UMKLEIDE', style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 2 } });
+      label.anchor.set(0.5);
+      label.position.set(x, T - 12);
+      c.addChild(label);
+      const kick = kicker(1000);
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [{ x: L - 44, y: T, w: bw + 100, h: bh }],
+        z: T + bh,
+        update: (time, dt) => {
+          const kk = kick.step(dt);
+          drawCurtain(0.35 + Math.sin(kk * Math.PI) * 0.6 + Math.sin(time * 0.9) * 0.02);
+          shine.alpha = 0.12 + Math.sin(time * 1.4) * 0.05 + kk * 0.3;
+        },
+        poke: kick.poke,
+      };
+    }
+    case 'clothesRack': {
+      // A brass rail of suits and dresses that sway a little.
+      const rw = w || 120;
+      shadow(g, x, y, rw / 2 + 6, 14, 0.3);
+      g.circle(x - rw / 2, y, 5).fill(COLORS.brassDark);
+      g.circle(x + rw / 2, y, 5).fill(COLORS.brassDark);
+      const cols = [0x2a1630, 0x1f5a44, 0xc0504a, 0x2f4aa0, 0xe8e0d0, 0x5a2a7a, 0xc9962e, 0x1b1b22];
+      const hangers: Graphics[] = [];
+      for (let i = 0; i < Math.floor(rw / 14); i++) {
+        const hg = new Graphics();
+        const col = cols[(i + Math.floor(rnd() * 3)) % cols.length];
+        hg.roundRect(-5, -14, 10, 28, 3).fill(col).stroke({ color: OUTLINE, width: 1, alpha: 0.5 });
+        hg.rect(-1, -14, 2, 10).fill({ color: 0xfff6e6, alpha: 0.6 });
+        hg.position.set(x - rw / 2 + 10 + i * 14, y);
+        c.addChild(hg);
+        hangers.push(hg);
+      }
+      const rail = new Graphics().rect(x - rw / 2, y - 1.5, rw, 3).fill(COLORS.brass);
+      c.addChild(rail);
+      const ph = rnd() * 10;
+      return ent([{ x: x - rw / 2 - 6, y: y - 16, w: rw + 12, h: 32 }], y + 16, (time) => hangers.forEach((hg, i) => (hg.rotation = Math.sin(time * 1.2 + i * 0.7 + ph) * 0.06)));
+    }
+    case 'jukebox': {
+      // Arched jukebox with bubbling colour tubes and a spinning record under a glass dome.
+      const jw = 76;
+      const jh = 64;
+      shadow(g, x, y, jw / 2 + 4, 18);
+      g.moveTo(x - jw / 2, y + jh / 2).lineTo(x - jw / 2, y - jh / 2 + 30).arc(x, y - jh / 2 + 30, jw / 2, Math.PI, 0).lineTo(x + jw / 2, y + jh / 2).closePath().fill(0x4a2414).stroke({ color: COLORS.brass, width: 3 });
+      const tubes = new Graphics();
+      c.addChild(tubes);
+      const face = new Graphics();
+      face.moveTo(x - jw / 2 + 10, y + jh / 2 - 6).lineTo(x - jw / 2 + 10, y - jh / 2 + 30).arc(x, y - jh / 2 + 30, jw / 2 - 10, Math.PI, 0).lineTo(x + jw / 2 - 10, y + jh / 2 - 6).closePath().fill(0x1b1013);
+      face.circle(x, y - 2, 20).fill({ color: 0x9ab8d0, alpha: 0.25 }).stroke({ color: 0xbfe6ff, width: 1.5, alpha: 0.7 });
+      face.rect(x - 22, y + 20, 44, 8).fill(COLORS.brass);
+      for (let i = 0; i < 5; i++) face.circle(x - 16 + i * 8, y + 24, 2).fill(0xfff1c4);
+      c.addChild(face);
+      const rec = new Graphics();
+      rec.circle(0, 0, 15).fill(0x14080f);
+      for (const rr of [12, 9, 6]) rec.circle(0, 0, rr).stroke({ color: 0x3a3040, width: 0.8 });
+      rec.circle(0, 0, 4).fill(COLORS.red);
+      rec.rect(-1, -14, 2, 5).fill({ color: 0xffffff, alpha: 0.4 });
+      rec.position.set(x, y - 2);
+      c.addChild(rec);
+      const gl = glow(c, x, y - 10, 170, 0xff5fa2, 0.25);
+      const hues = [0xff5fa2, 0xffcf7a, 0x5fe3ff, 0x7bd47b, 0xc9a0ff];
+      const kick = kicker(1500);
+      let spin = 0;
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [box(jw + 4, jh)],
+        z: y + jh / 2,
+        update: (time, dt) => {
+          const kk = kick.step(dt);
+          spin += dt * (0.004 + kk * 0.03);
+          rec.rotation = spin;
+          tubes.clear();
+          const k = Math.floor(time * 2 + kk * 10) % hues.length;
+          tubes.moveTo(x - jw / 2 + 5, y + jh / 2 - 4).lineTo(x - jw / 2 + 5, y - jh / 2 + 30).arc(x, y - jh / 2 + 30, jw / 2 - 5, Math.PI, 0).lineTo(x + jw / 2 - 5, y + jh / 2 - 4).stroke({ color: hues[k], width: 4, alpha: 0.9 });
+          gl.tint = hues[k];
+          gl.alpha = 0.22 + Math.sin(time * 3) * 0.04 + kk * 0.35;
+          face.scale.set(1);
+        },
+        poke: kick.poke,
+      };
+    }
+    case 'entrance': {
+      // Revolving brass door in the front wall, with a doormat; y is the inner face of the wall.
+      const r = 50;
+      const wy = y;
+      g.rect(x - r - 26, wy - 4, (r + 26) * 2, 40).fill(0x0b0609);
+      g.roundRect(x - 90, wy - 64, 180, 52, 8).fill(0x2a1608).stroke({ color: COLORS.brass, width: 2 });
+      for (let k = 0; k < 160; k += 8) g.rect(x - 84 + k, wy - 58, 4, 40).fill({ color: COLORS.brass, alpha: 0.2 });
+      const mat = new Text({ text: 'WILLKOMMEN', style: { fontFamily: FONT_BODY, fontSize: 15, fontWeight: '700', fill: COLORS.brass, letterSpacing: 3 } });
+      mat.anchor.set(0.5);
+      mat.position.set(x, wy - 38);
+      c.addChild(mat);
+      g.circle(x, wy + 14, r + 4).stroke({ color: COLORS.brass, width: 4 });
+      g.circle(x, wy + 14, r).fill({ color: 0x9ab8d0, alpha: 0.12 });
+      const wings = new Graphics();
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        wings.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: 0xbfe6ff, width: 5, alpha: 0.55 });
+        wings.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: COLORS.brass, width: 1.5 });
+      }
+      wings.circle(0, 0, 7).fill(COLORS.brass);
+      wings.position.set(x, wy + 14);
+      c.addChild(wings);
+      g.rect(x - r - 30, wy - 2, 12, 34).fill(COLORS.brass);
+      g.rect(x + r + 18, wy - 2, 12, 34).fill(COLORS.brass);
+      glow(c, x, wy - 10, 260, COLORS.lamp, 0.18);
+      const kick = kicker(2500);
+      return {
+        view: c,
+        layer: 'entities',
+        obstacles: [],
+        z: wy + 60,
+        update: (time, dt) => (wings.rotation += dt * (0.0003 + kick.step(dt) * 0.004)),
+        poke: kick.poke,
+      };
+    }
+    case 'plaque': {
+      // Brass house rules on the back wall.
+      const pw = w || 180;
+      const T = 30;
+      g.rect(x - pw / 2 + 3, T + 4, pw, 62).fill({ color: 0x000000, alpha: 0.4 });
+      g.roundRect(x - pw / 2, T, pw, 62, 6).fill(COLORS.brass).stroke({ color: COLORS.brassDark, width: 2 });
+      g.roundRect(x - pw / 2 + 5, T + 5, pw - 10, 52, 4).stroke({ color: COLORS.brassDark, width: 1 });
+      for (const sx of [x - pw / 2 + 9, x + pw / 2 - 9]) g.circle(sx, T + 31, 2.5).fill(COLORS.brassDark);
+      const t1 = new Text({ text: 'HAUSORDNUNG', style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0x3a2008, letterSpacing: 2 } });
+      t1.anchor.set(0.5);
+      t1.position.set(x, T + 15);
+      const t2 = new Text({ text: 'Nur Spielgeld.\nKein Echtgeld.', style: { fontFamily: FONT_BODY, fontSize: 12, fontWeight: '600', fill: 0x3a2008, align: 'center', lineHeight: 14 } });
+      t2.anchor.set(0.5);
+      t2.position.set(x, T + 40);
+      c.addChild(t1, t2);
+      return { view: c, layer: 'wall', obstacles: [] };
+    }
+    case 'achievementWall':
+      return null; // built by the room itself (it shows the player's achievements)
     case 'trophyShelf':
       return null; // built by the room itself (it shows the player's trophies)
   }

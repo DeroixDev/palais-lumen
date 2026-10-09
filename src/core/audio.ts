@@ -325,6 +325,59 @@ class Sfx {
     this.bell(1318, 0.12, 0, 1.4);
     this.bell(1046, 0.1, 0.32, 1.6);
   }
+  /** One piano note: a felt hammer, slightly detuned strings and partials that fade faster up high. */
+  pianoNote(freq: number, vel = 1) {
+    const len = Math.min(3.2, 2.6 * Math.pow(261.6 / freq, 0.45));
+    const v = 0.11 * vel;
+    this.tone(freq, len, 'triangle', v, 0, undefined, this.fx, 0.003);
+    this.tone(freq * 1.0016, len * 0.9, 'sine', v * 0.7, 0, undefined, this.fx, 0.003);
+    const parts = [0.5, 0.28, 0.16, 0.09, 0.05];
+    parts.forEach((a, i) => this.tone(freq * (i + 2) * (1 + i * 0.0007), len / (1.6 + i * 0.8), 'sine', v * a, 0, undefined, this.fx, 0.002));
+    this.noise(0.03, 0.05 * vel, 0, Math.min(6000, freq * 5), 'bandpass', 2);
+  }
+  /** Brass bell on the reception desk. */
+  deskBell() {
+    this.bell(2093, 0.14, 0, 1.6);
+    this.noise(0.02, 0.15, 0, 4000, 'bandpass', 4);
+  }
+  /** A coin flicked into water. */
+  wish() {
+    this.bell(2637, 0.05, 0, 0.3);
+    this.noise(0.25, 0.12, 0.55, 1200, 'bandpass', 1.5, this.fx, 400);
+    this.tone(900, 0.12, 'sine', 0.05, 0.56, 300);
+  }
+  /** Bubbles in a glass. */
+  fizz() {
+    this.noise(0.8, 0.05, 0, 6000, 'highpass', 1);
+    for (let i = 0; i < 8; i++) this.bell(1800 + Math.random() * 1600, 0.012, Math.random() * 0.7, 0.1);
+  }
+  clink() {
+    this.bell(2093, 0.08, 0, 0.8);
+    this.bell(2349, 0.06, 0.05, 0.8);
+  }
+  /** Westminster-like chime from a clock. */
+  chime() {
+    [659.3, 523.3, 587.3, 392].forEach((f, i) => this.bell(f, 0.1, i * 0.45, 1.6));
+  }
+  steamWhistle() {
+    this.tone(880, 1.1, 'sine', 0.05, 0, 900, this.fx, 0.08);
+    this.tone(1108, 1.1, 'sine', 0.04, 0, 1130, this.fx, 0.08);
+    this.noise(1.2, 0.08, 0, 3500, 'bandpass', 1);
+  }
+  /** A gentle, magical shimmer. */
+  shimmer() {
+    [1046, 1318, 1568, 2093].forEach((f, i) => this.bell(f, 0.04, i * 0.08, 1));
+  }
+  /** Shop till. */
+  till() {
+    this.noise(0.05, 0.2, 0, 2500, 'bandpass', 3);
+    this.bell(3136, 0.08, 0.08, 0.8);
+    this.bell(3951, 0.06, 0.14, 0.8);
+  }
+  /** Cloth rustle in the changing room. */
+  rustle() {
+    this.noise(0.35, 0.06, 0, 2500, 'bandpass', 0.8, this.fx, 1200);
+  }
   footstep() {
     this.noise(0.05, 0.08, 0, 500 + Math.random() * 200, 'lowpass', 1);
   }
@@ -581,9 +634,25 @@ class Sfx {
    * Generative lounge jazz: ii–V–I–VI in C with walking bass, soft electric piano and brushes.
    * Scheduled a little ahead of time so it keeps steady time.
    */
+  /** Jukebox records: the generative band changes tempo, harmony and feel. */
+  private record = 0;
+  static readonly RECORDS = [
+    { name: 'Lounge', bpm: 88, swing: 0.66, minor: false, bossa: false },
+    { name: 'Swing', bpm: 132, swing: 0.66, minor: false, bossa: false },
+    { name: 'Mondnacht', bpm: 70, swing: 0.62, minor: true, bossa: false },
+    { name: 'Bossa Falter', bpm: 112, swing: 0.5, minor: false, bossa: true },
+  ];
+  /** Puts on the next record; returns its name. */
+  nextRecord() {
+    this.record = (this.record + 1) % Sfx.RECORDS.length;
+    this.noise(0.25, 0.08, 0, 3000, 'highpass', 1);
+    this.tone(220, 0.15, 'triangle', 0.05, 0.05, 110);
+    return Sfx.RECORDS[this.record].name;
+  }
+
   private schedule() {
     if (!this.ctx || !this.musicBus) return;
-    const spb = 60 / 88;
+    const spb = 60 / Sfx.RECORDS[this.record].bpm;
     while (this.nextBeat < this.ctx.currentTime + 0.25) {
       this.playBeat(this.beat, this.nextBeat, spb);
       this.nextBeat += spb;
@@ -597,7 +666,8 @@ class Sfx {
     const bar = Math.floor(beat / 4) % 8;
     const b = beat % 4;
     // Chords (root, then voicing) for an 8-bar loop.
-    const prog: [number, number[]][] = [
+    const rec = Sfx.RECORDS[this.record];
+    const major: [number, number[]][] = [
       [146.8, [349.2, 440, 523.3, 659.3]], // Dm9
       [98, [349.2, 440, 493.9, 659.3]], // G13
       [130.8, [329.6, 392, 493.9, 587.3]], // Cmaj9
@@ -607,16 +677,29 @@ class Sfx {
       [130.8, [329.6, 392, 493.9, 587.3]],
       [130.8, [329.6, 440, 493.9, 587.3]], // C6/9
     ];
+    const minor: [number, number[]][] = [
+      [110, [261.6, 329.6, 392, 493.9]], // Am9
+      [146.8, [261.6, 349.2, 440, 523.3]], // Dm9
+      [164.8, [293.7, 415.3, 493.9, 587.3]], // E7
+      [110, [261.6, 329.6, 392, 493.9]],
+      [87.3, [261.6, 329.6, 440, 523.3]], // Fmaj7
+      [146.8, [261.6, 349.2, 440, 523.3]],
+      [123.5, [293.7, 349.2, 440, 523.3]], // Bm7b5
+      [164.8, [293.7, 415.3, 493.9, 587.3]],
+    ];
+    const prog = rec.minor ? minor : major;
     const [root, voicing] = prog[bar];
     const next = prog[(bar + 1) % 8][0];
     // Walking bass: root, fifth, third-ish, approach note to the next root.
-    const walk = [root, root * 1.5, root * 1.26, next * (Math.random() < 0.5 ? 1.06 : 0.944)];
+    const walk = rec.bossa ? [root, root, root * 1.5, root * 1.5] : [root, root * 1.5, root * 1.26, next * (Math.random() < 0.5 ? 1.06 : 0.944)];
     const bf = walk[b] > 200 ? walk[b] / 2 : walk[b];
     this.tone(bf, spb * 0.9, 'triangle', 0.22, d, undefined, out, 0.01);
     this.tone(bf * 2, spb * 0.3, 'sine', 0.05, d, undefined, out, 0.005);
     // Electric piano comping on beat 1 and the "and" of 2, sometimes 4.
-    const swing = spb * 0.66;
-    const hits = b === 0 ? [0] : b === 1 ? [swing] : b === 3 && Math.random() < 0.4 ? [swing] : [];
+    const swing = spb * rec.swing;
+    const hits = rec.bossa
+      ? b === 0 ? [0, swing] : b === 1 ? [swing] : b === 2 ? [0] : [swing]
+      : b === 0 ? [0] : b === 1 ? [swing] : b === 3 && Math.random() < (rec.bpm > 120 ? 0.8 : 0.4) ? [swing] : [];
     for (const off of hits) {
       for (const f of voicing) {
         this.tone(f, spb * 1.6, 'sine', 0.045, d + off, undefined, out, 0.006);
@@ -629,7 +712,8 @@ class Sfx {
       this.bell(f, 0.03, d + (Math.random() < 0.5 ? 0 : swing), 1.2, out);
     }
     // Brushes: swish on 2 and 4, soft taps on the swung eighths.
-    if (b === 1 || b === 3) this.noise(spb * 0.6, 0.05, d, 5000, 'bandpass', 0.7, out);
+    if (rec.bossa) this.noise(0.03, 0.035, d + (b % 2 ? swing : 0), 6000, 'highpass', 1, out);
+    else if (b === 1 || b === 3) this.noise(spb * 0.6, 0.05, d, 5000, 'bandpass', 0.7, out);
     this.noise(0.04, 0.025, d + swing, 7000, 'highpass', 1, out);
   }
 }

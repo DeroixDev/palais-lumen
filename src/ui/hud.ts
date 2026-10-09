@@ -6,6 +6,10 @@ import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '..
 import type { SaveData } from '../core/state';
 import { sfx } from '../core/audio';
 import { coinDataUrl } from '../core/fx';
+import { ACHIEVEMENTS, type Achievement, type AchievementIcon } from '../core/achievements';
+import { stoneDataUrl } from './stone';
+
+const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋' };
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -19,6 +23,8 @@ export interface HudActions {
 
 export class Hud {
   private shown = 0;
+  private shownStones = 0;
+  private inFoyer = false;
   private raf = 0;
 
   constructor(
@@ -62,12 +68,21 @@ export class Hud {
       purseEl.classList.add('bump');
       sfx.tick();
     });
+    ($('.stone-ic') as HTMLElement).style.backgroundImage = `url(${stoneDataUrl(64)})`;
+    this.shownStones = state.data.moonstones;
     this.shown = state.balance;
     this.render();
   }
 
   show(on: boolean) {
     $('#hud').hidden = !on;
+  }
+
+  /** In the foyer the day hasn't started, so there is nothing to settle. */
+  setFoyer(on: boolean) {
+    $('#hud').classList.toggle('foyer', on);
+    this.inFoyer = on;
+    this.render();
   }
 
   setInGame(on: boolean) {
@@ -82,7 +97,7 @@ export class Hud {
     const floor = floorForDay(day);
     const boss = day >= BOSS_DAY;
     const floorName = allRooms().find((r) => r.floor === floor)?.name ?? '';
-    $('#ev-num').textContent = boss ? `Tag ${day} · Boss` : `Tag ${day} · Etage ${floor}`;
+    $('#ev-num').textContent = this.inFoyer ? `Foyer · Tag ${day} auf Etage ${floor}` : boss ? `Tag ${day} · Boss` : `Tag ${day} · Etage ${floor}`;
     $('#ev-num').title = `Saison ${d.season.number} · Etage ${floor}: ${floorName}`;
     $('#ev-bar').classList.toggle('boss', boss);
     if (boss) {
@@ -93,6 +108,14 @@ export class Hud {
     } else {
       $('#ev-goal').textContent = `${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} / +${formatChips(d.evening.quota)}`;
       $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
+    }
+    $('#stones').textContent = String(d.moonstones);
+    if (d.moonstones !== this.shownStones) {
+      const el = $('.stones');
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      if (d.moonstones > this.shownStones) el.classList.add('bump');
+      this.shownStones = d.moonstones;
     }
     $('#ev-bar').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
     // Roll the balance towards its new value.
@@ -112,10 +135,42 @@ export class Hud {
     el.classList.toggle('down', to < from);
   }
 
-  toast(text: string) {
+  /** Every achievement with its progress, as a list. */
+  achievements() {
+    const d = this.state.data;
+    const wrap = document.createElement('div');
+    const done = ACHIEVEMENTS.filter((a) => d.achievements[a.id]).length;
+    const sum = document.createElement('p');
+    sum.className = 'ach-sum';
+    sum.textContent = `${done} von ${ACHIEVEMENTS.length} geschafft. Jeder Erfolg zahlt einmal Mondsteine aus.`;
+    wrap.appendChild(sum);
+    const list = document.createElement('div');
+    list.className = 'ach';
+    const sorted = [...ACHIEVEMENTS].sort((a, b) => Number(!!d.achievements[b.id]) - Number(!!d.achievements[a.id]));
+    for (const a of sorted) {
+      const ok = !!d.achievements[a.id];
+      const [v, max] = a.progress(d);
+      const item = document.createElement('div');
+      item.className = 'ach-item' + (ok ? ' done' : '');
+      const pct = Math.min(100, (v / max) * 100);
+      item.innerHTML = `<div class="ach-ic">${ICON[a.icon]}</div><div><strong></strong><span></span>${ok ? '' : `<div class="ach-bar"><i style="width:${pct}%"></i></div>`}</div><div class="ach-rew">${ok ? '✓' : `${Math.min(v, max).toLocaleString('de-DE')} / ${max.toLocaleString('de-DE')}`} · +${a.reward} ◆</div>`;
+      item.querySelector('strong')!.textContent = a.name;
+      item.querySelector('span')!.textContent = a.desc;
+      list.appendChild(item);
+    }
+    wrap.appendChild(list);
+    this.modal('Erfolge', wrap, [{ label: 'Schließen', primary: true, onClick: () => this.closeModal() }]);
+  }
+
+  /** A freshly unlocked achievement. */
+  achievementToast(a: Achievement) {
+    this.toast(`${ICON[a.icon]} Erfolg: ${a.name}  ·  +${a.reward} Mondstein${a.reward === 1 ? '' : 'e'}`, 'ach-toast');
+  }
+
+  toast(text: string, cls = '') {
     const box = $('#toasts');
     const t = document.createElement('div');
-    t.className = 'toast';
+    t.className = 'toast' + (cls ? ' ' + cls : '');
     t.textContent = text;
     box.appendChild(t);
     setTimeout(() => t.classList.add('out'), 2600);
@@ -274,6 +329,8 @@ export class Hud {
       <p><strong>Spielen:</strong> an einen Automaten oder Tisch gehen und <kbd>E</kbd> drücken oder tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
       <p><strong>Saison:</strong> Jeder Tag hat ein Gewinnziel, und es steigt von Tag zu Tag. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
       <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet die Mottenkönigin ganz oben im Thronsaal. Besiegst du sie, hast du die Saison gewonnen.</p>
+      <p><strong>Foyer:</strong> Hier startest du und hierher kommst du nach jedem Tag zurück. Im Laden gibt es Kleidung, Begleiter und Glücksbringer für Mondsteine, in der Umkleide ziehst du dich um, am Empfang stellst du deine Gruppe zusammen. Mondsteine gibt es für Medaillen, Erfolge und die Mottenkönigin, nie für Geld.</p>
+      <p><strong>Ausprobieren:</strong> Klavier, Brunnen, Jukebox und vieles mehr auf den Etagen kannst du benutzen. Einfach hingehen und <kbd>E</kbd> drücken.</p>
       <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
       <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;

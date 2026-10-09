@@ -3,7 +3,9 @@
 
 import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
-import { getGame, getRoom, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { getGame, getRoom, type DecorKind, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { ACHIEVEMENTS } from '../core/achievements';
+import { COMPANION_COLOR } from '../core/items';
 import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from '../core/fx';
 import type { GameState } from '../core/state';
 import { animate, ease, wait } from '../core/tween';
@@ -19,7 +21,28 @@ export { WALL_H };
 export type Interactable =
   | { kind: 'station'; station: StationPlacement; x: number; y: number; title: string }
   | { kind: 'elevator'; x: number; y: number; title: string }
-  | { kind: 'shelf'; x: number; y: number; title: string };
+  | { kind: 'shelf'; x: number; y: number; title: string }
+  | { kind: 'achievements'; x: number; y: number; title: string }
+  | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void };
+
+/** Things on the floors you can use, and what the prompt says. */
+const USE_TITLE: Partial<Record<DecorKind, string>> = {
+  shopCounter: 'Laden öffnen',
+  wardrobe: 'Umkleide',
+  reception: 'Empfang · Gruppe',
+  piano: 'Klavier spielen',
+  fountain: '1 Falter wünschen',
+  jukebox: 'Platte wechseln',
+  bar: 'Mocktail bestellen',
+  champagne: 'Anstoßen',
+  clockTower: 'Glocke läuten',
+  boiler: 'Dampf ablassen',
+  moonPool: 'Mondlicht berühren',
+  lanternPost: 'Motten aufscheuchen',
+  crystal: 'Kristall anschlagen',
+  iceSwan: 'Eisschwan bestaunen',
+  brazier: 'Glut anfachen',
+};
 
 /** Half the width of the elevator doorway. */
 const DOOR_W = 46;
@@ -44,6 +67,10 @@ export class RoomScene {
   private prompt = new Container();
   private promptText: Text;
   private shelf: Container | null = null;
+  private achWall: { c: Container; w: number } | null = null;
+  private entrance: BuiltDecor | null = null;
+  private companion: { c: Container; wings: Sprite; base: number; vx: number; vy: number } | null = null;
+  private useCooldown = 0;
   private shelfSize = { w: 300, h: 44 };
   private sign!: Sprite;
   private elevator!: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number };
@@ -85,10 +112,11 @@ export class RoomScene {
     this.world.addChild(this.fxLayer);
 
     const pos = state.data.roomId === this.def.id && state.data.position.x > 0 ? state.data.position : this.def.spawn;
-    const host = state.data.players.host;
-    this.player = new Player(host?.color ?? COLORS.lamp, { skin: host?.skin });
+    this.player = this.makePlayer();
     this.player.view.position.set(pos.x, pos.y);
     this.entities.addChild(this.player.view);
+    this.buildCompanion();
+    this.placeUseSpots();
     const guestCount = Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7)));
     this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height });
 
@@ -161,8 +189,8 @@ export class RoomScene {
     g.circle(0, dy, 30).fill(COLORS.brassDark);
     g.moveTo(-28, dy).arc(0, dy, 28, Math.PI, 0).closePath().fill(0x1b1013);
     g.moveTo(-26, dy).arc(0, dy, 26, Math.PI, 0).stroke({ color: COLORS.brass, width: 1.5 });
-    for (let f = 1; f <= 5; f++) {
-      const a = Math.PI + ((f - 0.5) / 5) * Math.PI;
+    for (let f = 0; f <= 5; f++) {
+      const a = Math.PI + ((f + 0.5) / 6) * Math.PI;
       g.circle(Math.cos(a) * 20, dy + Math.sin(a) * 20, f === 5 ? 3 : 2.2).fill(f === 5 ? 0xc9a0ff : 0xfff1c4);
     }
     g.rect(-30, dy, 60, 4).fill(COLORS.brass);
@@ -236,7 +264,7 @@ export class RoomScene {
 
   /** Points the dial above the elevator at a floor (fractions move the needle in between). */
   setDial(floor: number) {
-    this.elevator.needle.rotation = -Math.PI / 2 + ((floor - 0.5) / 5 - 0.5) * Math.PI;
+    this.elevator.needle.rotation = ((floor + 0.5) / 6 - 0.5) * Math.PI;
   }
 
   private setDoors(open: number) {
@@ -274,6 +302,24 @@ export class RoomScene {
     }
   }
 
+  private pendingUse: { i: Extract<Interactable, { kind: 'use' }>; o: Rect }[] = [];
+
+  /** Puts each usable thing's prompt spot on a free side (the piano is played from the keys). */
+  private placeUseSpots() {
+    for (const { i, o } of this.pendingUse) {
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+      const below: [number, number] = [cx, o.y + o.h + 26];
+      const above: [number, number] = [cx, o.y - 26];
+      const cands: [number, number][] = i.prop === 'piano' ? [above, below] : [below, [o.x - 26, cy], [o.x + o.w + 26, cy], above];
+      const spot = cands.find(([x, y]) => !this.collides(x, y)) ?? below;
+      i.x = spot[0];
+      i.y = spot[1];
+      this.interactables.push(i);
+    }
+    this.pendingUse = [];
+  }
+
   private buildDecor() {
     const layers = { floor: this.floorDecor, wall: this.wallDecor, entities: this.entities, lights: this.lights };
     for (const d of this.def.decor) {
@@ -281,8 +327,18 @@ export class RoomScene {
         this.buildShelf(d.x, d.y, d.w ?? 300);
         continue;
       }
+      if (d.kind === 'achievementWall') {
+        this.buildAchievementWall(d.x, d.w ?? 240);
+        continue;
+      }
       const b = buildDecor(d, this.def.theme);
       if (!b) continue;
+      if (d.kind === 'entrance') this.entrance = b;
+      const title = USE_TITLE[d.kind];
+      if (title) {
+        const o = b.obstacles.length ? b.obstacles.reduce((a, r) => ({ x: Math.min(a.x, r.x), y: Math.min(a.y, r.y), w: Math.max(a.x + a.w, r.x + r.w) - Math.min(a.x, r.x), h: Math.max(a.y + a.h, r.y + r.h) - Math.min(a.y, r.y) })) : { x: d.x - 20, y: d.y - 20, w: 40, h: 40 };
+        this.pendingUse.push({ i: { kind: 'use', prop: d.kind, x: 0, y: 0, title, cx: d.x, cy: d.y, poke: b.poke }, o });
+      }
       if (b.z !== undefined) b.view.zIndex = b.z;
       layers[b.layer].addChild(b.view);
       this.obstacles.push(...b.obstacles);
@@ -354,6 +410,168 @@ export class RoomScene {
       t.position.set(10 + step * (i + 0.5), h - 8);
       this.shelf!.addChild(t);
     });
+  }
+
+  /** Brass board of medallions on the back wall; lit ones are unlocked achievements. */
+  private buildAchievementWall(x: number, w: number) {
+    const c = new Container();
+    c.position.set(x - w / 2, 18);
+    this.wallDecor.addChild(c);
+    this.achWall = { c, w };
+    this.refreshAchievements();
+    this.interactables.push({ kind: 'achievements', x, y: WALL_H + 40, title: 'Erfolge ansehen' });
+  }
+
+  refreshAchievements() {
+    if (!this.achWall) return;
+    const { c, w } = this.achWall;
+    c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
+    const h = 112;
+    const g = new Graphics();
+    g.roundRect(4, 5, w, h, 8).fill({ color: 0x000000, alpha: 0.45 });
+    g.roundRect(0, 0, w, h, 8).fill(0x2a1608).stroke({ color: COLORS.brass, width: 3 });
+    g.roundRect(6, 6, w - 12, h - 12, 5).stroke({ color: COLORS.brassDark, width: 1.5 });
+    c.addChild(g);
+    const done = ACHIEVEMENTS.filter((a) => this.state.data.achievements[a.id]).length;
+    const t = new Text({ text: `ERFOLGE  ${done} / ${ACHIEVEMENTS.length}`, style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0xfff1c4, letterSpacing: 2 } });
+    t.anchor.set(0.5, 0);
+    t.position.set(w / 2, 10);
+    c.addChild(t);
+    const cols = Math.ceil(ACHIEVEMENTS.length / 3);
+    const step = (w - 24) / cols;
+    ACHIEVEMENTS.forEach((a, i) => {
+      const on = !!this.state.data.achievements[a.id];
+      const mx = 12 + step * ((i % cols) + 0.5);
+      const my = 42 + Math.floor(i / cols) * 22;
+      g.circle(mx, my, 7.5).fill(on ? COLORS.brass : 0x1b1013).stroke({ color: on ? 0xfff1c4 : COLORS.brassDark, width: 1.5 });
+      if (on) g.circle(mx - 2, my - 2, 2.2).fill({ color: 0xffffff, alpha: 0.6 });
+    });
+    if (done > 0) {
+      const gl = new Sprite(glowTexture());
+      gl.anchor.set(0.5);
+      gl.position.set(w / 2, h / 2);
+      gl.width = w * 1.4;
+      gl.height = h * 1.6;
+      gl.tint = COLORS.lamp;
+      gl.alpha = Math.min(0.35, 0.08 + done * 0.012);
+      gl.blendMode = 'add';
+      c.addChild(gl);
+    }
+  }
+
+  private makePlayer() {
+    const host = this.state.data.players.host;
+    const look = this.state.look;
+    return new Player(host?.color ?? COLORS.lamp, { skin: host?.skin, ...look });
+  }
+
+  /** Rebuilds the avatar after a visit to the wardrobe. */
+  refreshLook() {
+    const old = this.player;
+    const p = this.makePlayer();
+    p.view.position.copyFrom(old.view.position);
+    p.faceTowards(Math.PI / 2);
+    this.entities.addChild(p.view);
+    old.view.destroy({ children: true });
+    (this as { player: Player }).player = p;
+    this.companion?.c.destroy({ children: true });
+    this.companion = null;
+    this.buildCompanion();
+  }
+
+  /** A pet moth from the shop that flutters after the player. */
+  private buildCompanion() {
+    const kind = this.state.look.companion;
+    if (kind === 'none') return;
+    const col = COMPANION_COLOR[kind];
+    const c = new Container();
+    const gl = new Sprite(glowTexture());
+    gl.anchor.set(0.5);
+    gl.width = gl.height = 70;
+    gl.tint = col;
+    gl.alpha = 0.55;
+    gl.blendMode = 'add';
+    const wings = new Sprite(mothTexture());
+    wings.anchor.set(0.5);
+    wings.width = wings.height = 22;
+    wings.tint = col;
+    c.addChild(gl, wings);
+    c.position.set(this.player.view.x + 30, this.player.view.y - 30);
+    this.lights.addChild(c);
+    this.companion = { c, wings, base: 22 / wings.texture.width, vx: 0, vy: 0 };
+  }
+
+  private updateCompanion(dt: number) {
+    const m = this.companion;
+    if (!m) return;
+    const pv = this.player.view;
+    const a = this.time * 1.3;
+    const tx = pv.x + Math.cos(a) * 34;
+    const ty = pv.y - 34 + Math.sin(a * 1.7) * 14;
+    m.vx += (tx - m.c.x) * dt * 6 - m.vx * dt * 3;
+    m.vy += (ty - m.c.y) * dt * 6 - m.vy * dt * 3;
+    m.c.x += m.vx * dt;
+    m.c.y += m.vy * dt;
+    m.c.rotation = Math.atan2(m.vy, m.vx) * 0.25;
+    m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 20)));
+    m.c.alpha = pv.alpha;
+  }
+
+  // ---- Using things -----------------------------------------------------------
+
+  /** A note, a sparkle or a puff of words rising from a point. */
+  floatText(text: string, x: number, y: number, color = 0xfff1c4, size = 26) {
+    const t = new Text({ text, style: { fontFamily: FONT_BODY, fontSize: size, fontWeight: '700', fill: color, stroke: { color: 0x14080f, width: 4 } } });
+    t.anchor.set(0.5);
+    t.position.set(x, y);
+    this.fxLayer.addChild(t);
+    const drift = (Math.random() - 0.5) * 40;
+    void animate(1300, (k) => {
+      if (t.destroyed) return;
+      t.position.set(x + drift * k + Math.sin(k * 9) * 4, y - 70 * k);
+      t.alpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+    }, ease.outCubic).then(() => !t.destroyed && t.destroy());
+  }
+
+  /** A coin flips from the player into a point (the wishing fountain). */
+  async tossCoin(x: number, y: number) {
+    const pv = this.player.view;
+    const coin = new Graphics().circle(0, 0, 6).fill(COLORS.lamp).stroke({ color: COLORS.brassDark, width: 1.5 });
+    this.fxLayer.addChild(coin);
+    const sx = pv.x;
+    const sy = pv.y - 20;
+    await animate(650, (k) => {
+      if (coin.destroyed) return;
+      coin.position.set(sx + (x - sx) * k, sy + (y - sy) * k - Math.sin(k * Math.PI) * 90);
+      coin.scale.x = Math.cos(k * 20);
+    });
+    if (!coin.destroyed) coin.destroy();
+  }
+
+  /** Turns to the thing and gives it a nudge; returns false while the last use is still fresh. */
+  use(i: Extract<Interactable, { kind: 'use' }>, poke = true) {
+    if (this.time < this.useCooldown) return false;
+    this.useCooldown = this.time + 0.5;
+    const pv = this.player.view;
+    this.player.faceTowards(Math.atan2(i.cy - pv.y, i.cx - pv.x));
+    if (poke) i.poke?.();
+    return true;
+  }
+
+  /** The player walks in through the front door (first thing in the foyer). */
+  async enterThroughDoor() {
+    const d = this.def.decor.find((x) => x.kind === 'entrance');
+    if (!d) return;
+    this.frozen = true;
+    const pv = this.player.view;
+    pv.position.set(d.x, this.def.height + 10);
+    pv.alpha = 0;
+    this.updateCamera();
+    this.entrance?.poke?.();
+    void animate(500, (k) => !this.dead && (pv.alpha = k));
+    await this.walkTo(d.x, this.def.height - 170, 170);
+    this.scripted = undefined;
+    this.frozen = false;
   }
 
   private buildLights() {
@@ -590,7 +808,8 @@ export class RoomScene {
     let best: Interactable | null = null;
     let bestD = 64;
     for (const i of this.interactables) {
-      const d = Math.hypot(i.x - pv.x, i.y - pv.y);
+      // Small props give way to machines, the elevator and the shops when both are close.
+      const d = Math.hypot(i.x - pv.x, i.y - pv.y) + (i.kind === 'use' && !['shopCounter', 'wardrobe', 'reception'].includes(i.prop) ? 18 : 0);
       if (d < bestD) {
         bestD = d;
         best = i;
@@ -616,6 +835,7 @@ export class RoomScene {
     for (const a of this.animated) a(this.time, dtMs);
     this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
+    this.updateCompanion(dt);
 
     this.updateCamera();
   }

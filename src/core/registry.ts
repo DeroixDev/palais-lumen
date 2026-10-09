@@ -49,7 +49,7 @@ export interface GameDefinition {
 }
 
 /** Look of a floor: decides how carpet and walls are painted. */
-export type RoomStyle = 'velvet' | 'garden' | 'clockwork' | 'crystal' | 'throne';
+export type RoomStyle = 'foyer' | 'velvet' | 'garden' | 'clockwork' | 'crystal' | 'throne';
 
 export interface RoomTheme {
   style: RoomStyle;
@@ -92,6 +92,8 @@ export type DecorKind =
   | 'table' | 'piano' | 'bar' | 'cabinet' | 'bookshelf' | 'floorLamp' | 'statue' | 'fountain' | 'moonPool'
   | 'lanternPost' | 'boiler' | 'pipes' | 'workbench' | 'clockTower' | 'crystal' | 'iceSwan' | 'champagne'
   | 'brazier' | 'throne' | 'rope' | 'trophyShelf'
+  // foyer
+  | 'shopCounter' | 'reception' | 'wardrobe' | 'clothesRack' | 'jukebox' | 'entrance' | 'achievementWall' | 'plaque'
   // above everything
   | 'chandelier'
   // back wall
@@ -109,7 +111,7 @@ export interface DecorPlacement {
 export interface RoomDefinition {
   id: string;
   name: string;
-  /** Floor number 1–5; the elevator goes between floors. */
+  /** Floor number: 0 is the foyer, 1–5 the casino floors. The elevator goes between them. */
   floor: number;
   /** x position of the elevator in the back wall. */
   elevatorX: number;

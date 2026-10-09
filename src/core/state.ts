@@ -1,7 +1,10 @@
 // The whole game state lives in one serialisable object (SaveData).
 // In coop the host owns this object and the save file; guests only send actions.
 
-export const SAVE_VERSION = 3;
+import { ACHIEVEMENTS, type Achievement } from './achievements';
+import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
+
+export const SAVE_VERSION = 4;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -20,6 +23,8 @@ export interface PlayerProfile {
   name: string;
   color: number;
   skin?: number;
+  /** Clothes, hair, hat and companion picked in the wardrobe. */
+  look?: Outfitting;
 }
 
 export interface SaveData {
@@ -40,6 +45,18 @@ export interface SaveData {
   season: { number: number; startedAt: number };
   /** Bests across all seasons; they survive a lost season. */
   records: { bestEvening: number; bestBalance: number; seasonsPlayed: number; seasonsWon: number };
+  /** Second currency, earned by playing well and never for sale. Survives lost seasons. */
+  moonstones: number;
+  /** Ids of wardrobe items bought in the shop (kept forever). */
+  owned: string[];
+  /** Charms bought for the current season. */
+  charms: CharmId[];
+  /** "Zweite Chance" already used this season. */
+  charmUsed: boolean;
+  /** Ids of unlocked achievements with the time they unlocked. */
+  achievements: Record<string, number>;
+  /** Small counters for achievements: games played, wishes, piano notes, props used. */
+  counters: Record<string, number>;
 }
 
 export interface EveningResult {
@@ -64,6 +81,12 @@ export interface EveningResult {
   seasonWon: boolean;
   /** Floor that opened with this result (the next day is on a new floor), or 0. */
   newFloor: number;
+  /** Mondsteine earned with this day. */
+  moonstones: number;
+  /** The goal was missed but "Zweite Chance" kept the season going. */
+  rescued: boolean;
+  /** Bonus Falter from charms at the start of the next day. */
+  bonus: number;
 }
 
 export const START_BALANCE = 1000;
@@ -92,7 +115,7 @@ export function newSave(): SaveData {
     savedAt: now,
     balance: START_BALANCE,
     evening: { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) },
-    roomId: 'f1',
+    roomId: 'foyer',
     position: { x: -1, y: -1 },
     unlockedRooms: ['f1'],
     trophies: [],
@@ -101,6 +124,12 @@ export function newSave(): SaveData {
     players: { host: { name: 'Du', color: 0xffcf7a } },
     season: { number: 1, startedAt: now },
     records: { bestEvening: 0, bestBalance: START_BALANCE, seasonsPlayed: 0, seasonsWon: 0 },
+    moonstones: 0,
+    owned: [],
+    charms: [],
+    charmUsed: false,
+    achievements: {},
+    counters: {},
   };
 }
 
@@ -113,6 +142,10 @@ export function medalFor(ratio: number): Medal {
   if (ratio >= 1) return 'bronze';
   return 'none';
 }
+
+/** Mondsteine for a day's medal. */
+export const MOONSTONES_FOR: Record<Medal, number> = { none: 0, bronze: 1, silver: 2, gold: 3, diamond: 5 };
+export const MOONSTONES_BOSS = 10;
 
 export const MEDAL_LABEL: Record<Medal, string> = {
   none: 'Keine Medaille',
@@ -166,6 +199,7 @@ export class GameState {
     this.data.balance -= amount;
     this.data.stats.wagered = clampChips(this.data.stats.wagered + amount);
     this.eveningWagered += amount;
+    this.roundStake += amount;
     this.data.stats.rounds++;
     this.emit();
     return true;
@@ -178,7 +212,89 @@ export class GameState {
     this.data.stats.won = clampChips(this.data.stats.won + amount);
     this.data.stats.biggestWin = Math.max(this.data.stats.biggestWin, amount);
     this.eveningWon += amount;
+    // Big multiples of the stake count for achievements.
+    if (this.roundStake > 0) {
+      const mult = amount / this.roundStake;
+      if (mult >= 10) this.data.counters.win10 = (this.data.counters.win10 ?? 0) + 1;
+      if (mult >= 50) this.data.counters.win50 = (this.data.counters.win50 ?? 0) + 1;
+    }
+    this.roundStake = 0;
+    this.data.records.bestBalance = Math.max(this.data.records.bestBalance, this.data.balance);
     this.emit();
+  }
+
+  /** Stake placed since the last payout (one round, roughly). */
+  private roundStake = 0;
+
+  // ---- Foyer: Mondsteine, shop, wardrobe, achievements ---------------------
+
+  count(key: string, by = 1) {
+    this.data.counters[key] = (this.data.counters[key] ?? 0) + by;
+    this.emit();
+  }
+
+  get look(): Outfitting {
+    return { ...DEFAULT_OUTFITTING, ...this.data.players.host?.look };
+  }
+
+  setLook(look: Outfitting) {
+    const host = this.data.players.host ?? (this.data.players.host = { name: 'Du', color: 0xffcf7a });
+    host.look = look;
+    this.count('outfit');
+  }
+
+  /** Free items and bought ones. */
+  isOwned(id: string) {
+    const o = WARDROBE.find((w) => w.id === id);
+    return (o && o.price === 0) || this.data.owned.includes(id);
+  }
+
+  buyItem(id: string): boolean {
+    const o = WARDROBE.find((w) => w.id === id);
+    if (!o || this.isOwned(id) || this.data.moonstones < o.price) return false;
+    this.data.moonstones -= o.price;
+    this.data.owned.push(id);
+    this.emit();
+    return true;
+  }
+
+  hasCharm(id: CharmId) {
+    return this.data.charms.includes(id);
+  }
+
+  buyCharm(id: CharmId): boolean {
+    const c = CHARMS.find((x) => x.id === id);
+    if (!c || this.hasCharm(id) || this.data.moonstones < c.price) return false;
+    this.data.moonstones -= c.price;
+    this.data.charms.push(id);
+    // The boss charm lowers today's goal right away if today is the boss day.
+    if (id === 'bossbann' && this.data.evening.number >= BOSS_DAY) this.data.evening.quota = this.quotaToday(this.data.evening.number);
+    this.count('charms');
+    return true;
+  }
+
+  /** Goal for a day with this season's charms applied. */
+  quotaToday(day: number) {
+    let q = quotaFor(day);
+    if (this.hasCharm('rabatt')) q *= 0.9;
+    if (day >= BOSS_DAY && this.hasCharm('bossbann')) q *= 0.8;
+    return Math.max(50, Math.round(q / 50) * 50);
+  }
+
+  /** Newly unlocked achievements; pays their Mondsteine. Call after state changes. */
+  checkAchievements(): Achievement[] {
+    const fresh: Achievement[] = [];
+    for (const a of ACHIEVEMENTS) {
+      if (this.data.achievements[a.id]) continue;
+      const [v, max] = a.progress(this.data);
+      if (v >= max) {
+        this.data.achievements[a.id] = Date.now();
+        this.data.moonstones += a.reward;
+        fresh.push(a);
+      }
+    }
+    if (fresh.length) this.emit();
+    return fresh;
   }
 
   get eveningProfit() {
@@ -210,6 +326,8 @@ export class GameState {
     const ratio = profit / ev.quota;
     const medal = medalFor(ratio);
     const passed = medal !== 'none';
+    const rescued = !passed && this.hasCharm('zweiteChance') && !this.data.charmUsed && ev.number < BOSS_DAY && this.data.balance > 0;
+    if (rescued) this.data.charmUsed = true;
     if (passed) this.data.medals[medal]++;
     let trophy: Trophy | null = null;
     if (medal === 'silver' || medal === 'gold' || medal === 'diamond') {
@@ -218,8 +336,11 @@ export class GameState {
     }
     const seasonWon = passed && ev.number >= BOSS_DAY;
     if (seasonWon) trophy = this.addTrophy('crown', 'diamond', `Saison ${this.data.season.number}: Mottenkönigin besiegt`);
-    const newFloor = passed && !seasonWon && floorForDay(ev.number + 1) > floorForDay(ev.number) ? floorForDay(ev.number + 1) : 0;
+    const goesOn = (passed || rescued) && !seasonWon;
+    const newFloor = goesOn && floorForDay(ev.number + 1) > floorForDay(ev.number) ? floorForDay(ev.number + 1) : 0;
     const cleared = passed ? ev.number : ev.number - 1;
+    const stones = MOONSTONES_FOR[medal] + (seasonWon ? MOONSTONES_BOSS : 0);
+    this.data.moonstones += stones;
     const rec = this.data.records;
     const newRecord = cleared > rec.bestEvening;
     rec.bestEvening = Math.max(rec.bestEvening, cleared);
@@ -241,19 +362,30 @@ export class GameState {
       newRecord,
       seasonWon,
       newFloor,
+      moonstones: stones,
+      rescued,
+      bonus: 0,
     };
-    if (passed && !seasonWon) {
+    if (goesOn) {
       const n = ev.number + 1;
-      this.data.evening = { number: n, startBalance: this.data.balance, quota: quotaFor(n) };
+      // Charms pay out at the start of the new day; that money doesn't count towards its goal.
+      let bonus = 0;
+      if (this.hasCharm('startgeld')) bonus += 150;
+      if (this.hasCharm('zinsen')) bonus += Math.min(300, Math.floor(this.data.balance * 0.05));
+      this.data.balance += bonus;
+      result.bonus = bonus;
+      this.data.evening = { number: n, startBalance: this.data.balance, quota: this.quotaToday(n) };
     } else {
       // Season over: fresh money and evening 1. Trophies, medals, rooms and records stay.
       rec.seasonsPlayed++;
       if (seasonWon) rec.seasonsWon++;
       this.data.unlockedRooms = ['f1'];
-      this.data.roomId = 'f1';
+      this.data.roomId = 'foyer';
       this.data.season = { number: this.data.season.number + 1, startedAt: Date.now() };
       this.data.balance = START_BALANCE;
       this.data.evening = { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) };
+      this.data.charms = [];
+      this.data.charmUsed = false;
     }
     this.eveningWagered = 0;
     this.eveningWon = 0;
