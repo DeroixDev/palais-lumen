@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casino Nachtfalter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+  /* Layout: full-screen game canvas, a slim brass HUD bar on top, dialogs centred. Single dark look by design. */
+  :root {
+    --ink: #120c14;
+    --plum: #2a1630;
+    --velvet: #3a0f20;
+    --brass: #e0b25a;
+    --lamp: #ffcf7a;
+    --cream: #fff6e6;
+    --muted: #b69a6a;
+    --neon: #ff5fa2;
+    --display: "Bungee", Impact, sans-serif;
+    --body: "Barlow Condensed", "Arial Narrow", sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; margin: 0; background: var(--ink); color: var(--cream); font-family: var(--body); overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; touch-action: none; }
+  button { font: 700 1.05rem/1 var(--body); letter-spacing: .02em; color: var(--cream); background: #3a2a30; border: 1px solid rgba(224,178,90,.45); border-radius: 999px; padding: .6em 1.1em; cursor: pointer; transition: transform .12s, background .12s; }
+  button:hover { background: #4a3540; }
+  button:active { transform: scale(.96); }
+  button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+  button.primary { background: var(--brass); color: var(--ink); border-color: transparent; }
+  button.primary:hover { background: var(--lamp); }
+  [hidden] { display: none !important; }
+
+  #hud { position: fixed; top: 0; left: 0; right: 0; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: linear-gradient(to bottom, rgba(18,12,20,.92), rgba(18,12,20,0)); pointer-events: none; z-index: 5; }
+  #hud > * { pointer-events: auto; }
+  .purse { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,.45); border: 1px solid rgba(224,178,90,.5); border-radius: 999px; padding: 6px 16px 6px 6px; }
+  .coin { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3c4, #f0c25a 50%, #a8741f); box-shadow: inset 0 0 0 2px #7a5214; }
+  #balance { font: 1.45rem/1 var(--display); color: var(--lamp); font-variant-numeric: tabular-nums; min-width: 4ch; transition: color .3s, text-shadow .3s; }
+  #balance.up { text-shadow: 0 0 14px rgba(255,207,122,.8); }
+  #balance.down { color: #f3b7c0; }
+  .purse small { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+  .evening { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; max-width: 360px; }
+  .evening-top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 1rem; }
+  #ev-num { color: var(--cream); letter-spacing: .04em; text-transform: uppercase; }
+  #ev-goal { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #ev-bar { position: relative; height: 10px; border-radius: 6px; background: rgba(0,0,0,.5); border: 1px solid rgba(224,178,90,.4); overflow: hidden; }
+  #ev-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #c07a3a, var(--lamp)); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,246,230,.5); }
+  .hud-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+  #btn-back { background: var(--neon); color: #1a0610; border-color: transparent; }
+
+  #toasts { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); transform: translateX(-50%); display: grid; gap: 8px; z-index: 20; width: min(92vw, 440px); pointer-events: none; }
+  .toast { background: rgba(18,12,20,.95); border: 1px solid var(--brass); border-radius: 12px; padding: 10px 14px; font-size: 1.05rem; font-weight: 600; text-align: center; animation: pop .25s ease-out; transition: opacity .4s, transform .4s; }
+  .toast.out { opacity: 0; transform: translateY(8px); }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+
+  #modal { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(8,4,10,.7); backdrop-filter: blur(4px); z-index: 30; }
+  .card { width: min(100%, 560px); max-height: 88vh; overflow: auto; background: linear-gradient(180deg, #2a1630, #170b14); border: 2px solid var(--brass); border-radius: 22px; padding: 22px 22px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6); animation: pop .22s ease-out; }
+  .card h2 { font: 1.5rem/1.15 var(--display); margin: 0 0 12px; color: var(--lamp); text-wrap: balance; }
+  .card p { font-size: 1.12rem; line-height: 1.4; margin: 0 0 10px; color: #eadcc4; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+  .slots { display: grid; gap: 10px; }
+  .slot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,.3); border: 1px solid rgba(224,178,90,.25); }
+  .slot-info { min-width: 0; display: grid; gap: 2px; }
+  .slot-info strong { font-size: 1.15rem; }
+  .slot-info span { color: var(--muted); font-size: 1rem; }
+  .slot-btns { display: flex; gap: 8px; }
+  .transfer summary { cursor: pointer; font-weight: 700; color: var(--lamp); margin-top: 6px; }
+  .transfer textarea { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.4); color: var(--cream); border: 1px solid rgba(224,178,90,.4); border-radius: 10px; padding: 8px; font: .85rem/1.3 ui-monospace, monospace; resize: vertical; }
+  .help kbd { font: .85rem var(--display); background: rgba(0,0,0,.4); border: 1px solid var(--brass); border-radius: 6px; padding: 1px 6px; }
+  .help .safe { color: var(--lamp); }
+
+  #title { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; z-index: 40; background: radial-gradient(ellipse at 50% 40%, rgba(42,22,48,.55), rgba(10,5,10,.94) 70%); backdrop-filter: blur(3px); transition: opacity .5s; }
+  #title.out { opacity: 0; pointer-events: none; }
+  .title-inner { display: grid; justify-items: center; gap: 14px; text-align: center; max-width: 640px; }
+  .eyebrow { font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); font-size: .95rem; }
+  .logo { font: clamp(2.6rem, 10vw, 5.4rem)/.95 var(--display); margin: 0; color: var(--cream); text-shadow: 0 0 10px var(--neon), 0 0 28px var(--neon), 0 0 60px rgba(255,95,162,.6); animation: flicker 6s infinite; }
+  .logo span { display: block; font-size: .42em; letter-spacing: .3em; color: var(--lamp); text-shadow: 0 0 12px rgba(255,207,122,.8); }
+  @keyframes flicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: .55; } 94% { opacity: 1; } 96% { opacity: .7; } }
+  #title-continue { font: 1.4rem/1 var(--display); padding: .8em 1.6em; margin-top: 10px; background: var(--brass); color: var(--ink); border: none; box-shadow: 0 0 30px rgba(224,178,90,.45); }
+  #title-continue:hover { background: var(--lamp); }
+  #title-info { color: var(--muted); font-size: 1.1rem; }
+  .pledge { margin-top: 18px; font-size: 1rem; color: #cdbb9c; border-top: 1px solid rgba(224,178,90,.3); padding-top: 12px; }
+  .short { display: none; }
+  @media (max-width: 640px) {
+    #hud { gap: 8px 10px; padding-bottom: 6px; }
+    .purse { padding: 4px 12px 4px 4px; gap: 8px; }
+    .coin { width: 24px; height: 24px; }
+    #balance { font-size: 1.1rem; }
+    .purse small { display: none; }
+    .hud-btns { gap: 6px; }
+    .hud-btns button { padding: .45em .7em; font-size: .9rem; }
+    .long { display: none; }
+    .short { display: inline; }
+    .evening { order: 3; flex-basis: 100%; max-width: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .logo { animation: none; } }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="Casino-Spielfläche"></div>
+
+<header id="hud" hidden>
+  <div class="purse" title="Dein Spielgeld">
+    <div class="coin" aria-hidden="true"></div>
+    <div><div id="balance">0</div><small>Spielgeld</small></div>
+  </div>
+  <div class="evening">
+    <div class="evening-top"><span id="ev-num">Abend 1</span><span id="ev-goal"></span></div>
+    <div id="ev-bar" role="progressbar" aria-label="Fortschritt zum Abendziel" aria-valuemin="0" aria-valuemax="300">
+      <div id="ev-fill"></div>
+      <div class="tick" style="left:33.3%"></div><div class="tick" style="left:50%"></div><div class="tick" style="left:66.6%"></div>
+    </div>
+  </div>
+  <div class="hud-btns">
+    <button id="btn-back" hidden>← Zurück</button>
+    <button id="btn-save"><span class="long">Spielstände</span><span class="short">Speichern</span></button>
+    <button id="btn-end"><span class="long">Abend beenden</span><span class="short">Abrechnen</span></button>
+    <button id="btn-mute" aria-pressed="true">Ton an</button>
+    <button id="btn-help" aria-label="Hilfe">?</button>
+  </div>
+</header>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="modal" hidden></div>
+
+<section id="title">
+  <div class="title-inner">
+    <div class="eyebrow">Nur Spielgeld · Kein Echtgeld</div>
+    <h1 class="logo">Nachtfalter<span>Casino</span></h1>
+    <button id="title-continue">Casino betreten</button>
+    <div id="title-info"></div>
+    <p class="pledge">Hier kann man nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
+  </div>
+</section>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

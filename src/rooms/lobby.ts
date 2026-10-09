@@ -1,0 +1,40 @@
+import type { RoomDefinition } from '../core/registry';
+
+export const lobby: RoomDefinition = {
+  id: 'lobby',
+  name: 'Lobby',
+  sign: 'CASINO NACHTFALTER',
+  width: 1280,
+  height: 900,
+  theme: {
+    carpet: 0x5a1424,
+    carpetPattern: 0x7a1d34,
+    carpetAccent: 0xe0b25a,
+    wall: 0x2a1630,
+    wallTrim: 0xe0b25a,
+    neon: 0xff5fa2,
+    light: 0xffcf7a,
+  },
+  spawn: { x: 640, y: 780 },
+  stations: [
+    { game: 'slots', x: 130, y: 250, label: 'Nachtfalter', options: { theme: 'classic' } },
+    { game: 'slots', x: 230, y: 250, label: 'Nachtfalter', options: { theme: 'classic' } },
+    { game: 'slots', x: 330, y: 250, label: 'Diamant', options: { theme: 'diamond' } },
+    { game: 'roulette', x: 560, y: 430, label: 'Roulette', options: { minBet: 10 } },
+    { game: 'slots', x: 130, y: 520, label: 'Nachtfalter', options: { theme: 'classic' } },
+    { game: 'slots', x: 230, y: 520, label: 'Diamant', options: { theme: 'diamond' } },
+  ],
+  doors: [{ to: 'vip', x: 1040, label: 'VIP-Lounge' }],
+  decor: [
+    { kind: 'trophyShelf', x: 560, y: 172, w: 320, h: 44 },
+    { kind: 'bar', x: 900, y: 520, w: 300, h: 70 },
+    { kind: 'plant', x: 60, y: 180 },
+    { kind: 'plant', x: 1220, y: 180 },
+    { kind: 'plant', x: 60, y: 840 },
+    { kind: 'plant', x: 1220, y: 840 },
+    { kind: 'pillar', x: 480, y: 250 },
+    { kind: 'pillar', x: 800, y: 700 },
+    { kind: 'pillar', x: 480, y: 700 },
+    { kind: 'sofa', x: 950, y: 760, w: 160, h: 50 },
+  ],
+};
