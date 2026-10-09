@@ -62,11 +62,9 @@ export function migrate(raw: unknown): SaveData | null {
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
   // Version 2 introduced seasons with a goal that rises every evening.
-  if ((d.version ?? 1) < 2) merged.evening.quota = quotaFor(merged.evening.number);
   // Version 3: five floors instead of lobby + VIP room; the goal curve changed too.
   if ((d.version ?? 1) < 3) {
     merged.evening.number = Math.min(merged.evening.number, BOSS_DAY);
-    merged.evening.quota = quotaFor(merged.evening.number);
     merged.roomId = 'f1';
     merged.position = { x: -1, y: -1 };
     merged.unlockedRooms = ['f1'];
@@ -76,6 +74,9 @@ export function migrate(raw: unknown): SaveData | null {
     merged.roomId = 'foyer';
     merged.position = { x: -1, y: -1 };
   }
+  // Version 5: the goal grows with the money the day started with.
+  if ((d.version ?? 1) < 5) merged.evening.quota = quotaFor(merged.evening.number, merged.evening.startBalance, merged.charms);
+  merged.evening.startBalance = Math.max(0, Math.floor(merged.evening.startBalance));
   return merged;
 }
 

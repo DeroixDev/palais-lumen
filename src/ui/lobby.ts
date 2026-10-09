@@ -1,7 +1,7 @@
 // Start menu (HTML over the street scene) and the group card at the foyer reception, where
 // players gather: for now it has your seat, the other three are kept for coop.
 
-import { formatChips, quotaFor, type GameState } from '../core/state';
+import { formatChips, type GameState } from '../core/state';
 import { sfx } from '../core/audio';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -136,7 +136,7 @@ export class Lobby {
     this.drawAvatar();
     const d = this.state.data;
     const rec = d.records.bestEvening > 0 ? ` · Rekord: ${d.records.bestEvening} ${d.records.bestEvening === 1 ? 'Tag' : 'Tage'}` : '';
-    $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute +${formatChips(d.evening.quota || quotaFor(d.evening.number))} Falter${rec}`;
+    $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute ${formatChips(d.evening.startBalance + d.evening.quota)} Falter (+${formatChips(d.evening.quota)})${rec}`;
   }
 
   private drawAvatar() {

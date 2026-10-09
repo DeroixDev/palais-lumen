@@ -1,6 +1,6 @@
 // HTML overlay: top bar, toasts and dialogs. Pixi draws the game, the DOM draws the menus.
 
-import { BOSS_DAY, floorForDay, formatChips, quotaFor, type GameState } from '../core/state';
+import { BOSS_DAY, floorForDay, formatChips, type GameState } from '../core/state';
 import { allRooms } from '../core/registry';
 import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '../core/save';
 import type { SaveData } from '../core/state';
@@ -106,7 +106,10 @@ export class Hud {
       $('#ev-goal').textContent = hp > 0 ? `Königin: ${formatChips(hp)}` : 'Königin besiegt!';
       $('#ev-fill').style.width = `${(hp / d.evening.quota) * 100}%`;
     } else {
-      $('#ev-goal').textContent = `${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} / +${formatChips(d.evening.quota)}`;
+      // The goal is a fixed end balance, known from the start of the day.
+      const missing = this.state.goalMissing;
+      $('#ev-goal').textContent = missing > 0 ? `Ziel ${formatChips(this.state.goalBalance)} · noch ${formatChips(missing)}` : `Ziel ${formatChips(this.state.goalBalance)} ✓`;
+      $('#ev-goal').title = `Tagesgewinn ${profit >= 0 ? '+' : '−'}${formatChips(Math.abs(profit))} von +${formatChips(d.evening.quota)}`;
       $('#ev-fill').style.width = `${Math.min(100, (ratio / 3) * 100)}%`;
     }
     $('#stones').textContent = String(d.moonstones);
@@ -225,13 +228,14 @@ export class Hud {
     const d = this.state.data;
     const profit = this.state.eveningProfit;
     const ratio = profit / d.evening.quota;
+    const reached = this.state.goalReached;
     this.modal(
       `Tag ${d.evening.number} beenden?`,
-      ratio >= 1 && d.evening.number >= BOSS_DAY
+      reached && d.evening.number >= BOSS_DAY
         ? 'Die Mottenkönigin ist besiegt. Rechne ab und die Saison ist gewonnen!'
-        : ratio >= 1
-        ? `Ziel geschafft (${Math.round(ratio * 100)} %). Der nächste Tag hat ein höheres Ziel: +${formatChips(quotaFor(d.evening.number + 1))}.`
-        : `Du stehst erst bei ${Math.round(Math.max(0, ratio) * 100)} % vom Ziel. Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 Falter. Trophäen und Rekorde bleiben.`,
+        : reached
+        ? `Ziel geschafft (${Math.floor(ratio * 100)} %). Morgen startest du mit ${formatChips(d.balance)} Falter, die Einsätze wachsen mit, und das Ziel ist +${formatChips(this.state.quotaToday(d.evening.number + 1, d.balance))}.`
+        : `Dir fehlen noch ${formatChips(this.state.goalMissing)} Falter bis ${formatChips(this.state.goalBalance)} (${Math.floor(Math.max(0, ratio) * 100)} % vom Ziel). Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 Falter. Trophäen und Rekorde bleiben.`,
       [
         { label: 'Weiterspielen', onClick: () => this.closeModal() },
         {

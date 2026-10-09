@@ -14,7 +14,18 @@ import { SYMBOLS, SYMBOL_NAMES, symbolTextures, type SymbolId } from './symbols'
 
 const WEIGHTS: Record<SymbolId, number> = { firefly: 26, candle: 24, lantern: 18, key: 13, moon: 8, moth: 4 };
 /** Pay per line, as a multiple of the whole stake. Three moths pay the moth value. */
-const PAY: Record<SymbolId, number> = { firefly: 0.5, candle: 0.8, lantern: 2, key: 4, moon: 12, moth: 60 };
+export const PAY: Record<SymbolId, number> = { firefly: 0.3, candle: 0.4, lantern: 0.9, key: 2, moon: 6, moth: 30 };
+/**
+ * Several lines in one spin multiply the summed line pays: COMBO[n] for n lines.
+ * Four lines of the smallest symbol already pay 12× the stake.
+ */
+export const COMBO = [0, 1, 1.2, 3, 10, 15, 25, 40, 60];
+/**
+ * Exact long-run payout ratio over all 6^9 grids, weighted by symbol odds.
+ * The combo makes lines depend on each other, so this is counted grid by grid
+ * offline (scripts/slots-rtp.mjs checks it against the tables above).
+ */
+export const RTP = 0.9488697;
 const TOTAL_WEIGHT = SYMBOLS.reduce((s, k) => s + WEIGHTS[k], 0);
 
 /** Cells as [column, row]. */
@@ -52,7 +63,7 @@ export interface LineWin {
 }
 
 /** grid[column][row] */
-export function evaluate(grid: SymbolId[][]): { wins: LineWin[]; mult: number } {
+export function evaluate(grid: SymbolId[][]): { wins: LineWin[]; base: number; combo: number; mult: number } {
   const wins: LineWin[] = [];
   LINES.forEach((l, i) => {
     const sym = lineSymbol(l.cells.map(([c, r]) => grid[c][r]));
@@ -60,21 +71,13 @@ export function evaluate(grid: SymbolId[][]): { wins: LineWin[]; mult: number } 
   });
   // Smallest first so the presentation builds up.
   wins.sort((a, b) => a.mult - b.mult);
-  return { wins, mult: wins.reduce((s, w) => s + w.mult, 0) };
+  const base = wins.reduce((s, w) => s + w.mult, 0);
+  const combo = COMBO[wins.length];
+  return { wins, base, combo, mult: base * combo };
 }
 
-/** Exact long-run payout ratio over all 6^9 grids (shown to the player). */
 export function returnToPlayer() {
-  const P = SYMBOLS.map((s) => WEIGHTS[s] / TOTAL_WEIGHT);
-  // Every line pays independently, so the expected total is 8 × the expected value of one line.
-  let line = 0;
-  for (let a = 0; a < 6; a++)
-    for (let b = 0; b < 6; b++)
-      for (let c = 0; c < 6; c++) {
-        const sym = lineSymbol([SYMBOLS[a], SYMBOLS[b], SYMBOLS[c]]);
-        if (sym) line += P[a] * P[b] * P[c] * PAY[sym];
-      }
-  return line * LINES.length;
+  return RTP;
 }
 
 // ---- Themes ------------------------------------------------------------
@@ -135,12 +138,15 @@ class SlotGame implements GameInstance {
 
   constructor(private ctx: GameContext) {
     this.theme = themeOf(ctx.options);
+    this.bets = ctx.state.stakes(this.theme.bets);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
   }
 
+  /** Today's ladder: the theme's day-1 bets scaled to today's stakes. */
+  private bets: number[];
   private get bet() {
-    return this.theme.bets[this.betIndex];
+    return this.bets[this.betIndex];
   }
 
   private build() {
@@ -317,11 +323,11 @@ class SlotGame implements GameInstance {
   private buildPaytable() {
     const tex = symbolTextures();
     const p = new Container();
-    p.addChild(new Graphics().roundRect(30, 166, W - 60, 470, 20).fill({ color: 0x0b0609, alpha: 0.97 }).stroke({ color: this.theme.trim, width: 3 }));
+    p.addChild(new Graphics().roundRect(30, 166, W - 60, 500, 20).fill({ color: 0x0b0609, alpha: 0.97 }).stroke({ color: this.theme.trim, width: 3 }));
     const head = label('GEWINNTABELLE', 24, COLORS.lamp, true);
     head.position.set(54, 182);
     p.addChild(head);
-    const sub = label('Pro Linie, als Vielfaches deines Einsatzes. Alle 8 Linien zählen gleichzeitig.', 16, 0xd9c6a0);
+    const sub = label('Pro Linie, mal deinem Einsatz. Alle 8 Linien zählen gleichzeitig.', 16, 0xd9c6a0);
     sub.position.set(54, 216);
     p.addChild(sub);
     // The 8 lines as tiny grids.
@@ -335,11 +341,11 @@ class SlotGame implements GameInstance {
     });
     const order: SymbolId[] = ['moth', 'moon', 'key', 'lantern', 'candle', 'firefly'];
     order.forEach((sym, i) => {
-      const y = 310 + i * 46;
+      const y = 306 + i * 40;
       for (let k = 0; k < 3; k++) {
         const sp = new Sprite(tex[sym]);
-        sp.width = sp.height = 40;
-        sp.position.set(54 + k * 42, y);
+        sp.width = sp.height = 36;
+        sp.position.set(54 + k * 38, y);
         p.addChild(sp);
       }
       const name = label(SYMBOL_NAMES[sym], 19, 0xfff6e6);
@@ -350,8 +356,18 @@ class SlotGame implements GameInstance {
       val.position.set(W - 54, y + 6);
       p.addChild(val);
     });
-    const wild = label('Der goldene Nachtfalter ist Joker und ersetzt jedes Symbol.', 17, COLORS.lamp);
-    wild.position.set(54, 590);
+    const comboHead = label('Mehrere Linien auf einmal: Summe mal Kombi-Faktor', 17, 0xfff6e6);
+    comboHead.position.set(54, 552);
+    p.addChild(comboHead);
+    const comboRow = label(
+      COMBO.slice(2).map((f, i) => `${i + 2}→×${String(f).replace('.', ',')}`).join('   '),
+      17,
+      COLORS.lamp,
+    );
+    comboRow.position.set(54, 580);
+    p.addChild(comboRow);
+    const wild = label('Der goldene Nachtfalter ist Joker und ersetzt jedes Symbol.', 16, 0xd9c6a0);
+    wild.position.set(54, 618);
     p.addChild(wild);
     p.eventMode = 'static';
     p.cursor = 'pointer';
@@ -361,14 +377,14 @@ class SlotGame implements GameInstance {
 
   private changeBet(d: number) {
     if (this.spinning) return;
-    this.betIndex = Math.max(0, Math.min(this.theme.bets.length - 1, this.betIndex + d));
+    this.betIndex = Math.max(0, Math.min(this.bets.length - 1, this.betIndex + d));
     this.updateBet();
   }
 
   private updateBet() {
     this.betText.text = formatChips(this.bet);
     this.minus.setEnabled(this.betIndex > 0 && !this.spinning);
-    this.plus.setEnabled(this.betIndex < this.theme.bets.length - 1 && !this.spinning);
+    this.plus.setEnabled(this.betIndex < this.bets.length - 1 && !this.spinning);
     this.spinBtn.setEnabled(!this.spinning);
   }
 
@@ -490,7 +506,7 @@ class SlotGame implements GameInstance {
   }
 
   private async resolve(grid: SymbolId[][]) {
-    const { wins, mult } = evaluate(grid);
+    const { wins, combo, mult } = evaluate(grid);
     if (wins.length === 0) {
       this.ctx.sfx.lose();
       return;
@@ -520,6 +536,15 @@ class SlotGame implements GameInstance {
       if (wins.length > 1 && i > 0) this.combo(i + 1);
       await wait(wins.length > 4 ? 260 : 420);
     }
+    // Several lines: the summed pays get multiplied, shown as a big "×10" stamp.
+    if (combo > 1) {
+      this.combo(wins.length, combo);
+      this.ctx.sfx.lineHit(wins.length + 2);
+      const before = shown;
+      shown = win;
+      await countUp(this.winText, before, shown, 700);
+      await wait(300);
+    }
 
     this.ctx.state.payout(win);
     const centre = toScreen(W / 2, REELS_Y + SYM * 1.5);
@@ -543,7 +568,7 @@ class SlotGame implements GameInstance {
 
   /** "2 LINIEN!", "3 LINIEN!" … pops above the reels; one label that counts up. */
   private comboText: Text | null = null;
-  private combo(n: number) {
+  private combo(n: number, factor = 0) {
     let t = this.comboText;
     if (!t || t.destroyed) {
       t = new Text({
@@ -555,7 +580,9 @@ class SlotGame implements GameInstance {
       this.comboText = t;
     }
     const label = t;
-    label.text = `${n} LINIEN!`;
+    label.text = factor > 1 ? `${n} LINIEN · ×${String(factor).replace('.', ',')}!` : `${n} LINIEN!`;
+    if (factor > 1) label.style.fontSize = 30 + Math.min(16, factor / 4);
+    else label.style.fontSize = 30;
     label.position.set(W / 2, REELS_Y - 4);
     label.alpha = 1;
     label.scale.set(0.5);

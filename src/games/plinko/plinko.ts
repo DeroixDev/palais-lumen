@@ -84,13 +84,17 @@ class PlinkoGame implements GameInstance {
     }
   };
 
+  /** Today's ladder: the day-1 bets scaled to today's stakes. */
+  private bets: number[];
+
   constructor(private ctx: GameContext) {
+    this.bets = ctx.state.stakes(BETS);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
   }
 
   private get bet() {
-    return BETS[this.betIndex];
+    return this.bets[this.betIndex];
   }
 
   private build() {
@@ -224,10 +228,10 @@ class PlinkoGame implements GameInstance {
   }
 
   private changeBet(d: number) {
-    this.betIndex = Math.max(0, Math.min(BETS.length - 1, this.betIndex + d));
+    this.betIndex = Math.max(0, Math.min(this.bets.length - 1, this.betIndex + d));
     this.betText.text = formatChips(this.bet);
     this.minus.setEnabled(this.betIndex > 0);
-    this.plus.setEnabled(this.betIndex < BETS.length - 1);
+    this.plus.setEnabled(this.betIndex < this.bets.length - 1);
   }
 
   /** Drops one moth. Several can fall at the same time. */

@@ -98,7 +98,7 @@ export class Recap {
     p.addChild(bar);
     const fill = new Graphics();
     p.addChild(fill);
-    const quotaLabel = this.text(`Ziel für Tag ${r.evening}: +${formatChips(r.quota)}`, 22, 0xd9c6a0);
+    const quotaLabel = this.text(`Ziel für Tag ${r.evening}: +${formatChips(r.quota)} (${formatChips(r.startBalance + r.quota)} auf dem Konto)`, 22, 0xd9c6a0);
     quotaLabel.position.set(barX, barY - 34);
     const markerViews = MARKERS.map(([m, medal]) => {
       const x = barX + (m / maxRatio) * barW;
@@ -131,7 +131,7 @@ export class Recap {
       },
       ease.outCubic,
     );
-    const pctText = this.text(`${Math.round(r.ratio * 100)} % vom Ziel`, 22, 0xfff6e6, true);
+    const pctText = this.text(`${Math.floor(r.ratio * 100)} % vom Ziel`, 22, 0xfff6e6, true);
     pctText.anchor.set(1, 0);
     pctText.position.set(barX + barW, barY - 36);
 

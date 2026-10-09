@@ -4,7 +4,7 @@ import { Application, Container, Filter, Graphics, Sprite, Text, Texture } from 
 import './games';
 import './rooms';
 import { allRooms, getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
-import { BOSS_DAY, GameState, newSave, type SaveData } from './core/state';
+import { BOSS_DAY, GameState, formatChips, newSave, type SaveData } from './core/state';
 import { latestSave, writeSlot } from './core/save';
 import { COLORS, FONT_BODY, FONT_DISPLAY, Particles, banner, glowText, purse, setRenderer, shake, tierFor } from './core/fx';
 import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
@@ -100,10 +100,18 @@ async function boot() {
   };
   // Boss day: every Falter won is a hit on the Moth Queen.
   let bossProfit = 0;
+  let goalShown = state.goalReached;
   state.onChange(() => {
     const p = state.eveningProfit;
     if (state.data.evening.number >= BOSS_DAY && room?.def.floor === 5 && p > bossProfit) room.bossHit();
     bossProfit = p;
+    // The goal is a fixed end balance; say so the moment it's in, once per day.
+    const reached = state.goalReached;
+    if (reached && !goalShown && mode !== 'title' && state.data.evening.number < BOSS_DAY) {
+      hud.toast(`Tagesziel erreicht: ${formatChips(state.goalBalance)} Falter! Jeder weitere Falter bringt eine bessere Medaille.`);
+      sfx.medal();
+    }
+    goalShown = reached;
     clearTimeout(saveTimer);
     saveTimer = window.setTimeout(autosave, 1200);
     checkRescue();
@@ -678,7 +686,7 @@ async function boot() {
     const c = new Container();
     const t1 = glowText(`TAG ${d.evening.number}`, { fontFamily: FONT_DISPLAY, fontSize: 76, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.neon, distance: 20, outerStrength: 3 });
     const t2 = new Text({
-      text: `Saison ${d.season.number} · Ziel heute: +${d.evening.quota.toLocaleString('de-DE')} Falter`,
+      text: `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`,
       style: { fontFamily: FONT_BODY, fontSize: 30, fontWeight: '700', fill: COLORS.lamp, stroke: { color: COLORS.ink, width: 5 } },
     });
     t2.anchor.set(0.5);

@@ -4,7 +4,7 @@
 import { ACHIEVEMENTS, type Achievement } from './achievements';
 import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -101,10 +101,42 @@ export function floorForDay(day: number) {
   return day >= BOSS_DAY ? FLOORS : Math.min(FLOORS - 1, Math.ceil(day / DAYS_PER_FLOOR));
 }
 
-/** Profit goal for a day of the season. It rises every day; the boss day asks for more. */
-export function quotaFor(day: number) {
-  const base = 250 * Math.pow(1.25, Math.min(day, BOSS_DAY) - 1);
-  return Math.round((day >= BOSS_DAY ? base * 1.6 : base) / 50) * 50;
+/** Rounds to two significant digits (3.456 → 3.500), so goals and stakes read cleanly. */
+export function roundNice(n: number) {
+  if (n <= 0) return 0;
+  const step = Math.pow(10, Math.max(0, Math.floor(Math.log10(n)) - 1));
+  return Math.round(n / step) * step;
+}
+
+/** Share of the day's starting money that has to be won. It rises every day; the boss day asks for more. */
+export function quotaRate(day: number) {
+  const r = 0.25 + 0.02 * (Math.min(day, BOSS_DAY) - 1);
+  return day >= BOSS_DAY ? r * 1.5 : r;
+}
+
+/**
+ * Profit goal for a day, fixed when the day starts. It grows with the money the day
+ * starts with, so goals, stakes and wins all grow together (day 1 with 1.000 → +250).
+ */
+export function quotaFor(day: number, startBalance = START_BALANCE, charms: readonly string[] = []) {
+  let q = startBalance * quotaRate(day);
+  if (charms.includes('rabatt')) q *= 0.9;
+  if (day >= BOSS_DAY && charms.includes('bossbann')) q *= 0.8;
+  return Math.max(50, roundNice(q));
+}
+
+/**
+ * Stake unit for a day: 1 % of the money the day started with, at least 10.
+ * Every bet ladder in the games is a multiple of it (day 1 with 1.000 → 10, 20, 50 …;
+ * a day that starts with 3.000 → 30, 60, 150 …).
+ */
+export function stakeUnitFor(startBalance: number) {
+  const raw = startBalance / 100;
+  if (raw <= 10) return 10;
+  // Largest "round" value not above 1 %: 12, 15, 20, 25, 30, 40, 50, 60, 80, 100, …
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [8, 6, 5, 4, 3, 2.5, 2, 1.5, 1.2, 1].find((f) => f * mag <= raw + 1e-9) ?? 1;
+  return Math.round(step * mag);
 }
 
 export function newSave(): SaveData {
@@ -135,11 +167,12 @@ export function newSave(): SaveData {
 
 const clampChips = (n: number) => Math.max(0, Math.min(MAX_CHIPS, Math.floor(n)));
 
-export function medalFor(ratio: number): Medal {
-  if (ratio >= 3) return 'diamond';
-  if (ratio >= 2) return 'gold';
-  if (ratio >= 1.5) return 'silver';
-  if (ratio >= 1) return 'bronze';
+/** Medal for a day's profit against its goal. Whole-number comparisons, so exactly the goal counts. */
+export function medalFor(profit: number, quota: number): Medal {
+  if (profit >= 3 * quota) return 'diamond';
+  if (profit >= 2 * quota) return 'gold';
+  if (2 * profit >= 3 * quota) return 'silver';
+  if (profit >= quota) return 'bronze';
   return 'none';
 }
 
@@ -273,12 +306,35 @@ export class GameState {
     return true;
   }
 
-  /** Goal for a day with this season's charms applied. */
-  quotaToday(day: number) {
-    let q = quotaFor(day);
-    if (this.hasCharm('rabatt')) q *= 0.9;
-    if (day >= BOSS_DAY && this.hasCharm('bossbann')) q *= 0.8;
-    return Math.max(50, Math.round(q / 50) * 50);
+  /** Goal for a day that starts with this much money, with this season's charms applied. */
+  quotaToday(day: number, startBalance = this.data.evening.startBalance) {
+    return quotaFor(day, startBalance, this.data.charms);
+  }
+
+  /** Stake unit of today (see stakeUnitFor); fixed for the whole day. */
+  get stakeUnit() {
+    return stakeUnitFor(this.data.evening.startBalance);
+  }
+
+  /** A bet ladder written for day 1 (unit 10), scaled to today's stakes. */
+  stakes(base: readonly number[]) {
+    const k = this.stakeUnit / 10;
+    return base.map((b) => Math.round(b * k));
+  }
+
+  /** Balance at which today's goal is reached: start money plus the goal. */
+  get goalBalance() {
+    return this.data.evening.startBalance + this.data.evening.quota;
+  }
+
+  /** True as soon as the balance holds the full goal (whole numbers, no rounding). */
+  get goalReached() {
+    return this.data.balance >= this.goalBalance;
+  }
+
+  /** Falter still missing for today's goal. */
+  get goalMissing() {
+    return Math.max(0, this.goalBalance - this.data.balance);
   }
 
   /** Newly unlocked achievements; pays their Mondsteine. Call after state changes. */
@@ -324,8 +380,8 @@ export class GameState {
     const ev = this.data.evening;
     const profit = this.data.balance - ev.startBalance;
     const ratio = profit / ev.quota;
-    const medal = medalFor(ratio);
-    const passed = medal !== 'none';
+    const medal = medalFor(profit, ev.quota);
+    const passed = profit >= ev.quota;
     const rescued = !passed && this.hasCharm('zweiteChance') && !this.data.charmUsed && ev.number < BOSS_DAY && this.data.balance > 0;
     if (rescued) this.data.charmUsed = true;
     if (passed) this.data.medals[medal]++;
@@ -369,12 +425,14 @@ export class GameState {
     if (goesOn) {
       const n = ev.number + 1;
       // Charms pay out at the start of the new day; that money doesn't count towards its goal.
+      // Both grow with the stakes, like everything else.
+      const unit = stakeUnitFor(this.data.balance);
       let bonus = 0;
-      if (this.hasCharm('startgeld')) bonus += 150;
-      if (this.hasCharm('zinsen')) bonus += Math.min(300, Math.floor(this.data.balance * 0.05));
+      if (this.hasCharm('startgeld')) bonus += 15 * unit;
+      if (this.hasCharm('zinsen')) bonus += Math.min(30 * unit, Math.floor(this.data.balance * 0.05));
       this.data.balance += bonus;
       result.bonus = bonus;
-      this.data.evening = { number: n, startBalance: this.data.balance, quota: this.quotaToday(n) };
+      this.data.evening = { number: n, startBalance: this.data.balance, quota: this.quotaToday(n, this.data.balance) };
     } else {
       // Season over: fresh money and evening 1. Trophies, medals, rooms and records stay.
       rec.seasonsPlayed++;

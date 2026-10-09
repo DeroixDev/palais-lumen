@@ -50,6 +50,9 @@ const BOARD_W = CW * 14;
 const BOARD_H = CH * 3 + 56 + 56;
 const CONTROLS_H = 150;
 const CHIPS = [10, 50, 100, 500];
+/** 1500 → "1,5k", 250000 → "250k", so big chips still fit. */
+const short = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1).replace('.0', '').replace('.', ',')}M` : n >= 1000 ? `${(n / 1000).toFixed(1).replace('.0', '').replace('.', ',')}k` : String(n);
 class RouletteGame implements GameInstance {
   view = new Container();
   private wheelGroup = new Container();
@@ -77,6 +80,7 @@ class RouletteGame implements GameInstance {
   private clearBtn!: Button;
   private repeatBtn!: Button;
   private minBet: number;
+  private chips: number[];
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -85,8 +89,11 @@ class RouletteGame implements GameInstance {
   };
 
   constructor(private ctx: GameContext) {
-    this.minBet = Number(ctx.options.minBet ?? 10);
-    if (this.minBet >= 50) this.chipValue = 50;
+    // Chips and the table minimum are written for day 1 and grow with today's stakes.
+    this.chips = ctx.state.stakes(CHIPS);
+    const baseMin = Number(ctx.options.minBet ?? 10);
+    this.minBet = ctx.state.stakes([baseMin])[0];
+    this.chipValue = this.chips[baseMin >= 50 ? 1 : 0];
     this.buildWheel();
     this.buildBoard();
     this.view.addChild(this.wheelGroup, this.boardGroup);
@@ -248,9 +255,9 @@ class RouletteGame implements GameInstance {
 
     // Controls.
     const cy = BOARD_H + 58;
-    CHIPS.forEach((v, i) => {
-      const chip = drawChip(v, 26);
-      const t = new Text({ text: String(v), style: { fontFamily: FONT_DISPLAY, fontSize: 15, fill: 0xfff6e6 } });
+    this.chips.forEach((v, i) => {
+      const chip = drawChip(CHIPS[i], 26);
+      const t = new Text({ text: short(v), style: { fontFamily: FONT_DISPLAY, fontSize: 15, fill: 0xfff6e6 } });
       t.anchor.set(0.5);
       chip.addChild(t);
       chip.position.set(40 + i * 66, cy);
@@ -284,7 +291,7 @@ class RouletteGame implements GameInstance {
 
   private updateChipButtons() {
     this.chipButtons.forEach((c, i) => {
-      const sel = CHIPS[i] === this.chipValue;
+      const sel = this.chips[i] === this.chipValue;
       void tween(c, { y: BOARD_H + 58 - (sel ? 10 : 0) }, 180, ease.outBack);
       let ring = c.getChildByLabel('sel') as Graphics | null;
       if (!ring) {
@@ -337,9 +344,9 @@ class RouletteGame implements GameInstance {
     this.chipLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
     for (const [key, amount] of this.bets) {
       const cell = this.cells.get(key)!;
-      const value = [...CHIPS].reverse().find((v) => amount >= v) ?? 10;
-      const chip = drawChip(value, 19);
-      const t = new Text({ text: amount >= 1000 ? `${(amount / 1000).toFixed(1).replace('.0', '')}k` : String(amount), style: { fontFamily: FONT_DISPLAY, fontSize: 12, fill: 0xfff6e6 } });
+      const tier = Math.max(0, this.chips.filter((v) => amount >= v).length - 1);
+      const chip = drawChip(CHIPS[tier], 19);
+      const t = new Text({ text: short(amount), style: { fontFamily: FONT_DISPLAY, fontSize: 12, fill: 0xfff6e6 } });
       t.anchor.set(0.5);
       chip.addChild(t);
       chip.position.set(cell.x + cell.w / 2, cell.y + cell.h / 2);
