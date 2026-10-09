@@ -3,7 +3,8 @@
 
 import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
-import { getGame, getRoom, type DecorKind, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { getGame, getRoom, type DecorKind, type DoorDef, type RoomDefinition, type StationPlacement } from '../core/registry';
+import { doorStand, paintedDoorway } from './painted/doorway';
 import { ACHIEVEMENTS } from '../core/achievements';
 import { COMPANION_COLOR } from '../core/items';
 import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from '../core/fx';
@@ -28,6 +29,7 @@ export { WALL_H };
 export type Interactable =
   | { kind: 'station'; station: StationPlacement; x: number; y: number; title: string }
   | { kind: 'elevator'; x: number; y: number; title: string }
+  | { kind: 'door'; door: DoorDef; x: number; y: number; title: string }
   | { kind: 'shelf'; x: number; y: number; title: string }
   | { kind: 'achievements'; x: number; y: number; title: string }
   | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void }
@@ -85,7 +87,8 @@ export class RoomScene {
   private useCooldown = 0;
   private shelfSize = { w: 300, h: 44 };
   private sign!: Container;
-  private elevator!: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number };
+  /** Side rooms have no elevator; they are reached through a door from the floor's main room. */
+  private elevator: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number } | null = null;
   private throne: (Container & { hit?: () => void; phase?: (n: number) => void; laugh?: () => void }) | null = null;
   /** Direction the player faces while a cutscene moves them. */
   private scripted: number | null | undefined = undefined;
@@ -121,7 +124,8 @@ export class RoomScene {
     this.view.addChild(this.world);
     this.buildShell();
     this.world.addChild(this.floorDecor, this.wallDecor);
-    this.buildElevator();
+    if (!this.def.parent) this.buildElevator();
+    this.buildDoors();
     this.buildSign();
     this.world.addChild(this.entities);
     this.entities.sortableChildren = true;
@@ -313,13 +317,55 @@ export class RoomScene {
     this.interactables.push({ kind: 'elevator', x: ex, y: WALL_H + 40, title: 'Aufzug nehmen' });
   }
 
+  /** Doorways to the other rooms of this floor. */
+  private buildDoors() {
+    for (const door of this.def.doors ?? []) {
+      this.wallDecor.addChild(paintedDoorway(door, this.def.width, this.def.height, this.def.theme.neon));
+      const p = doorStand(door, this.def.width, this.def.height);
+      const name = door.label ?? getRoom(door.to).name;
+      this.interactables.push({ kind: 'door', door, x: p.x, y: p.y, title: name });
+    }
+  }
+
+  /** Walk up to a door and fade out through it. */
+  async leaveThrough(door: DoorDef) {
+    this.frozen = true;
+    this.target = null;
+    this.pending = null;
+    this.prompt.visible = false;
+    const p = doorStand(door, this.def.width, this.def.height);
+    await this.walkTo(p.x, p.y);
+    const out = { back: [0, -60], left: [-50, 0], right: [50, 0], front: [0, 50] }[door.side];
+    sfx.door();
+    await this.walkTo(p.x + out[0], p.y + out[1], 170);
+    this.scripted = undefined;
+  }
+
+  /** Coming in through the door that leads back to `fromId` (or the spawn point if there is none). */
+  async arriveFrom(fromId: string) {
+    const door = (this.def.doors ?? []).find((d) => d.to === fromId);
+    if (!door) {
+      this.frozen = false;
+      return;
+    }
+    this.frozen = true;
+    const p = doorStand(door, this.def.width, this.def.height);
+    const out = { back: [0, -50], left: [-40, 0], right: [40, 0], front: [0, 40] }[door.side];
+    this.player.view.position.set(p.x + out[0], p.y + out[1]);
+    this.updateCamera();
+    await this.walkTo(p.x - out[0] * 0.6, p.y - out[1] * 0.6, 170);
+    this.scripted = undefined;
+    this.frozen = false;
+  }
+
   /** Points the dial above the elevator at a floor (fractions move the needle in between). */
   setDial(floor: number) {
+    if (!this.elevator) return;
     this.elevator.needle.rotation = ((floor + 0.5) / 6 - 0.5) * Math.PI;
   }
 
   private setDoors(open: number) {
-    if (this.dead) return;
+    if (this.dead || !this.elevator) return;
     this.elevator.open = open;
     this.elevator.doorL.x = -open * DOOR_W;
     this.elevator.doorR.x = open * DOOR_W;
@@ -810,7 +856,7 @@ export class RoomScene {
 
   private async doors(open: boolean) {
     sfx.elevatorDoor();
-    const from = this.elevator.open;
+    const from = this.elevator?.open ?? 0;
     await animate(650, (k) => this.setDoors(from + ((open ? 1 : 0) - from) * k), ease.inOutCubic);
   }
 
@@ -823,7 +869,7 @@ export class RoomScene {
     const ex = this.def.elevatorX;
     await this.walkTo(ex, WALL_H + 40);
     sfx.elevatorButton();
-    this.elevator.lamp.alpha = 1;
+    if (this.elevator) this.elevator.lamp.alpha = 1;
     await this.doors(true);
     const pv = this.player.view;
     const a0 = pv.alpha;
@@ -1089,7 +1135,7 @@ export class RoomScene {
       m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 22 + m.ph)));
     }
     for (const a of this.animated) a(this.time, dtMs);
-    this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
+    if (this.elevator) this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);
     this.guests?.update(dtMs);
     this.extras.update(dtMs);
     this.updateCompanion(dt);

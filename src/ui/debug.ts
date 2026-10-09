@@ -6,6 +6,7 @@ import { STAMPS_PER_CARD, addStamps, floorOfDay, stampsOnCard } from '../core/st
 import { PHASE_NAME } from '../core/boss';
 import { MAX_HEAT } from '../core/moon';
 import { PERKS } from '../core/perks';
+import { baseRoom } from '../core/registry';
 import { seasonDebug } from './season';
 
 /** What the debug panel needs from the game loop. */
@@ -148,7 +149,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     return `${d.quests.length} neue Aufträge für heute.`;
   });
   btn(evRow, 'Aufträge erledigen', () => `${completeAllQuests(state)} Aufträge erledigt.`);
-  const stampFloor = () => (/^f\d$/.test(d.roomId) ? d.roomId : floorOfDay(d.evening.number));
+  const stampFloor = () => { const r = baseRoom(d.roomId).parent ?? d.roomId; return /^f\d$/.test(r) ? r : floorOfDay(d.evening.number); };
   btn(evRow, '+1 Stempel', () => {
     addStamps(state, stampFloor(), 1, 'Debug');
     return `Stempel auf Etage ${stampFloor().slice(1)}.`;

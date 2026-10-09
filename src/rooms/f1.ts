@@ -24,6 +24,7 @@ export const f1: RoomDefinition = {
     curtain: 0x8a1a2e,
   },
   spawn: { x: 1250, y: 200 },
+  doors: [{ x: 0, y: 560, side: 'left', to: 'f1b', label: 'Hinterzimmer' }],
   stations: [
     { game: 'slots', x: 90, y: 230, label: 'Nachtfalter', options: { theme: 'classic' } },
     { game: 'slots', x: 170, y: 230, label: 'Nachtfalter', options: { theme: 'classic' } },

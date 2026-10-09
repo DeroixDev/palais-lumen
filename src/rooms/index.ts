@@ -7,5 +7,6 @@ import { f2 } from './f2';
 import { f3 } from './f3';
 import { f4 } from './f4';
 import { f5 } from './f5';
+import { f1side } from './f1side';
 
-for (const f of [foyer, f1, f2, f3, f4, f5]) registerRoom(f);
+for (const f of [foyer, f1, f2, f3, f4, f5, f1side]) registerRoom(f);

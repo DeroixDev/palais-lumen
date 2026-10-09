@@ -274,7 +274,27 @@ async function boot() {
       sfx.door();
       hud.achievements();
     } else if (i.kind === 'use') useProp(i);
+    else if (i.kind === 'door') void walkThrough(i.door.to);
     else void rideElevator();
+  }
+
+  /** Through a door into another room of the same floor (side rooms, the club's dance floors). */
+  async function walkThrough(to: string) {
+    if (mode !== 'room') return;
+    mode = 'transition';
+    const door = room.def.doors?.find((d) => d.to === to);
+    const from = room.def.id;
+    if (door) await room.leaveThrough(door);
+    await tween(fade, { alpha: 1 }, 220);
+    state.data.position = { x: -1, y: -1 };
+    enterRoom(to);
+    layout();
+    mode = 'room';
+    room.frozen = true;
+    void tween(fade, { alpha: 0 }, 320);
+    await room.arriveFrom(from);
+    room.savePosition();
+    autosave();
   }
 
   const WISHES = ['Das Wasser glitzert kurz golden.', 'Eine Motte nickt dir zu.', 'Irgendwo klingelt ein Glöckchen.', 'Du wünschst dir eine ruhige Hand.', 'Der Brunnen gluckst zufrieden.'];

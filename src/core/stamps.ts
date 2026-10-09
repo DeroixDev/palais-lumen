@@ -5,6 +5,7 @@
 import { floorForDay, type GameState, type SaveData } from './state';
 import { currentEvent, stampFactor } from './events';
 import { perkFactor } from './perks';
+import { baseRoom } from './registry';
 
 export const STAMPS_PER_CARD = 8;
 /** Rounds played on a floor for one stamp. */
@@ -107,7 +108,8 @@ export function addStamps(state: GameState, floor: string, n: number, reason: st
 export function installStamps(state: GameState) {
   state.onRound(() => {
     const d = state.data;
-    const floor = d.roomId;
+    // Side rooms stamp the card of the floor they belong to.
+    const floor = baseRoom(d.roomId).parent ?? d.roomId;
     if (!STAMP_FLOORS.includes(floor)) return;
     const key = `stampRounds:${floor}`;
     const n = (d.counters[key] ?? 0) + 1;
