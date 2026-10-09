@@ -589,8 +589,8 @@ async function boot() {
     if (mode === 'title' || mode === 'transition') return;
     if (game) await closeGame();
     if (overlay) closeOverlay();
-    state.data.evening = { number: day, startBalance: state.data.balance, quota: state.quotaToday(day, state.data.balance) };
-    state.emit();
+    state.data.evening = { number: day, startBalance: state.data.balance, quota: 0 };
+    state.beginDay();
     dayCardFor = -1;
     await toFoyer(0, 0);
   }
@@ -631,6 +631,7 @@ async function boot() {
     leaveGame: () => void closeGame(),
     newGame: () => {
       loadSave(newSave());
+      state.beginDay();
       if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
     },
     debugDay: (day) => void debugDay(day),

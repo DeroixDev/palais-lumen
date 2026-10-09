@@ -58,6 +58,13 @@ export function migrate(raw: unknown): SaveData | null {
     achievements: { ...d.achievements },
     counters: { ...d.counters },
     moonstones: typeof d.moonstones === 'number' ? d.moonstones : 0,
+    quests: Array.isArray(d.quests) ? d.quests : [],
+    stamps: { ...d.stamps },
+    stampRewards: Array.isArray(d.stampRewards) ? d.stampRewards : [],
+    perks: Array.isArray(d.perks) ? d.perks : [],
+    draft: Array.isArray(d.draft) ? d.draft : null,
+    history: Array.isArray(d.history) && d.history.length ? d.history : [d.balance],
+    settings: { ...base.settings, ...d.settings },
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));

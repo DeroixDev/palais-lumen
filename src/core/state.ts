@@ -4,7 +4,7 @@
 import { ACHIEVEMENTS, type Achievement } from './achievements';
 import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -57,6 +57,54 @@ export interface SaveData {
   achievements: Record<string, number>;
   /** Small counters for achievements: games played, wishes, piano notes, props used. */
   counters: Record<string, number>;
+  // ---- v6: making every day different -----------------------------------
+  /** Today's event id (src/core/events.ts), '' for a plain day. Rolled at day start. */
+  event: string;
+  /** Open and finished guest tasks of today (src/core/quests.ts). */
+  quests: Quest[];
+  /** Stamp card per floor room id: stamps collected, and which rewards are unlocked (kept forever). */
+  stamps: Record<string, number>;
+  stampRewards: string[];
+  /** Perks drafted after each day this season (src/core/perks.ts). Gone when the season ends. */
+  perks: string[];
+  /** A pending 1-of-3 perk choice, or null. */
+  draft: string[] | null;
+  /** Moon level of this season: 0 = normal, higher = harder goals, rarer trophies. */
+  heat: number;
+  /** Highest moon level unlocked (one more per won season). */
+  heatUnlocked: number;
+  /** Balance after each round today, for the curve in the day recap (capped). */
+  history: number[];
+  /** What the house keeps on average from today's stakes (sum of stake × house edge). */
+  houseExpected: number;
+  /** Boss phase today (0 off, 1..3). */
+  bossPhase: number;
+  settings: { haptics: boolean };
+}
+
+/** A small task a guest gives you for today. Progress is counted from round reports. */
+export interface Quest {
+  id: string;
+  /** Guest name shown with the task. */
+  giver: string;
+  text: string;
+  /** Which RoundReport tag counts, and how many are needed. */
+  tag: string;
+  need: number;
+  have: number;
+  reward: { moonstones?: number; stamps?: number };
+  done: boolean;
+}
+
+/** Sent by every game once per finished round. */
+export interface RoundReport {
+  game: 'slots' | 'roulette' | 'plinko' | 'crash' | string;
+  stake: number;
+  win: number;
+  /** The game's long-run payout share (0.95 = 5 % house edge). */
+  rtp: number;
+  /** Things that happened, for quests and quips: 'red', 'black', 'zero', 'lines3', 'moth', 'edge', 'cashout2', 'crash', 'win10', 'win50' … */
+  tags: string[];
 }
 
 export interface EveningResult {
@@ -162,6 +210,18 @@ export function newSave(): SaveData {
     charmUsed: false,
     achievements: {},
     counters: {},
+    event: '',
+    quests: [],
+    stamps: {},
+    stampRewards: [],
+    perks: [],
+    draft: null,
+    heat: 0,
+    heatUnlocked: 0,
+    history: [START_BALANCE],
+    houseExpected: 0,
+    bossPhase: 0,
+    settings: { haptics: true },
   };
 }
 
@@ -193,6 +253,12 @@ type Listener = () => void;
 export class GameState {
   data: SaveData;
   private listeners = new Set<Listener>();
+  private roundListeners = new Set<(r: RoundReport) => void>();
+  private dayStartHooks: ((data: SaveData) => void)[] = [];
+  /** Extra factors on today's goal (events, perks, moon level, boss). Multiplied together. */
+  quotaFactors: ((data: SaveData) => number)[] = [];
+  /** Extra factors on the stake unit (events, boss phase). Multiplied together. */
+  stakeFactors: ((data: SaveData) => number)[] = [];
   /** Per-evening counters, kept outside the save so a reload starts the evening's tally fresh. */
   private eveningWagered = 0;
   private eveningWon = 0;
@@ -306,14 +372,54 @@ export class GameState {
     return true;
   }
 
-  /** Goal for a day that starts with this much money, with this season's charms applied. */
+  /** Goal for a day that starts with this much money, with this season's charms and all goal factors applied. */
   quotaToday(day: number, startBalance = this.data.evening.startBalance) {
-    return quotaFor(day, startBalance, this.data.charms);
+    const base = quotaFor(day, startBalance, this.data.charms);
+    const k = this.quotaFactors.reduce((m, f) => m * f(this.data), 1);
+    return k === 1 ? base : Math.max(50, roundNice(base * k));
   }
 
-  /** Stake unit of today (see stakeUnitFor); fixed for the whole day. */
+  /** Stake unit of today (see stakeUnitFor), times any stake factors (events, boss phase). */
   get stakeUnit() {
-    return stakeUnitFor(this.data.evening.startBalance);
+    const k = this.stakeFactors.reduce((m, f) => m * f(this.data), 1);
+    const u = stakeUnitFor(this.data.evening.startBalance);
+    return k === 1 ? u : stakeUnitFor(this.data.evening.startBalance * k);
+  }
+
+  /** Games call this once per finished round. Feeds quests, quips, stamps, the recap curve. */
+  report(r: RoundReport) {
+    this.data.history.push(this.data.balance);
+    if (this.data.history.length > 400) this.data.history.splice(1, this.data.history.length - 400);
+    this.data.houseExpected += r.stake * Math.max(0, 1 - r.rtp);
+    if (r.stake > 0 && r.win >= r.stake * 10 && !r.tags.includes('win10')) r.tags.push('win10');
+    if (r.stake > 0 && r.win >= r.stake * 50 && !r.tags.includes('win50')) r.tags.push('win50');
+    for (const l of this.roundListeners) l(r);
+    this.emit();
+  }
+
+  onRound(fn: (r: RoundReport) => void) {
+    this.roundListeners.add(fn);
+    return () => this.roundListeners.delete(fn);
+  }
+
+  /** Runs at the start of every day (after the money is set, before the goal is fixed). */
+  onDayStart(fn: (data: SaveData) => void) {
+    this.dayStartHooks.push(fn);
+  }
+
+  /** Called whenever a new day begins (next day, new season, debug jump): resets the day's bits, runs hooks, fixes the goal. */
+  beginDay() {
+    const d = this.data;
+    d.history = [d.balance];
+    d.houseExpected = 0;
+    d.bossPhase = 0;
+    d.event = '';
+    d.quests = [];
+    for (const h of this.dayStartHooks) h(d);
+    d.evening.quota = this.quotaToday(d.evening.number, d.evening.startBalance);
+    this.eveningWagered = 0;
+    this.eveningWon = 0;
+    this.emit();
   }
 
   /** A bet ladder written for day 1 (unit 10), scaled to today's stakes. */
@@ -432,7 +538,7 @@ export class GameState {
       if (this.hasCharm('zinsen')) bonus += Math.min(30 * unit, Math.floor(this.data.balance * 0.05));
       this.data.balance += bonus;
       result.bonus = bonus;
-      this.data.evening = { number: n, startBalance: this.data.balance, quota: this.quotaToday(n, this.data.balance) };
+      this.data.evening = { number: n, startBalance: this.data.balance, quota: 0 };
     } else {
       // Season over: fresh money and evening 1. Trophies, medals, rooms and records stay.
       rec.seasonsPlayed++;
@@ -444,10 +550,11 @@ export class GameState {
       this.data.evening = { number: 1, startBalance: START_BALANCE, quota: quotaFor(1) };
       this.data.charms = [];
       this.data.charmUsed = false;
+      this.data.perks = [];
+      this.data.draft = null;
+      if (seasonWon) this.data.heatUnlocked = Math.max(this.data.heatUnlocked, this.data.heat + 1);
     }
-    this.eveningWagered = 0;
-    this.eveningWon = 0;
-    this.emit();
+    this.beginDay();
     return result;
   }
 }
