@@ -163,7 +163,7 @@ class PlinkoGame implements GameInstance {
     (['low', 'mid', 'high'] as Risk[]).forEach((r, i) => {
       const btn = button({
         label: RISK_LABEL[r],
-        width: 92,
+        width: 88,
         height: 40,
         color: 0x3a2a30,
         textColor: 0xfff6e6,
@@ -171,7 +171,7 @@ class PlinkoGame implements GameInstance {
         display: false,
         onClick: () => this.setRisk(r),
       });
-      btn.position.set(86 + i * 100, cy - 6);
+      btn.position.set(84 + i * 106, cy - 6);
       this.riskButtons.push(btn);
       b.addChild(btn);
     });
@@ -207,8 +207,8 @@ class PlinkoGame implements GameInstance {
     this.risk = r;
     this.riskButtons.forEach((btn, i) => {
       const on = (['low', 'mid', 'high'] as Risk[])[i] === r;
-      btn.filters = on ? [new GlowFilter({ color: COLORS.lamp, distance: 10, outerStrength: 3, quality: 0.2 })] : [];
-      btn.alpha = on ? 1 : 0.6;
+      btn.setSelected(on);
+      btn.alpha = on ? 1 : 0.7;
     });
     const table = TABLE[r];
     const bw = DX - 4;

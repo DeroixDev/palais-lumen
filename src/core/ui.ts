@@ -19,6 +19,8 @@ export interface ButtonOptions {
 export interface Button extends Container {
   setEnabled(on: boolean): void;
   setLabel(text: string): void;
+  /** Crisp gold ring for the chosen option in a group (drawn as vectors, so it stays sharp). */
+  setSelected(on: boolean): void;
 }
 
 export function button(o: ButtonOptions): Button {
@@ -74,6 +76,16 @@ export function button(o: ButtonOptions): Button {
   };
   c.setLabel = (t: string) => {
     txt.text = t;
+  };
+  const ring = new Graphics();
+  const rw = o.width + 10;
+  const rh = o.height + 10;
+  ring.roundRect(-rw / 2 - 3, -rh / 2 - 3, rw + 6, rh + 6, rh / 2.6 + 3).stroke({ color: COLORS.lamp, width: 6, alpha: 0.22 });
+  ring.roundRect(-rw / 2, -rh / 2, rw, rh, rh / 2.6).stroke({ color: COLORS.lamp, width: 2.5 });
+  ring.visible = false;
+  c.addChildAt(ring, 0);
+  c.setSelected = (on: boolean) => {
+    ring.visible = on;
   };
   return c;
 }

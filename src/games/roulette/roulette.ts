@@ -287,7 +287,13 @@ class RouletteGame implements GameInstance {
     this.chipButtons.forEach((c, i) => {
       const sel = CHIPS[i] === this.chipValue;
       void tween(c, { y: BOARD_H + 58 - (sel ? 10 : 0) }, 180, ease.outBack);
-      c.filters = sel ? [new GlowFilter({ color: COLORS.lamp, distance: 12, outerStrength: 3, quality: 0.2 })] : [];
+      let ring = c.getChildByLabel('sel') as Graphics | null;
+      if (!ring) {
+        ring = new Graphics().circle(0, 0, 33).stroke({ color: COLORS.lamp, width: 6, alpha: 0.22 }).circle(0, 0, 30).stroke({ color: COLORS.lamp, width: 2.5 });
+        ring.label = 'sel';
+        c.addChildAt(ring, 0);
+      }
+      ring.visible = sel;
     });
   }
 
@@ -460,7 +466,7 @@ class RouletteGame implements GameInstance {
     for (const chip of [...this.chipLayer.children]) {
       const key = chip.label as BetKey;
       if (winners.includes(key)) {
-        chip.filters = [new GlowFilter({ color: COLORS.lamp, distance: 10, outerStrength: 3, quality: 0.2 })];
+        chip.addChildAt(new Graphics().circle(0, 0, 24).stroke({ color: COLORS.lamp, width: 6, alpha: 0.25 }).circle(0, 0, 21.5).stroke({ color: COLORS.lamp, width: 2.5 }), 0);
         void tween(chip.scale, { x: 1.3, y: 1.3 }, 300, ease.outBack);
       } else {
         void tween(chip, { alpha: 0, y: chip.y - 40 }, 500, ease.inCubic, 300);

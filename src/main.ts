@@ -1,6 +1,6 @@
 // Works under strict Content-Security-Policy (no eval), e.g. when embedded.
 import 'pixi.js/unsafe-eval';
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Filter, Graphics, Sprite, Texture } from 'pixi.js';
 import './games';
 import './rooms';
 import { getGame, getRoom, type GameInstance, type StationPlacement } from './core/registry';
@@ -42,6 +42,8 @@ function vignetteTexture() {
 
 async function boot() {
   await loadFonts();
+  // Filters (glows) render at the screen's pixel density, otherwise they look blocky on sharp displays.
+  Filter.defaultOptions.resolution = 'inherit';
   const app = new Application();
   const host = document.getElementById('stage')!;
   await app.init({
