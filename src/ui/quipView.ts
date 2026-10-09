@@ -13,6 +13,7 @@ import type { PlayerLook } from '../world/player';
 import type { RoomScene } from '../world/room';
 import { INK, fillInk, glowAt, paint } from '../world/painted/brush';
 import { SpeechBubble } from './bubble';
+import { QuipStrip, stripLayout } from './quipStrip';
 
 export interface QuipHost {
   mode(): string;
@@ -125,6 +126,8 @@ export class Quips {
   private picker = new QuipPicker();
   private roomBubble = new SpeechBubble();
   private gameBubble = new SpeechBubble();
+  /** Phones: game quips go into a paper strip over the HUD, off the table. */
+  private strip = new QuipStrip();
   private portrait: Portrait | null = null;
   private portraitFor: Speaker | null = null;
   private game: string | null = null;
@@ -144,8 +147,9 @@ export class Quips {
       this.engine.round(r);
     });
     state.onDayStart(() => this.engine.day());
-    // A tap anywhere sends a game bubble away early (it may sit over the table on phones).
+    // A tap anywhere sends a game bubble away early; so does the day board opening over the game.
     window.addEventListener('pointerdown', () => this.gameBubble.showing && this.gameBubble.hide());
+    window.addEventListener('nf-board-peek', () => this.gameBubble.showing && this.gameBubble.hide());
     this.goalShown = state.goalReached;
     state.onChange(() => {
       const reached = state.goalReached;
@@ -158,6 +162,7 @@ export class Quips {
   setGame(id: string | null) {
     this.game = id;
     this.gameBubble.clear();
+    this.strip.clear();
     this.engine.touch(2500);
   }
 
@@ -166,6 +171,7 @@ export class Quips {
     this.engine.stage();
     this.roomBubble.hide();
     this.gameBubble.hide();
+    this.strip.hide();
   }
 
   /** Test hook: say something right away. */
@@ -228,13 +234,18 @@ export class Quips {
   }
 
   private showGame(sp: Speaker, line: string) {
+    if (stripLayout()) {
+      this.gameBubble.clear();
+      this.strip.say(SPEAKER_NAME[sp], line);
+      return;
+    }
     if (this.portraitFor !== sp) {
       this.portrait?.view.destroy({ children: true });
       this.portrait = new Portrait(sp);
       this.portraitFor = sp;
       this.view.addChild(this.portrait.view);
     }
-    this.gameBubble.say(SPEAKER_NAME[sp], line, 'side');
+    this.gameBubble.say(SPEAKER_NAME[sp], line, 'side', 0.82);
   }
 
   private place(room: RoomScene) {
@@ -259,7 +270,10 @@ export class Quips {
       this.engine.touch(7000);
     }
     if (mode !== 'room' || this.hidden || this.host.blocked()) this.roomBubble.clear();
-    if (mode !== 'game' || this.hidden) this.gameBubble.clear();
+    if (mode !== 'game' || this.hidden) {
+      this.gameBubble.clear();
+      this.strip.clear();
+    }
     this.roomBubble.update(dtMs);
     this.gameBubble.update(dtMs);
     if (this.roomBubble.showing && room) this.place(room);
@@ -268,11 +282,14 @@ export class Quips {
     if (p) {
       p.view.visible = this.gameBubble.showing;
       if (p.view.visible) {
+        // Tucked right under the HUD, above the frames of the tables (crash's sky panel).
         const top = this.host.topInset();
-        p.view.position.set(16 + R, top + 16 + R);
+        const k = 0.85;
+        p.view.scale.set(k);
+        p.view.position.set(14 + R * k, top + 36);
         p.view.alpha = this.gameBubble.view.alpha;
         p.update(dtMs);
-        this.gameBubble.view.position.set(16 + R * 2 + 8, top + 16 + R - 4);
+        this.gameBubble.view.position.set(14 + R * 2 * k + 8, top + 40);
       }
     }
   }

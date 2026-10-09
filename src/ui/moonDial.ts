@@ -6,6 +6,7 @@ import { Container, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
 import { FONT_DISPLAY, reducedMotion } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { button, brass, lockTexture } from '../core/ui';
+import { focusable } from '../core/focus';
 import { sfx } from '../core/audio';
 import { HEAT_GOAL_STEP, MAX_HEAT, MOON_LEVELS, heatStoneFactor } from '../core/moon';
 import type { GameState } from '../core/state';
@@ -239,6 +240,12 @@ export class MoonDialPanel extends Panel {
       m.eventMode = 'static';
       m.cursor = locked ? 'not-allowed' : 'pointer';
       m.hitArea = new Rectangle(-mr - 10, -mr - 10, mr * 2 + 20, mr * 2 + 20);
+      focusable(m, {
+        label: () => `Mondstufe ${lv}, ${MOON_LEVELS[lv]?.name ?? ''}: ${MOON_LEVELS[lv]?.twist ?? ''}${lv === this.pick ? ' Gewählt.' : ''}`,
+        rect: { w: mr * 2 + 8, h: mr * 2 + 8 },
+        radius: mr + 4,
+        locked: () => (locked ? `öffnet sich nach einem Saisonsieg auf Stufe ${lv - 1}` : null),
+      });
       m.on('pointertap', () => {
         if (locked) {
           sfx.lose();

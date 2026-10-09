@@ -8,6 +8,7 @@ import { FONT_BODY } from '../core/fx';
 import { animate } from '../core/tween';
 import { sfx } from '../core/audio';
 import { button, brass } from '../core/ui';
+import { focusable } from '../core/focus';
 import type { GameState, Quest } from '../core/state';
 import { currentEvent, type DayEvent } from '../core/events';
 import { rewardText } from '../core/quests';
@@ -53,6 +54,12 @@ export function eventMedal(e: DayEvent, r = 20) {
       c.fill();
     }, 3),
   );
+}
+
+/** The medallion as an image URL, for the HUD's in-game chip. */
+export function eventMedalUrl(e: DayEvent) {
+  const res = eventMedal(e, 19).source.resource as HTMLCanvasElement;
+  return res.toDataURL();
 }
 
 /** Dark velvet strip with a brass hairline (lists, ribbons). */
@@ -114,6 +121,9 @@ export class DayBoard {
   private w = 280;
   private narrow = false;
   private off: () => void;
+  /** Opened from the in-game chip: shown unfolded over the game; any tap closes it. */
+  peek = false;
+  onPeekTap: (() => void) | null = null;
 
   constructor(private state: GameState) {
     this.folded = matchMedia('(max-width: 560px)').matches;
@@ -134,7 +144,7 @@ export class DayBoard {
 
   private signature() {
     const d = this.state.data;
-    return [d.event, this.ruleOpen, this.folded, this.w, d.quests.map((q) => `${q.id}${q.accepted ? 1 : 0}${q.done ? 1 : 0}${q.have}`).join(',')].join('#');
+    return [d.event, this.ruleOpen, this.folded, this.peek, this.w, d.quests.map((q) => `${q.id}${q.accepted ? 1 : 0}${q.done ? 1 : 0}${q.have}`).join(',')].join('#');
   }
 
   refresh() {
@@ -181,9 +191,11 @@ export class DayBoard {
     c.on('pointertap', (ev) => {
       ev.stopPropagation();
       sfx.click();
+      if (this.peek) return this.onPeekTap?.();
       this.ruleOpen = !this.ruleOpen;
       this.refresh();
     });
+    focusable(c, { label: `Ereignis heute: ${e.name}. ${this.ruleOpen ? e.rule : 'Regel zeigen'}`, rect: { x: 0, y: 0, w, h }, radius: 10 });
     this.view.addChild(c);
     return h;
   }
@@ -193,12 +205,13 @@ export class DayBoard {
     const c = new Container();
     c.y = y0;
     const done = qs.filter((q) => q.done).length;
+    const folded = this.folded && !this.peek;
     const head = new Text({ text: `AUFTRÄGE  ${done}/${qs.length}`, style: { fontFamily: FONT_BODY, fontSize: 15, fontWeight: '700', fill: 0xe0b25a, letterSpacing: 2 } });
-    const arrow = new Text({ text: this.folded ? '▾' : '▴', style: { fontFamily: FONT_BODY, fontSize: 16, fontWeight: '700', fill: 0xe0b25a } });
+    const arrow = new Text({ text: folded ? '▾' : '▴', style: { fontFamily: FONT_BODY, fontSize: 16, fontWeight: '700', fill: 0xe0b25a } });
     const open = qs.filter((q) => !q.accepted && !q.done).length;
     const rows: Container[] = [];
     let y = 34;
-    if (!this.folded) {
+    if (!folded) {
       for (const q of qs) {
         const r = new Container();
         r.y = y;
@@ -228,14 +241,14 @@ export class DayBoard {
         y += Math.max(22, t.height) + 8;
       }
     }
-    const h = this.folded ? 32 : y + 2;
+    const h = folded ? 32 : y + 2;
     const bg = new Sprite(velvetTexture(w, h));
     bg.position.set(-4, -3);
     head.position.set(14, 16 - head.height / 2);
     arrow.anchor.set(1, 0.5);
     arrow.position.set(w - 12, 16);
     c.addChild(bg, head, arrow, ...rows);
-    if (this.folded && open) {
+    if (folded && open) {
       const dot = new Graphics().circle(head.x + head.width + 12, 16, 6).fill(0xff6b5f).stroke({ color: 0x160a14, width: 1.2 });
       c.addChild(dot);
     }
@@ -245,9 +258,11 @@ export class DayBoard {
     c.on('pointertap', (ev) => {
       ev.stopPropagation();
       sfx.click();
+      if (this.peek) return this.onPeekTap?.();
       this.folded = !this.folded;
       this.refresh();
     });
+    focusable(c, { label: `Aufträge, ${done} von ${qs.length} erledigt${this.folded ? ', zugeklappt' : `: ${qs.map((q) => (q.done ? `erledigt: ${q.text}` : q.accepted ? `${q.text}, ${q.have} von ${q.need}` : `${q.giver} hat einen Wunsch`)).join('. ')}`}`, rect: { x: 0, y: 0, w, h }, radius: 10 });
     this.view.addChild(c);
   }
 

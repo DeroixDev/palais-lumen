@@ -10,8 +10,9 @@ import { ACHIEVEMENTS, type Achievement, type AchievementIcon } from '../core/ac
 import { stoneDataUrl } from './stone';
 import { installHudArt } from './hudArt';
 import { debugPanel } from './debug';
+import './fit.css';
 
-const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋' };
+const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋', camera: '📷' };
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -34,6 +35,8 @@ interface ToastItem {
   cls: string;
   count: number;
   at: number;
+  /** Shows even while a dialog or a full panel is open (answers to a tap inside it). */
+  urgent?: boolean;
   el?: HTMLElement;
   timer?: number;
 }
@@ -48,6 +51,9 @@ export class Hud {
   private openTitle = '';
   private toastsShown: ToastItem[] = [];
   private toastQueue: ToastItem[] = [];
+  /** A full-screen panel (recap, draft, moon dial …) is open: toasts wait in line. */
+  private toastHold = false;
+  private inGame = false;
 
   constructor(
     private state: GameState,
@@ -129,6 +135,7 @@ export class Hud {
 
   show(on: boolean) {
     $('#hud').hidden = !on;
+    document.body.classList.toggle('hud-off', !on);
     if (!on) $('#hud').classList.remove('menu-open');
     this.syncHeight();
   }
@@ -142,6 +149,37 @@ export class Hud {
 
   setInGame(on: boolean) {
     $('#btn-back').hidden = !on;
+    this.inGame = on;
+    document.body.classList.toggle('in-game', on);
+  }
+
+  /**
+   * While a full-screen panel is open, new toasts wait and the ones on screen step back into
+   * the line, so nothing covers the panel's title. Urgent ones still show.
+   */
+  holdToasts(on: boolean) {
+    if (this.toastHold === on) return;
+    this.toastHold = on;
+    if (on) this.shelveToasts();
+    else this.pumpToasts();
+  }
+
+  private get toastsHeld() {
+    return this.toastHold || this.isOpen;
+  }
+
+  /** Puts the toasts on screen back at the front of the line (fresh ones) or lets them go. */
+  private shelveToasts() {
+    const now = performance.now();
+    const back: ToastItem[] = [];
+    for (const t of [...this.toastsShown]) {
+      if (t.urgent) continue;
+      clearTimeout(t.timer);
+      t.el?.remove();
+      this.toastsShown = this.toastsShown.filter((x) => x !== t);
+      if (now - t.at < 1500) back.push({ text: t.text, cls: t.cls, count: t.count, at: now });
+    }
+    this.toastQueue.unshift(...back);
   }
 
   render() {
@@ -288,7 +326,7 @@ export class Hud {
    * A brass strip under the HUD. Two at a time, the rest wait in line; the same message twice
    * within 3 s becomes one strip with a counter. Tap to dismiss.
    */
-  toast(text: string, cls = '') {
+  toast(text: string, cls = '', urgent = false) {
     const now = performance.now();
     const same = [...this.toastsShown, ...this.toastQueue].find((t) => t.text === text && (t.el || now - t.at < 3000));
     if (same) {
@@ -306,13 +344,18 @@ export class Hud {
       }
       return;
     }
-    this.toastQueue.push({ text, cls, count: 1, at: now });
+    this.toastQueue.push({ text, cls, count: 1, at: now, urgent });
     this.pumpToasts();
   }
 
   private pumpToasts() {
-    while (this.toastsShown.length < 2 && this.toastQueue.length) {
-      const t = this.toastQueue.shift()!;
+    // In a game on a phone only one strip at a time, so the second never reaches the table.
+    const max = this.inGame && matchMedia('(max-width: 900px)').matches ? 1 : 2;
+    while (this.toastsShown.length < max && this.toastQueue.length) {
+      const i = this.toastsHeld ? this.toastQueue.findIndex((x) => x.urgent) : 0;
+      if (i < 0) break;
+      const t = this.toastQueue.splice(i, 1)[0];
+      t.at = performance.now();
       const el = document.createElement('div');
       el.className = 'toast' + (t.cls ? ' ' + t.cls : '');
       el.innerHTML = '<span class="toast-ic" aria-hidden="true"></span><span class="toast-t"></span>';
@@ -403,6 +446,7 @@ export class Hud {
     root.hidden = false;
     if (!this.isOpen) root.style.animation = '';
     else root.style.animation = 'none';
+    if (!this.isOpen) this.shelveToasts();
     this.isOpen = true;
     this.openTitle = title;
     document.body.classList.add('modal-open');
@@ -422,6 +466,7 @@ export class Hud {
       root.innerHTML = '';
       root.classList.remove('closing');
     }, 180);
+    this.pumpToasts();
   }
 
   get modalOpen() {
@@ -459,7 +504,7 @@ export class Hud {
     const body = debugPanel(this.state, {
       jumpToDay: (day) => this.actions.debugDay(day),
       endDay: () => this.actions.endEvening(),
-      toast: (t) => this.toast(t),
+      toast: (t) => this.toast(t, '', true),
       close: () => this.closeModal(),
     });
     this.modal('Debug', body, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
@@ -489,7 +534,7 @@ export class Hud {
         save.textContent = 'Hier speichern';
         save.addEventListener('click', () => {
           this.actions.save(s.id);
-          this.toast(`Gespeichert in ${names[s.id]}.`);
+          this.toast(`Gespeichert in ${names[s.id]}.`, '', true);
           this.openSaves();
         });
         btns.appendChild(save);
@@ -523,15 +568,15 @@ export class Hud {
       area.select();
       try {
         await navigator.clipboard.writeText(area.value);
-        this.toast('Code kopiert.');
+        this.toast('Code kopiert.', '', true);
       } catch {
-        this.toast('Code markiert. Mit Strg+C kopieren.');
+        this.toast('Code markiert. Mit Strg+C kopieren.', '', true);
       }
     });
     $('#code-load').addEventListener('click', () => {
       const data = importCode(area.value);
       if (!data) {
-        this.toast('Der Code ist ungültig. Bitte vollständig einfügen.');
+        this.toast('Der Code ist ungültig. Bitte vollständig einfügen.', 'error', true);
         return;
       }
       this.closeModal();

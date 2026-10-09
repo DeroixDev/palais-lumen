@@ -120,6 +120,13 @@ export class Guests {
     }
   }
 
+  /** Sends everyone home (the room is rebuilding its crowd). */
+  destroy() {
+    for (const g of this.list) if (!g.p.view.destroyed) g.p.view.destroy({ children: true });
+    this.list = [];
+    this.taken.clear();
+  }
+
   private free(except?: Spot | null) {
     const options = this.spots.filter((s) => !this.taken.has(s) && s !== except);
     return options.length ? pick(options) : null;
@@ -400,13 +407,15 @@ export class Guests {
       void animate(
         1300 + Math.random() * 500,
         (k) => {
+          // The room may be left (and destroyed) while the moths still flutter.
+          if (c.destroyed) return;
           c.x = at.x + Math.cos(ang) * dist * k + Math.sin(k * 12 + i) * 6;
           c.y = at.y + Math.sin(ang) * dist * k;
           c.alpha = 1 - k;
           m.scale.x = base * (0.4 + 0.6 * Math.abs(Math.cos(k * 40)));
         },
         ease.outCubic,
-      ).then(() => c.destroy({ children: true }));
+      ).then(() => !c.destroyed && c.destroy({ children: true }));
     }
     const l = this.listener();
     if (Math.hypot(l.x - at.x, l.y - at.y) < 380) sfx.coin();

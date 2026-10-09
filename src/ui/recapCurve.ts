@@ -30,12 +30,17 @@ export function curveCard(history: number[], start: number, goal: number, w: num
   const pw = w - pl - pr;
   const ph = h - pt - pb;
   let lo = Math.min(start, ...pts);
-  let hi = Math.max(goal, ...pts);
+  const top = Math.max(start, ...pts);
+  // A goal far above the day's range would squash the curve: pin it to the top edge instead.
+  const span = Math.max(top - lo, start * 0.02, 1);
+  const goalClipped = goal > top + span * 0.75;
+  let hi = goalClipped ? top : Math.max(goal, top);
   const pad = Math.max(1, (hi - lo) * 0.1);
   lo -= pad;
   hi += pad;
   const X = (i: number) => pl + (i / (N - 1)) * pw;
   const Y = (v: number) => pt + (1 - (v - lo) / (hi - lo)) * ph;
+  const goalY = goalClipped ? pt - (small ? 14 : 18) : Y(goal);
 
   // Parchment ledger card with start and goal lines.
   const card = new Sprite(
@@ -83,7 +88,19 @@ export function curveCard(history: number[], start: number, goal: number, w: num
         c.restore();
       };
       dashed(Y(start), 'rgba(106,74,42,0.75)', 1.6, [7, 6]);
-      dashed(Y(goal), 'rgba(47,106,58,0.85)', 2.2, [12, 5]);
+      dashed(goalY, 'rgba(47,106,58,0.85)', 2.2, [12, 5]);
+      if (goalClipped) {
+        // Small arrowheads: the goal lies further up, off the card.
+        c.fillStyle = 'rgba(47,106,58,0.9)';
+        for (const x of [pl - 10, w - pr + 6]) {
+          c.beginPath();
+          c.moveTo(x, goalY - 6);
+          c.lineTo(x - 5, goalY + 1);
+          c.lineTo(x + 5, goalY + 1);
+          c.closePath();
+          c.fill();
+        }
+      }
     }),
   );
   view.addChild(card);
@@ -96,13 +113,21 @@ export function curveCard(history: number[], start: number, goal: number, w: num
     view.addChild(l);
     return l;
   };
-  const goalL = lineLabel('Ziel', goal, GOAL);
   const startL = lineLabel('Start', start, START);
-  // Start and goal close together: push the two labels apart.
-  const need = goalL.height + 4 - (Y(start) - Y(goal));
-  if (need > 0) {
-    goalL.y -= need / 2;
-    startL.y += need / 2;
+  if (goalClipped) {
+    // "Ziel 15.100 ↑" sits on the pinned line, at its right end.
+    const gl = bodyText(`Ziel ${formatChips(goal)} ↑`, small ? 12 : 14, GOAL, { bold: true });
+    gl.anchor.set(1, 1);
+    gl.position.set(w - pr + 2, goalY - 2);
+    view.addChild(gl);
+  } else {
+    const goalL = lineLabel('Ziel', goal, GOAL);
+    // Start and goal close together: push the two labels apart.
+    const need = goalL.height + 4 - (Y(start) - Y(goal));
+    if (need > 0) {
+      goalL.y -= need / 2;
+      startL.y += need / 2;
+    }
   }
 
   // The curve: ink wash to the start line, then a slightly wobbly pen line.
@@ -181,6 +206,8 @@ export function curveCard(history: number[], start: number, goal: number, w: num
     glowAt(c, 28, 22, 26, 20, 0xffd27a, 0.45);
     paintMoth(c, 28, 24, 46, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: 0xffcf7a }, 1.4);
   });
+  // Only a day that rose above its start has a peak worth a moth.
+  const rose = pts[peakI] > start;
   const moth = new Sprite(mothTex);
   moth.anchor.set(0.5, 0.85);
   const ms = small ? 0.75 : 0.9;
@@ -203,6 +230,27 @@ export function curveCard(history: number[], start: number, goal: number, w: num
   view.addChild(endL);
   // Peak right at the end: keep its label off the end value.
   if (peakI === N - 1) peakL.visible = false;
+  if (!rose) {
+    moth.visible = false;
+    peakL.visible = false;
+  }
+  // A day that only went down: a small red ink ring marks its low point instead (unless that is the end).
+  let lowI = 0;
+  for (let i = 1; i < N; i++) if (pts[i] < pts[lowI]) lowI = i;
+  const low = new Graphics();
+  const lowL = bodyText(`Tiefststand ${formatChips(pts[lowI])}`, small ? 12 : 14, 0x8a2a32, { bold: true });
+  const showLow = !rose && lowI < N - 1 && pts[lowI] < start;
+  low.visible = lowL.visible = showLow;
+  if (showLow) {
+    const r = small ? 6 : 7;
+    low.circle(P[lowI].x, P[lowI].y, r).stroke({ color: 0xa02a36, width: 2, alpha: 0.85 });
+    lowL.anchor.set(P[lowI].x > w * 0.6 ? 1 : 0, 0);
+    lowL.position.set(P[lowI].x + (lowL.anchor.x ? -12 : 12), P[lowI].y + 8);
+    lowL.y = Math.min(h - lowL.height - 4, lowL.y);
+  }
+  low.alpha = lowL.alpha = 0;
+  view.addChild(low, lowL);
+  const kLow = N > 1 ? lowI / (N - 1) : 0;
 
   const kPeak = N > 1 ? peakI / (N - 1) : 0;
   const reveal = (k: number) => {
@@ -211,6 +259,7 @@ export function curveCard(history: number[], start: number, goal: number, w: num
     moth.alpha = mk;
     moth.scale.set(ms * (0.5 + 0.5 * mk + 0.25 * Math.sin(mk * Math.PI)));
     peakL.alpha = mk;
+    low.alpha = lowL.alpha = Math.max(0, Math.min(1, (k - kLow) / 0.12 + (k >= 1 ? 1 : 0)));
     endL.alpha = k >= 1 ? 1 : 0;
   };
   reveal(0);

@@ -4,7 +4,7 @@
 // Losing streaks only ever get a kind word and the offer of a break — never "keep going".
 
 export type Speaker = 'bar' | 'guest' | 'roulette' | 'slots' | 'crash' | 'plinko';
-export type Situation = 'winStreak' | 'loseStreak' | 'big10' | 'big50' | 'goal' | 'day' | 'idle';
+export type Situation = 'winStreak' | 'loseStreak' | 'big10' | 'big50' | 'goal' | 'day' | 'idle' | 'bust';
 
 export const SPEAKER_NAME: Record<Speaker, string> = {
   bar: 'Barkeeper',
@@ -32,6 +32,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['Fünfzigfach?! Ich muss mich kurz setzen.', 'Davon erzählen wir noch, wenn die Motten längst schlafen.'],
     goal: ['Tagesziel geschafft! Alles Weitere ist Kür, mit Sahne obendrauf.', 'Ziel erreicht. Jetzt darfst du ganz entspannt genießen.'],
     day: ['Guten Abend! Die Limo ist kalt, die Lampen sind warm.', 'Neuer Tag, frische Zitronen. Was darf’s sein?', 'Schön, dich zu sehen. Die Motten haben schon gefragt.'],
+    bust: ['Die Motte ist heute windscheu. Einen Tee für die Nerven?'],
     idle: [
       'Ich poliere dieses Glas seit zwanzig Minuten. Es glänzt.',
       'Mocktail des Abends: Falterfizz mit Minze.',
@@ -46,6 +47,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['Fünfzigfach! Darf ich mich kurz neben dich stellen? Für das Gefühl.'],
     goal: ['Ziel erreicht? Dann gönn dir was Schönes!', 'Glückwunsch zum Tagesziel! Jetzt wird geschlendert.'],
     day: ['Was für ein schöner Abend!', 'Hast du die Bar schon gesehen? Herrlich.', 'Ich liebe es, wenn die Lampen angehen.'],
+    bust: ['Da draußen weht es heute ordentlich, was?'],
     idle: [
       'Ob die Motten auch Trinkgeld bekommen?',
       'Mein Großvater hat hier schon getanzt.',
@@ -64,6 +66,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['Dreißig Jahre am Kessel, und so was sieht man selten.'],
     goal: ['Tagesziel erreicht. Rien ne va plus für Sorgen.', 'Ziel geschafft! Ab jetzt spielt die Kugel nur noch zum Vergnügen.'],
     day: ['Faites vos jeux! Der Kessel ist frisch poliert.', 'Willkommen am Tisch. Die Kugel ist ausgeschlafen.'],
+    bust: ['Am Fenster soll es heute recht windig sein, hört man.'],
     idle: ['Ich warte gern. Croupiers sind geduldige Menschen.', 'Rot, Schwarz, oder erst mal nur schauen?', 'Die Null ist die Diva am Tisch: grün und eigenwillig.'],
   },
   slots: {
@@ -77,6 +80,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['Systemmeldung: Freude überlastet. Bitte nicht neu starten.', 'Ich glühe! Das sind keine Lampen, das ist Stolz.'],
     goal: ['Tagesziel erreicht! Ich würde zwinkern, hätte ich ein Auge.'],
     day: ['Guten Abend! Walzen geölt, Lämpchen poliert.', 'Hallo! Ich bin ganz Ohr. Also, ganz Walze.'],
+    bust: ['Windstoß drüben am Mondflug? Hier drin ist es windstill.'],
     idle: ['Ich summe ein bisschen vor mich hin. Bsss.', 'Glocken, Kirschen, Motten und ich. Wir warten.', 'Jeden Abend zähle ich meine Kirschen. Alle noch da.'],
   },
   crash: {
@@ -90,6 +94,11 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['Ich sehe den Mond von hinten! Was für ein Flug!'],
     goal: ['Tagesziel erreicht! Der Tower winkt.'],
     day: ['Kabine bereit, Mond in Sicht. Guten Flug!', 'Wetter heute: klar, mit Aussicht auf Motten.'],
+    bust: [
+      'Zweimal Gegenwind. Das ist Wetter, kein Urteil über dich.',
+      'Der Wind hat kein Gedächtnis. Lande ruhig mal kurz.',
+      'Böen gemeldet. Früher aussteigen ist auch eine Flugkunst.',
+    ],
     idle: ['Der Motor schnurrt. Ich auch, ein bisschen.', 'Motten navigieren nach dem Mond. Ich übrigens auch.'],
   },
   plinko: {
@@ -103,6 +112,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big50: ['UNGLAUBLICH! Ganz außen gelandet! Mir bleibt die Stimme weg!'],
     goal: ['Tagesziel erreicht! Konfetti, bitte! … Gut, dann eben Motten.'],
     day: ['Willkommen zum großen Fall des Abends!', 'Die Stifte sind gestimmt, die Motten aufgewärmt!'],
+    bust: ['Drüben am Mondflug pustet es heute ganz schön!'],
     idle: ['Ping, ping, ping. Ich übe schon mal die Geräusche.', 'Die Motten stehen bereit. Sie warten nur auf dich.'],
   },
 };
@@ -127,7 +137,7 @@ export function gameSpeaker(game: string | null): Speaker | null {
   return game === 'roulette' || game === 'slots' || game === 'crash' || game === 'plinko' ? game : null;
 }
 
-const PRIORITY: Record<Situation, number> = { big50: 5, big10: 4, goal: 4, loseStreak: 3, winStreak: 2, day: 1, idle: 0 };
+const PRIORITY: Record<Situation, number> = { big50: 5, big10: 4, goal: 4, loseStreak: 3, winStreak: 2, bust: 1, day: 1, idle: 0 };
 /** Minimum time between two lines. */
 const GAP = 20000;
 /** Quiet time after the start of a big-win stage (≥ 20×). */
@@ -137,6 +147,7 @@ const IDLE_AFTER = 55000;
 interface RoundLike {
   stake: number;
   win: number;
+  tags?: string[];
 }
 
 /**
@@ -151,6 +162,8 @@ export class QuipEngine {
   private notBefore = 0;
   private wins = 0;
   private losses = 0;
+  /** Lost Mondflug rounds in a row (the 'bust' tag). */
+  private busts = 0;
   private pending: { s: Situation; until: number } | null = null;
 
   constructor(private deliver: (s: Situation) => boolean) {}
@@ -172,10 +185,14 @@ export class QuipEngine {
       this.losses++;
       this.wins = 0;
     }
+    if (r.tags?.includes('bust')) this.busts++;
+    else if (r.tags?.includes('cashout')) this.busts = 0;
     if (mult >= 50) this.queue('big50', 14000, 600);
     else if (mult >= 10) this.queue('big10', 10000, 900);
     else if (this.wins === 3 || this.wins === 6 || this.wins === 10) this.queue('winStreak', 12000, 600);
     else if (this.losses === 4 || this.losses === 8 || this.losses === 12) this.queue('loseStreak', 45000, 800);
+    // Two windy flights in a row: the pilot says a calm word (short-lived, it's about that moment).
+    else if (this.busts === 2) this.queue('bust', 8000, 700);
   }
 
   /** A ≥ 20× stage started: say nothing for a while, and drop what was about to be said. */
@@ -194,6 +211,7 @@ export class QuipEngine {
   day() {
     this.wins = 0;
     this.losses = 0;
+    this.busts = 0;
     this.queue('day', 5 * 60000, 6000);
   }
 

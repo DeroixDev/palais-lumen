@@ -6,7 +6,9 @@ import type { GameContext, GameDefinition, GameInstance } from '../../core/regis
 import { COLORS, FONT_BODY, FONT_DISPLAY, countUp, glowText, sharedGlow, floatText, glowTexture, rewardLevel } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
+import { markModal } from '../../core/focus';
 import { formatChips } from '../../core/state';
+import { StakeWatch } from '../stakeWatch';
 import { SYMBOLS, SYMBOL_NAMES, paintMoth, symbolTextures, type SymbolId } from './symbols';
 import { bulbTexture, lightWave, plaqueTexture, reducedMotion, winStage } from './stage';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
@@ -446,12 +448,14 @@ class SlotGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.theme = themeOf(ctx.options);
     this.bets = ctx.state.stakes(this.theme.bets);
+    this.stakeWatch = new StakeWatch(ctx.state);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
   }
 
   /** Today's ladder: the theme's day-1 bets scaled to today's stakes. */
   private bets: number[];
+  private stakeWatch: StakeWatch;
   private get bet() {
     return this.bets[this.betIndex];
   }
@@ -558,15 +562,15 @@ class SlotGame implements GameInstance {
     c.addChild(this.winText);
 
     // Controls: table, bet, spin.
-    const ptBtn = button({ label: '', width: 62, height: 62, onClick: () => this.togglePaytable() });
+    const ptBtn = button({ label: '', ariaLabel: 'Gewinntabelle', width: 62, height: 62, onClick: () => this.togglePaytable() });
     ptBtn.position.set(66, CTRL_Y);
     // Icon: the 3×3 grid with a line through it (= Gewinntabelle).
     const icon = new Graphics();
     for (let cc = 0; cc < 3; cc++) for (let r = 0; r < 3; r++) icon.roundRect(-16 + cc * 11, -16 + r * 11, 9, 9, 2).fill(r === 1 ? 0x1a0610 : { color: 0x1a0610, alpha: 0.35 });
     ptBtn.addChild(icon);
-    this.minus = button({ label: '–', width: 64, height: 64, onClick: () => this.changeBet(-1) });
+    this.minus = button({ label: '–', ariaLabel: 'Einsatz senken', width: 64, height: 64, onClick: () => this.changeBet(-1) });
     this.minus.position.set(140, CTRL_Y);
-    this.plus = button({ label: '+', width: 64, height: 64, onClick: () => this.changeBet(1) });
+    this.plus = button({ label: '+', ariaLabel: 'Einsatz erhöhen', width: 64, height: 64, onClick: () => this.changeBet(1) });
     this.plus.position.set(298, CTRL_Y);
     const betLabel = label('EINSATZ', 16, 0xd9c6a0);
     betLabel.anchor.set(0.5);
@@ -591,6 +595,7 @@ class SlotGame implements GameInstance {
     c.addChild(info);
 
     this.paytable = this.buildPaytable();
+    markModal(this.paytable);
     this.paytable.visible = false;
     c.addChild(this.paytable, this.stageLayer);
 
@@ -640,7 +645,7 @@ class SlotGame implements GameInstance {
     const head = label('GEWINNTABELLE', 26, COLORS.lamp, true);
     head.position.set(x0 + 20, 176);
     p.addChild(head);
-    const close = button({ label: '×', width: 56, height: 56, fontSize: 34, onClick: () => this.togglePaytable() });
+    const close = button({ label: '×', ariaLabel: 'Gewinntabelle schließen', width: 56, height: 56, fontSize: 34, onClick: () => this.togglePaytable() });
     close.position.set(W - 66, 190);
     p.addChild(close);
     const sub = label('Pro Linie, mal deinem Einsatz. Alle 8 Linien zählen.', 19, 0xe6d6b4);
@@ -1035,6 +1040,12 @@ class SlotGame implements GameInstance {
   }
 
   update(dtMs: number) {
+    // Today's stakes changed (boss phase, event): same rung of the ladder, new amounts.
+    if (this.stakeWatch.changed(this.busy())) {
+      this.bets = this.ctx.state.stakes(this.theme.bets);
+      this.updateBet();
+      this.ctx.toast(this.stakeWatch.note);
+    }
     this.bulbPhase += dtMs / 1000;
     const flashing = this.bulbPhase < this.flashUntil;
     const n = this.bulbs.length;

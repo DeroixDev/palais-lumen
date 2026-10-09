@@ -7,6 +7,7 @@ import { COLORS, FONT_BODY, FONT_DISPLAY, banner, floatText, glowTexture, reduce
 import { animate, ease, tween } from '../../core/tween';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
+import { StakeWatch } from '../stakeWatch';
 import {
   PLAQUE,
   barTexture,
@@ -176,8 +177,11 @@ class CrashGame implements GameInstance {
   /** Today's ladder: the day-1 bets scaled to today's stakes. */
   private bets: number[];
 
+  private stakeWatch: StakeWatch;
+
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
+    this.stakeWatch = new StakeWatch(ctx.state);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
@@ -354,11 +358,11 @@ class CrashGame implements GameInstance {
     const small = (t: string) => label(t, tall ? 14 : 15, 0xd8b878);
     const betLabel = small('EINSATZ');
     const autoLabel = small('AUTO-EINSAMMELN');
-    this.minus = button({ label: '–', width: 52, height: 52, fontSize: 26, onClick: () => this.changeBet(-1) });
-    this.plus = button({ label: '+', width: 52, height: 52, fontSize: 26, onClick: () => this.changeBet(1) });
+    this.minus = button({ label: '–', ariaLabel: 'Einsatz senken', width: 52, height: 52, fontSize: 26, onClick: () => this.changeBet(-1) });
+    this.plus = button({ label: '+', ariaLabel: 'Einsatz erhöhen', width: 52, height: 52, fontSize: 26, onClick: () => this.changeBet(1) });
     this.betText = new Text({ text: '', style: { fontFamily: FONT_DISPLAY, fontSize: 24, fill: CREAM } });
     this.betText.anchor.set(0.5);
-    const autoBtn = (aw: number) => button({ label: '', width: aw, height: 52, color: 0x3a2040, textColor: CREAM, fontSize: 19, display: false, onClick: () => this.cycleAuto() });
+    const autoBtn = (aw: number) => button({ label: '', ariaLabel: (t) => `Auto-Einsammeln: ${t}`, width: aw, height: 52, color: 0x3a2040, textColor: CREAM, fontSize: 19, display: false, onClick: () => this.cycleAuto() });
     const rtp = new Text({
       text: `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %`,
       style: { fontFamily: FONT_BODY, fontSize: tall ? 14 : 15, fontWeight: '600', fill: 0xbfa98a },
@@ -486,13 +490,14 @@ class CrashGame implements GameInstance {
     void animate(
       900,
       (k) => {
+        if (this.moth.destroyed) return;
         const a = k * Math.PI * 2 - Math.PI / 2;
         this.moth.position.set(cx + Math.cos(a) * 30, cy + Math.sin(a) * 16 - 20 * k);
         this.mothWings.scale.x = 0.35 + 0.65 * Math.abs(Math.cos(k * 30));
       },
       ease.inOutCubic,
     ).then(() => {
-      if (this.phase !== 'warmup') return;
+      if (this.phase !== 'warmup' || this.view.destroyed) return;
       this.subText.text = '';
       if (this.windAt <= 1) {
         this.wind();
@@ -511,7 +516,7 @@ class CrashGame implements GameInstance {
     this.stopHum();
     const win = Math.floor(this.stake * m);
     this.ctx.state.payout(win);
-    const tags = ['crash'];
+    const tags = ['crash', 'cashout'];
     if (m >= 2) tags.push('cashout2');
     if (m >= 5) tags.push('cashout5');
     this.ctx.state.report({ game: 'crash', stake: this.stake, win, rtp: RTP, tags });
@@ -540,6 +545,8 @@ class CrashGame implements GameInstance {
     void animate(
       900,
       (k) => {
+        // The player may leave right after collecting: the game is gone, the glide stops.
+        if (this.moth.destroyed) return;
         this.moth.position.set(sx + (mx - sx) * k, sy + (my - sy) * k - Math.sin(k * Math.PI) * 30);
         this.moth.scale.set(1 - 0.6 * k);
         this.moth.alpha = 1 - k * 0.85;
@@ -547,6 +554,7 @@ class CrashGame implements GameInstance {
       },
       ease.inOutCubic,
     ).then(() => {
+      if (this.moonHalo.destroyed) return;
       this.moonHalo.alpha = 1;
       void tween(this.moonHalo, { alpha: 0.4 }, 900);
     });
@@ -566,8 +574,8 @@ class CrashGame implements GameInstance {
   private wind() {
     this.phase = 'done';
     this.stopHum();
-    // The game id and the 'crash' tag are the same word here.
-    this.ctx.state.report({ game: 'crash', stake: this.stake, win: 0, rtp: RTP, tags: ['crash'] });
+    // 'crash' is the game tag (every round); 'bust' marks a lost flight.
+    this.ctx.state.report({ game: 'crash', stake: this.stake, win: 0, rtp: RTP, tags: ['crash', 'bust'] });
     this.ctx.sfx.fizzle();
     this.cold = true;
     this.setDisplay(this.windAt, COLD, 'WINDSTOSS');
@@ -600,6 +608,7 @@ class CrashGame implements GameInstance {
     void animate(
       1400,
       (k) => {
+        if (this.moth.destroyed) return;
         this.moth.x = sx + 160 * k + (calm ? 0 : Math.sin(k * 14) * 18);
         this.moth.y = sy + (this.skyH + 60 - sy) * k * k;
         this.moth.rotation = calm ? 0.6 * k : k * 7;
@@ -798,7 +807,15 @@ class CrashGame implements GameInstance {
     this.board.position.set(0, 0);
   }
 
+  /** Today's stakes changed (boss phase, event): same rung of the ladder, new amounts. */
+  private refreshStakes() {
+    this.bets = this.ctx.state.stakes(BETS);
+    this.changeBet(0, true);
+    this.ctx.toast(this.stakeWatch.note);
+  }
+
   update(dtMs: number) {
+    if (this.stakeWatch.changed(this.busy())) this.refreshStakes();
     const dt = dtMs / 1000;
     this.time += dt;
     // Candle flicker.

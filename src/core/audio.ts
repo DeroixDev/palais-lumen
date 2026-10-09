@@ -6,7 +6,7 @@ const MUSIC_KEY = 'nachtfalter.music';
 
 type Scene = 'off' | 'menu' | 'casino' | 'game';
 
-const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne'] as const;
+const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne', 'street'] as const;
 type Mood = (typeof MOODS)[number];
 
 class Sfx {
@@ -592,10 +592,13 @@ class Sfx {
   setScene(s: Scene) {
     if (s === this.scene) return;
     this.scene = s;
+    this.applyMood();
     if (!this.ctx) return;
     this.applyMusicLevel();
     if (s === 'casino' || s === 'game') this.startAmbience();
     else this.stopAmbience();
+    if (s === 'menu') this.startStreet();
+    else this.stopStreet();
     if (s !== 'off' && !this.musicTimer) {
       this.nextBeat = this.ctx.currentTime + 0.1;
       this.musicTimer = window.setInterval(() => this.schedule(), 50);
@@ -606,7 +609,7 @@ class Sfx {
     if (!this.ctx || !this.musicBus || !this.ambBus) return;
     const level = !this.musicOn ? 0 : this.scene === 'menu' ? 0.55 : this.scene === 'casino' ? 0.32 : this.scene === 'game' ? 0.18 : 0;
     this.musicBus.gain.setTargetAtTime(Math.max(0.0001, level), this.ctx.currentTime, 0.6);
-    const amb = this.scene === 'casino' ? 0.5 : this.scene === 'game' ? 0.25 : 0;
+    const amb = this.scene === 'casino' ? 0.5 : this.scene === 'game' ? 0.25 : this.scene === 'menu' ? 0.45 : 0;
     this.ambBus.gain.setTargetAtTime(Math.max(0.0001, amb), this.ctx.currentTime, 0.8);
   }
 
@@ -642,6 +645,51 @@ class Sfx {
       else if (r < 0.5) this.bell(2600 + Math.random() * 800, 0.03, 0, 0.3, this.ambBus);
       else if (r < 0.6) for (let i = 0; i < 6; i++) this.bell(2200 + Math.random() * 600, 0.02, i * 0.07, 0.25, this.ambBus);
     }, 1400);
+  }
+
+  private streetNodes: AudioNode[] = [];
+  private streetTimer = 0;
+
+  /** Title and arrival: drizzle on the pavement, the city humming far off, a car passing now and then. */
+  private startStreet() {
+    if (!this.ctx || !this.ambBus || !this.noiseBuf || this.streetNodes.length) return;
+    const ctx = this.ctx;
+    for (const [type, freq, q, vol] of [['highpass', 2600, 0.5, 0.035], ['bandpass', 900, 0.6, 0.02], ['lowpass', 140, 0.7, 0.05]] as const) {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.loop = true;
+      src.playbackRate.value = 0.8 + Math.random() * 0.4;
+      const f = ctx.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = vol;
+      src.connect(f).connect(g).connect(this.ambBus);
+      src.start();
+      this.streetNodes.push(src);
+    }
+    this.streetTimer = window.setInterval(() => {
+      if (!this.ambBus) return;
+      const r = Math.random();
+      // A car swishes past on the wet road.
+      if (r < 0.18) this.noise(2.2, 0.05, 0, 300, 'bandpass', 1.4, this.ambBus, 1400);
+      // Drips from the awning.
+      else if (r < 0.5) this.bell(1800 + Math.random() * 900, 0.008, Math.random() * 0.5, 0.15, this.ambBus);
+    }, 1100);
+  }
+
+  private stopStreet() {
+    for (const n of this.streetNodes) {
+      try {
+        (n as AudioScheduledSourceNode).stop();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.streetNodes = [];
+    clearInterval(this.streetTimer);
+    this.streetTimer = 0;
   }
 
   private stopAmbience() {
@@ -680,6 +728,8 @@ class Sfx {
   // ---- Floor moods: every floor has its own band, crossfaded when you change floors ----
 
   private mood: Mood = 'foyer';
+  /** The mood of the room you are in; the title and the street play 'street' over it. */
+  private floorMood: Mood = 'foyer';
   /** Boss phase on the throne floor (0 = off): the music gets faster and fuller. */
   private intensity = 0;
   private moodOut: GainNode | null = null;
@@ -688,7 +738,13 @@ class Sfx {
 
   /** Gives the music the identity of a floor style ('foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne'). */
   setFloorMood(style: string) {
-    const m: Mood = (MOODS as readonly string[]).includes(style) ? (style as Mood) : 'foyer';
+    this.floorMood = style !== 'street' && (MOODS as readonly string[]).includes(style) ? (style as Mood) : 'foyer';
+    this.applyMood();
+  }
+
+  /** Crossfades to the mood that fits now: the street's on the title, else the room's. */
+  private applyMood() {
+    const m: Mood = this.scene === 'menu' ? 'street' : this.floorMood;
     if (m === this.mood) return;
     const old = this.mood;
     this.mood = m;
@@ -724,6 +780,8 @@ class Sfx {
         return 80;
       case 'throne':
         return 84 + Math.max(0, this.intensity - 1) * 10;
+      case 'street':
+        return 76;
       default:
         return Sfx.RECORDS[this.record].bpm;
     }
@@ -765,9 +823,28 @@ class Sfx {
         return this.crystalBeat(bar, b, d, spb, out);
       case 'throne':
         return this.throneBeat(bar, b, d, spb, out);
+      case 'street':
+        return this.streetBeat(beat, t, spb, out);
       default:
         return this.playBeat(beat, t, spb, out);
     }
+  }
+
+  /** Muffled versions of the band, one per output (the crossfade makes new outputs). */
+  private muffles = new WeakMap<GainNode, BiquadFilterNode>();
+
+  /** Street: the lounge band heard through the casino's doors, muffled and slow. */
+  private streetBeat(beat: number, t: number, spb: number, out: GainNode) {
+    let lp = this.muffles.get(out);
+    if (!lp) {
+      lp = this.ctx!.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 750;
+      lp.Q.value = 0.5;
+      lp.connect(out);
+      this.muffles.set(out, lp);
+    }
+    this.playBeat(beat, t, spb, lp);
   }
 
   /** Kerzensaal: a slow, smoky jazz ballad. Upright bass in halves, soft piano, a muted horn. */
@@ -896,7 +973,7 @@ class Sfx {
     }
   }
 
-  private playBeat(beat: number, t: number, spb: number, out: GainNode) {
+  private playBeat(beat: number, t: number, spb: number, out: AudioNode) {
     const d = t - this.ctx!.currentTime;
     const bar = Math.floor(beat / 4) % 8;
     const b = beat % 4;

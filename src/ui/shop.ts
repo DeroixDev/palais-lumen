@@ -8,7 +8,7 @@ import { tween, ease } from '../core/tween';
 import { button } from '../core/ui';
 import { sfx } from '../core/audio';
 import { CHARMS, COMPANION_COLOR, WARDROBE, type Charm, type WardrobeOption } from '../core/items';
-import type { GameState } from '../core/state';
+import { formatChips, type GameState } from '../core/state';
 import type { Particles } from '../core/fx';
 import { Chibi } from '../world/painted/chibi';
 import { fillInk, paint } from '../world/painted/brush';
@@ -286,6 +286,7 @@ export class ShopPanel extends Panel {
   }
 
   private buy(it: WardrobeOption | Charm, card: Container) {
+    const goalBefore = this.state.data.evening.quota;
     const ok = isCharm(it) ? this.state.buyCharm(it.id) : this.state.buyItem(it.id);
     if (!ok) {
       sfx.lose();
@@ -299,6 +300,7 @@ export class ShopPanel extends Panel {
     const gp = card.toGlobal({ x: card.pivot.x, y: card.pivot.y * 0.7 });
     this.particles.sparkle(gp.x, gp.y, 30, 0x9fe8ff, 200);
     this.toast(isCharm(it) ? `${it.name} ist aktiv, bis die Saison endet.` : `${it.name} gekauft. Zieh es in der Umkleide an.`);
+    if (this.state.data.evening.quota < goalBefore) this.toast(`Tagesziel gesenkt: jetzt ${formatChips(this.state.goalBalance)} Falter.`);
     void tween(card.scale, { x: 1.05, y: 1.05 }, 140, ease.outCubic).then(() => this.rebuild());
   }
 }

@@ -24,6 +24,7 @@ import { DayFeatures } from './ui/dayFeatures';
 import { Season } from './ui/season';
 import { StampCardPanel } from './ui/stampCard';
 import { setupFeel } from './ui/feel';
+import { initFocus } from './core/focus';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -224,6 +225,7 @@ async function boot() {
     overlay?.destroy();
     overlay = null;
     hud.show(true);
+    hud.holdToasts(false);
     if (fresh) {
       state.data.position = { x: -1, y: -1 };
       enterRoom(roomForFloor(f).id);
@@ -533,6 +535,8 @@ async function boot() {
     overlayLayer.addChild(o.view);
     o.resize(app.screen.width, app.screen.height);
     hud.show(false);
+    // Full panels keep the toasts waiting; the shop, wardrobe and piano answer with toasts.
+    hud.holdToasts(!(o instanceof ShopPanel || o instanceof WardrobePanel || o instanceof PianoPanel));
   }
 
   function closeOverlay() {
@@ -543,6 +547,7 @@ async function boot() {
     room.refreshShelf();
     room.refreshAchievements();
     hud.show(true);
+    hud.holdToasts(false);
     layout();
   }
 
@@ -652,7 +657,7 @@ async function boot() {
   });
 
   // Day events, guest tasks and the stamp card (src/ui/dayFeatures.ts).
-  const days = new DayFeatures(state, { toast: (t) => hud.toast(t), showOverlay, closeOverlay });
+  const days = new DayFeatures(state, { toast: (t) => hud.toast(t), showOverlay, closeOverlay, game: () => (mode === 'game' ? feel.game : null), gameBusy: () => !!game?.busy(), leaveGame: () => void closeGame() });
   app.stage.addChildAt(days.view, app.stage.getChildIndex(overlayLayer));
 
   // Perk draft, moon levels and the boss phases (src/ui/season.ts).
@@ -672,6 +677,8 @@ async function boot() {
 
   // Staff quips, photo mode, vibration and floor music (src/ui/feel.ts).
   const feel = setupFeel({ app, state, hud, quipsBelow: overlayLayer, photoBelow: fade, mode: () => mode, room: () => room ?? null, top: () => TOP, layout });
+  // Keyboard focus ring, screen-reader mirror of the canvas buttons, dialog focus trap.
+  initFocus(app, { below: fade, games: gameLayer, panels: [overlayLayer] }, state);
 
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape') return;

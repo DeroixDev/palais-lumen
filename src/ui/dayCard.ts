@@ -5,9 +5,11 @@
 import { Container, Sprite } from 'pixi.js';
 import { announce, glowTexture, plaqueTexture, reducedMotion } from '../core/fx';
 import { ease, tween, wait } from '../core/tween';
+import { leavePhoto } from './photo';
 
 /** Builds the card, centred in the upper third of the screen below the HUD, and runs its animation. */
 export function dayCard(title: string, sub: string, screenW: number, screenH: number, top = 64, extra: Container | null = null) {
+  leavePhoto();
   // On narrow screens the goal line breaks in two, so it stays at least 14 px tall.
   const narrow = screenW < 560;
   const { tex, fullW, visW } = plaqueTexture(title, 0xff5fa2, { size: 60, sub: narrow ? sub.replace(' · ', '\n') : sub, subSize: narrow ? 30 : 26 });

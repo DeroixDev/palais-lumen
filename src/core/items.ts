@@ -118,7 +118,7 @@ export interface Charm {
 export const CHARMS: Charm[] = [
   { id: 'startgeld', name: 'Startgeld', desc: 'Zu Beginn jedes Tages +15 Mindesteinsätze (am ersten Tag 150 Falter).', price: 6 },
   { id: 'zinsen', name: 'Sparschwein', desc: 'Zu Beginn jedes Tages +5 % von deinem Guthaben, höchstens 30 Mindesteinsätze.', price: 8 },
-  { id: 'rabatt', name: 'Rabattmarke', desc: 'Die Tagesziele sind ab dem nächsten Tag 10 % kleiner.', price: 10 },
+  { id: 'rabatt', name: 'Rabattmarke', desc: 'Die Tagesziele sind 10 % kleiner, schon ab heute.', price: 10 },
   { id: 'zweiteChance', name: 'Zweite Chance', desc: 'Einmal pro Saison: ein verfehlter Tag beendet die Saison nicht.', price: 12 },
   { id: 'bossbann', name: 'Königinnen-Bann', desc: 'Das Ziel am Boss-Tag ist 20 % kleiner.', price: 10 },
 ];

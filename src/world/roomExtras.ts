@@ -213,6 +213,8 @@ export class RoomExtras {
   private own: ExtraInteractable[] = [];
   private ownObstacles: Rect[] = [];
   private stationTex = new Map<Container, Texture>();
+  /** Guest spots taken out at closed games; put back on rebuild. */
+  private hiddenSpots: ExtrasHost['spots'] = [];
   private sig = '';
   private time = 0;
   private off: () => void;
@@ -232,6 +234,11 @@ export class RoomExtras {
   private signature() {
     const d = this.state.data;
     return [d.event, d.evening.number, d.stampRewards.join(','), closedGames(d).join(','), d.quests.map((q) => `${q.id}:${q.accepted ? 1 : 0}${q.done ? 1 : 0}:${q.have}`).join('|')].join('#');
+  }
+
+  /** Rebuilds now if what the room shows has changed (instead of waiting for the next state change). */
+  refresh() {
+    if (this.signature() !== this.sig) this.build();
   }
 
   private get today() {
@@ -261,6 +268,8 @@ export class RoomExtras {
       if (k >= 0) ob.splice(k, 1);
     }
     this.ownObstacles = [];
+    this.host.spots.push(...this.hiddenSpots);
+    this.hiddenSpots = [];
   }
 
   private build() {
@@ -322,7 +331,7 @@ export class RoomExtras {
         // Nobody plays here today.
         const fx = { x: st.x + getGame(st.game).footprint.w / 2, y: st.y + 10 };
         const sp = this.host.spots;
-        for (let k = sp.length - 1; k >= 0; k--) if (sp[k].kind === 'station' && sp[k].fx?.x === fx.x && sp[k].fx?.y === fx.y) sp.splice(k, 1);
+        for (let k = sp.length - 1; k >= 0; k--) if (sp[k].kind === 'station' && sp[k].fx?.x === fx.x && sp[k].fx?.y === fx.y) this.hiddenSpots.push(...sp.splice(k, 1));
         const f = getGame(st.game).footprint;
         const s = new Sprite(closedSignTexture());
         s.anchor.set(0.5, 0.1);

@@ -4,7 +4,7 @@
 
 import { Container, Sprite, Texture } from 'pixi.js';
 import type { PlayerLook } from '../player';
-import { INK, dark, ellipse, glowAt, light, paint, rgb, rrect, type Ctx } from './brush';
+import { INK, dark, ellipse, glowAt, gold, light, paint, rgb, rrect, type Ctx } from './brush';
 
 type View = 'front' | 'back' | 'side';
 
@@ -441,6 +441,57 @@ function shadowTexture() {
   return (shadowTex ??= paint(60, 24, (c) => glowAt(c, 30, 12, 28, 10, 0x0a0410, 0.55)));
 }
 
+/** A tufted velvet pouf for sitting (photo pose). Bottom centre at (30, 34); cushion top at y ≈ 9. */
+let poufTex: Texture | null = null;
+export function poufTexture() {
+  return (poufTex ??= paint(60, 38, (c) => {
+    glowAt(c, 30, 34, 29, 5, 0x0a0410, 0.6);
+    // Little turned brass feet.
+    for (const x of [12, 48]) {
+      rrect(c, x - 2.5, 28, 5, 6, 2);
+      ink(c, gold(c, x - 3, 28, x + 3, 34), 1.2);
+    }
+    // Drum: the front face, darker towards the floor.
+    c.beginPath();
+    c.moveTo(4, 12);
+    c.lineTo(4, 25);
+    c.ellipse(30, 25, 26, 6.5, 0, Math.PI, 0, true);
+    c.lineTo(56, 12);
+    c.closePath();
+    const g = c.createLinearGradient(4, 0, 56, 0);
+    g.addColorStop(0, '#5a1830');
+    g.addColorStop(0.35, '#a23a5c');
+    g.addColorStop(1, '#3a0c1e');
+    ink(c, g, 2);
+    // Pleats down the front.
+    c.strokeStyle = 'rgba(20,4,12,0.35)';
+    c.lineWidth = 1.2;
+    for (let k = 1; k < 6; k++) {
+      const x = 4 + (52 * k) / 6;
+      c.beginPath();
+      c.moveTo(x, 14 + Math.sin((k / 6) * Math.PI) * 6);
+      c.lineTo(x, 25 + Math.sin((k / 6) * Math.PI) * 6);
+      c.stroke();
+    }
+    // Gold trim along the bottom.
+    c.beginPath();
+    c.ellipse(30, 24, 26, 6.5, 0, 0.1, Math.PI - 0.1);
+    c.strokeStyle = gold(c, 4, 0, 56, 0);
+    c.lineWidth = 2.4;
+    c.stroke();
+    // Cushion top with a button in the middle.
+    ellipse(c, 30, 12, 26, 8);
+    const t = c.createRadialGradient(22, 9, 1, 30, 12, 26);
+    t.addColorStop(0, '#e07a98');
+    t.addColorStop(0.6, '#a23a5c');
+    t.addColorStop(1, '#6a1e38');
+    ink(c, t, 1.8);
+    ellipse(c, 30, 12, 2.4, 1.6);
+    c.fillStyle = rgb(0xe0b25a);
+    c.fill();
+  }, 3));
+}
+
 // ---- The character -----------------------------------------------------------------------------
 
 const TAU = Math.PI * 2;
@@ -462,6 +513,8 @@ export class Chibi {
   private amp = 0;
   private idle = 0;
   private seed = Math.random() * 10;
+  /** The pouf while sitting (photo pose), else null. */
+  private seat: Sprite | null = null;
 
   constructor(color: number, look: PlayerLook = {}) {
     this.f = full(color, look);
@@ -503,6 +556,21 @@ export class Chibi {
     this.turnTarget = angle;
   }
 
+  /** Photo pose: sits down on a painted pouf (body lowered, legs bent and dangling in front of it). */
+  sit(on: boolean) {
+    if (on && !this.seat) {
+      this.seat = new Sprite(poufTexture());
+      this.seat.anchor.set(0.5, 34 / 38);
+      this.seat.y = 3;
+      this.view.addChildAt(this.seat, 1);
+    } else if (!on && this.seat) {
+      this.seat.destroy();
+      this.seat = null;
+      this.rig.y = -14;
+      for (const l of [this.legL, this.legR]) l.scale.y = 1;
+    }
+  }
+
   update(dtMs: number, dir: number | null) {
     const dt = Math.min(dtMs, 100) / 1000;
     const walking = dir !== null;
@@ -514,6 +582,29 @@ export class Chibi {
     } else {
       this.idle += dt;
       if (this.turnTarget !== null) this.facing = wrap(this.facing + wrap(this.turnTarget - this.facing) * Math.min(1, dt * 10));
+    }
+    if (this.seat) {
+      // Seated: hips sink into the cushion, the knees point at the camera (short, apart).
+      this.amp = 0;
+      this.applyFacing();
+      const side = this.viewNow === 'side';
+      this.rig.y = -22;
+      this.legL.x = side ? 4 : -8;
+      this.legR.x = side ? 7 : 8;
+      for (const l of [this.legL, this.legR]) {
+        l.y = 2;
+        l.scale.y = side ? 1 : 0.95;
+        l.rotation = side ? -1.1 : 0;
+      }
+      if (!side) {
+        this.legL.rotation = 0.12;
+        this.legR.rotation = -0.12;
+      }
+      const breathe = Math.sin((this.idle += dt) * 2.2 + this.seed) * 0.02;
+      this.top.y = 0;
+      this.top.rotation = 0;
+      this.top.scale.set(1 - breathe * 0.5, 1 + breathe);
+      return;
     }
     this.amp += ((walking ? 1 : 0) - this.amp) * Math.min(1, dt * (walking ? 10 : 8));
     if (!walking && this.amp < 0.02) this.amp = 0;

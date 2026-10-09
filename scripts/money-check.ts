@@ -1,5 +1,7 @@
 // Checks the day goal, stakes and season reset. Run: npx esbuild scripts/money-check.ts --bundle --platform=node --outfile=/tmp/mc.cjs && node /tmp/mc.cjs
 import { GameState, newSave, quotaFor, stakeUnitFor, BOSS_DAY } from '../src/core/state';
+import { installPerks } from '../src/core/perks';
+import { migrate } from '../src/core/save';
 const ok = (c: boolean, m: string) => { if (!c) { console.error('FAIL', m); process.exitCode = 1; } else console.log('ok', m); };
 const s = new GameState(newSave());
 ok(s.balance === 1000 && s.data.evening.startBalance === 1000, 'day 1 starts with 1000');
@@ -25,3 +27,37 @@ ok(!r2.passed && s.balance === 1000 && s.data.evening.number === 1 && s.data.eve
 let b = 1000; const rows: string[] = [];
 for (let d = 1; d <= BOSS_DAY; d++) { const q = quotaFor(d, b); rows.push(`T${d}: start ${b} unit ${stakeUnitFor(b)} ziel +${q}`); b += q; }
 console.log(rows.join('\n'));
+
+// Glückspfennig: the first loss of a day is refunded once, and a reload mid-day must not refund it again.
+{
+  const g = new GameState(newSave());
+  installPerks(g, () => {});
+  g.data.perks = ['pfennig'];
+  const lose = (st: GameState, stake: number) => { st.placeBet(stake); st.report({ game: 'test', stake, win: 0, rtp: 0.97, tags: [] }); };
+  lose(g, 100);
+  ok(g.balance === 950, `first loss refunded by half (${g.balance})`);
+  lose(g, 100);
+  ok(g.balance === 850, 'second loss not refunded');
+  // Reload: a fresh state from the saved JSON, perks installed again.
+  const r = new GameState(migrate(JSON.parse(JSON.stringify(g.data)))!);
+  installPerks(r, () => {});
+  lose(r, 100);
+  ok(r.balance === 750, `no second refund after a reload (${r.balance})`);
+  r.data.evening = { number: 2, startBalance: r.balance, quota: 0 };
+  r.beginDay();
+  const before = r.balance;
+  lose(r, 100);
+  ok(r.balance === before - 50, 'refunded again on the next day');
+}
+
+// Goal charms bought mid-day lower today's goal at once, and a goal never rises mid-day.
+{
+  const g = new GameState(newSave());
+  g.data.moonstones = 100;
+  const q0 = g.data.evening.quota;
+  g.buyCharm('rabatt');
+  ok(g.data.evening.quota < q0, `Rabattmarke lowers today's goal (${q0} -> ${g.data.evening.quota})`);
+  const q1 = g.data.evening.quota;
+  g.quotaFactors.push(() => 2);
+  ok(!g.lowerQuota() && g.data.evening.quota === q1, 'a higher factor mid-day does not raise the goal');
+}

@@ -8,6 +8,7 @@ import { allRooms, type RoomDefinition } from '../core/registry';
 import { BOSS_DAY, DAYS_PER_FLOOR, type GameState } from '../core/state';
 import { animate, ease, wait } from '../core/tween';
 import { brass, button, lockTexture } from '../core/ui';
+import { focusable } from '../core/focus';
 import { sfx } from '../core/audio';
 import { INK, fillInk, glowAt, paint, rrect, seeded, type Ctx } from '../world/painted/brush';
 import { enterMotion, leaveMotion, screw } from './kit';
@@ -453,6 +454,12 @@ export class ElevatorPanel {
           void animate(240, (k) => !row.destroyed && (row.x = x0 + Math.sin(k * Math.PI * 4) * 4 * (1 - k)));
         });
       }
+      focusable(row, {
+        label: `${f === 0 ? 'Foyer' : `Etage ${f}`}: ${room.name}${status.text ? `, ${status.text}` : ''}`,
+        rect: { x: rx, y: -rowH / 2, w: W - rx * 2, h: rowH },
+        radius: 12,
+        locked: () => (locked ? `ab Tag ${floorOpensOnDay(f)}` : null),
+      });
       p.addChild(row);
       this.rows.push({ floor: f, room, locked, lamp, draw });
     });

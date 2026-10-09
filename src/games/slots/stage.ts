@@ -109,6 +109,7 @@ export function lightWave(parent: Container, x: number, y: number, w: number, h:
   return animate(
     700,
     (k) => {
+      if (s.destroyed) return;
       s.position.set(x + w / 2, y + h * (-0.2 + 1.4 * k));
       s.alpha = Math.sin(k * Math.PI) * 0.75;
     },

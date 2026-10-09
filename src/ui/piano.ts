@@ -233,9 +233,9 @@ export class PianoPanel extends Panel {
     oct.anchor.set(0.5);
     oct.position.set(this.W / 2, oy);
     this.panel.addChild(oct);
-    const down = button({ label: '◀', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(-1) });
+    const down = button({ label: '◀', ariaLabel: 'Eine Oktave tiefer', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(-1) });
     down.position.set(this.W / 2 - 110, oy);
-    const up = button({ label: '▶', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(1) });
+    const up = button({ label: '▶', ariaLabel: 'Eine Oktave höher', width: 64, height: 52, color: 0x3a1428, textColor: CREAM, fontSize: 20, display: false, onClick: () => this.shift(1) });
     up.position.set(this.W / 2 + 110, oy);
     down.setEnabled(this.octave > -1);
     up.setEnabled(this.octave < 1);

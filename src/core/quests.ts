@@ -4,7 +4,7 @@
 
 import { allRooms } from './registry';
 import { floorForDay, type GameState, type Quest, type RoundReport, type SaveData } from './state';
-import { isClosed } from './events';
+import { isClosed, onEventSwitch } from './events';
 import { addStamps, floorOfDay } from './stamps';
 
 interface Template {
@@ -31,6 +31,7 @@ const TEMPLATES: Template[] = [
   { tag: 'plinko', game: 'plinko', need: 10, text: 'Spiel 10 Runden Mottenfall.', stones: 1, stamps: 1 },
   { tag: 'edge', game: 'plinko', need: 2, text: 'Triff zweimal ein Randfach im Mottenfall.', stones: 2 },
   { tag: 'crash', game: 'crash', need: 8, text: 'Flieg 8 Runden Mondflug.', stones: 1, stamps: 1 },
+  { tag: 'cashout', game: 'crash', need: 5, text: 'Steig fünfmal vor dem Windstoß aus.', stones: 1 },
   { tag: 'cashout2', game: 'crash', need: 3, text: 'Steig dreimal bei 2× oder höher aus.', stones: 1 },
   { tag: 'cashout5', game: 'crash', need: 1, text: 'Steig bei 5× oder höher aus.', stones: 2 },
   { tag: 'win10', game: '', need: 1, text: 'Gewinne einmal das 10-Fache deines Einsatzes.', stones: 2 },
@@ -105,6 +106,10 @@ function finish(state: GameState, q: Quest) {
 export function installQuests(state: GameState) {
   state.onDayStart((d) => {
     d.quests = makeQuests(d);
+  });
+  // Another event can close other games: today's tasks are handed out again.
+  onEventSwitch(() => {
+    state.data.quests = makeQuests(state.data);
   });
   state.onRound((r: RoundReport) => {
     for (const q of state.data.quests) {

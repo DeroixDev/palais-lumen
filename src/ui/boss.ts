@@ -13,6 +13,7 @@ import type { GameState, RoundReport } from '../core/state';
 import type { RoomScene } from '../world/room';
 import { fillInk, paint } from '../world/painted/brush';
 import { bodyText } from './kit';
+import { leavePhoto } from './photo';
 
 export interface BossHost {
   /** Screen-space layer above rooms and games. */
@@ -149,6 +150,7 @@ export class BossDirector {
       return;
     }
     this.staging = true;
+    leavePhoto();
     const { w, h, top } = this.host.screen();
     const L = this.host.layer;
     const calm = reducedMotion();

@@ -5,6 +5,7 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { COLORS, glowTexture, mothTexture } from '../core/fx';
 import { button, brass } from '../core/ui';
+import { focusable } from '../core/focus';
 import { sfx } from '../core/audio';
 import { COMPANION_COLOR, SLOT_LABEL, WARDROBE, type Outfitting, type WardrobeOption, type WardrobeSlot } from '../core/items';
 import type { GameState } from '../core/state';
@@ -404,6 +405,7 @@ export class WardrobePanel extends Panel {
       this.draft = { ...this.draft, ...o.set };
       this.rebuild();
     });
+    focusable(c, { label: `${o.name}${on ? ', gewählt' : ''}`, locked: () => (owned ? null : `im Laden für ${o.price} Mondsteine`) });
     return c;
   }
 

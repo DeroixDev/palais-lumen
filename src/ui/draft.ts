@@ -3,10 +3,11 @@
 // flies onto the Glücksbringer-Kette hanging at the bottom. The choice is saved at once.
 
 import { Container, Graphics, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
-import { FONT_DISPLAY, drawMoth, reducedMotion, type Particles } from '../core/fx';
+import { FONT_DISPLAY, announce, drawMoth, reducedMotion, type Particles } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { brass, velvetNap } from '../core/ui';
+import { focusable } from '../core/focus';
 import { RARITY_LABEL, perkById, perkCount, takePerk, type Perk } from '../core/perks';
 import type { GameState } from '../core/state';
 import { INK, dark, fillInk, glowAt, light, paint, rgb, rrect } from '../world/painted/brush';
@@ -346,6 +347,7 @@ export class DraftPanel {
     });
     c.on('pointerout', () => (card.hover = 0));
     c.on('pointertap', () => this.pick(card));
+    focusable(c, { label: () => `${p.name}, ${RARITY_LABEL[p.rarity]}: ${p.desc}`, rect: { w, h }, radius: 14, enabled: () => this.ready && !this.picked });
     return card;
   }
 
@@ -361,6 +363,7 @@ export class DraftPanel {
     if (calm) {
       this.cards.forEach((c) => this.showFront(c, true));
       this.ready = true;
+      this.speak();
       return;
     }
     this.cards.forEach((k, i) => {
@@ -391,6 +394,12 @@ export class DraftPanel {
       await wait(90);
     }
     this.ready = true;
+    this.speak();
+  }
+
+  /** Tell screen readers what is on offer. */
+  private speak() {
+    announce(`Glücksbringer: Such dir einen aus. Zur Wahl: ${this.cards.map((k) => `${k.perk.name}, ${k.perk.desc}`).join(' Oder: ')}`);
   }
 
   private async pick(card: Card) {

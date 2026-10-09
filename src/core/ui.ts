@@ -6,6 +6,7 @@ import { Container, Graphics, Rectangle, Sprite, Text, type Texture } from 'pixi
 import { COLORS, FONT_BODY, FONT_DISPLAY, reducedMotion } from './fx';
 import { animate, ease } from './tween';
 import { sfx } from './audio';
+import { focusable } from './focus';
 import { INK, dark, fillInk, glowAt, light, mix, paint, rgb, rrect, seeded, type Ctx } from '../world/painted/brush';
 
 export interface ButtonOptions {
@@ -22,6 +23,8 @@ export interface ButtonOptions {
   /** Small icon left of the label (a coin, a stone ...), about `iconWidth` wide (default 22). */
   icon?: Container;
   iconWidth?: number;
+  /** What screen readers say, for icon and symbol buttons ('–', '×' ...). Default: the label. */
+  ariaLabel?: string | ((text: string) => string);
 }
 
 export interface Button extends Container {
@@ -337,7 +340,7 @@ export function button(o: ButtonOptions): Button {
   };
   c.on('pointerup', release);
   c.on('pointerupoutside', release);
-  c.on('pointertap', () => {
+  const tap = () => {
     if (!enabled) return;
     if (locked) {
       sfx.tick();
@@ -349,24 +352,45 @@ export function button(o: ButtonOptions): Button {
     }
     sfx.click();
     o.onClick();
+  };
+  c.on('pointertap', tap);
+  // Keyboard focus and the screen-reader twin (src/core/focus.ts).
+  const a11y = focusable(c, {
+    label: () => (typeof o.ariaLabel === 'function' ? o.ariaLabel(txt.text) : (o.ariaLabel ?? txt.text)),
+    rect: { w, h },
+    radius: Math.min(h * 0.34, 22),
+    locked: () => locked,
+    enabled: () => enabled,
+    activate: () => {
+      if (enabled && !locked) {
+        // The same little press as a tap.
+        scaleTo(0.94, 70, ease.outCubic);
+        setTimeout(() => !c.destroyed && scaleTo(1, 120, ease.outBack), 80);
+      }
+      tap();
+    },
   });
   c.setEnabled = (on: boolean) => {
     enabled = on;
     c.cursor = on ? 'pointer' : 'default';
     face();
+    a11y.refresh();
   };
   c.setLabel = (t: string) => {
     txt.text = t;
     fitText();
+    a11y.refresh();
   };
   c.setSelected = (on: boolean) => {
     ring.visible = on;
+    a11y.setPressed(on);
   };
   c.setLocked = (reason: string | null) => {
     locked = reason;
     lockIc.visible = !!reason;
     fitText();
     face();
+    a11y.refresh();
   };
   if (locked) c.setLocked(locked);
   return c;

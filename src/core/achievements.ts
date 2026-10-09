@@ -3,7 +3,7 @@
 
 import type { SaveData } from './state';
 
-export type AchievementIcon = 'spin' | 'medal' | 'floor' | 'crown' | 'star' | 'coin' | 'bag' | 'heart' | 'note' | 'fountain' | 'moth';
+export type AchievementIcon = 'spin' | 'medal' | 'floor' | 'crown' | 'star' | 'coin' | 'bag' | 'heart' | 'note' | 'fountain' | 'moth' | 'camera';
 
 export interface Achievement {
   id: string;
@@ -47,5 +47,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'piano', name: 'Barpianist', desc: 'Spiel 30 Töne auf einem Klavier.', icon: 'note', reward: 1, progress: (d) => [n(d, 'piano'), 30] },
   { id: 'jukebox', name: 'Plattenwechsel', desc: 'Leg an der Jukebox eine andere Platte auf.', icon: 'note', reward: 1, progress: (d) => [n(d, 'jukebox'), 1] },
   { id: 'curious', name: 'Neugierig', desc: 'Probier 6 verschiedene Dinge im Casino aus.', icon: 'moth', reward: 3, progress: (d) => [Object.keys(d.counters).filter((k) => k.startsWith('prop:')).length, 6] },
+  { id: 'snapshot', name: 'Schnappschuss', desc: 'Mach ein Foto im Fotomodus.', icon: 'camera', reward: 1, progress: (d) => [n(d, 'photo'), 1] },
+  { id: 'album', name: 'Fotoalbum', desc: 'Mach 10 Fotos im Fotomodus.', icon: 'camera', reward: 3, progress: (d) => [n(d, 'photo'), 10] },
   { id: 'companion', name: 'Treuer Begleiter', desc: 'Hol dir eine Motte als Begleiter.', icon: 'moth', reward: 2, progress: (d) => [d.owned.filter((o) => o.startsWith('pet-')).length, 1] },
 ];

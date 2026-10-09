@@ -44,16 +44,19 @@ export function setupFeel(h: FeelHost) {
     state,
     room: () => h.room()!,
     canEnter: () => h.mode() === 'room' && !!h.room() && !h.room()!.frozen && !hud.modalOpen,
+    mode: h.mode,
     chrome: (show) => {
-      hud.show(show);
+      // Leaving because an overlay or the title took over: they keep the top bar hidden.
+      const m = h.mode();
+      hud.show(show && m !== 'overlay' && m !== 'title');
       if (toasts) toasts.style.visibility = show ? '' : 'hidden';
       quips.hidden = !show;
-      if (show) h.layout();
+      if (show && m !== 'overlay' && m !== 'title') h.layout();
     },
     modal: (title, body, buttons) => hud.modal(title, body, buttons),
     closeModal: () => hud.closeModal(),
     modalOpen: () => hud.modalOpen,
-    toast: (t) => hud.toast(t),
+    toast: (t) => hud.toast(t, '', true),
   });
   app.stage.addChildAt(photo.view, app.stage.getChildIndex(h.photoBelow));
   document.getElementById('btn-photo')?.addEventListener('click', () => photo.open());
@@ -84,8 +87,11 @@ export function setupFeel(h: FeelHost) {
   return {
     quips,
     photo,
+    /** Id of the open game, or null. */
+    game: null as string | null,
     /** A game opened (its id) or closed (null). */
     gameOpened(id: string | null) {
+      this.game = id;
       quips.setGame(id);
     },
     /** The shared win celebration ran with this multiple. */

@@ -18,7 +18,7 @@ import { buildPaintedDecor } from './painted';
 import { paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
 import { RoomExtras, type ExtraInteractable } from './roomExtras';
-import { guestFactor } from '../core/events';
+import { guestFactor, onEventSwitch } from '../core/events';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
@@ -138,8 +138,12 @@ export class RoomScene {
     this.buildCompanion();
     this.placeUseSpots();
     this.extras = new RoomExtras(state, this.def, { spots: this.spots, world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position });
-    const guestCount = Math.round(Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7))) * guestFactor(state.data));
-    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height }, this.painted ? (c, l) => new Chibi(c, l) : undefined);
+    this.spawnGuests();
+    // Debug switched today's event: closed games and the crowd change right away.
+    this.offEventSwitch = onEventSwitch(() => {
+      this.extras.refresh();
+      this.spawnGuests();
+    });
 
     // Interaction prompt bubble.
     const bubble = new Graphics();
@@ -1155,8 +1159,18 @@ export class RoomScene {
     return this.world.toGlobal({ x, y });
   }
 
+  private offEventSwitch: () => void = () => {};
+
+  /** Today's crowd: more on a gala, fewer on a quiet evening (replaces any guests already here). */
+  private spawnGuests() {
+    this.guests?.destroy();
+    const guestCount = Math.round(Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7))) * guestFactor(this.state.data));
+    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height }, this.painted ? (c, l) => new Chibi(c, l) : undefined);
+  }
+
   destroy() {
     this.dead = true;
+    this.offEventSwitch();
     this.extras?.destroy();
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);

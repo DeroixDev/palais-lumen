@@ -9,6 +9,7 @@ import { lightWave, reducedMotion, winStage } from '../slots/stage';
 import { ellipse, fillInk, glowAt, gold, grain, light, paint, rim, rrect, seeded, shadow, vgrad } from '../../world/painted/brush';
 import { button, label, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
+import { StakeWatch } from '../stakeWatch';
 
 // ---- Rules -------------------------------------------------------------
 
@@ -279,8 +280,11 @@ class PlinkoGame implements GameInstance {
   /** Today's ladder: the day-1 bets scaled to today's stakes. */
   private bets: number[];
 
+  private stakeWatch: StakeWatch;
+
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
+    this.stakeWatch = new StakeWatch(ctx.state);
     this.build();
     window.addEventListener('keydown', this.keyHandler);
   }
@@ -349,7 +353,7 @@ class PlinkoGame implements GameInstance {
       glow.alpha = 0;
       const bg = new Sprite(bucketTexture(0xffcf7a));
       bg.anchor.set(0.5);
-      const text = new Text({ text: '', style: { fontFamily: FONT_DISPLAY, fontSize: 14, fill: 0x14080f } });
+      const text = new Text({ text: '', style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 18, fill: 0x14080f } });
       text.anchor.set(0.5);
       text.y = 3;
       c.addChild(glow, bg, text);
@@ -367,6 +371,7 @@ class PlinkoGame implements GameInstance {
     (['low', 'mid', 'high'] as Risk[]).forEach((r, i) => {
       const btn = button({
         label: RISK_LABEL[r],
+        ariaLabel: (t) => `Risiko ${t}`,
         width: 80,
         height: 52,
         color: 0x4a2a3a,
@@ -380,9 +385,9 @@ class PlinkoGame implements GameInstance {
       b.addChild(btn);
     });
     const by = DECK_Y + 130;
-    this.minus = button({ label: '–', width: 56, height: 56, onClick: () => this.changeBet(-1) });
+    this.minus = button({ label: '–', ariaLabel: 'Einsatz senken', width: 56, height: 56, onClick: () => this.changeBet(-1) });
     this.minus.position.set(86, by);
-    this.plus = button({ label: '+', width: 56, height: 56, onClick: () => this.changeBet(1) });
+    this.plus = button({ label: '+', ariaLabel: 'Einsatz erhöhen', width: 56, height: 56, onClick: () => this.changeBet(1) });
     this.plus.position.set(268, by);
     const betLabel = label('EINSATZ', 16, 0xd9c6a0);
     betLabel.anchor.set(0.5);
@@ -421,15 +426,14 @@ class PlinkoGame implements GameInstance {
       const col = bucketColor(m);
       bk.bg.texture = bucketTexture(col);
       bk.glow.tint = col;
-      bk.text.text = `${fmtMult(m)}×`;
       bk.text.style.fill = m < 1 ? 0xe6d6b4 : 0x14080f;
-      bk.text.scale.set(1);
-      if (bk.text.width > BUCKET_W - 4) bk.text.scale.set((BUCKET_W - 4) / bk.text.width);
       if (!this.calm) {
         bk.c.scale.set(0.6);
         void tween(bk.c.scale, { x: 1, y: 1 }, 300 + k * 20, ease.outBack);
       }
     });
+    this.relabel();
+    this.legend?.set(HALF[r]);
     const rtp = returnToPlayer(r);
     this.rtpText.text = `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %\nHausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
   }
@@ -478,7 +482,7 @@ class PlinkoGame implements GameInstance {
     ball.scale.set(0.4);
     void tween(ball.scale, { x: 1, y: 1 }, 200, ease.outBack);
     // Fall onto the top peg.
-    await animate(260, (k) => ball.position.set(x, y + (TOP - 16 - y) * k), ease.inCubic);
+    await animate(260, (k) => !ball.destroyed && ball.position.set(x, y + (TOP - 16 - y) * k), ease.inCubic);
     let rights = 0;
     for (let r = 0; r < ROWS; r++) {
       // Hit the peg in row r.
@@ -493,11 +497,14 @@ class PlinkoGame implements GameInstance {
       const hop = 10 + Math.random() * 8;
       const dur = 115 + Math.random() * 30;
       await animate(dur, (k) => {
+        if (ball.destroyed) return;
         ball.x = sx + (nx - sx) * k;
         ball.y = sy + (ny - sy) * k * k - hop * 4 * k * (1 - k);
         moth.rotation = (dir ? 1 : -1) * 0.5 * Math.sin(k * Math.PI);
         moth.scale.x = (MS / moth.texture.width) * (0.45 + 0.55 * Math.abs(Math.cos(k * Math.PI * 2)));
       });
+      // The game was torn down mid-fall (a save was loaded): nothing left to land in.
+      if (this.view.destroyed) return;
       // Light trail: a fading glow puff.
       if (!this.calm || r % 3 === 0) {
         const dot = new Sprite(glowTexture());
@@ -585,9 +592,9 @@ class PlinkoGame implements GameInstance {
     g.roundRect(-25, -14, 50, 28, 9).fill(0x160a14);
     g.roundRect(-23, -12, 46, 24, 7).fill(col);
     g.roundRect(-21, -11, 42, 8, 4).fill({ color: 0xffffff, alpha: 0.28 });
-    const t = new Text({ text: `${fmtMult(m)}×`, style: { fontFamily: FONT_DISPLAY, fontSize: 13, fill: m < 1 ? 0xe6d6b4 : 0x14080f } });
+    const t = new Text({ text: `${fmtMult(m)}×`, style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 20, fill: m < 1 ? 0xe6d6b4 : 0x14080f } });
     t.anchor.set(0.5);
-    if (t.width > 42) t.scale.set(42 / t.width);
+    if (t.width > 44) t.scale.set(44 / t.width);
     c.addChild(g, t);
     this.historyLayer.addChild(c);
     this.history.unshift({ m, c });
@@ -601,13 +608,64 @@ class PlinkoGame implements GameInstance {
     void tween(c.scale, { x: 1, y: 1 }, 260, ease.outBack);
   }
 
+  /**
+   * Bucket labels stay readable (about 13 px on screen) however small the board is drawn: a
+   * bigger condensed face, and without the "×" when the numbers would not fit the cups.
+   */
+  private relabel() {
+    const s = this.board.scale.x || 1;
+    const fs = Math.round(Math.max(18, Math.min(30, 13.5 / s)));
+    const table = TABLE[this.risk];
+    let withX = true;
+    for (const bk of this.buckets) {
+      bk.text.style.fontSize = fs;
+      bk.text.scale.set(1);
+    }
+    for (const [k, bk] of this.buckets.entries()) {
+      bk.text.text = `${fmtMult(table[k])}×`;
+      if (bk.text.width > DX - 3 && k > 0 && k < ROWS) withX = false;
+    }
+    this.buckets.forEach((bk, k) => {
+      if (!withX) bk.text.text = fmtMult(table[k]);
+      // Only the outermost cups may spill a little, there is room beside them.
+      const max = k === 0 || k === ROWS ? DX + 6 : DX - 2;
+      if (bk.text.width > max) bk.text.scale.set(max / bk.text.width);
+    });
+  }
+
+  /** Small boards (landscape phones) also get a readable payout list beside the cabinet. */
+  private legend: PayoutLegend | null = null;
+
   resize(w: number, h: number) {
     const s = Math.min((w * 0.97) / W, (h * 0.95) / (H + PAD));
     this.board.scale.set(s);
     this.board.position.set((w - W * s) / 2, (h - H * s) / 2 + 8 * s);
+    this.relabel();
+    const side = (w - W * s) / 2;
+    const want = s < 0.45 && side > 120 && h > 230;
+    if (want && !this.legend) {
+      this.legend = new PayoutLegend();
+      this.legend.set(HALF[this.risk]);
+      this.view.addChild(this.legend.view);
+    } else if (!want && this.legend) {
+      this.legend.view.destroy({ children: true });
+      this.legend = null;
+    }
+    if (this.legend) {
+      const lv = this.legend.view;
+      const k = Math.min(1, (side - 24) / lv.width, (h - 16) / lv.height);
+      lv.scale.set(k);
+      lv.position.set(Math.max(8, this.board.x - 16 - lv.width), (h - lv.height) / 2);
+    }
   }
 
   update(dtMs: number) {
+    // Today's stakes changed (boss phase, event): same rung of the ladder, new amounts.
+    if (this.stakeWatch.changed(this.busy())) {
+      this.bets = this.ctx.state.stakes(BETS);
+      this.changeBet(0);
+      this.ctx.toast(this.stakeWatch.note);
+    }
     this.time += dtMs / 1000;
     const cool = dtMs / 450;
     for (const row of this.pegs)
@@ -627,6 +685,35 @@ class PlinkoGame implements GameInstance {
   destroy() {
     window.removeEventListener('keydown', this.keyHandler);
     this.view.destroy({ children: true });
+  }
+}
+
+/** The payout ladder as large chips, edge to middle, in the cups' colours. */
+class PayoutLegend {
+  readonly view = new Container();
+
+  set(half: number[]) {
+    this.view.removeChildren().forEach((c) => c.destroy({ children: true }));
+    const head = new Text({ text: 'AUSZAHLUNG', style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 15, fill: 0xd9c6a0, letterSpacing: 2 } });
+    head.anchor.set(0.5, 0);
+    head.position.set(40, 0);
+    this.view.addChild(head);
+    half.forEach((m, i) => {
+      const col = bucketColor(m);
+      const y = 30 + i * 31;
+      const g = new Graphics();
+      g.roundRect(0, y, 80, 26, 9).fill(0x160a14);
+      g.roundRect(2, y + 2, 76, 22, 7).fill(col);
+      g.roundRect(4, y + 3, 72, 7, 4).fill({ color: 0xffffff, alpha: 0.25 });
+      const t = new Text({ text: `${fmtMult(m)}×`, style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 18, fill: m < 1 ? 0xe6d6b4 : 0x14080f } });
+      t.anchor.set(0.5);
+      t.position.set(40, y + 13);
+      this.view.addChild(g, t);
+    });
+    const foot = new Text({ text: 'außen → Mitte', style: { fontFamily: FONT_BODY, fontWeight: '600', fontSize: 14, fill: 0xb8a684 } });
+    foot.anchor.set(0.5, 0);
+    foot.position.set(40, 30 + half.length * 31 + 2);
+    this.view.addChild(foot);
   }
 }
 

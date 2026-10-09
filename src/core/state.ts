@@ -107,7 +107,7 @@ export interface RoundReport {
   win: number;
   /** The game's long-run payout share (0.95 = 5 % house edge). */
   rtp: number;
-  /** Things that happened, for quests and quips: 'red', 'black', 'zero', 'lines3', 'moth', 'edge', 'cashout2', 'crash', 'win10', 'win50' … */
+  /** Things that happened, for quests and quips: 'red', 'black', 'zero', 'lines3', 'moth', 'edge', 'cashout2', 'crash' (every Mondflug round), 'cashout' (collected in time), 'bust' (a lost Mondflug round), 'win10', 'win50' … */
   tags: string[];
 }
 
@@ -376,9 +376,22 @@ export class GameState {
     if (!c || this.hasCharm(id) || this.data.moonstones < c.price) return false;
     this.data.moonstones -= c.price;
     this.data.charms.push(id);
-    // The boss charm lowers today's goal right away if today is the boss day.
-    if (id === 'bossbann' && this.data.evening.number >= BOSS_DAY) this.data.evening.quota = this.quotaToday(this.data.evening.number);
+    // Goal charms (Rabattmarke, Königinnen-Bann on the boss day) count from the moment they are bought.
+    this.lowerQuota();
     this.count('charms');
+    return true;
+  }
+
+  /**
+   * Re-applies goal reductions gained mid-day (a charm bought, a perk drafted). Today's goal is
+   * recomputed from the day's start money with everything owned now, but mid-day it only ever
+   * goes DOWN: nothing gained after the day was fixed may raise the goal. Returns true if it fell.
+   */
+  lowerQuota() {
+    const q = this.quotaToday(this.data.evening.number);
+    if (q >= this.data.evening.quota) return false;
+    this.data.evening.quota = q;
+    this.emit();
     return true;
   }
 

@@ -7,7 +7,9 @@ import type { GameContext, GameDefinition, GameInstance } from '../../core/regis
 import { COLORS, FONT_BODY, FONT_DISPLAY, banner, floatText, glowTexture, reducedMotion, rewardLevel, shake, sharedGlow } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, type Button } from '../../core/ui';
+import { focusable } from '../../core/focus';
 import { formatChips } from '../../core/state';
+import { StakeWatch } from '../stakeWatch';
 import {
   CHIP_ANCHOR,
   CHIP_EDGE,
@@ -213,6 +215,7 @@ class RouletteGame implements GameInstance {
   private chips: number[];
   private time = 0;
   private layoutKey = '';
+  private stakeWatch: StakeWatch;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -226,6 +229,7 @@ class RouletteGame implements GameInstance {
     const baseMin = Number(ctx.options.minBet ?? 10);
     this.minBet = ctx.state.stakes([baseMin])[0];
     this.chipValue = this.chips[baseMin >= 50 ? 1 : 0];
+    this.stakeWatch = new StakeWatch(ctx.state);
     this.buildWheel();
     this.view.addChild(this.boardGroup, this.controls, this.dim, this.wheelGroup);
     this.dim.eventMode = 'none';
@@ -309,6 +313,7 @@ class RouletteGame implements GameInstance {
       hit.on('pointertap', () => this.addBet(cell.key));
       hit.on('pointerover', () => this.showHover(cell));
       hit.on('pointerout', () => this.hover.clear());
+      focusable(hit, { label: () => this.betSpeech(cell.key), rect: { x: cell.x, y: cell.y, w: cell.w, h: cell.h }, radius: 4 });
       g.addChild(hit);
     }
     this.hover.eventMode = 'none';
@@ -323,6 +328,16 @@ class RouletteGame implements GameInstance {
     }
     this.highlight.clear();
     this.refreshHistory();
+  }
+
+  /** "17 rot, gesetzt 20" for screen readers. */
+  private betSpeech(key: BetKey) {
+    const NAMES: Record<string, string> = { red: 'Rot', black: 'Schwarz', even: 'Gerade', odd: 'Ungerade', low: '1 bis 18', high: '19 bis 36' };
+    const [kind, arg] = key.split(':');
+    const i = Number(arg);
+    const name = kind === 'n' ? `${i}${i === 0 ? '' : REDS.has(i) ? ' rot' : ' schwarz'}` : kind === 'dozen' ? `${i * 12 + 1} bis ${i * 12 + 12}` : kind === 'col' ? `Kolonne ${i + 1}, 2 zu 1` : (NAMES[key] ?? key);
+    const amount = this.bets.get(key);
+    return `Setzen auf ${name}${amount ? `, gesetzt ${formatChips(amount)}` : ''}`;
   }
 
   private showHover(cell: CellSpec) {
@@ -364,10 +379,11 @@ class RouletteGame implements GameInstance {
       chip.cursor = 'pointer';
       chip.hitArea = new Circle(0, 4, 31);
       chip.on('pointertap', () => {
-        this.chipValue = v;
+        this.chipValue = this.chips[i];
         this.ctx.sfx.chip();
         this.updateChipButtons();
       });
+      focusable(chip, { label: () => `Chip ${formatChips(v)}${this.chipValue === v ? ', gewählt' : ''}`, rect: { x: -31, y: -27, w: 62, h: 62 }, radius: 31 });
       this.chipButtons.push(chip);
       c.addChild(chip);
     });
@@ -857,7 +873,23 @@ class RouletteGame implements GameInstance {
     this.updateChipButtons(false);
   }
 
+  /** Today's stakes changed (boss phase, event): the same chip stays picked, with its new value. Chips already on the table stay. */
+  private refreshStakes() {
+    const pick = Math.max(0, this.chips.indexOf(this.chipValue));
+    this.chips = this.ctx.state.stakes(CHIPS);
+    this.minBet = this.ctx.state.stakes([Number(this.ctx.options.minBet ?? 10)])[0];
+    this.chipValue = this.chips[pick];
+    this.chipButtons.forEach((c, i) => {
+      const t = c.children[2];
+      if (t instanceof Text) t.text = short(this.chips[i]);
+    });
+    this.updateChipButtons(false);
+    this.refreshBets();
+    this.ctx.toast(this.stakeWatch.note);
+  }
+
   update(dtMs: number) {
+    if (this.stakeWatch.changed(this.busy())) this.refreshStakes();
     const dt = dtMs / 1000;
     this.time += dt;
     // Wheel eases back to its idle speed.

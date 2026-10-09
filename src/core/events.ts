@@ -237,11 +237,23 @@ export function installEvents(state: GameState, notify: (text: string) => void) 
   });
 }
 
-/** Debug: switch today's event and fix the goal again. */
+const switchListeners = new Set<() => void>();
+
+/**
+ * Runs after today's event was switched mid-day (debug), so the event-dependent parts of the
+ * day setup can be redone: tasks, guests, room extras, closed games. Money and history stay.
+ */
+export function onEventSwitch(fn: () => void) {
+  switchListeners.add(fn);
+  return () => void switchListeners.delete(fn);
+}
+
+/** Debug: switch today's event, fix the goal again and redo the event-dependent day setup. */
 export function setEvent(state: GameState, id: string) {
   const d = state.data;
   d.event = eventById(id) ? id : '';
   d.counters.eventBonus = 0;
   d.evening.quota = state.quotaToday(d.evening.number, d.evening.startBalance);
+  for (const l of [...switchListeners]) l();
   state.emit();
 }

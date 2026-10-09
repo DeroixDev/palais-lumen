@@ -7,6 +7,7 @@ import { COLORS, FONT_BODY, FONT_DISPLAY, drawMoth, reducedMotion } from '../cor
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
 import { brass, luma, softBack, velvetNap } from '../core/ui';
+import { focusable } from '../core/focus';
 import { INK, dark, fillInk, glowAt, light, paint, rgb, rrect, type Ctx } from '../world/painted/brush';
 
 export const CREAM = 0xf2e6c9;
@@ -365,6 +366,7 @@ export function closeKnob(onClose: () => void, size = 52) {
     sfx.click();
     onClose();
   });
+  focusable(c, { label: 'Schließen', rect: { w: size, h: size }, radius: r });
   return c;
 }
 

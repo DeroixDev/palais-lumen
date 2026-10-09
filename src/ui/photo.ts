@@ -6,8 +6,10 @@ import { Container, Graphics, Rectangle, Sprite, Texture, type Application, type
 import { FONT_BODY, drawMoth, reducedMotion } from '../core/fx';
 import { sfx } from '../core/audio';
 import { button, brass, type Button } from '../core/ui';
+import { focusable } from '../core/focus';
 import type { GameState } from '../core/state';
 import type { RoomScene } from '../world/room';
+import { poufTexture } from '../world/painted/chibi';
 import { INK, fillInk, glowAt, gold, paint, seeded } from '../world/painted/brush';
 import { bodyText, closeKnob, enterMotion } from './kit';
 import { animate } from '../core/tween';
@@ -18,6 +20,8 @@ export interface PhotoHost {
   room(): RoomScene;
   /** True when a photo can be taken right now (walking around a room, nothing open). */
   canEnter(): boolean;
+  /** main's mode: photo mode only lasts while it stays 'room'. */
+  mode(): string;
   /** Hide or show the HUD, the toasts and the quips. */
   chrome(show: boolean): void;
   modal(title: string, body: HTMLElement, buttons: { label: string; primary?: boolean; onClick: () => void }[]): void;
@@ -63,38 +67,15 @@ function armTexture(skin: number, jacket: number) {
   }, 3);
 }
 
-/** A velvet pouf to sit on; drawn over the legs so the figure reads as seated. */
-let poufTex: Texture | null = null;
-function poufTexture() {
-  if (!poufTex)
-    poufTex = paint(52, 34, (c) => {
-      c.translate(26, 18);
-      c.beginPath();
-      c.ellipse(0, 10, 22, 6, 0, 0, Math.PI * 2);
-      c.fillStyle = 'rgba(6,2,8,0.35)';
-      c.fill();
-      c.beginPath();
-      c.ellipse(0, 4, 20, 7, 0, 0, Math.PI);
-      c.lineTo(-20, -6);
-      c.ellipse(0, -6, 20, 7, 0, Math.PI, 0, true);
-      c.closePath();
-      const g = c.createLinearGradient(0, -12, 0, 12);
-      g.addColorStop(0, '#a23a5c');
-      g.addColorStop(1, '#4a1426');
-      fillInk(c, g, 1.6);
-      c.beginPath();
-      c.ellipse(0, -6, 20, 7, 0, 0, Math.PI * 2);
-      const t = c.createRadialGradient(-6, -9, 1, 0, -6, 20);
-      t.addColorStop(0, '#d8708e');
-      t.addColorStop(1, '#7a2440');
-      fillInk(c, t, 1.4);
-      c.beginPath();
-      c.ellipse(0, 3, 20, 7, 0, 0.15, Math.PI - 0.15);
-      c.strokeStyle = gold(c, -20, 0, 20, 0);
-      c.lineWidth = 2;
-      c.stroke();
-    }, 3);
-  return poufTex;
+/** The active photo mode, so day cards and the boss banner can end it first (see leavePhoto). */
+let current: PhotoMode | null = null;
+
+/**
+ * Anything big that starts while photo mode is on (a day card, a boss phase, an overlay, a game,
+ * a dialog) ends photo mode first, so it never plays hidden under the camera or ends up in a picture.
+ */
+export function leavePhoto() {
+  current?.leave();
 }
 
 /** The round shutter key: brass ring, velvet lens with aperture blades. */
@@ -252,8 +233,15 @@ export class PhotoMode {
   private h = 600;
   private busy = false;
   private btnW = new Map<Button, number>();
+  /** The room photo mode was opened in. */
+  private openedIn: RoomScene | null = null;
+  /** The snapshot dialog is ours; any other dialog ends photo mode. */
+  private ownModal = false;
+  /** Pictures taken this time; counted when photo mode ends, so the achievement toast can be seen. */
+  private shots = 0;
 
   constructor(private host: PhotoHost) {
+    current = this;
     this.view.visible = false;
     this.catcher.eventMode = 'static';
     this.catcher.cursor = 'grab';
@@ -276,6 +264,7 @@ export class PhotoMode {
     this.shutter.on('pointerover', () => (s.texture = sHot));
     this.shutter.on('pointerout', () => (s.texture = sTex));
     this.shutter.on('pointertap', () => void this.snap());
+    focusable(this.shutter, { label: 'Foto aufnehmen', rect: { w: 78, h: 78 }, radius: 39 });
     for (const [p, label] of POSES) {
       const b = button({ label, width: 104, height: 42, display: false, fontSize: 18, color: 0x5a2238, onClick: () => this.setPose(this.pose === p ? 'none' : p) });
       this.btnW.set(b, 104);
@@ -308,6 +297,7 @@ export class PhotoMode {
     }
     this.active = true;
     this.view.visible = true;
+    this.openedIn = this.room;
     this.room.setPhotoMode(true);
     this.host.chrome(false);
     sfx.click();
@@ -320,15 +310,41 @@ export class PhotoMode {
 
   exit() {
     if (!this.active || this.busy) return;
-    if (this.host.modalOpen()) this.host.closeModal();
-    this.setPose('none');
+    if (this.host.modalOpen() && this.ownModal) this.host.closeModal();
+    this.end();
+    sfx.click();
+  }
+
+  /** Ends photo mode right away because something else starts (even mid-snap). Leaves other dialogs open. */
+  leave() {
+    if (!this.active) return;
+    if (this.ownModal && this.host.modalOpen()) this.host.closeModal();
+    this.end();
+  }
+
+  private end() {
+    const room = this.openedIn;
+    this.ownModal = false;
     this.active = false;
     this.view.visible = false;
+    this.ui.visible = true;
+    this.flash.alpha = 0;
     this.pointers.clear();
     this.pinch = null;
-    this.room.setPhotoMode(false);
+    this.openedIn = null;
+    if (room && !room.view.destroyed) {
+      this.setPose('none', room);
+      // Back to the normal camera; the room stays frozen if an overlay or game took over.
+      room.setPhotoMode(false);
+      if (this.host.mode() !== 'room') room.frozen = true;
+    } else {
+      this.poseBits = [];
+      this.poseBase = null;
+      this.pose = 'none';
+    }
     this.host.chrome(true);
-    sfx.click();
+    if (this.shots) this.host.state.count('photo', this.shots);
+    this.shots = 0;
   }
 
   private showHint() {
@@ -448,15 +464,17 @@ export class PhotoMode {
 
   // ---- Pose and look ---------------------------------------------------------------------------
 
-  private setPose(p: Pose) {
-    const pv = this.room.player.view;
-    for (const b of this.poseBits) b.destroy();
+  private setPose(p: Pose, room: RoomScene = this.room) {
+    const player = room.player as RoomScene['player'] & { sit?(on: boolean): void };
+    const pv = player.view;
+    for (const b of this.poseBits) if (!b.destroyed) b.destroy();
     this.poseBits = [];
-    if (this.poseBase) {
+    player.sit?.(false);
+    if (this.poseBase && !pv.destroyed) {
       pv.y = this.poseBase.y;
       pv.rotation = this.poseBase.rot;
-      this.poseBase = null;
     }
+    this.poseBase = null;
     this.pose = p;
     for (const [k, b] of this.poseBtns) b.setSelected(k === p);
     if (p === 'none') return;
@@ -473,12 +491,15 @@ export class PhotoMode {
         pv.addChild(arm);
         this.poseBits.push(arm);
       }
+    } else if (player.sit) {
+      // Sitting: the painted figure sits down on its pouf (src/world/painted/chibi.ts).
+      player.sit(true);
     } else {
-      // Sitting: a pouf behind the legs with its top at hip height, legs hanging in front.
+      // The simple figure: a pouf behind it at hip height.
       const s = new Sprite(poufTexture());
-      s.anchor.set(0.5, 0.55);
-      s.position.set(0, -8);
-      s.scale.set(1.5, 1.3);
+      s.anchor.set(0.5, 34 / 38);
+      s.position.set(0, 4);
+      s.scale.set(1.3);
       pv.addChildAt(s, 1);
       this.poseBits.push(s);
     }
@@ -524,11 +545,13 @@ export class PhotoMode {
     await animate(380, (k) => (this.flash.alpha = peak * (1 - k)));
     this.flash.alpha = 0;
     this.busy = false;
+    // Something else started during the flash: the picture is dropped.
+    if (!this.active) return;
     if (!url) {
       this.host.toast('Das Foto hat leider nicht geklappt.');
       return;
     }
-    this.host.state.count('photo');
+    this.shots++;
     this.showPhoto(url);
   }
 
@@ -546,6 +569,7 @@ export class PhotoMode {
     tip.style.cssText = 'margin:0;font-size:.95rem;opacity:.8;text-align:center';
     wrap.append(img, tip);
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+    this.ownModal = true;
     this.host.modal('Schnappschuss', wrap, [
       {
         label: 'Speichern',
@@ -623,6 +647,12 @@ export class PhotoMode {
 
   update(dtMs: number) {
     if (!this.active) return;
+    if (this.ownModal && !this.host.modalOpen()) this.ownModal = false;
+    // An overlay, a game, a new room or someone else's dialog took over: end photo mode cleanly.
+    if (this.host.mode() !== 'room' || this.host.room() !== this.openedIn || (this.host.modalOpen() && !this.ownModal)) {
+      this.leave();
+      return;
+    }
     this.time += dtMs / 1000;
     const t = this.time;
     const pv = this.room.player.view;

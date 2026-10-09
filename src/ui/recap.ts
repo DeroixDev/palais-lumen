@@ -111,7 +111,9 @@ export class Recap {
 
   /** An animation step that completes at once when skipped. */
   private anim(ms: number, fn: (k: number) => void, ez: (t: number) => number = ease.outCubic): Promise<void> {
-    if (this.fast || ms <= 0 || this.view.destroyed) {
+    // Closed mid-show (a quick tap on the button): the rest of the show is dropped, the promise never settles.
+    if (this.view.destroyed) return new Promise<void>(() => {});
+    if (this.fast || ms <= 0) {
       fn(1);
       return Promise.resolve();
     }
@@ -119,9 +121,13 @@ export class Recap {
       let fin = false;
       void animate(ms, (k) => {
         if (fin) return;
-        if (this.fast || this.view.destroyed) {
+        if (this.view.destroyed) {
           fin = true;
-          if (!this.view.destroyed) fn(1);
+          return;
+        }
+        if (this.fast) {
+          fin = true;
+          fn(1);
           res();
           return;
         }
@@ -166,6 +172,7 @@ export class Recap {
     const pl = plaque(`TAG ${r.evening} · ABRECHNUNG`, { size: n ? 21 : 28, minW: n ? 300 : 420 });
     pl.position.set(W / 2, 4);
     p.addChild(pl);
+    announce(`Tag ${r.evening}, Abrechnung. ${r.passed ? 'Ziel geschafft' : 'Ziel verfehlt'}. Ergebnis ${r.profit >= 0 ? 'plus' : 'minus'} ${formatChips(Math.abs(r.profit))} Falter, Kontostand ${formatChips(r.endBalance)}.`);
     this.skipHint = bodyText(n ? 'Tippen zum Überspringen' : 'Klicken zum Überspringen', 15, MUTED);
     this.skipHint.anchor.set(0.5);
     this.skipHint.position.set(W / 2, H - 30);
@@ -508,6 +515,7 @@ export class Recap {
     p.addChild(stats);
     const kept = r.wagered - r.won;
     const today = kept > 0 ? `Heute hat das Haus ${formatChips(kept)} behalten.` : kept < 0 ? `Heute lagst du ${formatChips(-kept)} vorn.` : 'Heute ging es plus minus null aus.';
+    announce(`Tag ${r.evening}, dein Verlauf. ${parts.join('. ')}. ${today}`);
     const honest = bodyText(`${today}${n ? '\n' : ' '}Glück schwankt, der Hausvorteil nicht.`, n ? 15 : 17, MUTED, { wrap: W - 2 * (n ? 22 : 60) });
     honest.anchor.set(0.5, 0);
     honest.position.set(W / 2, sy + stats.height + (n ? 10 : 12));

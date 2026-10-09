@@ -103,7 +103,10 @@ export function takePerk(state: GameState, id: string) {
     d.evening.startBalance += bonus;
     d.history = [d.balance];
   }
-  d.evening.quota = state.quotaToday(d.evening.number, d.evening.startBalance);
+  // Before the first round the day is set up again with the new start money; once the day is
+  // under way a perk can only lower the goal (see GameState.lowerQuota).
+  if (fresh) d.evening.quota = state.quotaToday(d.evening.number, d.evening.startBalance);
+  else state.lowerQuota();
   state.emit();
   return bonus;
 }
@@ -165,6 +168,7 @@ export function installPerks(state: GameState, note: PerkNote) {
       day.streak = 0;
       if (has('pfennig') && !day.refunded) {
         day.refunded = true;
+        store(day); // saved before the payout, which may trigger an autosave
         pay(Math.floor((r.stake - r.win) / 2), 'Glückspfennig');
       }
       const t = has('trostpreis');
