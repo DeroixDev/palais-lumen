@@ -24,6 +24,8 @@ export interface BuiltDecor {
   update?: (time: number, dtMs: number) => void;
   /** Little reaction when the player uses it (piano keys, a splash, a puff of steam). */
   poke?: () => void;
+  /** Side the player uses it from, when it matters (the painted piano is played from the front). */
+  useFrom?: 'below' | 'above';
 }
 
 /** A kick that fades out over `ms`; poke() starts it again. */

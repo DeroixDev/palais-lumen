@@ -5,7 +5,7 @@ import { Container, Sprite } from 'pixi.js';
 import { COLORS, floatText, glowTexture, mothTexture } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
-import { Player, type PlayerLook, type HairStyle } from './player';
+import { Player, type Avatar, type PlayerLook, type HairStyle } from './player';
 
 export interface Spot {
   x: number;
@@ -55,7 +55,7 @@ function randomLook(): PlayerLook {
 }
 
 interface Guest {
-  p: Player;
+  p: Avatar;
   target: Spot | null;
   /** Waypoints to the target, found with A* on a coarse grid and smoothed. */
   path: { x: number; y: number }[];
@@ -90,6 +90,11 @@ export class Guests {
     private collides: (x: number, y: number) => boolean,
     private listener: () => { x: number; y: number },
     size: { w: number; h: number },
+    make: (color: number, look: PlayerLook) => Avatar = (color, look) => {
+      const p = new Player(color, look);
+      p.view.scale.set(1.3);
+      return p;
+    },
   ) {
     this.cols = Math.ceil(size.w / CELL);
     this.rows = Math.ceil(size.h / CELL);
@@ -103,8 +108,7 @@ export class Guests {
         this.open[r * this.cols + c] = blocked ? 0 : 1;
       }
     for (let i = 0; i < count; i++) {
-      const p = new Player(pick(ACCENT), randomLook());
-      p.view.scale.set(1.3);
+      const p = make(pick(ACCENT), randomLook());
       const start = this.free() ?? spots[0];
       if (!start) return;
       p.view.position.set(start.x, start.y);

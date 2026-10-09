@@ -21,10 +21,15 @@ export function paint(w: number, h: number, draw: (c: Ctx) => void, res = 2): Te
 
 /**
  * A painted prop: a canvas of w×h where (ax, ay) is the point that stands on the floor.
- * The sprite is placed so that point lands on (x, y).
+ * Drawing happens around that point as (0, 0); the sprite is placed so it lands on (x, y).
  */
 export function propSprite(x: number, y: number, w: number, h: number, ax: number, ay: number, draw: (c: Ctx) => void, res = 2) {
-  const s = new Sprite(paint(w, h, draw, res));
+  const s = new Sprite(
+    paint(w, h, (c) => {
+      c.translate(ax, ay);
+      draw(c);
+    }, res),
+  );
   s.anchor.set(ax / w, ay / h);
   s.position.set(x, y);
   return s;

@@ -38,6 +38,15 @@ const darken = (c: number, t: number) => mix(c, 0x000000, t);
 const TAU = Math.PI * 2;
 const wrapAngle = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 
+/** Anything that can walk around as a person: the flat Player or the painted Chibi. */
+export interface Avatar {
+  readonly view: Container;
+  update(dtMs: number, dir: number | null): void;
+  faceTowards(angle: number): void;
+  /** How far above the feet the prompt bubble floats. */
+  readonly headroom?: number;
+}
+
 export class Player {
   readonly view = new Container();
   /** Upper body: rotates towards the walking direction. */

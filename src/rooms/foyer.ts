@@ -41,19 +41,19 @@ export const foyer: RoomDefinition = {
     { kind: 'fountain', x: 700, y: 497, w: 78 },
     { kind: 'bench', x: 540, y: 470 },
     { kind: 'bench', x: 860, y: 470 },
-    { kind: 'chandelier', x: 700, y: 497, w: 64 },
+    { kind: 'chandelier', x: 700, y: 497, w: 64, h: 200 },
     // Left: the wardrobe with clothes racks
     { kind: 'wardrobe', x: 215, y: 600, w: 150, h: 110 },
     { kind: 'clothesRack', x: 140, y: 770, w: 110 },
     { kind: 'clothesRack', x: 290, y: 770, w: 110 },
-    { kind: 'chandelier', x: 230, y: 470, w: 40 },
+    { kind: 'chandelier', x: 420, y: 480, w: 40 },
     // Right: reception, juice bar, piano and a lounge
     { kind: 'reception', x: 1090, y: 470, w: 76 },
     { kind: 'piano', x: 1240, y: 690 },
     { kind: 'sofa', x: 960, y: 740, w: 160 },
     { kind: 'table', x: 960, y: 820 },
     { kind: 'armchair', x: 1100, y: 810, r: 3 },
-    { kind: 'chandelier', x: 1150, y: 640, w: 44 },
+    { kind: 'chandelier', x: 880, y: 650, w: 44 },
     // Entrance and greenery
     { kind: 'entrance', x: 700, y: 876 },
     { kind: 'palm', x: 545, y: 800 },

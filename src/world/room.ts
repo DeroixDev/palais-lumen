@@ -10,7 +10,10 @@ import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from 
 import type { GameState } from '../core/state';
 import { animate, ease, wait } from '../core/tween';
 import { drawTrophy } from './trophies';
-import { Player } from './player';
+import { Player, type Avatar } from './player';
+import { Chibi } from './painted/chibi';
+import { paintShell, paintedElevator, paintedSign, type LightSpot } from './painted/foyerShell';
+import { buildPainted, paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
@@ -51,7 +54,9 @@ export class RoomScene {
   readonly view = new Container();
   readonly world = new Container();
   readonly def: RoomDefinition;
-  readonly player: Player;
+  readonly player: Avatar;
+  /** The painted look (3/4 view, soft light); only the foyer has it so far. */
+  readonly painted: boolean;
   private floorDecor = new Container();
   private wallDecor = new Container();
   private entities = new Container();
@@ -72,7 +77,7 @@ export class RoomScene {
   private companion: { c: Container; wings: Sprite; base: number; vx: number; vy: number } | null = null;
   private useCooldown = 0;
   private shelfSize = { w: 300, h: 44 };
-  private sign!: Sprite;
+  private sign!: Container;
   private elevator!: { doorL: Container; doorR: Container; needle: Graphics; lamp: Sprite; open: number };
   private throne: (Container & { hit?: () => void }) | null = null;
   /** Direction the player faces while a cutscene moves them. */
@@ -103,6 +108,7 @@ export class RoomScene {
     private onInteract: (i: Interactable) => void,
   ) {
     this.def = getRoom(roomId);
+    this.painted = this.def.theme.style === 'foyer';
     this.view.addChild(this.world);
     this.buildShell();
     this.world.addChild(this.floorDecor, this.wallDecor);
@@ -123,7 +129,7 @@ export class RoomScene {
     this.buildCompanion();
     this.placeUseSpots();
     const guestCount = Math.min(7, Math.max(3, Math.round(this.def.stations.length * 0.7)));
-    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height });
+    this.guests = new Guests(this.entities, this.fxLayer, this.spots, guestCount, (x, y) => this.collides(x, y), () => this.player.view.position, { w: this.def.width, h: this.def.height }, this.painted ? (c, l) => new Chibi(c, l) : undefined);
 
     // Interaction prompt bubble.
     const bubble = new Graphics();
@@ -156,6 +162,11 @@ export class RoomScene {
   /** Floor and walls, painted once and baked into one texture. */
   private buildShell() {
     const { width: W, height: H, theme } = this.def;
+    if (this.painted) {
+      this.world.addChild(paintShell(this.def, this.lightSpots()));
+      this.obstacles.push({ x: 0, y: 0, w: W, h: WALL_H + 6 }, { x: 0, y: 0, w: SIDE, h: H }, { x: W - SIDE, y: 0, w: SIDE, h: H }, { x: 0, y: H - SIDE, w: W, h: SIDE });
+      return;
+    }
     const c = new Container();
     const g = new Graphics();
     paintFloor(g, theme, W, H);
@@ -170,20 +181,36 @@ export class RoomScene {
 
   /** Neon sign, baked once with its glow so the filter doesn't run every frame. */
   private buildSign() {
+    if (this.painted) {
+      const s = paintedSign(this.def.sign, this.def.width / 2, 62, FONT_DISPLAY);
+      this.sign = s.view;
+      this.world.addChild(s.view);
+      this.animated.push((time) => s.update(time));
+      return;
+    }
     const signText = new Text({ text: this.def.sign, style: { fontFamily: FONT_DISPLAY, fontSize: 44, fill: 0xfff6e6, letterSpacing: 6 } });
     const signWrap = new Container();
     signWrap.addChild(new Graphics().rect(-30, -30, signText.width + 60, signText.height + 60).fill({ color: 0, alpha: 0.001 }));
     signText.filters = [new GlowFilter({ color: this.def.theme.neon, distance: 20, outerStrength: 3.5, innerStrength: 0.6, quality: 0.2 })];
     signWrap.addChild(signText);
-    this.sign = new Sprite(bake(signWrap));
-    this.sign.anchor.set(0.5);
-    this.sign.position.set(this.def.width / 2, 62);
-    this.world.addChild(this.sign);
+    const sign = new Sprite(bake(signWrap));
+    sign.anchor.set(0.5);
+    sign.position.set(this.def.width / 2, 62);
+    this.sign = sign;
+    this.world.addChild(sign);
   }
 
   /** Art-deco elevator in the back wall: floor dial, brass doors, call button. */
   private buildElevator() {
     const ex = this.def.elevatorX;
+    if (this.painted) {
+      const e = paintedElevator(ex, 6);
+      this.world.addChild(e.c);
+      this.elevator = { doorL: e.doorL, doorR: e.doorR, needle: e.needle, lamp: e.lamp, open: 0 };
+      this.setDial(this.def.floor);
+      this.interactables.push({ kind: 'elevator', x: ex, y: WALL_H + 40, title: 'Aufzug nehmen' });
+      return;
+    }
     const t = this.def.theme;
     const c = new Container();
     c.position.set(ex, 0);
@@ -312,16 +339,16 @@ export class RoomScene {
     }
   }
 
-  private pendingUse: { i: Extract<Interactable, { kind: 'use' }>; o: Rect }[] = [];
+  private pendingUse: { i: Extract<Interactable, { kind: 'use' }>; o: Rect; from?: 'below' | 'above' }[] = [];
 
   /** Puts each usable thing's prompt spot on a free side (the piano is played from the keys). */
   private placeUseSpots() {
-    for (const { i, o } of this.pendingUse) {
+    for (const { i, o, from } of this.pendingUse) {
       const cx = o.x + o.w / 2;
       const cy = o.y + o.h / 2;
       const below: [number, number] = [cx, o.y + o.h + 26];
       const above: [number, number] = [cx, o.y - 26];
-      const cands: [number, number][] = i.prop === 'piano' ? [above, below] : [below, [o.x - 26, cy], [o.x + o.w + 26, cy], above];
+      const cands: [number, number][] = from === 'below' ? [below, above] : from === 'above' || i.prop === 'piano' ? [above, below] : [below, [o.x - 26, cy], [o.x + o.w + 26, cy], above];
       const spot = cands.find(([x, y]) => !this.collides(x, y)) ?? below;
       i.x = spot[0];
       i.y = spot[1];
@@ -341,18 +368,22 @@ export class RoomScene {
         this.buildAchievementWall(d.x, d.w ?? 240);
         continue;
       }
-      const b = buildDecor(d, this.def.theme);
+      // The painted look returns several pieces (a counter and its shopkeeper); the first is the prop itself.
+      const parts = (this.painted && buildPainted(d, this.def.theme)) || [buildDecor(d, this.def.theme)].filter((x): x is BuiltDecor => !!x);
+      const b = parts[0];
       if (!b) continue;
       if (d.kind === 'entrance') this.entrance = b;
       const title = USE_TITLE[d.kind];
       if (title) {
         const o = b.obstacles.length ? b.obstacles.reduce((a, r) => ({ x: Math.min(a.x, r.x), y: Math.min(a.y, r.y), w: Math.max(a.x + a.w, r.x + r.w) - Math.min(a.x, r.x), h: Math.max(a.y + a.h, r.y + r.h) - Math.min(a.y, r.y) })) : { x: d.x - 20, y: d.y - 20, w: 40, h: 40 };
-        this.pendingUse.push({ i: { kind: 'use', prop: d.kind, x: 0, y: 0, title, cx: d.x, cy: d.y, poke: b.poke }, o });
+        this.pendingUse.push({ i: { kind: 'use', prop: d.kind, x: 0, y: 0, title, cx: d.x, cy: d.y, poke: b.poke }, o, from: b.useFrom });
       }
-      if (b.z !== undefined) b.view.zIndex = b.z;
-      layers[b.layer].addChild(b.view);
-      this.obstacles.push(...b.obstacles);
-      if (b.update) this.animated.push(b.update);
+      for (const part of parts) {
+        if (part.z !== undefined) part.view.zIndex = part.z;
+        layers[part.layer].addChild(part.view);
+        this.obstacles.push(...part.obstacles);
+        if (part.update) this.animated.push(part.update);
+      }
       if (d.kind === 'throne') this.throne = b.view as Container & { hit?: () => void };
       // Places where guests like to hang out.
       const w = d.w ?? 0;
@@ -378,6 +409,22 @@ export class RoomScene {
     const c = new Container();
     const g = new Graphics();
     c.addChild(g);
+    if (this.painted) {
+      const { back, glass } = paintedVitrine(w, h);
+      c.addChild(back);
+      this.shelf = new Container();
+      c.addChild(this.shelf, glass);
+      this.shelfSize = { w, h };
+      this.refreshShelf();
+      const L = x - w / 2;
+      const T = y - 50;
+      c.position.set(L, T);
+      c.zIndex = T + h;
+      this.entities.addChild(c);
+      this.obstacles.push({ x: L, y: T - 60, w, h: h + 60 });
+      this.interactables.push({ kind: 'shelf', x, y: T + h + 30, title: 'Vitrine ansehen' });
+      return;
+    }
     g.roundRect(4, -54, w, h + 64, 8).fill({ color: 0x000000, alpha: 0.4 });
     g.roundRect(0, -60, w, h + 60, 8).fill(0x1a0b10).stroke({ color: COLORS.brass, width: 3 });
     g.rect(6, h - 8, w - 12, 6).fill(COLORS.brass);
@@ -435,8 +482,13 @@ export class RoomScene {
   refreshAchievements() {
     if (!this.achWall) return;
     const { c, w } = this.achWall;
-    c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
+    c.removeChildren().forEach((ch) => ch.destroy({ children: true, texture: this.painted }));
     const h = 112;
+    if (this.painted) {
+      const done = ACHIEVEMENTS.map((a) => !!this.state.data.achievements[a.id]);
+      c.addChild(paintedAchBoard(w, h, done, `ERFOLGE  ${done.filter(Boolean).length} / ${ACHIEVEMENTS.length}`));
+      return;
+    }
     const g = new Graphics();
     g.roundRect(4, 5, w, h, 8).fill({ color: 0x000000, alpha: 0.45 });
     g.roundRect(0, 0, w, h, 8).fill(0x2a1608).stroke({ color: COLORS.brass, width: 3 });
@@ -472,7 +524,8 @@ export class RoomScene {
   private makePlayer() {
     const host = this.state.data.players.host;
     const look = this.state.look;
-    return new Player(host?.color ?? COLORS.lamp, { skin: host?.skin, ...look });
+    const opts = { skin: host?.skin, ...look };
+    return this.painted ? new Chibi(host?.color ?? COLORS.lamp, opts) : new Player(host?.color ?? COLORS.lamp, opts);
   }
 
   /** Rebuilds the avatar after a visit to the wardrobe. */
@@ -483,7 +536,7 @@ export class RoomScene {
     p.faceTowards(Math.PI / 2);
     this.entities.addChild(p.view);
     old.view.destroy({ children: true });
-    (this as { player: Player }).player = p;
+    (this as { player: Avatar }).player = p;
     this.companion?.c.destroy({ children: true });
     this.companion = null;
     this.buildCompanion();
@@ -584,7 +637,94 @@ export class RoomScene {
     this.frozen = false;
   }
 
+  /** Where the painted room is lit from; the shell paints pools and reflections for each. */
+  private lightSpots(): LightSpot[] {
+    const spots: LightSpot[] = [
+      { x: this.def.width / 2, y: 62, r: 220, col: 0xffb45a, a: 0.3 },
+      { x: this.def.elevatorX, y: 70, r: 90, col: 0xffd9a0, a: 0.35 },
+    ];
+    for (const d of this.def.decor) {
+      if (d.kind === 'chandelier') spots.push({ x: d.x, y: d.y, r: (d.w ?? 46) * 4.2, col: 0xffd49a, a: 0.5 });
+      else if (d.kind === 'floorLamp') spots.push({ x: d.x, y: d.y, r: 120, col: 0xffc880, a: 0.45 });
+      else if (d.kind === 'painting') spots.push({ x: d.x, y: 40, r: 70, col: 0xffe2a8, a: 0.3 });
+      else if (d.kind === 'jukebox' || d.kind === 'fountain') spots.push({ x: d.x, y: d.y, r: 110, col: d.kind === 'jukebox' ? 0xff7ab8 : 0x7ad8ff, a: 0.3 });
+    }
+    return spots;
+  }
+
+  /** Painted room: breathing light under each chandelier, dust in the light, moths around the crystal. */
+  private buildPaintedLights() {
+    const motes: { s: Sprite; x: number; y: number; vx: number; vy: number; ph: number; box: { x: number; y: number; r: number } }[] = [];
+    for (const d of this.def.decor) {
+      if (d.kind !== 'chandelier' && d.kind !== 'floorLamp') continue;
+      const r = d.kind === 'chandelier' ? (d.w ?? 46) * 4.2 : 120;
+      const pool = new Sprite(glowTexture());
+      pool.anchor.set(0.5);
+      pool.position.set(d.x, d.y + 20);
+      pool.width = r * 2.4;
+      pool.height = r * 1.7;
+      pool.tint = 0xffd49a;
+      pool.blendMode = 'add';
+      pool.alpha = 0.12;
+      this.lights.addChild(pool);
+      const ph = Math.random() * 10;
+      this.animated.push((t) => (pool.alpha = 0.11 + Math.sin(t * 1.7 + ph) * 0.015 + Math.sin(t * 5.3 + ph) * 0.006));
+      // Dust hanging in the light, from the crystal down to the floor.
+      const lift = d.kind === 'chandelier' ? d.h || 60 + (d.w ?? 46) * 1.4 : 70;
+      const n = d.kind === 'chandelier' ? 16 : 6;
+      for (let i = 0; i < n; i++) {
+        const s = new Sprite(glowTexture());
+        s.anchor.set(0.5);
+        s.tint = 0xfff1d0;
+        s.blendMode = 'add';
+        const size = 3 + Math.random() * 4;
+        s.width = s.height = size;
+        const box = { x: d.x, y: d.y - lift / 2, r: r * 0.55 };
+        motes.push({ s, x: d.x + (Math.random() - 0.5) * box.r * 2, y: box.y + (Math.random() - 0.5) * lift, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 5, ph: Math.random() * 10, box: { ...box, r: Math.max(box.r, lift / 2) } });
+        this.lights.addChild(s);
+      }
+      if (d.kind === 'chandelier') {
+        for (let i = 0; i < 2; i++) {
+          const c = new Container();
+          const glow = new Sprite(glowTexture());
+          glow.anchor.set(0.5);
+          glow.width = glow.height = 30;
+          glow.tint = 0xffe2a8;
+          glow.alpha = 0.35;
+          glow.blendMode = 'add';
+          const wings = new Sprite(mothTexture());
+          wings.anchor.set(0.5);
+          wings.width = wings.height = 12;
+          wings.tint = 0xfff1c4;
+          wings.alpha = 0.8;
+          c.addChild(glow, wings);
+          this.lights.addChild(c);
+          this.lampMoths.push({ c, wings, base: 12 / wings.texture.width, cx: d.x, cy: d.y - lift, r: 26 + Math.random() * 30, ph: Math.random() * 10, sp: 0.8 + Math.random() * 1.2 });
+        }
+      }
+    }
+    this.animated.push((t, dtMs) => {
+      const dt = dtMs / 1000;
+      for (const m of motes) {
+        m.x += (m.vx + Math.sin(t * 0.7 + m.ph) * 4) * dt;
+        m.y += m.vy * dt;
+        const dx = m.x - m.box.x;
+        const dy = m.y - m.box.y;
+        if (dy < -m.box.r) m.y = m.box.y + m.box.r;
+        if (Math.abs(dx) > m.box.r * 0.8) m.x = m.box.x - Math.sign(dx) * m.box.r * 0.8;
+        // Brightest in the middle of the cone, twinkling as they turn.
+        const k = Math.max(0, 1 - Math.hypot(dx / m.box.r, dy / m.box.r));
+        m.s.alpha = k * (0.35 + 0.35 * Math.sin(t * 2.5 + m.ph));
+        m.s.position.set(m.x, m.y);
+      }
+    });
+  }
+
   private buildLights() {
+    if (this.painted) {
+      this.buildPaintedLights();
+      return;
+    }
     const th = this.def.theme;
     // Soft pools of light on the floor, with a few moths circling each.
     for (let y = WALL_H + 140; y < this.def.height; y += 280) {
@@ -911,11 +1051,11 @@ export class RoomScene {
       this.nearest = best;
       this.showPrompt(best);
     }
-    if (this.prompt.visible) this.prompt.y = pv.y - 58 + Math.sin(this.time * 4) * 3;
+    if (this.prompt.visible) this.prompt.y = pv.y - (this.player.headroom ?? 58) + Math.sin(this.time * 4) * 3;
 
     // Lamps on machines pulse; the neon sign flickers now and then.
     for (const l of this.stationLamps) l.g.alpha = 0.55 + 0.45 * Math.sin(this.time * 3 + l.phase);
-    this.sign.alpha = Math.sin(this.time * 31) > 0.97 ? 0.55 : 1;
+    if (!this.painted) this.sign.alpha = Math.sin(this.time * 31) > 0.97 ? 0.55 : 1;
     for (const m of this.lampMoths) {
       const a = this.time * m.sp + m.ph;
       const x = m.cx + Math.cos(a) * m.r + Math.sin(a * 2.7) * 8;
