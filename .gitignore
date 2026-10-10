@@ -3,3 +3,4 @@ dist
 devpages/
 src-tauri/target
 src-tauri/gen/schemas
+.claude/

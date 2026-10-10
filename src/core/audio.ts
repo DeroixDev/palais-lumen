@@ -1,7 +1,11 @@
-// All sound is synthesised with WebAudio (no audio files): effects, room ambience and a
-// small generative lounge band. Everything starts after the first click (browser rule).
+// All sound: effects, room ambience and the music of every place. Recorded instruments
+// (src/audio/inst, played by src/audio/sampler.ts) carry the music and the richer effects;
+// synthesised voices fill in while a recording loads. Everything starts after the first click.
 
-import { CLUB_BPM, ClubMix, clubFx, type Voices } from './clubMusic';
+import { CLUB_BPM, ClubMix, clubFx } from './clubMusic';
+import { Voices, hallIR, type InstId, type NoteOpts } from '../audio/voices';
+import { MOOD_DEFS } from '../audio/moods';
+import { foyer } from '../audio/moods/foyer';
 
 const MUTE_KEY = 'nachtfalter.muted';
 const MUSIC_KEY = 'nachtfalter.music';
@@ -12,7 +16,9 @@ const MOODS = ['foyer', 'velvet', 'garden', 'clockwork', 'crystal', 'throne', 's
 type Mood = (typeof MOODS)[number];
 
 class Sfx {
-  private ctx: AudioContext | null = null;
+  private ctx: BaseAudioContext | null = null;
+  /** Synth voices and recorded instruments (null until the first click). */
+  v: Voices | null = null;
   private master: GainNode | null = null;
   /** Effects bus, with a send into the reverb. */
   private fx: GainNode | null = null;
@@ -40,76 +46,78 @@ class Sfx {
 
   unlock() {
     if (this.ctx) {
-      void this.ctx.resume();
+      void (this.ctx as AudioContext).resume?.();
       return;
     }
     try {
-      const ctx = new AudioContext();
-      this.ctx = ctx;
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -16;
-      comp.ratio.value = 4;
-      // Safety limiter after the glue compressor: hard knee at -3 dBFS, so loud club nights
-      // plus big-win effects never clip. The trim cancels Chrome's automatic makeup gain.
-      const lim = ctx.createDynamicsCompressor();
-      lim.threshold.value = -3;
-      lim.knee.value = 0;
-      lim.ratio.value = 20;
-      lim.attack.value = 0.001;
-      lim.release.value = 0.12;
-      const limTrim = ctx.createGain();
-      limTrim.gain.value = Math.pow(10, (-0.6 * (3 - 3 / 20)) / 20);
-      comp.connect(lim).connect(limTrim).connect(ctx.destination);
-      this.master = ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 0.5;
-      this.master.connect(comp);
-
-      // Small room reverb from a generated impulse response.
-      const verb = ctx.createConvolver();
-      const len = Math.floor(ctx.sampleRate * 1.8);
-      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = ir.getChannelData(ch);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
-      }
-      verb.buffer = ir;
-      const verbOut = ctx.createGain();
-      verbOut.gain.value = 0.35;
-      verb.connect(verbOut).connect(this.master);
-      this.verbSend = ctx.createGain();
-      this.verbSend.gain.value = 1;
-      this.verbSend.connect(verb);
-
-      this.fx = ctx.createGain();
-      this.fx.gain.value = 0.8;
-      this.fx.connect(this.master);
-      const fxSend = ctx.createGain();
-      fxSend.gain.value = 0.25;
-      this.fx.connect(fxSend).connect(this.verbSend);
-
-      this.musicBus = ctx.createGain();
-      this.musicBus.gain.value = this.musicOn ? 0.0001 : 0;
-      this.musicBus.connect(this.master);
-      const mSend = ctx.createGain();
-      mSend.gain.value = 0.4;
-      this.musicBus.connect(mSend).connect(this.verbSend);
-
-      this.ambBus = ctx.createGain();
-      this.ambBus.gain.value = 0;
-      this.ambBus.connect(this.master);
-
-      const nl = ctx.sampleRate * 2;
-      this.noiseBuf = ctx.createBuffer(1, nl, ctx.sampleRate);
-      const nd = this.noiseBuf.getChannelData(0);
-      for (let i = 0; i < nl; i++) nd[i] = Math.random() * 2 - 1;
-
-      if (this.scene !== 'off') {
-        const s = this.scene;
-        this.scene = 'off';
-        this.setScene(s);
-      }
+      this.attach(new AudioContext());
     } catch {
       this.ctx = null;
+    }
+  }
+
+  /** Builds the mixing graph on a context (the live one, or an offline one for test renders). */
+  attach(ctx: BaseAudioContext) {
+    this.ctx = ctx;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.2;
+    // Safety limiter after the glue compressor: hard knee at -3 dBFS, so loud club nights
+    // plus big-win effects never clip. The trim cancels Chrome's automatic makeup gain.
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.001;
+    lim.release.value = 0.12;
+    const limTrim = ctx.createGain();
+    limTrim.gain.value = Math.pow(10, (-0.6 * (3 - 3 / 20)) / 20);
+    comp.connect(lim).connect(limTrim).connect(ctx.destination);
+    this.master = ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : 0.5;
+    this.master.connect(comp);
+
+    // Hall: a smooth stereo impulse response with early reflections.
+    const verb = ctx.createConvolver();
+    verb.buffer = hallIR(ctx, 2.4, 0.45);
+    const verbOut = ctx.createGain();
+    verbOut.gain.value = 0.32;
+    verb.connect(verbOut).connect(this.master);
+    this.verbSend = ctx.createGain();
+    this.verbSend.gain.value = 1;
+    this.verbSend.connect(verb);
+
+    this.fx = ctx.createGain();
+    this.fx.gain.value = 0.8;
+    this.fx.connect(this.master);
+    const fxSend = ctx.createGain();
+    fxSend.gain.value = 0.22;
+    this.fx.connect(fxSend).connect(this.verbSend);
+
+    this.musicBus = ctx.createGain();
+    this.musicBus.gain.value = this.musicOn ? 0.0001 : 0;
+    this.musicBus.connect(this.master);
+    const mSend = ctx.createGain();
+    mSend.gain.value = 0.38;
+    this.musicBus.connect(mSend).connect(this.verbSend);
+
+    this.ambBus = ctx.createGain();
+    this.ambBus.gain.value = 0;
+    this.ambBus.connect(this.master);
+
+    this.v = new Voices(ctx, this.fx);
+    this.noiseBuf = this.v.noiseBuffer;
+    this.voiceSet = this.v;
+    // The effects' recordings and the band of the current place load in the background.
+    void this.v.need(...SFX_INSTRUMENTS);
+    this.preloadMood();
+
+    if (this.scene !== 'off') {
+      const sc = this.scene;
+      this.scene = 'off';
+      this.setScene(sc);
     }
   }
 
@@ -136,56 +144,33 @@ class Sfx {
   // ---- Building blocks --------------------------------------------------
 
   /** One enveloped oscillator voice. */
-  private tone(
-    freq: number,
-    dur: number,
-    type: OscillatorType = 'sine',
-    vol = 0.5,
-    delay = 0,
-    slideTo?: number,
-    out: AudioNode | null = this.fx,
-    attack = 0.008,
-  ) {
-    if (!this.ctx || !out) return;
-    const t = this.ctx.currentTime + delay;
-    const osc = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, t);
-    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + attack);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(g).connect(out);
-    osc.start(t);
-    osc.stop(t + dur + 0.05);
+  private tone(freq: number, dur: number, type: OscillatorType = 'sine', vol = 0.5, delay = 0, slideTo?: number, out: AudioNode | null = this.fx, attack = 0.008) {
+    this.v?.tone(freq, dur, type, vol, delay, slideTo, out, attack);
   }
 
   /** Filtered noise burst. */
   private noise(dur: number, vol = 0.3, delay = 0, freq = 2000, type: BiquadFilterType = 'bandpass', q = 1, out: AudioNode | null = this.fx, sweepTo?: number) {
-    if (!this.ctx || !out || !this.noiseBuf) return;
-    const t = this.ctx.currentTime + delay;
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.noiseBuf;
-    const f = this.ctx.createBiquadFilter();
-    f.type = type;
-    f.frequency.setValueAtTime(freq, t);
-    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
-    f.Q.value = q;
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, dur / 4));
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(out);
-    src.start(t, Math.random() * 1.5);
-    src.stop(t + dur + 0.05);
+    this.v?.noise(dur, vol, delay, freq, type, q, out, sweepTo);
   }
 
   /** Metallic bell (inharmonic partials): coins, chimes. */
   private bell(freq: number, vol = 0.2, delay = 0, dur = 0.6, out: AudioNode | null = this.fx) {
-    this.tone(freq, dur, 'sine', vol, delay, undefined, out, 0.002);
-    this.tone(freq * 2.76, dur * 0.5, 'sine', vol * 0.45, delay, undefined, out, 0.002);
-    this.tone(freq * 5.4, dur * 0.25, 'sine', vol * 0.25, delay, undefined, out, 0.002);
+    this.v?.bell(freq, vol, delay, dur, out);
+  }
+
+  /** Recordings the effects use (preloaded after the first click). */
+  get sfxInstruments(): InstId[] {
+    return SFX_INSTRUMENTS;
+  }
+
+  /** A recorded instrument note for an effect (synth stand-in until loaded). */
+  inst(id: InstId, midi: number, delay = 0, o: NoteOpts = {}, out: AudioNode | null = this.fx) {
+    this.v?.note(id, midi, delay, out, o);
+  }
+
+  /** A recorded percussion hit for an effect. */
+  perc(id: InstId, art: string, delay = 0, o: NoteOpts = {}, out: AudioNode | null = this.fx) {
+    this.v?.hit(id, art, delay, out, o);
   }
 
   // ---- UI ---------------------------------------------------------------
@@ -775,18 +760,8 @@ class Sfx {
     this.ambTimer = 0;
   }
 
-  /**
-   * Generative lounge jazz: ii–V–I–VI in C with walking bass, soft electric piano and brushes.
-   * Scheduled a little ahead of time so it keeps steady time.
-   */
-  /** Jukebox records: the generative band changes tempo, harmony and feel. */
+  /** Jukebox record in the foyer (see src/audio/moods/foyer.ts). */
   private record = 0;
-  static readonly RECORDS = [
-    { name: 'Lounge', bpm: 88, swing: 0.66, minor: false, bossa: false },
-    { name: 'Swing', bpm: 132, swing: 0.66, minor: false, bossa: false },
-    { name: 'Mondnacht', bpm: 70, swing: 0.62, minor: true, bossa: false },
-    { name: 'Bossa Falter', bpm: 112, swing: 0.5, minor: false, bossa: true },
-  ];
   /** Puts on the next record; returns its name. */
   // ---- Club floor (src/core/clubMusic.ts) -------------------------------------------
 
@@ -795,12 +770,7 @@ class Sfx {
   private voiceSet: Voices | null = null;
 
   private voices(): Voices {
-    return (this.voiceSet ??= {
-      ctx: this.ctx!,
-      tone: (...a) => this.tone(...a),
-      noise: (...a) => this.noise(...a),
-      bell: (...a) => this.bell(...a),
-    });
+    return this.voiceSet!;
   }
 
   /** How close the player is to the dance floor (0..1): the club music layers up and gets louder. */
@@ -823,10 +793,14 @@ class Sfx {
   }
 
   nextRecord() {
-    this.record = (this.record + 1) % Sfx.RECORDS.length;
+    const names = foyer.records!;
+    this.record = (this.record + 1) % names.length;
     this.noise(0.25, 0.08, 0, 3000, 'highpass', 1);
     this.tone(220, 0.15, 'triangle', 0.05, 0.05, 110);
-    return Sfx.RECORDS[this.record].name;
+    // The band starts the new tune from the top.
+    this.moodStart.delete('foyer');
+    this.moodStart.delete('street');
+    return names[this.record];
   }
 
   // ---- Floor moods: every floor has its own band, crossfaded when you change floors ----
@@ -846,6 +820,15 @@ class Sfx {
     this.applyMood();
   }
 
+  /** Starts loading the recordings the current place's music needs. */
+  private preloadMood() {
+    const def = MOOD_DEFS[this.mood === 'street' ? 'foyer' : this.mood];
+    if (def && this.v) void this.v.need(...def.instruments);
+  }
+
+  /** Beat at which each mood (re)started, so its form begins at bar 1 on every visit. */
+  private moodStart = new Map<Mood, number>();
+
   /** Crossfades to the mood that fits now: the street's on the title, else the room's. */
   private applyMood() {
     const m: Mood = this.scene === 'menu' ? 'street' : this.floorMood;
@@ -853,6 +836,8 @@ class Sfx {
     const old = this.mood;
     this.mood = m;
     if (m !== 'throne') this.intensity = 0;
+    this.moodStart.delete(m);
+    this.preloadMood();
     if (!this.ctx || !this.musicBus || !this.moodOut) return;
     const now = this.ctx.currentTime;
     const XF = 2.4;
@@ -867,12 +852,44 @@ class Sfx {
     this.moodOut = g;
   }
 
+  /**
+   * Test renders (tools/sounds/render.mjs): schedules `seconds` of a mood up front on an
+   * attached offline context, at full music level, with the given boss phase / record / club proximity.
+   */
+  renderSchedule(mood: string, seconds: number, o: { intensity?: number; record?: number; proximity?: number } = {}) {
+    if (!this.ctx || !this.musicBus) return;
+    this.musicBus.gain.value = 1;
+    this.intensity = o.intensity ?? 0;
+    this.record = o.record ?? 0;
+    this.mood = mood as Mood;
+    this.floorMood = this.mood;
+    this.scene = 'casino';
+    this.proximity = o.proximity ?? 0;
+    this.clubMix.setLevel(this.ctx, this.proximity);
+    const out = this.ctx.createGain();
+    out.connect(this.musicBus);
+    let t = 0.05;
+    let beat = 0;
+    while (t < seconds) {
+      const spb = 60 / this.moodBpm();
+      this.playMood(this.mood, beat, t, spb, out);
+      t += spb;
+      beat++;
+    }
+  }
+
   /** Boss phase 0..3: on the throne floor the band pushes harder from phase 2. */
   setIntensity(phase: number) {
     this.intensity = Math.max(0, Math.min(3, phase));
   }
 
+  private moodState() {
+    return { intensity: this.intensity, record: this.record };
+  }
+
   private moodBpm() {
+    const def = MOOD_DEFS[this.mood === 'street' ? 'foyer' : this.mood];
+    if (def) return def.bpm(this.moodState()) * (this.mood === 'street' ? 0.92 : 1);
     switch (this.mood) {
       case 'velvet':
         return 66;
@@ -884,14 +901,12 @@ class Sfx {
         return 80;
       case 'throne':
         return 84 + Math.max(0, this.intensity - 1) * 10;
-      case 'street':
-        return 76;
       case 'club':
       case 'techno':
       case 'hiphop':
         return CLUB_BPM[this.mood];
       default:
-        return Sfx.RECORDS[this.record].bpm;
+        return 90;
     }
   }
 
@@ -918,8 +933,17 @@ class Sfx {
 
   private playMood(m: Mood, beat: number, t: number, spb: number, out: GainNode) {
     const d = t - this.ctx!.currentTime;
-    const bar = Math.floor(beat / 4);
-    const b = beat % 4;
+    if (!this.moodStart.has(m)) this.moodStart.set(m, beat);
+    const rel = beat - this.moodStart.get(m)!;
+    const def = MOOD_DEFS[m === 'street' ? 'foyer' : m];
+    if (def && this.v) {
+      const bpb = def.beatsPerBar ?? 4;
+      const target = m === 'street' ? this.muffled(out) : this.trimmed(out);
+      def.play({ v: this.v, out: target, bar: Math.floor(rel / bpb), beat: rel, b: rel % bpb, d, spb, s: this.moodState() });
+      return;
+    }
+    const bar = Math.floor(rel / 4);
+    const b = rel % 4;
     switch (m) {
       case 'velvet':
         return this.velvetBeat(bar, b, d, spb, out);
@@ -931,32 +955,44 @@ class Sfx {
         return this.crystalBeat(bar, b, d, spb, out);
       case 'throne':
         return this.throneBeat(bar, b, d, spb, out);
-      case 'street':
-        return this.streetBeat(beat, t, spb, out);
       case 'club':
       case 'techno':
       case 'hiphop':
         return this.clubMix.play(m, this.voices(), bar, b, d, spb, out);
-      default:
-        return this.playBeat(beat, t, spb, out);
     }
   }
 
   /** Muffled versions of the band, one per output (the crossfade makes new outputs). */
   private muffles = new WeakMap<GainNode, BiquadFilterNode>();
+  private trims = new WeakMap<GainNode, GainNode>();
 
-  /** Street: the lounge band heard through the casino's doors, muffled and slow. */
-  private streetBeat(beat: number, t: number, spb: number, out: GainNode) {
+  /**
+   * Recorded-band moods are mixed to about -27 dBFS RMS (tools/sounds/render.mjs); this trim
+   * sits them a little above where the old synthesised bands were, under the effects.
+   */
+  private trimmed(out: GainNode) {
+    let g = this.trims.get(out);
+    if (!g) {
+      g = this.ctx!.createGain();
+      g.gain.value = MUSIC_TRIM;
+      g.connect(out);
+      this.trims.set(out, g);
+    }
+    return g;
+  }
+
+  /** Street: the foyer band heard through the casino's doors, muffled. */
+  private muffled(out: GainNode) {
     let lp = this.muffles.get(out);
     if (!lp) {
       lp = this.ctx!.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.frequency.value = 750;
-      lp.Q.value = 0.5;
-      lp.connect(out);
+      lp.frequency.value = 700;
+      lp.Q.value = 0.4;
+      lp.connect(this.trimmed(out));
       this.muffles.set(out, lp);
     }
-    this.playBeat(beat, t, spb, lp);
+    return lp;
   }
 
   /** Kerzensaal: a slow, smoky jazz ballad. Upright bass in halves, soft piano, a muted horn. */
@@ -1085,62 +1121,6 @@ class Sfx {
     }
   }
 
-  private playBeat(beat: number, t: number, spb: number, out: AudioNode) {
-    const d = t - this.ctx!.currentTime;
-    const bar = Math.floor(beat / 4) % 8;
-    const b = beat % 4;
-    // Chords (root, then voicing) for an 8-bar loop.
-    const rec = Sfx.RECORDS[this.record];
-    const major: [number, number[]][] = [
-      [146.8, [349.2, 440, 523.3, 659.3]], // Dm9
-      [98, [349.2, 440, 493.9, 659.3]], // G13
-      [130.8, [329.6, 392, 493.9, 587.3]], // Cmaj9
-      [110, [329.6, 392, 466.2, 554.4]], // A7(b9)
-      [146.8, [349.2, 440, 523.3, 659.3]],
-      [98, [349.2, 415.3, 493.9, 622.3]], // G7alt
-      [130.8, [329.6, 392, 493.9, 587.3]],
-      [130.8, [329.6, 440, 493.9, 587.3]], // C6/9
-    ];
-    const minor: [number, number[]][] = [
-      [110, [261.6, 329.6, 392, 493.9]], // Am9
-      [146.8, [261.6, 349.2, 440, 523.3]], // Dm9
-      [164.8, [293.7, 415.3, 493.9, 587.3]], // E7
-      [110, [261.6, 329.6, 392, 493.9]],
-      [87.3, [261.6, 329.6, 440, 523.3]], // Fmaj7
-      [146.8, [261.6, 349.2, 440, 523.3]],
-      [123.5, [293.7, 349.2, 440, 523.3]], // Bm7b5
-      [164.8, [293.7, 415.3, 493.9, 587.3]],
-    ];
-    const prog = rec.minor ? minor : major;
-    const [root, voicing] = prog[bar];
-    const next = prog[(bar + 1) % 8][0];
-    // Walking bass: root, fifth, third-ish, approach note to the next root.
-    const walk = rec.bossa ? [root, root, root * 1.5, root * 1.5] : [root, root * 1.5, root * 1.26, next * (Math.random() < 0.5 ? 1.06 : 0.944)];
-    const bf = walk[b] > 200 ? walk[b] / 2 : walk[b];
-    this.tone(bf, spb * 0.9, 'triangle', 0.22, d, undefined, out, 0.01);
-    this.tone(bf * 2, spb * 0.3, 'sine', 0.05, d, undefined, out, 0.005);
-    // Electric piano comping on beat 1 and the "and" of 2, sometimes 4.
-    const swing = spb * rec.swing;
-    const hits = rec.bossa
-      ? b === 0 ? [0, swing] : b === 1 ? [swing] : b === 2 ? [0] : [swing]
-      : b === 0 ? [0] : b === 1 ? [swing] : b === 3 && Math.random() < (rec.bpm > 120 ? 0.8 : 0.4) ? [swing] : [];
-    for (const off of hits) {
-      for (const f of voicing) {
-        this.tone(f, spb * 1.6, 'sine', 0.045, d + off, undefined, out, 0.006);
-        this.tone(f * 2, spb * 0.5, 'triangle', 0.012, d + off, undefined, out, 0.003);
-      }
-    }
-    // A few melody notes from the chord, like a vibraphone noodling.
-    if (Math.random() < 0.35) {
-      const f = voicing[Math.floor(Math.random() * voicing.length)] * 2;
-      this.bell(f, 0.03, d + (Math.random() < 0.5 ? 0 : swing), 1.2, out);
-    }
-    // Brushes: swish on 2 and 4, soft taps on the swung eighths.
-    if (rec.bossa) this.noise(0.03, 0.035, d + (b % 2 ? swing : 0), 6000, 'highpass', 1, out);
-    else if (b === 1 || b === 3) this.noise(spb * 0.6, 0.05, d, 5000, 'bandpass', 0.7, out);
-    this.noise(0.04, 0.025, d + swing, 7000, 'highpass', 1, out);
-  }
-
   // ---- Diamantminen, Drachenturm, Mondmünze ------------------------------------------
 
   /** A stone cracking open (Diamantminen). */
@@ -1220,5 +1200,11 @@ class Sfx {
   }
 }
 
+/** Recordings the effects use (loaded right after the first click). */
+const SFX_INSTRUMENTS: InstId[] = [];
+/** Level of the recorded-band moods relative to their -27 dBFS render target. */
+const MUSIC_TRIM = 0.5;
+
 export const sfx = new Sfx();
+export { Sfx as SfxClass };
 export type { Sfx };

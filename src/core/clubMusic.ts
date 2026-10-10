@@ -9,7 +9,7 @@ export const CLUB_BPM: Record<ClubMood, number> = { club: 124, techno: 134, hiph
 
 /** The building blocks audio.ts lends us (its private voices). */
 export interface Voices {
-  ctx: AudioContext;
+  ctx: BaseAudioContext;
   tone(freq: number, dur: number, type?: OscillatorType, vol?: number, delay?: number, slideTo?: number, out?: AudioNode | null, attack?: number): void;
   noise(dur: number, vol?: number, delay?: number, freq?: number, type?: BiquadFilterType, q?: number, out?: AudioNode | null, sweepTo?: number): void;
   bell(freq: number, vol?: number, delay?: number, dur?: number, out?: AudioNode | null): void;
@@ -68,7 +68,7 @@ export class ClubMix {
   }
 
   /** Smoothly moves every chain to a new proximity level (0..1). */
-  setLevel(ctx: AudioContext, lvl: number) {
+  setLevel(ctx: BaseAudioContext, lvl: number) {
     this.level = Math.max(0, Math.min(1, lvl));
     const now = ctx.currentTime;
     for (const c of this.chains) {
