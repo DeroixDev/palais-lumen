@@ -607,7 +607,11 @@ export class Hud {
       <p><strong>Ausprobieren:</strong> Klavier, Brunnen, Jukebox und vieles mehr auf den Etagen kannst du benutzen. Einfach hingehen und <kbd>E</kbd> drücken.</p>
       <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
-      <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>`;
+      <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
+      <details class="credits"><summary>Musik &amp; Klang</summary>
+        <p>Alle Stücke sind für Casino Nachtfalter geschrieben und werden live im Spiel gespielt. Die Instrumente sind freie Aufnahmen:</p>
+        <p>Versilian Community Sample Library (Versilian Studios, CC0) · Splendid Grand Piano (Akai, gemeinfrei) · Kontrabass von D. Smolken (CC0) · Wurlitzer EP200 von Greg Sullivan (CC BY 3.0) · FluidR3 GM von Frank Wen, aufbereitet von gleitz/midi-js-soundfonts (CC BY 3.0) · tonejs-instruments von Nicholaus Brosowsky (CC BY 3.0) · LinnDrum und TR-808 aus smpldsnds/drum-machines (gemeinfrei).</p>
+      </details>`;
     this.modal('So geht’s', body, [
       { label: 'Neues Spiel', onClick: () => this.confirmNewGame() },
       { label: 'Los geht’s', primary: true, onClick: () => this.closeModal() },
