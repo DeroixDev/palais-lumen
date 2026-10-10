@@ -6,6 +6,9 @@ import { CLUB_BPM, ClubMix, clubFx } from './clubMusic';
 import { Voices, hallIR, type InstId, type NoteOpts } from '../audio/voices';
 import { MOOD_DEFS } from '../audio/moods';
 import { foyer } from '../audio/moods/foyer';
+import type { FxKit } from '../audio/sfx/kit';
+import * as GAME_FX from '../audio/sfx/games';
+import * as WORLD_FX from '../audio/sfx/world';
 
 const MUTE_KEY = 'nachtfalter.muted';
 const MUSIC_KEY = 'nachtfalter.music';
@@ -156,6 +159,12 @@ class Sfx {
   /** Metallic bell (inharmonic partials): coins, chimes. */
   private bell(freq: number, vol = 0.2, delay = 0, dur = 0.6, out: AudioNode | null = this.fx) {
     this.v?.bell(freq, vol, delay, dur, out);
+  }
+
+  /** What the effect functions in src/audio/sfx get. */
+  fxKit(): FxKit | null {
+    if (!this.v || !this.ctx || !this.fx || !this.ambBus || !this.verbSend) return null;
+    return { v: this.v, ctx: this.ctx, out: this.fx, amb: this.ambBus, verb: this.verbSend };
   }
 
   /** Recordings the effects use (preloaded after the first click). */
@@ -668,7 +677,16 @@ class Sfx {
     this.ambBus.gain.setTargetAtTime(Math.max(0.0001, amb), this.ctx.currentTime, 0.8);
   }
 
+  /** Stop functions of ambience beds from src/audio/sfx/world.ts (`ambience`, `street`). */
+  private bedStop: { casino?: () => void; street?: () => void } = {};
+
   private startAmbience() {
+    const bed = (WORLD_FX as Record<string, unknown>).ambience as ((k: FxKit) => () => void) | undefined;
+    const k = this.fxKit();
+    if (bed && k) {
+      if (!this.bedStop.casino) this.bedStop.casino = bed(k);
+      return;
+    }
     if (!this.ctx || !this.ambBus || !this.noiseBuf || this.ambNodes.length) return;
     const ctx = this.ctx;
     // Murmur of a crowd: band-limited noise with slow, uneven swells.
@@ -707,6 +725,12 @@ class Sfx {
 
   /** Title and arrival: drizzle on the pavement, the city humming far off, a car passing now and then. */
   private startStreet() {
+    const bed = (WORLD_FX as Record<string, unknown>).street as ((k: FxKit) => () => void) | undefined;
+    const k = this.fxKit();
+    if (bed && k) {
+      if (!this.bedStop.street) this.bedStop.street = bed(k);
+      return;
+    }
     if (!this.ctx || !this.ambBus || !this.noiseBuf || this.streetNodes.length) return;
     const ctx = this.ctx;
     for (const [type, freq, q, vol] of [['highpass', 2600, 0.5, 0.035], ['bandpass', 900, 0.6, 0.02], ['lowpass', 140, 0.7, 0.05]] as const) {
@@ -735,6 +759,8 @@ class Sfx {
   }
 
   private stopStreet() {
+    this.bedStop.street?.();
+    this.bedStop.street = undefined;
     for (const n of this.streetNodes) {
       try {
         (n as AudioScheduledSourceNode).stop();
@@ -748,6 +774,8 @@ class Sfx {
   }
 
   private stopAmbience() {
+    this.bedStop.casino?.();
+    this.bedStop.casino = undefined;
     for (const n of this.ambNodes) {
       try {
         (n as AudioScheduledSourceNode).stop();
@@ -1200,8 +1228,23 @@ class Sfx {
   }
 }
 
-/** Recordings the effects use (loaded right after the first click). */
-const SFX_INSTRUMENTS: InstId[] = [];
+// Effects rewritten in src/audio/sfx replace the methods of the same name.
+type FxFn = (k: FxKit, ...a: never[]) => unknown;
+const FX_MODULES = [GAME_FX, WORLD_FX] as Record<string, unknown>[];
+const proto = Sfx.prototype as unknown as Record<string, unknown>;
+for (const mod of FX_MODULES)
+  for (const [name, fn] of Object.entries(mod)) {
+    if (typeof fn !== 'function' || name === 'INSTRUMENTS' || !(name in proto)) continue;
+    const impl = fn as FxFn;
+    const fallback = proto[name] as (...a: unknown[]) => unknown;
+    proto[name] = function (this: Sfx, ...a: unknown[]) {
+      const k = this.fxKit();
+      return k ? impl(k, ...(a as never[])) : fallback.apply(this, a);
+    };
+  }
+
+/** Recordings the effects use (loaded right after the first click): each effect module may export INSTRUMENTS. */
+const SFX_INSTRUMENTS: InstId[] = [...new Set(FX_MODULES.flatMap((m) => (m.INSTRUMENTS as InstId[] | undefined) ?? []))];
 /** Level of the recorded-band moods relative to their -27 dBFS render target. */
 const MUSIC_TRIM = 0.5;
 
