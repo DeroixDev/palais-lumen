@@ -34,6 +34,7 @@ import {
   wakeTexture,
   waterTexture,
 } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const RACE_MS = 9000;
@@ -538,7 +539,11 @@ class DerbyGame implements GameInstance {
     this.stake = bet;
     // The result first: the whole finishing order (with crumbs: your duck pulls harder).
     this.crumbs = this.oddsWatch.on('brotkrumen');
-    this.order = drawOrder(this.crumbs ? crumbProbs(this.card.p, this.pick) : this.card.p);
+    const probs = this.crumbs ? crumbProbs(this.card.p, this.pick) : this.card.p;
+    this.order = luckDraw(
+      () => drawOrder(probs),
+      (o) => settle(this.card, this.pick, this.kind, o) - 1,
+    );
     if (this.crumbs) this.throwCrumbs();
     this.scriptRace();
     this.phase = 'count';

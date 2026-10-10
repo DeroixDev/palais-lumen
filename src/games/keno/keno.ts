@@ -19,6 +19,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import { domeTexture, kenoStation, lineTexture, ringTexture, starTexture, tailTexture } from './paint';
 import { seeded } from '../../world/painted/brush';
+import { luckDraw } from '../../core/debugLuck';
 
 const SW = 720;
 const SH = 600;
@@ -354,8 +355,11 @@ class KenoGame implements GameInstance {
     this.markRow(-1);
     // Decide everything first.
     const extra = this.odds.on('sternschnuppe');
-    const draws = drawStars(Math.random, extra ? DRAWS + 1 : DRAWS);
     const picks = new Set(this.picks);
+    const draws = luckDraw(
+      () => drawStars(Math.random, extra ? DRAWS + 1 : DRAWS),
+      (ds) => kenoMultiplier(n, ds.filter((d) => picks.has(d)).length) - 1,
+    );
     const hitsTotal = draws.filter((d) => picks.has(d)).length;
     const mult = kenoMultiplier(n, hitsTotal);
     const rtp = extra ? starRtp(n) : returnToPlayer(n);

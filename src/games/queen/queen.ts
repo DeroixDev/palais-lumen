@@ -17,6 +17,7 @@ import { LadderDeck, SCENE_H, SCENE_W, fmtMult, ladderWin, layoutLadder } from '
 import { BAR_H, QueenBar } from '../../ui/queenBar';
 import { ATTACKS, DECK, QUEEN_RTP, breaks, drawDefence, hitChance, payout, type Attack } from './rules';
 import { CARD, PIPS_Y, QUEEN, buildQueen, cardBack, cardFace, pipTexture, sceneTexture } from './paint';
+import { luckStep } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
@@ -261,7 +262,7 @@ class QueenGame implements GameInstance {
     this.deck.closeRules();
     this.phase = 'anim';
     this.bar.pulse('heal');
-    const defence = drawDefence();
+    const defence = luckStep(() => drawDefence(), (d) => breaks(a, d));
     const hit = breaks(a, defence);
     this.refresh();
     this.status(a.name.toUpperCase(), a.color, `Einsatz ${formatChips(stake)} · die Königin zieht …`);

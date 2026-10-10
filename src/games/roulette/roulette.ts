@@ -33,6 +33,7 @@ import {
   turretCapTexture,
   type CellSpec,
 } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 // ---- Rules -------------------------------------------------------------
 
@@ -610,7 +611,10 @@ class RouletteGame implements GameInstance {
     await this.bringWheel(true);
 
     const magnet = this.odds.on('magnetkugel');
-    const { first, final } = magnet ? magnetSpin() : { first: Math.floor(Math.random() * 37), final: -1 };
+    const { first, final } = luckDraw(
+      () => (magnet ? magnetSpin() : { first: Math.floor(Math.random() * 37), final: -1 }),
+      (r) => this.netFor(magnet && r.first === 0 ? r.final : r.first),
+    );
     let result = first;
     const T = 5600;
     this.ctx.sfx.whoosh();
@@ -738,6 +742,18 @@ class RouletteGame implements GameInstance {
       await wait(1000);
       await this.bringWheel(false);
     }
+  }
+
+  /** What the bets on the table win (net) if the ball stays in `n` (for the Mod-Menü's Gewinnchance). */
+  private netFor(n: number) {
+    let pay = 0;
+    let total = 0;
+    for (const [key, amount] of this.bets) {
+      const m = betWins(key, n);
+      if (m >= 0) pay += amount * (m + 1);
+      total += amount;
+    }
+    return pay - total;
   }
 
   private async settle(n: number) {

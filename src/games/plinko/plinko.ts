@@ -16,6 +16,7 @@ import { StakeWatch } from '../stakeWatch';
 import { HALF, RISK_LABEL, ROWS, TABLE, returnToPlayer, wingPath, wingRtp, type Risk } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
+import { luckDraw } from '../../core/debugLuck';
 
 export { returnToPlayer };
 
@@ -456,9 +457,15 @@ class PlinkoGame implements GameInstance {
     }
     this.ctx.sfx.whoosh();
     // Decide the whole path now: one left/right choice per row.
-    const coins = Array.from({ length: ROWS }, () => (Math.random() < 0.5 ? 0 : 1));
     const wing = this.odds.on('mottenfluegel');
-    const path = wing ? wingPath(coins) : coins;
+    const risk = this.risk;
+    const path = luckDraw(
+      () => {
+        const coins = Array.from({ length: ROWS }, () => (Math.random() < 0.5 ? 0 : 1));
+        return wing ? wingPath(coins) : coins;
+      },
+      (p) => TABLE[risk][p.reduce((a, b) => a + b, 0)] - 1,
+    );
     void this.fly(path, bet, this.risk, wing);
   }
 

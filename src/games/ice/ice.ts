@@ -33,6 +33,7 @@ import {
   swimTexture,
   waterTexture,
 } from './paint';
+import { luckStep, luckOn } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const ROW = 124;
@@ -507,6 +508,17 @@ class IceGame implements GameInstance {
   private async hop() {
     if (this.phase !== 'stand') return;
     const to = this.k + 1;
+    if (luckOn() && to <= this.steps) {
+      // Mod-Menü Gewinnchance: the breaking floe is drawn again among those still ahead
+      // (the same chances, given the floes behind held), steered for this hop.
+      const k = this.k;
+      const draw = () => {
+        let b = this.steady ? drawBreakSteady(this.level) : drawBreak(this.level);
+        while (b <= k) b = this.steady ? drawBreakSteady(this.level) : drawBreak(this.level);
+        return b;
+      };
+      this.breakAt = luckStep(draw, (b) => b !== to);
+    }
     this.phase = 'hop';
     this.refreshButtons();
     this.ctx.sfx.whoosh();

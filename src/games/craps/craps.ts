@@ -14,6 +14,7 @@ import { barSize, layoutBar } from '../barLayout';
 import { FIELD_RTP, LINE_RTP, LOADED_LINE_RTP, comeOut, fieldReturn, pointPays, rollDie } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DIE_TEX, PUCK, dieTexture, drawCrapsStation, puckTexture, streetLayout, streetTexture, type StreetLayout } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
@@ -534,7 +535,7 @@ class CrapsGame implements GameInstance {
     this.phase = 'rolling';
     this.refreshButtons();
     // The result first, then a throw that lands on it.
-    const faces: [number, number] = [rollDie(), rollDie()];
+    const faces = this.luckyFaces(false);
     const sum = faces[0] + faces[1];
     this.slate('', this.point ? `PUNKT ${this.point}` : 'ANWURF', 'Die Würfel rollen …');
     await this.animateThrow(faces);
@@ -542,6 +543,21 @@ class CrapsGame implements GameInstance {
     this.shell.addHistory(String(sum), this.historyColor(sum), 0x1a0c10);
     if (this.point === 0) await this.resolveComeOut(sum);
     else await this.resolvePoint(sum);
+  }
+
+  /** Two dice; while the Mod-Menü's Gewinnchance is on, steered by what the throw does for the bets. */
+  private luckyFaces(again: boolean): [number, number] {
+    return luckDraw(
+      (): [number, number] => [rollDie(), rollDie()],
+      ([a, b]) => {
+        const sum = a + b;
+        if (this.point) return sum === this.point ? 1 : sum === 7 ? -1 : 0;
+        const k = comeOut(sum);
+        const line = k === 'natural' ? 1 : k === 'craps' ? (this.loaded && !again ? 0 : -1) : 0;
+        const field = this.fieldStake > 0 && !again ? this.fieldStake * (fieldReturn(sum) - 1) : 0;
+        return this.lineStake * line + field;
+      },
+    );
   }
 
   private historyColor(sum: number) {
@@ -592,7 +608,7 @@ class CrapsGame implements GameInstance {
     await itemMoment(this.view, p.x, p.y, 'gezinkte', 'GEZINKTE WÜRFEL!', Math.max(0.75, this.shell.s));
     this.roundTags.push('gezinkte');
     await wait(this.calm ? 300 : 700);
-    const faces: [number, number] = [rollDie(), rollDie()];
+    const faces = this.luckyFaces(true);
     const again = faces[0] + faces[1];
     this.slate('', 'ANWURF', 'Die gezinkten Würfel rollen …');
     await this.animateThrow(faces);

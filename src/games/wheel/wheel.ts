@@ -33,6 +33,7 @@ import {
   wheelTexture,
   type StageLayout,
 } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const CHIPS = [10, 20, 50, 100, 200, 500];
 const SEG = (Math.PI * 2) / SEGMENTS;
@@ -457,8 +458,13 @@ class WheelGame implements GameInstance {
     // in the segment is part of the draw: just past the peg on a field without chips, it springs back.
     const bets = Object.fromEntries(this.bets) as Partial<Record<Field, number>>;
     const brake = this.odds.on('radbremse');
-    const br: BrakeResult | null = brake ? brakeSpin(bets) : null;
-    const r: SpinResult = br ?? spin();
+    const staked = FIELDS.reduce((a, f) => a + (bets[f] ?? 0), 0);
+    const drawn = luckDraw(
+      () => (brake ? brakeSpin(bets) : spin()),
+      (x) => payout(bets, x) - staked,
+    );
+    const br: BrakeResult | null = brake ? (drawn as BrakeResult) : null;
+    const r: SpinResult = drawn;
     this.brakeRound = brake ? brakeRtp(bets) : null;
     this.ctx.sfx.spinStart();
     if (br) {

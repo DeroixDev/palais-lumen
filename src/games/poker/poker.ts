@@ -21,6 +21,7 @@ import { CH, CW, RANK_LABEL, SUIT_NAME, backTexture, cardShadowTexture, cardText
 import { GAMBLE_PAY, GAMBLE_RTP, HANDS, HAND_NAME, PAY, RTP, evaluate, gambleResult, rankOf, shuffledDeck, suitOf, type Hand } from './rules';
 import { PANEL_PAD, closeKnob, panelTexture } from '../../ui/kit';
 import { STATION_H, STATION_W, pokerStation } from './paint';
+import { luckDraw, luckOn } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const MAX_GAMBLES = 5;
@@ -639,7 +640,10 @@ class PokerGame implements GameInstance {
       return;
     }
     // The whole round is decided here: one shuffled deck, the first five dealt, the draws next.
-    this.deck = shuffledDeck();
+    this.deck = luckDraw(
+      () => shuffledDeck(),
+      (d) => PAY[evaluate(d.slice(0, 5))] - 1,
+    );
     this.hand = this.deck.slice(0, 5);
     this.stake = bet;
     this.gambles = 0;
@@ -682,6 +686,27 @@ class PokerGame implements GameInstance {
   private async draw() {
     this.phase = 'drawing';
     this.setControls();
+    if (luckOn() && this.cards.some((c) => !c.held)) {
+      // Mod-Menü Gewinnchance: the cards under the five dealt are shuffled again (same odds),
+      // steered towards a paying or a losing hand.
+      const held = this.cards.map((c) => c.held);
+      const rest = this.deck.slice(5);
+      const mixed = luckDraw(
+        () => {
+          const r = rest.slice();
+          for (let i = r.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [r[i], r[j]] = [r[j], r[i]];
+          }
+          return r;
+        },
+        (r) => {
+          let k = 0;
+          return PAY[evaluate(this.hand.map((c, i) => (held[i] ? c : r[k++])))] - 1;
+        },
+      );
+      this.deck = [...this.deck.slice(0, 5), ...mixed];
+    }
     let next = 5;
     const swaps: [number, number][] = [];
     this.cards.forEach((c, i) => {
@@ -809,7 +834,10 @@ class PokerGame implements GameInstance {
     if (this.phase !== 'won' || this.gambles >= MAX_GAMBLES) return;
     this.phase = 'busy';
     this.setControls();
-    this.gambleDeck = shuffledDeck();
+    this.gambleDeck = luckDraw(
+      () => shuffledDeck(),
+      (d) => gambleResult(d[0], d[1]),
+    );
     const bank = this.gambleDeck[0];
     this.light(null);
     this.cards.forEach((c) => {

@@ -13,6 +13,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { SYMBOLS, SYMBOL_NAMES, paintMoth, symbolTextures, type SymbolId } from './symbols';
 import { bulbTexture, lightWave, plaqueTexture, reducedMotion, winStage } from './stage';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
+import { luckDraw } from '../../core/debugLuck';
 
 // ---- Rules -------------------------------------------------------------
 
@@ -743,7 +744,10 @@ class SlotGame implements GameInstance {
     this.ctx.sfx.spinStart();
     this.feather = this.odds.on('gluecksfeder');
     // The result is decided here; the reels only play it out.
-    const result: SymbolId[][] = [0, 1, 2].map(() => [roll(), roll(), roll()]);
+    const result: SymbolId[][] = luckDraw(
+      () => [0, 1, 2].map(() => [roll(), roll(), roll()]),
+      (g) => evaluate(g).mult - 1,
+    );
     // Suspense when the first two reels already line up something valuable.
     const valuable = (x: SymbolId) => x === 'moon' || x === 'moth';
     const suspense = LINES.some((l) => l.cells[0][0] === 0 && l.cells[1][0] === 1 && l.cells.slice(0, 2).every(([c, r]) => valuable(result[c][r])));

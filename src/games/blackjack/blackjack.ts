@@ -18,6 +18,7 @@ import { Bubble, RulesCard, StakeControl, TotalBadge, chipPile, infoButton, pct,
 import { NET_RTP, NET_RTP_INITIAL, RULES, canDouble, canSplit, dealerShouldHit, handValue, isNatural, newHand, settleHand, type Hand } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DEALER_H, DEALER_NECK, DEALER_W, HEAD_NECK, dealerBodyTexture, dealerHeadTexture, station, tableTexture, type Face, type TableGeo } from './paint';
+import { luckDraw, luckOn } from '../../core/debugLuck';
 
 /** Basic-strategy return per initial stake and per Falter wagered (scripts/rtp-blackjack.mjs, 20 M rounds). */
 export const RTP_INITIAL = 0.96;
@@ -440,8 +441,31 @@ class BlackjackGame implements GameInstance {
     return d.counters[LUCK_KEY] === d.season.number * 1000 + d.evening.number;
   }
 
-  private draw() {
-    return this.shoe.draw();
+  /** One card from the shoe; `score` (for the player: > 0 good, < 0 bad) steers it while the Mod-Menü's Gewinnchance is on. */
+  private draw(score?: (c: Card) => number) {
+    if (!score || !luckOn()) return this.shoe.draw();
+    return this.shoe.drawSteered(1, (cand) => luckDraw(cand, (cs) => score(cs[0])))[0];
+  }
+
+  /** Mod-Menü: a card for this seat is good when the hand stays at 21 or below. */
+  private seatScore(seat: Seat) {
+    return (c: Card) => (handValue([...seat.hand.cards, c]).total <= 21 ? 1 : -1);
+  }
+
+  /** Mod-Menü: a dealer card is good for the player when she busts or stops below the live hands. */
+  private dealerScore() {
+    return (c: Card) => {
+      const cards = [...this.dealerCards, c];
+      const dv = handValue(cards).total;
+      if (dv > 21) return 1;
+      if (dealerShouldHit(cards)) return 0;
+      let s = 0;
+      for (const seat of this.seats) {
+        const pv = handValue(seat.hand.cards).total;
+        if (pv <= 21) s += Math.sign(pv - dv);
+      }
+      return s;
+    };
   }
 
   /** The payout line (with the Falternetz: its share with basic strategy). */
@@ -584,7 +608,16 @@ class BlackjackGame implements GameInstance {
     this.addChips(seat, bet);
     this.ctx.sfx.chip();
     // Decide all four cards now, then show them coming out of the shoe.
-    const p1 = this.draw(), d1 = this.draw(), p2 = this.draw(), d2 = this.draw();
+    const [p1, d1, p2, d2] = luckOn()
+      ? this.shoe.drawSteered(4, (cand) =>
+          luckDraw(cand, ([a, b, c, e]) => {
+            const pn = isNatural({ cards: [a, c] });
+            const dn = isNatural({ cards: [b, e] });
+            if (pn || dn) return pn && dn ? 0 : pn ? 1 : -1;
+            return Math.sign(handValue([a, c]).total - handValue([b, e]).total);
+          }),
+        )
+      : [this.draw(), this.draw(), this.draw(), this.draw()];
     seat.hand.cards.push(p1);
     await this.dealTo(seat, p1, true);
     this.dealerCards.push(d1);
@@ -675,7 +708,7 @@ class BlackjackGame implements GameInstance {
   }
 
   private async hit(seat: Seat) {
-    const c = this.draw();
+    const c = this.draw(this.seatScore(seat));
     seat.hand.cards.push(c);
     await this.dealTo(seat, c, true);
     this.updateBadges(false);
@@ -714,7 +747,7 @@ class BlackjackGame implements GameInstance {
     seat.hand.doubled = true;
     this.addChips(seat, this.stake.bet);
     this.ctx.sfx.chip();
-    const c = this.draw();
+    const c = this.draw(this.seatScore(seat));
     seat.hand.cards.push(c);
     const v = await this.dealTo(seat, c, false);
     // The doubled card comes in sideways, as at a real table.
@@ -738,10 +771,10 @@ class BlackjackGame implements GameInstance {
     this.seats.push(second);
     this.relayoutCards(true);
     await wait(280);
-    const c1 = this.draw();
+    const c1 = this.draw(this.seatScore(seat));
     seat.hand.cards.push(c1);
     await this.dealTo(seat, c1, true);
-    const c2 = this.draw();
+    const c2 = this.draw(this.seatScore(second));
     second.hand.cards.push(c2);
     await this.dealTo(second, c2, true);
     this.updateBadges(false);
@@ -780,7 +813,7 @@ class BlackjackGame implements GameInstance {
     });
     old.destroy({ children: true });
     void oldCard;
-    const c = this.draw();
+    const c = this.draw(this.seatScore(seat));
     seat.hand.cards.push(c);
     const v = await this.dealTo(seat, c, true);
     v.setGlow(0.6, 0xc8a8ff);
@@ -825,7 +858,7 @@ class BlackjackGame implements GameInstance {
     if (live) {
       while (dealerShouldHit(this.dealerCards)) {
         await wait(260);
-        const c = this.draw();
+        const c = this.draw(this.dealerScore());
         this.dealerCards.push(c);
         await this.dealTo(null, c, true);
         this.updateBadges(true);

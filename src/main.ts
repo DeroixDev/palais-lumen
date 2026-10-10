@@ -39,6 +39,7 @@ import { Bag } from './ui/bag';
 import { AlbumFeature } from './ui/album';
 import { installStory } from './core/story';
 import { showChapterIfDue } from './ui/chapter';
+import { installDebugLuck } from './core/debugLuck';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -109,6 +110,8 @@ async function boot() {
   installDaily(state);
   installLongRun(state);
   installStory(state);
+  // Mod-Menü cheats (Gewinnchance, stake/goal factors, speed); neutral unless set in the menu.
+  installDebugLuck(state);
   let mode: Mode = 'title';
   let room!: RoomScene;
   let game: GameInstance | null = null;
@@ -722,6 +725,28 @@ async function boot() {
       if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
     },
     debugDay: (day) => void debugDay(day),
+    debugOpenGame: (id) => {
+      if (mode === 'title' || mode === 'transition') return;
+      void (async () => {
+        if (game) await closeGame();
+        if (overlay) closeOverlay();
+        if (mode !== 'room') return;
+        const g = getGame(id);
+        const p = room.player.view.position;
+        void openGame({ game: id, x: Math.round(p.x - g.footprint.w / 2), y: Math.round(p.y - g.footprint.h), label: g.name, options: {} });
+      })();
+    },
+    debugToRoom: (id) => {
+      if (mode === 'title' || mode === 'transition') return;
+      void (async () => {
+        if (game) await closeGame();
+        if (overlay) closeOverlay();
+        if (mode !== 'room') return;
+        state.data.position = { x: -1, y: -1 };
+        enterRoom(id);
+        layout();
+      })();
+    },
   });
 
   // Modifier items: the bag in the HUD, reaction offers, round stones (src/ui/bag.ts).

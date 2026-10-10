@@ -17,6 +17,7 @@ import { RulesCard, StakeControl, TotalBadge, chipPile, infoButton, pct, present
 import { DECKS, ODDS, PAYS, PEEK_BEST_RTP, PEEK_RTP, RTP, SIDE_LABEL, peekBest, playCoup, pointOf, returnFor, total, type Coup, type Side } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { CANDLES, CHANDELIER_W, SIDE_COLOR, bacTableTexture, beadTexture, chandelierTexture, glintTexture, station, type BacGeo } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const SIDES: Side[] = ['player', 'tie', 'banker'];
@@ -437,13 +438,20 @@ class BaccaratGame implements GameInstance {
     void slide(this.pile, px, py, 260);
     // The whole coup is decided now from a freshly shuffled shoe; the table only shows it.
     // With the Röntgenbrille the shoe was shuffled when the first card was shown.
-    let first = peek;
-    if (!first) this.shoe.shuffle();
-    const coup = playCoup(() => {
-      const c = first ?? this.shoe.draw();
-      first = null;
-      return c;
-    });
+    const side = this.side;
+    const coup = luckDraw(
+      () => {
+        // Mod-Menü Gewinnchance: a steered coup is drawn again from a fresh shoe (same odds).
+        let first = peek;
+        if (!first) this.shoe.shuffle();
+        return playCoup(() => {
+          const c = first ?? this.shoe.draw();
+          first = null;
+          return c;
+        });
+      },
+      (c) => returnFor(side, c.winner) - 1,
+    );
     await this.show(coup);
     if (this.dead) return;
     await this.settle(coup, bet, peek ? PEEK_RTP[pointOf(peek.rank)][this.side] : RTP[this.side]);

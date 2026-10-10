@@ -25,7 +25,15 @@ interface Running {
 
 const running = new Set<Running>();
 
+/** Mod-Menü: speed of every tween and wait (1 = normal). */
+let speed = 1;
+export function setTweenSpeed(k: number) {
+  speed = Number.isFinite(k) && k > 0 ? k : 1;
+}
+export const tweenSpeed = () => speed;
+
 export function updateTweens(dtMs: number) {
+  if (speed !== 1) dtMs *= speed;
   for (const r of [...running]) {
     // A tween whose target was destroyed (e.g. a scene closed mid-animation) must not
     // break every other animation: drop it and carry on.

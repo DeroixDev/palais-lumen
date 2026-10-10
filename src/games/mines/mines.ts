@@ -34,6 +34,7 @@ import {
   smokeTexture,
   stoneTexture,
 } from './paint';
+import { luckStep, luckOn } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
@@ -372,6 +373,20 @@ class MinesGame implements GameInstance {
     this.phase = 'anim';
     t.open = true;
     this.refresh();
+    if (luckOn()) {
+      // Mod-Menü Gewinnchance: the traps are laid again among the stones still closed
+      // (the same chances as before this pick), steered towards a diamond or a trap here.
+      const closed = this.tiles.map((x, j) => (!x.open || j === i ? j : -1)).filter((j) => j >= 0);
+      this.field = luckStep(
+        () => {
+          const f = new Array<boolean>(TILES).fill(false);
+          const c = closed.slice();
+          for (let k = 0; k < this.traps && c.length; k++) f[c.splice(Math.floor(Math.random() * c.length), 1)[0]] = true;
+          return f;
+        },
+        (f) => !f[i],
+      );
+    }
     if (this.guard && this.found === 0) {
       // Minensucher: the first stone is made safe (a trap under it moves elsewhere).
       this.field = guardFirst(this.field, i);
