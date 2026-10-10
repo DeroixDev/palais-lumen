@@ -562,7 +562,7 @@ export class RoomExtras {
     const y = WALL_H + 92;
     const top = this.state.topFloor;
     const rows = allRooms()
-      .filter((r) => r.floor > 0)
+      .filter((r) => r.floor > 0 && !r.parent)
       .map((r) => ({ floor: r.floor, games: floorPlan(this.state, r), locked: r.floor > top }));
     const s = programBoardSprite(x, y, rows);
     s.zIndex = y;

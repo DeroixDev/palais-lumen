@@ -35,6 +35,7 @@ export function floorsOf(id: string) {
   return allRooms()
     .filter((r) => r.floor > 0 && r.stations.some((s) => s.game === id))
     .map((r) => r.floor)
+    .filter((f, i, a) => a.indexOf(f) === i)
     .sort((a, b) => a - b);
 }
 

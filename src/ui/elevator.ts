@@ -339,7 +339,8 @@ export class ElevatorPanel {
     const dialR = n ? 116 : 150;
     const dialY = n ? 206 : 232;
     const row0 = dialY + (n ? 40 : 54);
-    const rooms = allRooms().sort((a, b) => b.floor - a.floor);
+    // One row per floor: side rooms are reached through their doors, not by elevator.
+    const rooms = allRooms().filter((r) => !r.parent).sort((a, b) => b.floor - a.floor);
     const H = (this.H = row0 + rooms.length * rowH + (n ? 92 : 100));
 
     const p = this.panel;
