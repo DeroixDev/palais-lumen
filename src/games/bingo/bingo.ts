@@ -18,6 +18,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import { CARD, FIREFLY, JAR, bingoStation, cardGrid, cardTexture, fireflyTexture, gardenTexture, jarTexture, slotTexture } from './paint';
 import { lineTexture } from '../keno/paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const SW = 720;
 const SH = 600;
@@ -378,7 +379,10 @@ class BingoGame implements GameInstance {
     const card = this.card;
     // Decide everything first.
     const extra = this.odds.on('sternschnuppe');
-    const drawn = drawFireflies(extra ? extraMode(mode) : mode);
+    const drawn = luckDraw(
+      () => drawFireflies(extra ? extraMode(mode) : mode),
+      (d) => scoreCard(mode, card, d).mult - 1,
+    );
     const result = scoreCard(mode, card, drawn);
     const rtp = extra ? starRtp(mode) : returnToPlayer(mode);
     if (this.slots.length !== drawn.length) this.buildTray(extra);

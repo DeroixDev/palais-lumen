@@ -25,6 +25,7 @@ import {
 } from './paint';
 import { MAX_MULT, RTP, SHIELD_BELOW, SHIELD_RTP, drawWindPoint, shielded } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { luckDraw, luckBias } from '../../core/debugLuck';
 
 // ---- Rules -------------------------------------------------------------
 
@@ -478,7 +479,13 @@ class CrashGame implements GameInstance {
     }
     this.stake = bet;
     // The result exists before anything moves.
-    this.windAt = drawWindPoint();
+    // Mod-Menü Gewinnchance: a win is a flight that reaches the auto cash-out (without one: 2×),
+    // a loss one that ends before it (without auto cash-out: right at the start).
+    const auto = this.auto;
+    this.windAt = luckDraw(
+      () => drawWindPoint(),
+      (w) => (auto ? (w >= auto ? 1 : -1) : luckBias() > 0 ? (w >= 2 ? 1 : -1) : w <= 1 ? -1 : 1),
+    );
     this.shield = this.odds.on('mondschirm');
     this.resetFlight();
     this.phase = 'warmup';

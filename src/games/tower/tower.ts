@@ -32,6 +32,7 @@ import {
   topTexture,
   treasureTexture,
 } from './paint';
+import { luckStep, luckOn } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
@@ -454,6 +455,17 @@ class TowerGame implements GameInstance {
     const k = this.floor;
     const f = this.floors[k];
     const door = f.doors[j];
+    if (luckOn()) {
+      // Mod-Menü Gewinnchance: this floor's dragons are placed again (doors already shown
+      // keep theirs), steered towards a free or a dragon door here.
+      const shown = f.doors.map((d, x) => (d.open ? x : -1)).filter((x) => x >= 0);
+      const place = () => {
+        let r = placeDragons(this.diff);
+        while (!shown.every((x) => r[x])) r = placeDragons(this.diff);
+        return r;
+      };
+      this.dragons[k] = luckStep(place, (r) => !r[j]);
+    }
     const dragon = this.dragons[k][j];
     this.phase = 'anim';
     this.refresh();

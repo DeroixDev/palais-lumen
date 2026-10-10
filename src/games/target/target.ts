@@ -16,6 +16,7 @@ import { SceneShell, betStepper, caption, rtpText, type Layout } from '../sceneS
 import { EYE_RTP, STYLES, STYLE_ORDER, drawHit, eyeDrawHit, eyeExtra, eyeRadii, eyeRings, missChance, multFor, returnToPlayer, ringRadii, type Style } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { RING_COLORS, RING_INK, RT, archerTexture, armTexture, boardTexture, dartTexture, faceTexture, gladeTexture, stuckTexture } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const CREAM = 0xfff3dc;
@@ -380,7 +381,10 @@ class TargetGame implements GameInstance {
     // The result first: which ring (or a miss), and a spot inside it. With the owl's eye a bull
     // can come from the grown part (-2): it lands there, in the ring that is new.
     const eye = this.eye;
-    const hit = eye ? eyeDrawHit(style) : drawHit(style);
+    const hit = luckDraw(
+      () => (eye ? eyeDrawHit(style) : drawHit(style)),
+      (h) => multFor(style, h === -2 ? 0 : h) - 1,
+    );
     const ring = hit === -2 ? 0 : hit;
     const spot = hit === -2 ? this.eyeSpot(style) : this.spotFor(style, ring);
     this.phase = 'throw';

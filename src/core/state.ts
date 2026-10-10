@@ -523,6 +523,8 @@ export class GameState {
 
   /** Highest floor the elevator can go to today. */
   get topFloor() {
+    // Mod-Menü: "Alle Etagen offen".
+    if (this.data.counters['dbg:floors']) return FLOORS;
     return floorForDay(this.data.evening.number);
   }
 

@@ -14,6 +14,7 @@ import { StakeWatch } from '../stakeWatch';
 import { LadderDeck, SCENE_W, fmtMult, ladderWin, layoutLadder } from '../ladderKit';
 import { COIN_RTP, MAX_FLIPS, coinMult, coinPayout, coinPayoutShown, flipCoin, type Side } from './rules';
 import { COIN_R, MOON, TABLE, bandTexture, capTexture, faceTexture, phaseTexture, sceneTexture } from './paint';
+import { luckStep } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
@@ -301,8 +302,8 @@ class CoinGame implements GameInstance {
     if (this.phase !== 'play') return;
     this.phase = 'anim';
     // The result is fixed before the coin leaves the table.
-    const result = flipCoin();
     const call = this.call;
+    const result = luckStep(() => flipCoin(), (r) => r === call);
     this.refresh();
     this.status(this.streak ? fmtMult(coinMult(this.streak)) : `TIPP: ${SIDE_NAME[call].toUpperCase()}`, this.streak ? COLORS.lamp : 0xfff6e6, 'Die Münze fliegt …');
     this.ctx.sfx.coinFlip();

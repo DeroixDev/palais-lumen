@@ -60,6 +60,27 @@ export class Shoe {
     return this.cards.length;
   }
 
+  /**
+   * Mod-Menü Gewinnchance: deals `n` cards taken from anywhere in the rest of the shoe. `choose`
+   * gets a maker of random candidates (n distinct cards of the rest, the same chances as the top
+   * of a shuffled shoe) and returns the set to deal; those cards move to the top and are dealt.
+   */
+  drawSteered(n: number, choose: (candidate: () => Card[]) => Card[]): Card[] {
+    if (this.left < n) this.shuffle();
+    const candidate = () => {
+      const idx = new Set<number>();
+      while (idx.size < n) idx.add(this.pos + Math.floor(Math.random() * this.left));
+      return [...idx].map((i) => this.cards[i]);
+    };
+    const pick = choose(candidate);
+    for (const c of pick) {
+      const i = this.cards.indexOf(c, this.pos);
+      [this.cards[this.pos], this.cards[i]] = [this.cards[i], this.cards[this.pos]];
+      this.pos++;
+    }
+    return pick;
+  }
+
   draw(): Card {
     if (this.pos >= this.cards.length) this.shuffle();
     return this.cards[this.pos++];

@@ -23,6 +23,9 @@ export interface HudActions {
   leaveGame(): void;
   newGame(): void;
   debugDay(day: number): void;
+  /** Mod-Menü: open any game right here / walk into any room. */
+  debugOpenGame(id: string): void;
+  debugToRoom(id: string): void;
 }
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -499,15 +502,18 @@ export class Hud {
     );
   }
 
-  /** Test panel: money, Mondsteine and day jumps for playing a season through quickly. */
+  /** Mod-Menü (test tool): every detail of the save and the running game, sorted like a trainer. */
   openDebug() {
     const body = debugPanel(this.state, {
       jumpToDay: (day) => this.actions.debugDay(day),
       endDay: () => this.actions.endEvening(),
+      openGame: (id) => this.actions.debugOpenGame(id),
+      toRoom: (id) => this.actions.debugToRoom(id),
       toast: (t) => this.toast(t, '', true),
       close: () => this.closeModal(),
     });
-    this.modal('Debug', body, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
+    this.modal('Mod-Menü', body, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
+    document.querySelector('#modal .card')?.classList.add('card-mod');
   }
 
   openSaves() {

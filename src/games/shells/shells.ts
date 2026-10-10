@@ -15,6 +15,7 @@ import { barSize, layoutBar } from '../barLayout';
 import { FLY_RTP, FLY_SELF_RTP, PAY, RTP, flyRound, hitPays, mothUnder } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { FLAME_Y, LANTERN, boothLayout, boothTexture, drawShellsStation, flameTexture, lanternTexture, mothTexture, type BoothLayout } from './paint';
+import { luckStep, luckOn } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const CREAM = 0xfff3dc;
@@ -565,7 +566,17 @@ class ShellsGame implements GameInstance {
     for (const x of this.lanterns) x.body.y = 0;
     // The pick is made: now chance decides where the moth is (with the firefly: drawn with it).
     const fly = this.fly;
-    const under = fly ? fly.moth : mothUnder(l.slot);
+    // Mod-Menü Gewinnchance: with the firefly the moth is drawn again for its lantern (same odds).
+    const flyMoth = (f: number) => {
+      let r = flyRound();
+      while (r.fly !== f) r = flyRound();
+      return r.moth;
+    };
+    const under = fly
+      ? luckOn()
+        ? luckStep(() => flyMoth(fly.fly), (m) => m === l.slot)
+        : fly.moth
+      : luckStep(() => mothUnder(l.slot), (m) => m === l.slot);
     const rtp = fly ? (l.slot === fly.fly ? FLY_SELF_RTP : FLY_RTP) : RTP;
     const won = under === l.slot;
     l.ring.tint = 0xffcf7a;

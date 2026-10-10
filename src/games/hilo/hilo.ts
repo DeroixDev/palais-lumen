@@ -19,6 +19,7 @@ import { RulesCard, StakeControl, infoButton, pct, presentWin, readable, rtpLine
 import { CALL_LABEL, MAX_MULT, MIRROR_BEST_RTP, RTP, RUNGS, cardRank, cashOut, chance, ladderRank, mirrorBest, mirrorChance, mirrorNext, mirrorRanks, mirrorRtp, nextMult, wins, type Call } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { LADDER_W, ladderTexture, mothTexture, plateTexture, station, stripTexture } from './paint';
+import { luckStep } from '../../core/debugLuck';
 
 const BETS = [10, 20, 50, 100, 200, 500];
 const DECK = freshDecks(1);
@@ -477,7 +478,10 @@ class HiloGame implements GameInstance {
     // it comes from the eleven ranks the mirror left.
     const mir = this.rung === 0 ? this.mirror : null;
     if (this.rung === 0) this.roundRtp = mir ? mirrorRtp(from.rank, c, mir) : RTP;
-    const next = mir ? this.cardOfLadder(mirrorNext(mir)) : randomCard();
+    const next = luckStep(
+      () => (mir ? this.cardOfLadder(mirrorNext(mir)) : randomCard()),
+      (n) => wins(from.rank, n.rank, c),
+    );
     this.mirror = null;
     this.refresh();
     if (mir) void tween(this.mirrorView, { alpha: 0 }, 300).then(() => this.paintMirror(false));

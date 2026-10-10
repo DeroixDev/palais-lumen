@@ -22,6 +22,7 @@ import { DESIGNS, TIER_SYMBOLS, drawTicket, dusted, dustRtp, returnToPlayer, win
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import { CARD_H, CARD_W, FIELD, brushTexture, cardTexture, coatingTexture, machineTexture, marqueeTexture, scratchCoinTexture, scratchStation, winRingTexture } from './paint';
+import { luckDraw } from '../../core/debugLuck';
 
 const SW = 720;
 const SH = 600;
@@ -372,7 +373,7 @@ class ScratchGame implements GameInstance {
     }
     this.stake = price;
     // The prize is decided now.
-    this.ticket = drawTicket(this.design);
+    this.ticket = luckDraw(() => drawTicket(this.design), (t) => t.mult - 1);
     this.dust = this.odds.on('mottenstaub');
     this.redrawn = false;
     this.settling = true;
@@ -610,7 +611,7 @@ class ScratchGame implements GameInstance {
       p.tint = 0xffcf7a;
     }
     // The fresh ticket of the same design (bought already: no new price).
-    this.ticket = drawTicket(this.design);
+    this.ticket = luckDraw(() => drawTicket(this.design), (t) => t.mult - 1);
     this.redrawn = true;
     if (!this.calm) {
       await tween(this.card, { y: SH + 40, alpha: 0 }, 260, ease.inCubic);
