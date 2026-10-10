@@ -249,6 +249,9 @@
   #title.party #menu-main { display: none; }
   #title.party #lobby-back { display: none; }
   #title.out { opacity: 0; pointer-events: none; }
+  /* Dialogs opened from the title screen (saves, daily board) sit above it. */
+  :root:has(#title:not([hidden]):not(.out)) #modal { z-index: 41; }
+  :root:has(#title:not([hidden]):not(.out)) #toasts { z-index: 42; }
   .menu { display: grid; justify-items: center; gap: 12px; text-align: center; max-width: 640px; animation: panelin .5s cubic-bezier(.3,1.25,.55,1) both; align-self: end; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 3vh); }
   /* The neon sign on the casino is the logo here; the heading stays for screen readers. */
   .menu .logo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); animation: none; }
