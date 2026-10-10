@@ -67,6 +67,11 @@ export function migrate(raw: unknown): SaveData | null {
     settings: { ...base.settings, ...d.settings },
     bag: d.bag && typeof d.bag === 'object' ? { ...d.bag } : {},
     active: Array.isArray(d.active) ? d.active : [],
+    minibosses: Array.isArray(d.minibosses) ? d.minibosses : [],
+    album: d.album && typeof d.album === 'object' ? { ...d.album } : {},
+    storySeen: Array.isArray(d.storySeen) ? d.storySeen : [],
+    dailySeed: typeof d.dailySeed === 'string' ? d.dailySeed : '',
+    dailyBest: d.dailyBest && typeof d.dailyBest === 'object' ? { ...d.dailyBest } : {},
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
