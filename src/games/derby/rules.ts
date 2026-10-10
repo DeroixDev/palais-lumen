@@ -83,3 +83,43 @@ export function settle(card: RaceCard, duck: number, kind: BetKind, order: reado
 export function betRtp(card: RaceCard, duck: number, kind: BetKind) {
   return kind === 'win' ? card.win[duck] * card.p[duck] : card.place[duck] * card.top2[duck];
 }
+
+// ---- Brotkrumen (odds item) ------------------------------------------------------------------
+// Crumbs thrown in front of your duck: its pull is CRUMB times as strong (its weight p × 1.25,
+// the field renormalised), the odds on the card stay. The finishing order is drawn from these
+// weights with the same Harville model, so every bet's return stays exact.
+
+export const CRUMB = 1.25;
+
+/** Win probabilities with the crumbs in front of `duck`. */
+export function crumbProbs(p: readonly number[], duck: number) {
+  const q = p.map((x, i) => (i === duck ? x * CRUMB : x));
+  const t = q.reduce((a, b) => a + b, 0);
+  return q.map((x) => x / t);
+}
+
+/** Long-run return of a bet on `duck` with the crumbs in front of it. */
+export function crumbRtp(card: RaceCard, duck: number, kind: BetKind) {
+  const q = crumbProbs(card.p, duck);
+  return kind === 'win' ? card.win[duck] * q[duck] : card.place[duck] * top2Probs(q)[duck];
+}
+
+/** Lowest, highest and average return over every card form, duck and bet kind. */
+export const CRUMB_RANGE = (() => {
+  let lo = Infinity;
+  let hi = 0;
+  let sum = 0;
+  let n = 0;
+  for (const form of FORMS) {
+    const card = makeCard(form);
+    for (let i = 0; i < form.length; i++)
+      for (const kind of ['win', 'place'] as const) {
+        const r = crumbRtp(card, i, kind);
+        lo = Math.min(lo, r);
+        hi = Math.max(hi, r);
+        sum += r;
+        n++;
+      }
+  }
+  return { lo, hi, mean: sum / n };
+})();

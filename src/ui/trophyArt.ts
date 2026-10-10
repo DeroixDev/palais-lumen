@@ -6,6 +6,7 @@ import { Container, Sprite, type Texture } from 'pixi.js';
 import { drawMoth } from '../core/fx';
 import type { Medal, TrophyKind } from '../core/state';
 import { MEDAL_COLORS } from '../world/trophies';
+import { bossTrophyArt } from '../world/painted/propsBoss';
 import { INK, dark, fillInk, glowAt, light, paint, rgb, rrect, type Ctx } from '../world/painted/brush';
 
 const cache = new Map<string, Texture>();
@@ -193,6 +194,9 @@ export function paintedTrophy(kind: TrophyKind, medal: Medal, heat = 0): Sprite 
           c.fillStyle = 'rgba(255,255,255,0.7)';
           c.fill();
         }
+      } else if (kind.startsWith('mb')) {
+        // Mini boss trophies (src/core/miniboss.ts): a statuette per boss.
+        bossTrophyArt(c, Number(kind.slice(2)), (x0, y0, x1, y1) => metal(c, medal, x0, y0, x1, y1), 0xc8243a);
       } else {
         // Jackpot: a tiny golden slot machine.
         rrect(c, -26, -110, 52, 84, 9);

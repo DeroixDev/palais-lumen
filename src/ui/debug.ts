@@ -9,7 +9,9 @@ import { PERKS } from '../core/perks';
 import { baseRoom } from '../core/registry';
 import { seasonDebug } from './season';
 import { bossRunDebug } from './bossRun';
+import { albumDebug } from './album';
 import { debugClearActive, debugFillBag } from '../core/itemsCore';
+import { MB_KEYS, MINIBOSSES, minibossFor, ruleStatus } from '../core/miniboss';
 
 /** What the debug panel needs from the game loop. */
 export interface DebugActions {
@@ -141,6 +143,26 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     a.endDay();
   });
 
+  // Mini bosses on the last day of floors 1–4 (src/core/miniboss.ts).
+  const mbRow = section('Mini-Bosse (Tag 3, 6, 9, 12)');
+  for (const b of MINIBOSSES) {
+    btn(mbRow, `Tag ${b.n * 3}: ${b.name}`, () => {
+      a.close();
+      a.jumpToDay(b.n * 3);
+    });
+  }
+  btn(mbRow, 'Mini-Boss-Runden +10', () => {
+    if (!minibossFor(d)) return 'Heute ist kein Mini-Boss-Tag.';
+    d.counters[MB_KEYS.n] = (d.counters[MB_KEYS.n] ?? 0) + 10;
+    return `Runden heute: ${d.counters[MB_KEYS.n]}. ${ruleStatus(d)}.`;
+  });
+  btn(mbRow, 'Intro nochmal', () => {
+    if (!minibossFor(d)) return 'Heute ist kein Mini-Boss-Tag.';
+    delete d.counters[MB_KEYS.intro];
+    delete d.counters[MB_KEYS.beat];
+    a.close();
+  });
+
   // Day events, guest tasks and stamp cards (src/core/events.ts, quests.ts, stamps.ts).
   const evRow = section('Ereignisse & Aufträge');
   const sel = document.createElement('select');
@@ -222,6 +244,13 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     d.balance = d.evening.startBalance + Math.ceil(d.evening.quota * 0.8);
     a.close();
   });
+  // Moth album (src/ui/album.ts).
+  const albumRow = section('Motten-Album');
+  btn(albumRow, 'Motte erscheinen lassen', () => {
+    a.close();
+    return albumDebug?.spawn();
+  });
+  btn(albumRow, 'Album füllen', () => albumDebug?.fill());
   // Boss corridor on floor 5 (src/ui/bossRun.ts).
   const runRow = section('Boss-Gang (Etage 5)');
   btn(runRow, 'Boss-Gang zurücksetzen', () => bossRunDebug?.debugReset());

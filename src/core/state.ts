@@ -8,7 +8,7 @@ export const SAVE_VERSION = 8;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
-export type TrophyKind = 'cup' | 'crystal' | 'jackpot' | 'crown';
+export type TrophyKind = 'cup' | 'crystal' | 'jackpot' | 'crown' | 'mb1' | 'mb2' | 'mb3' | 'mb4';
 
 export interface Trophy {
   id: string;
@@ -98,6 +98,8 @@ export interface SaveData {
   dailySeed: string;
   /** Daily challenge results by date seed: best day reached and best balance (local only). */
   dailyBest: Record<string, { day: number; balance: number; at: number }>;
+  /** Long-run curve for the "Wie das Haus gewinnt" page: sampled cumulative net result and expected result (capped, src/core/longRun.ts). */
+  longRun: { net: number[]; exp: number[] };
 }
 
 /** A used item that is still working. */
@@ -262,6 +264,7 @@ export function newSave(): SaveData {
     storySeen: [],
     dailySeed: '',
     dailyBest: {},
+    longRun: { net: [0], exp: [0] },
   };
 }
 

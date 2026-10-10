@@ -1,5 +1,7 @@
 // Checks the day goal, stakes and season reset. Run: npx esbuild scripts/money-check.ts --bundle --platform=node --outfile=/tmp/mc.cjs && node /tmp/mc.cjs
-import { GameState, newSave, quotaFor, stakeUnitFor, BOSS_DAY } from '../src/core/state';
+import { GameState, newSave, quotaFor, stakeUnitFor, roundNice, BOSS_DAY } from '../src/core/state';
+import * as mb from '../src/core/miniboss';
+import * as ev from '../src/core/events';
 import { installPerks } from '../src/core/perks';
 import { migrate } from '../src/core/save';
 import * as it from '../src/core/itemsCore';
@@ -187,4 +189,50 @@ console.log(rows.join('\n'));
     const got = (h.balance - start + staked) / staked;
     ok(Math.abs(got - (0.95 + it.ITEM_K.versicherung * 0.5)) < 0.006, `simulated coin with Versicherung ${(got * 100).toFixed(2)} % (formula ${((0.95 + it.ITEM_K.versicherung * 0.5) * 100).toFixed(2)} %)`);
   }
+}
+
+// ---- Mini bosses (src/core/miniboss.ts): economy only, rewards once per win -------------------
+{
+  const m = new GameState(newSave());
+  mb.installMiniboss(m);
+  ev.installEvents(m, () => undefined);
+  const jump = (day: number) => {
+    m.data.evening = { number: day, startBalance: m.data.balance, quota: 0 };
+    m.beginDay();
+  };
+  jump(2);
+  m.data.event = ''; // a rolled event may change stakes; check without it
+  ok(!mb.minibossFor(m.data) && m.stakeUnit === 10, 'day 2: no mini boss, normal stakes');
+  jump(3);
+  ok(mb.minibossFor(m.data)?.id === 'samtgraefin' && m.data.event === '', 'day 3: Samtgräfin, no event');
+  ok(m.stakeUnit === 20 && m.data.evening.quota === roundNice(quotaFor(3, 1000) * 1.1), `day 3: stakes x2 (${m.stakeUnit}), goal +10 % (${m.data.evening.quota})`);
+  const stones = m.data.moonstones;
+  m.data.balance = m.goalBalance;
+  const r = m.endEvening();
+  ok(r.passed && m.data.minibosses.includes('samtgraefin') && m.data.minibosses.includes('s1:samtgraefin'), 'beating day 3 records the Samtgräfin');
+  ok(m.data.trophies.filter((t) => t.kind === 'mb1').length === 1 && m.data.moonstones - stones === r.moonstones && r.moonstones >= 1 + 3, `reward: ${r.moonstones} Mondsteine and one trophy`);
+  m.data.event = '';
+  ok(m.data.evening.number === 4 && m.stakeUnit === stakeUnitFor(m.data.balance), 'day 4: rule gone');
+  // Beaten again (debug jump back): Mondsteine again, no second trophy.
+  jump(3);
+  m.data.balance = m.goalBalance;
+  m.endEvening();
+  ok(m.data.trophies.filter((t) => t.kind === 'mb1').length === 1, 'second win: no second trophy');
+  jump(9);
+  const d = m.data;
+  for (let i = 0; i < mb.CLOCK_ROUNDS - 1; i++) m.report({ game: 'coin', stake: 10, win: 0, rtp: 0.95, tags: [] });
+  ok(!ev.isClosed(d, 'coin') && mb.roundsLeft(d) === 1, 'Uhrmacher: one round left');
+  m.report({ game: 'coin', stake: 10, win: 0, rtp: 0.95, tags: [] });
+  ok(ev.isClosed(d, 'coin') && ev.isClosed(d, 'slots'), 'Uhrmacher: clock stopped, games closed');
+  jump(12);
+  const units: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    units.push(m.stakeUnit);
+    m.report({ game: 'coin', stake: 10, win: 0, rtp: 0.95, tags: [] });
+  }
+  const u = stakeUnitFor(m.data.evening.startBalance);
+  ok(units.join() === [1, 1, 1, 2, 2, 2, 1, 1, 1, 3, 3, 3].map((k) => stakeUnitFor(m.data.evening.startBalance * k)).join() && units[0] === u, `DJ beat: ${units.join(',')}`);
+  m.data.balance = 0;
+  const lost = m.endEvening();
+  ok(!lost.passed && !m.data.minibosses.includes('falterbeat') && m.data.evening.number === 1, 'losing to the DJ is a missed day');
 }

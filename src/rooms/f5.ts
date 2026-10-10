@@ -19,13 +19,14 @@ const stations: StationPlacement[] = machines.map((x, i) =>
 const decor: DecorPlacement[] = [];
 // Banners and sconces along the back wall, closer together towards the Queen.
 for (let x = 300; x < W - 120; x += x < 3300 ? 160 : 110) {
-  if (machines.some((m) => Math.abs(m - x) < 90) || gates.some((g) => Math.abs(g - x) < 50) || Math.abs(x - 150) < 110) continue;
+  if (machines.some((m) => Math.abs(m - x) < 90) || gates.some((g) => Math.abs(g - 75 - x) < 75) || Math.abs(x - 150) < 110) continue;
   decor.push({ kind: x % 320 < 160 ? 'banner' : 'sconce', x, y: 0, w: x > 3800 ? 50 : 40 });
 }
-// Braziers and moth statues guard each gate, on the back and front edge of the floor.
+// Braziers and moth statues guard each gate, on the back and front edge of the floor (clear
+// of the gate's slanted line, which runs from about g - 80 at the back to g + 80 at the front).
 for (const g of gates) {
-  decor.push({ kind: 'brazier', x: g - 70, y: 214 }, { kind: 'brazier', x: g - 70, y: 572 });
-  decor.push({ kind: 'statue', x: g + 76, y: 578 });
+  decor.push({ kind: 'brazier', x: g - 130, y: 214 }, { kind: 'brazier', x: g - 60, y: 572 });
+  decor.push({ kind: 'statue', x: g + 150, y: 578 });
 }
 // Pillars along the front edge between the machines.
 for (const m of machines) decor.push({ kind: 'pillar', x: m + 150, y: 586 });

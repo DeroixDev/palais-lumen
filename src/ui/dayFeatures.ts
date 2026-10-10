@@ -16,6 +16,7 @@ import { GameChip } from './gameChip';
 import { ProgramPanel } from './program';
 import { reducedMotion } from '../core/fx';
 import { takeCurio } from '../core/curios';
+import { minibossClosedReason } from '../core/miniboss';
 
 interface Overlay {
   view: Container;
@@ -123,7 +124,7 @@ export class DayFeatures {
     if (!isClosed(this.state.data, st.game)) return true;
     const e = currentEvent(this.state.data);
     sfx.thud();
-    const why = e?.closed?.includes(st.game) ? e.name : 'Letzter Tanz der Königin';
+    const why = e?.closed?.includes(st.game) ? e.name : minibossClosedReason(this.state.data, st.game) ?? 'Letzter Tanz der Königin';
     this.deps.toast(`${st.label ?? getGame(st.game).name} ist heute geschlossen (${why}).`);
     return false;
   }

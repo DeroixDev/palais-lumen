@@ -82,3 +82,52 @@ console.log(`3) ${N} Runden simuliert (mit ${MAX_MULT}×-Deckel): RTP ${(mean * 
 ok &&= Math.abs(mean - RTP) < Math.max(0.01, 3 * se);
 console.log(ok ? 'OK: 95 % bei jeder Spielweise' : 'FAIL');
 if (!ok) process.exitCode = 1;
+
+// 4. Mondspiegel (odds item): the mirror rules out two ranks before the first call. Exact: every
+// next card × every pair of other ranks (the real conditional), best call per start card and
+// mirror; later rungs stay fair (part 2), so the round returns the first call's return.
+// Then simulated with mirrorRanks/mirrorNext and the best call.
+{
+  const H = await loadTs('src/games/hilo/rules.ts');
+  let exact = 0, n = 0;
+  for (let r = 1; r <= 13; r++) {
+    // Joint over (next, pair not containing next): P(next) = 1/13, pair uniform of C(12,2).
+    const byPair = new Map();
+    for (let nx = 2; nx <= 14; nx++)
+      for (let a = 2; a <= 14; a++)
+        for (let b = a + 1; b <= 14; b++) {
+          if (a === nx || b === nx) continue;
+          const k = `${a},${b}`;
+          if (!byPair.has(k)) byPair.set(k, { w: 0, next: [] });
+          const e = byPair.get(k);
+          e.w += 1 / 13 / 66;
+          e.next.push(nx);
+        }
+    for (const [k, e] of byPair) {
+      const hidden = k.split(',').map(Number);
+      let best = 0;
+      for (const c of CALLS) {
+        const p = chance(r, c);
+        if (p <= 0) continue;
+        const w = e.next.filter((nx) => wins(r, H.cardRank(nx), c)).length / e.next.length;
+        best = Math.max(best, (w * RTP) / p);
+        if (Math.abs(w - H.mirrorChance(r, c, hidden)) > 1e-12) ok = false;
+      }
+      exact += (e.w * best) / 13;
+      n++;
+    }
+  }
+  const M = 2_000_000;
+  let back = 0;
+  for (let i = 0; i < M; i++) {
+    const r = 1 + Math.floor(Math.random() * 13);
+    const hidden = H.mirrorRanks();
+    const call = H.mirrorBest(r, hidden);
+    const nx = H.cardRank(H.mirrorNext(hidden));
+    if (wins(r, nx, call)) back += nextMult(1, 0, r, call);
+  }
+  const okM = Math.abs(exact - H.MIRROR_BEST_RTP) < 1e-9 && exact >= 1 && exact <= 1.25;
+  console.log(`4) Mondspiegel, beste erste Wahl: exakt ${(exact * 100).toFixed(4)} % (rules.ts ${(H.MIRROR_BEST_RTP * 100).toFixed(4)} %) · simuliert ${((back / M) * 100).toFixed(2)} %`);
+  console.log(okM && ok ? 'OK: Mondspiegel' : 'FAIL: Mondspiegel');
+  if (!okM || !ok) process.exitCode = 1;
+}

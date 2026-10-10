@@ -68,6 +68,12 @@ const ITEM_COLOR: Record<string, number> = {
   radbremse: 0xff5fa2,
   ruhigehand: 0x9fe8ff,
   sternschnuppe: 0xfff3a0,
+  leuchtkaefer: 0xd8ff7a,
+  brotkrumen: 0xffc86a,
+  eulenauge: 0xffb43a,
+  mottenstaub: 0xe8c8ff,
+  mondspiegel: 0xcfe6ff,
+  falternetz: 0x9fe8c8,
 };
 
 export const itemColor = (id: string) => ITEM_COLOR[id] ?? 0xffcf7a;
@@ -338,6 +344,154 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     sg.addColorStop(0, '#ffffff');
     sg.addColorStop(1, rgb(0xffcf4a));
     fillInk(c, sg, 2);
+  },
+  leuchtkaefer(c) {
+    // A beetle with a glowing tail.
+    glowAt(c, 0, 12, 24, 24, 0xd8ff7a, 0.8, 'lighter');
+    ellipse(c, 0, 12, 10, 12);
+    const g = c.createRadialGradient(0, 14, 1, 0, 12, 12);
+    g.addColorStop(0, '#fbffe0');
+    g.addColorStop(1, rgb(0xa8e03a));
+    fillInk(c, g, 2);
+    for (const s of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(0, -12);
+      c.quadraticCurveTo(s * 16, -12, s * 13, 6);
+      c.quadraticCurveTo(s * 6, 4, 0, 2);
+      c.closePath();
+      fillInk(c, rgb(0x5a2a1a), 2);
+    }
+    ellipse(c, 0, -16, 6, 5);
+    fillInk(c, rgb(0x2a1410), 1.5);
+    c.strokeStyle = INK;
+    c.lineWidth = 1.8;
+    c.beginPath();
+    c.moveTo(-3, -20);
+    c.quadraticCurveTo(-8, -28, -12, -27);
+    c.moveTo(3, -20);
+    c.quadraticCurveTo(8, -28, 12, -27);
+    c.stroke();
+  },
+  brotkrumen(c) {
+    // A little loaf with crumbs.
+    c.beginPath();
+    c.moveTo(-22, 8);
+    c.quadraticCurveTo(-24, -14, 0, -16);
+    c.quadraticCurveTo(24, -14, 22, 8);
+    c.closePath();
+    const g = c.createLinearGradient(0, -16, 0, 8);
+    g.addColorStop(0, rgb(0xf0b060));
+    g.addColorStop(1, rgb(0xa86020));
+    fillInk(c, g, 2.5);
+    c.strokeStyle = 'rgba(255,240,200,0.8)';
+    c.lineWidth = 2;
+    c.beginPath();
+    for (const x of [-10, 0, 10]) {
+      c.moveTo(x - 4, -10);
+      c.lineTo(x + 3, -2);
+    }
+    c.stroke();
+    for (const [x, y, r] of [[-16, 20, 3.5], [-4, 23, 2.5], [8, 19, 3], [18, 24, 2.2]] as const) {
+      ellipse(c, x, y, r, r * 0.8);
+      fillInk(c, rgb(0xe8a850), 1.2);
+    }
+  },
+  eulenauge(c) {
+    // An owl's round eye with a target-like iris.
+    ellipse(c, 0, 2, 26, 22);
+    fillInk(c, rgb(0x7a4a2a), 2.5);
+    ellipse(c, 0, 2, 19, 17);
+    const g = c.createRadialGradient(-4, -2, 2, 0, 2, 19);
+    g.addColorStop(0, '#fff2b0');
+    g.addColorStop(1, rgb(0xe08a1a));
+    fillInk(c, g, 2);
+    ellipse(c, 0, 2, 8, 8);
+    fillInk(c, rgb(0x14080a), 1.5);
+    ellipse(c, -3, -1, 2.5, 2.5);
+    c.fillStyle = '#ffffff';
+    c.fill();
+    c.fillStyle = rgb(0x5a3018);
+    for (const s of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(s * 8, -18);
+      c.lineTo(s * 24, -28);
+      c.lineTo(s * 20, -14);
+      c.closePath();
+      c.fill();
+    }
+  },
+  mottenstaub(c) {
+    // A sprinkle of glittering dust over a ticket corner.
+    c.save();
+    c.rotate(-0.2);
+    rrect(c, -20, -8, 34, 26, 4);
+    fillInk(c, gold(c, 0, -8, 0, 18), 2);
+    c.restore();
+    c.fillStyle = '#fff4ff';
+    for (const [x, y, r] of [[10, -20, 3], [18, -10, 2.2], [4, -12, 1.8], [22, -24, 1.6], [-6, -22, 2.4], [14, 2, 1.8], [24, 6, 2.4]] as const) {
+      glowAt(c, x, y, r * 4, r * 4, 0xe8c8ff, 0.7, 'lighter');
+      c.beginPath();
+      c.moveTo(x, y - r * 2);
+      c.lineTo(x + r * 0.6, y);
+      c.lineTo(x, y + r * 2);
+      c.lineTo(x - r * 0.6, y);
+      c.closePath();
+      c.fill();
+    }
+  },
+  mondspiegel(c) {
+    // A hand mirror with a crescent in the glass.
+    rrect(c, -4, 14, 8, 18, 3);
+    fillInk(c, gold(c, 0, 14, 0, 32), 2);
+    ellipse(c, 0, -4, 20, 22);
+    fillInk(c, gold(c, 0, -26, 0, 18), 2.5);
+    ellipse(c, 0, -4, 15, 17);
+    const g = c.createLinearGradient(-15, -20, 15, 12);
+    g.addColorStop(0, '#f4fbff');
+    g.addColorStop(1, rgb(0x6a8ab8));
+    fillInk(c, g, 1.5);
+    c.fillStyle = rgb(0xffe08a);
+    c.beginPath();
+    c.arc(-2, -6, 8, 0, Math.PI * 2);
+    c.arc(2, -9, 7, 0, Math.PI * 2, true);
+    c.fill();
+  },
+  falternetz(c) {
+    // A butterfly net on a stick.
+    c.strokeStyle = rgb(0x8a5a2a);
+    c.lineWidth = 4;
+    c.beginPath();
+    c.moveTo(-24, 28);
+    c.lineTo(-2, 2);
+    c.stroke();
+    ellipse(c, 8, -10, 16, 14);
+    c.strokeStyle = INK;
+    c.lineWidth = 4;
+    c.stroke();
+    c.beginPath();
+    c.moveTo(-6, -4);
+    c.quadraticCurveTo(4, 26, 20, 10);
+    c.quadraticCurveTo(26, 0, 22, -16);
+    const g = c.createLinearGradient(-6, -20, 22, 20);
+    g.addColorStop(0, 'rgba(230,255,244,0.85)');
+    g.addColorStop(1, 'rgba(120,200,170,0.85)');
+    fillInk(c, g, 2);
+    c.strokeStyle = 'rgba(30,60,50,0.5)';
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let i = -4; i <= 20; i += 6) {
+      c.moveTo(i, -18);
+      c.lineTo(i - 2, 14);
+    }
+    for (let j = -12; j <= 12; j += 6) {
+      c.moveTo(-6, j);
+      c.lineTo(24, j);
+    }
+    c.stroke();
+    ellipse(c, 8, -10, 16, 14);
+    c.strokeStyle = rgb(0xe0b25a);
+    c.lineWidth = 2.5;
+    c.stroke();
   },
 };
 

@@ -106,3 +106,22 @@ export function drawTicket(d: ScratchDesign, rand: () => number = Math.random): 
   const tier = drawTier(d, rand);
   return { tier, mult: tier >= 0 ? d.mult[tier] : 0, cells: layoutCard(tier, rand) };
 }
+
+// ---- Mottenstaub (odds item) -----------------------------------------------------------------
+// A losing card that shows both moons and both moths (two of each) is dusted over: the moth
+// trades it for a fresh ticket of the same design, once. A losing field holds 9 of the 12
+// cells (every symbol twice), so that happens with chance C(8,5) / C(12,9) = 14/55, and the
+// return is RTP × (1 + P(lose) × 14/55).
+
+const MOON = TIER_SYMBOLS.indexOf('moon');
+const MOTH = TIER_SYMBOLS.indexOf('moth');
+export const DUST_CHANCE = 14 / 55;
+
+/** Does this (losing) field earn a fresh ticket? */
+export function dusted(cells: number[]) {
+  return cardTier(cells) < 0 && cells.filter((c) => c === MOON).length === 2 && cells.filter((c) => c === MOTH).length === 2;
+}
+
+export function dustRtp(d: ScratchDesign) {
+  return returnToPlayer(d) * (1 + (1 - winChance(d)) * DUST_CHANCE);
+}

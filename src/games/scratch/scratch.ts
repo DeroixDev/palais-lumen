@@ -18,7 +18,9 @@ import { formatChips } from '../../core/state';
 import { symbolTextures } from '../slots/symbols';
 import { winStage } from '../slots/stage';
 import { BetStepper, DrawShell, MIN_FONT, fmtMult, infoKnob, rtpText, spaceKey } from '../drawKit';
-import { DESIGNS, TIER_SYMBOLS, drawTicket, returnToPlayer, winChance, type ScratchDesign, type Ticket } from './rules';
+import { DESIGNS, TIER_SYMBOLS, drawTicket, dusted, dustRtp, returnToPlayer, winChance, type ScratchDesign, type Ticket } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import { CARD_H, CARD_W, FIELD, brushTexture, cardTexture, coatingTexture, machineTexture, marqueeTexture, scratchCoinTexture, scratchStation, winRingTexture } from './paint';
 
 const SW = 720;
@@ -95,12 +97,17 @@ class ScratchGame implements GameInstance {
   private main!: Button;
   private rtp!: ReturnType<typeof rtpText>;
   private deckW = 480;
+  private odds: OddsWatch;
+  /** Mottenstaub was on when this ticket was bought; `redrawn`: the fresh ticket came already. */
+  private dust = false;
+  private redrawn = false;
 
   constructor(private ctx: GameContext) {
     this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 420, velvet: 0x3a0e1e, layout: (t, w) => this.layout(t, w) });
     this.view = this.shell.view;
     this.bet = new BetStepper(ctx, this.design.ladder, 300, 'PREIS');
     this.bet.onChange = () => this.refreshMain();
+    this.odds = new OddsWatch(ctx.state, 'scratch', ['mottenstaub']);
     this.rt = RenderTexture.create({ width: FIELD.size, height: FIELD.size, resolution: 2 });
     this.coat = new Sprite(this.rt);
     this.eraseRect = new Sprite(Texture.WHITE);
@@ -266,7 +273,7 @@ class ScratchGame implements GameInstance {
       this.bet.view.position.set((w - 300) / 2, 420);
       this.main.position.set(w / 2, 520);
     }
-    this.rtp.set(returnToPlayer(this.design), w - 64);
+    this.refreshRtp();
     this.fit(this.header);
   }
 
@@ -294,11 +301,20 @@ class ScratchGame implements GameInstance {
     this.designBtns.forEach((b, k) => b.setSelected(k === i));
     this.bet.setLadder(d.ladder);
     this.chance.text = `Gewinnchance ${Math.round(winChance(d) * 100)} % · bis ${fmtMult(d.mult[d.mult.length - 1])}`;
-    this.rtp.set(returnToPlayer(d), this.deckW - 64);
+    this.refreshRtp();
     this.showCard(d, null);
     this.setHeader(force ? 'Wähle eine Karte und kauf sie' : `${d.name} gewählt`);
     this.refreshMain();
     if (!force) this.ctx.sfx.chip();
+  }
+
+  /** The payout line: the design's own, or with Mottenstaub the exact share with the dust. */
+  private refreshRtp() {
+    const d = this.design;
+    if (this.odds.id) {
+      setItemRtp('scratch', 'mottenstaub', dustRtp(d));
+      this.rtp.set(dustRtp(d), this.deckW - 64, itemRtpText(dustRtp(d), 'mottenstaub'), 0xe8c8ff);
+    } else this.rtp.set(returnToPlayer(d), this.deckW - 64);
   }
 
   /** Paints the card face for a design; with a ticket the field shows its symbols under fresh coating. */
@@ -357,6 +373,8 @@ class ScratchGame implements GameInstance {
     this.stake = price;
     // The prize is decided now.
     this.ticket = drawTicket(this.design);
+    this.dust = this.odds.on('mottenstaub');
+    this.redrawn = false;
     this.settling = true;
     this.refreshMain();
     this.setHeader('Die Karte kommt …');
@@ -514,12 +532,16 @@ class ScratchGame implements GameInstance {
     this.active = false;
     this.settling = true;
     this.refreshMain();
+    if (this.dust && !this.redrawn && dusted(t.cells)) {
+      await this.dustOver(t);
+      return;
+    }
     const stake = this.stake;
     const win = Math.round(stake * t.mult);
     if (win > 0) this.ctx.state.payout(win);
     const tags = ['scratch'];
     if (t.mult >= 20) tags.push('scratch20');
-    this.ctx.state.report({ game: 'scratch', stake, win, rtp: returnToPlayer(this.design), tags });
+    this.ctx.state.report({ game: 'scratch', stake, win, rtp: this.dust ? dustRtp(this.design) : returnToPlayer(this.design), tags });
     for (const g of this.pairGlow) g.alpha = 0;
     this.wipe();
     const fx = CARD_X + FIELD.x + FIELD.size / 2;
@@ -565,6 +587,47 @@ class ScratchGame implements GameInstance {
     this.refreshMain();
   }
 
+  /** Mottenstaub: the losing card shows two moons and two moths – dust, and a fresh ticket. */
+  private async dustOver(t: Ticket) {
+    this.wipe();
+    for (let i = 0; i < 9; i++) {
+      const sym = TIER_SYMBOLS[t.cells[i]];
+      const hit = sym === 'moon' || sym === 'moth';
+      this.pairGlow[i].alpha = hit ? 0.9 : 0;
+      this.pairGlow[i].tint = hit ? 0xe8c8ff : 0xffcf7a;
+    }
+    this.setHeader('Zwei Monde, zwei Motten – Mottenstaub!');
+    this.ctx.sfx.shimmer();
+    const fx = CARD_X + FIELD.x + FIELD.size / 2;
+    const fy = CARD_Y + FIELD.y + FIELD.size / 2;
+    const g = this.shell.global(fx, fy);
+    this.ctx.particles.sparkle(g.x, g.y, 26, 0xe8c8ff, 220 * this.shell.scale);
+    await itemMoment(this.shell.scene, fx, fy - 40, 'mottenstaub', 'FRISCHES LOS!', 1.1);
+    await wait(this.calm ? 300 : 900);
+    if (this.view.destroyed) return;
+    for (const p of this.pairGlow) {
+      p.alpha = 0;
+      p.tint = 0xffcf7a;
+    }
+    // The fresh ticket of the same design (bought already: no new price).
+    this.ticket = drawTicket(this.design);
+    this.redrawn = true;
+    if (!this.calm) {
+      await tween(this.card, { y: SH + 40, alpha: 0 }, 260, ease.inCubic);
+      if (this.view.destroyed) return;
+      this.showCard(this.design, this.ticket);
+      this.card.alpha = 1;
+      this.card.y = CARD_Y - CARD_H - 30;
+      this.ctx.sfx.whoosh();
+      await tween(this.card, { y: CARD_Y }, 620, ease.outBack);
+      if (this.view.destroyed) return;
+    } else this.showCard(this.design, this.ticket);
+    this.settling = false;
+    this.active = true;
+    this.refreshMain();
+    this.setHeader('Ein frisches Los – kratz noch mal!');
+  }
+
   // ---- Instance -----------------------------------------------------------------------------
 
   resize(w: number, h: number) {
@@ -573,6 +636,7 @@ class ScratchGame implements GameInstance {
 
   update(dtMs: number) {
     const busy = this.busy();
+    if (this.odds.poll()) this.refreshRtp();
     this.bet.poll(busy);
     if (!busy && this.main) this.refreshPrice();
     this.time += dtMs / 1000;

@@ -1348,7 +1348,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.fillText('Kein Echtgeld.', 0, T + 48);
         }),
       );
-      return [{ view: v, layer: 'wall', obstacles: [] }];
+      // Usable: opens "Wie das Haus gewinnt"; the thin strip at the wall foot puts the prompt below it.
+      return [{ view: v, layer: 'wall', obstacles: [{ x: x - pw / 2, y: P_WALL_H - 8, w: pw, h: 8 }], useFrom: 'below' }];
     }
 
     case 'painting': {

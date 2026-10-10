@@ -5,7 +5,11 @@ import './games';
 import './rooms';
 import { getGame, getRoom, mainRoomOf, type GameInstance, type StationPlacement } from './core/registry';
 import { BOSS_DAY, GameState, formatChips, newSave, type SaveData } from './core/state';
-import { latestSave, writeSlot } from './core/save';
+import { latestSave, readSlot, writeSlot } from './core/save';
+import { closeStaleRun, installDaily, isDailyRun, newDailySave, todayKey } from './core/daily';
+import { installLongRun } from './core/longRun';
+import { LearnPage, addLearnButton } from './ui/learn';
+import type { DailyStart } from './ui/dailyBoard';
 import { COLORS, Particles, purse, rewardLevel, setRenderer, shake } from './core/fx';
 import { animate, cancelAllTweens, ease, tween, updateTweens, wait } from './core/tween';
 import { sfx } from './core/audio';
@@ -28,8 +32,13 @@ import { StampCardPanel } from './ui/stampCard';
 import { setupFeel } from './ui/feel';
 import { initFocus } from './core/focus';
 import { installRotation } from './core/rotation';
+import { installMiniboss } from './core/miniboss';
+import { MinibossDirector } from './ui/miniboss';
 import { BossRun } from './ui/bossRun';
 import { Bag } from './ui/bag';
+import { AlbumFeature } from './ui/album';
+import { installStory } from './core/story';
+import { showChapterIfDue } from './ui/chapter';
 
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
@@ -95,6 +104,11 @@ async function boot() {
 
   const state = new GameState(latestSave() ?? newSave());
   installRotation(state);
+  // Mini bosses on days 3, 6, 9, 12; before the events and tasks, so their day setup comes first.
+  installMiniboss(state);
+  installDaily(state);
+  installLongRun(state);
+  installStory(state);
   let mode: Mode = 'title';
   let room!: RoomScene;
   let game: GameInstance | null = null;
@@ -108,7 +122,8 @@ async function boot() {
   let saveTimer = 0;
   const autosave = () => {
     room?.savePosition();
-    writeSlot('auto', state.data);
+    // The daily challenge saves under its own key, never over the normal run.
+    writeSlot(state.data.dailySeed ? 'daily' : 'auto', state.data);
   };
   // Boss day: every Falter won is a hit on the Moth Queen.
   let bossProfit = 0;
@@ -274,7 +289,7 @@ async function boot() {
       // The boss corridor's machines are mandatory: its own rules, never closed.
       if (!run.station(i.station) && days.canPlay(i.station)) void openGame(i.station);
     } else if (i.kind === 'extra') {
-      if (!run.interact(i.id)) days.interact(i.id);
+      if (!run.interact(i.id) && !mini.interact(i.id) && !room.regulars?.talk(i.id) && !album.interact(i.id)) days.interact(i.id);
     }
     else if (i.kind === 'shelf') openVitrine();
     else if (i.kind === 'achievements') {
@@ -347,6 +362,9 @@ async function boot() {
             hud.toast('Neuer Look!');
           }),
         );
+        break;
+      case 'plaque':
+        void openLearn();
         break;
       case 'reception':
         sfx.deskBell();
@@ -586,6 +604,17 @@ async function boot() {
     layout();
   }
 
+  /** "Wie das Haus gewinnt" (src/ui/learn.ts), from the HUD menu and the foyer plaque. */
+  async function openLearn() {
+    if (mode === 'game') {
+      if (game?.busy()) return hud.toast('Warte kurz, die Runde läuft noch.');
+      await closeGame();
+    }
+    if (mode !== 'room') return;
+    showOverlay(new LearnPage(state, closeOverlay));
+  }
+  addLearnButton(() => void openLearn());
+
   function openVitrine() {
     sfx.door();
     showOverlay(new Vitrine(state, closeOverlay));
@@ -610,7 +639,10 @@ async function boot() {
         autosave();
         // A new day gets its title card, a new floor sends you to the elevator,
         // and a new season starts with a new arrival.
-        if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
+        if (state.data.dailySeed && (result.seasonWon || (!result.passed && !result.rescued))) void leaveDaily();
+        // After a win against the Queen the house's story goes on (src/ui/chapter.ts).
+        else if (result.seasonWon && showChapterIfDue(state, showOverlay, () => { closeOverlay(); void arrival('clear'); })) return;
+        else if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
         else season.afterRecap(() => void toFoyer(result.newFloor, result.bonus));
       }),
     );
@@ -716,6 +748,10 @@ async function boot() {
   const run = new BossRun(state, { room: () => room ?? null, mode: () => mode, openGame: (st) => void openGame(st), leaveGame: () => void closeGame(), gameBusy: () => !!game?.busy(), toast: (t) => hud.toast(t), endEvening: () => void endEvening() });
   app.stage.addChildAt(run.view, app.stage.getChildIndex(overlayLayer));
 
+  // Moth album: moths after wins, the catch card and the album book (src/ui/album.ts).
+  const album = new AlbumFeature(state, { particles, toast: (t) => hud.toast(t), showOverlay, closeOverlay, mode: () => mode, screen: () => ({ w: app.screen.width, h: app.screen.height, top: TOP }), modalOpen: () => hud.modalOpen });
+  app.stage.addChildAt(album.view, app.stage.getChildIndex(overlayLayer));
+
   // Perk draft, moon levels and the boss phases (src/ui/season.ts).
   const season = new Season(state, {
     showOverlay,
@@ -729,6 +765,22 @@ async function boot() {
     mode: () => mode,
     leaveGame: () => void closeGame(),
     gameBusy: () => !!game?.busy(),
+  });
+
+  // Mini bosses: intro, boss plate, rule moments, victory (src/ui/miniboss.ts).
+  const mini = new MinibossDirector(state, {
+    layer: particles.view,
+    screen: () => ({ w: app.screen.width, h: app.screen.height, top: TOP }),
+    room: () => room ?? null,
+    mode: () => mode,
+    game: () => (mode === 'game' ? feel.game : null),
+    gameBusy: () => !!game?.busy(),
+    leaveGame: () => void closeGame(),
+    toast: (t) => hud.toast(t),
+    modal: (title, body, buttons) => hud.modal(title, body, buttons),
+    closeModal: () => hud.closeModal(),
+    modalOpen: () => hud.modalOpen,
+    endEvening: () => void endEvening(),
   });
 
   // Staff quips, photo mode, vibration and floor music (src/ui/feel.ts).
@@ -805,8 +857,10 @@ async function boot() {
     particles.update(dt);
     days.update(dt, mode);
     run.update(dt);
+    album.update(dt);
     feel.update(dt);
     season.update();
+    mini.update(t.deltaMS);
   });
 
   // ---- Start screen, lobby and arrival -----------------------------------
@@ -871,6 +925,44 @@ async function boot() {
     if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => mode === 'room' && !hud.modalOpen && hud.help(), 3600);
   }
 
+  /** Tagesherausforderung from the start screen: its own save key, seeded by today's date. */
+  function startDaily(kind: DailyStart) {
+    sfx.unlock();
+    autosave();
+    const today = todayKey();
+    const prev = readSlot('daily');
+    // An unfinished counted run of an earlier date counts with what it reached.
+    if (prev && prev.dailySeed !== today && isDailyRun(prev)) {
+      closeStaleRun(prev);
+      writeSlot('daily', prev);
+    }
+    const resume = kind === 'continue' && prev && prev.dailySeed === today && isDailyRun(prev);
+    loadSave(resume ? prev : newDailySave(today, state.data, prev, kind === 'practice'));
+    if (!resume) state.beginDay();
+    void arrival().then(() => {
+      if (state.data.dailySeed) setTimeout(() => hud.toast(`Tagesherausforderung ${today.split('-').reverse().join('.')}: ${kind === 'practice' ? 'Übungslauf, zählt nicht für die Bestenliste.' : 'dein gewerteter Versuch. Viel Glück!'}`), 4200);
+    });
+  }
+
+  /** A daily run is over: back to the start screen with the normal run loaded and the board open. */
+  async function leaveDaily() {
+    mode = 'transition';
+    if (room) room.frozen = true;
+    await tween(fade, { alpha: 1 }, 400);
+    autosave();
+    const ended = state.data;
+    mode = 'title';
+    hud.show(false);
+    const normal = latestSave();
+    loadSave(normal ?? newSave());
+    if (!normal) state.beginDay();
+    roomLayer.visible = false;
+    showStreet().setMood('drizzle');
+    sfx.setScene('menu');
+    lobby.showDaily(ended);
+    void tween(fade, { alpha: 0 }, 500);
+  }
+
   function lobbyGo() {
     sfx.unlock();
     autosave();
@@ -880,6 +972,7 @@ async function boot() {
   const lobby = new Lobby(state, {
     openSaves: () => hud.openSaves(),
     go: lobbyGo,
+    daily: startDaily,
   });
   roomLayer.visible = false;
   showStreet();

@@ -230,6 +230,34 @@ export function wakeTexture() {
   );
 }
 
+/** Brotkrumen (odds item): bread crumbs bobbing on the water, with their rings. */
+export function crumbTexture() {
+  return cached('crumbs', () =>
+    paint(120, 40, (c) => {
+      const r = seeded(5);
+      c.strokeStyle = 'rgba(230,246,255,0.35)';
+      c.lineWidth = 1.2;
+      for (let i = 0; i < 9; i++) {
+        const x = 12 + r() * 96;
+        const y = 12 + r() * 18;
+        const k = 2.5 + r() * 3.5;
+        ellipse(c, x, y + 2, k * 2.2, k * 0.9);
+        c.stroke();
+        c.beginPath();
+        c.moveTo(x - k, y + k * 0.4);
+        c.lineTo(x - k * 0.6, y - k * 0.7);
+        c.lineTo(x + k * 0.7, y - k * 0.8);
+        c.lineTo(x + k, y + k * 0.5);
+        c.closePath();
+        const g = c.createLinearGradient(0, y - k, 0, y + k);
+        g.addColorStop(0, rgb(0xffd890));
+        g.addColorStop(1, rgb(0xb06a24));
+        fillInk(c, g, 1.4);
+      }
+    }, 2),
+  );
+}
+
 // ---- Pond ------------------------------------------------------------------------------------------
 
 /** Night sky over the far bank, with the moon. Size-dependent. */

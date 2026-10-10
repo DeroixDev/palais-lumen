@@ -2,6 +2,7 @@
 // a small wish. Talk to them to accept it; finished rounds count towards it by their report
 // tags. Rewards are small: 1–3 Mondsteine, sometimes a stamp. Never touches the odds.
 
+import { dailyRandom } from './daily';
 import { floorRooms } from './registry';
 import { floorForDay, type GameState, type Quest, type RoundReport, type SaveData } from './state';
 import { isClosed, onEventSwitch } from './events';
@@ -68,9 +69,9 @@ export function onQuest(fn: (n: QuestNews) => void) {
 }
 const tell = (quest: Quest, kind: QuestNews['kind']) => listeners.forEach((l) => l({ quest, kind }));
 
-const shuffle = <T,>(a: T[]) => {
+const shuffle = <T,>(a: T[], rnd: () => number = Math.random) => {
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rnd() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -82,8 +83,10 @@ export function makeQuests(d: SaveData): Quest[] {
   // The boss corridor is one try per machine: no guest tasks there.
   if (floorRooms(floorForDay(day)).some((r) => r.corridor)) return [];
   const games = new Set(floorRooms(floorForDay(day)).flatMap((r) => r.stations.map((s) => s.game)).filter((g) => !isClosed(d, g)));
-  const pool = shuffle(TEMPLATES.filter((t) => !t.game || games.has(t.game)));
-  const count = Math.random() < 0.5 ? 2 : 3;
+  // Seeded in the daily challenge, so everyone gets the same tasks that day.
+  const rnd = dailyRandom(d, 'quests');
+  const pool = shuffle(TEMPLATES.filter((t) => !t.game || games.has(t.game)), rnd);
+  const count = rnd() < 0.5 ? 2 : 3;
   const picked: Template[] = [];
   for (const t of pool) {
     if (picked.length >= count) break;
@@ -91,7 +94,7 @@ export function makeQuests(d: SaveData): Quest[] {
     picked.push(t);
   }
   for (const t of pool) if (picked.length < count && !picked.includes(t)) picked.push(t);
-  const givers = shuffle([...GIVERS]);
+  const givers = shuffle([...GIVERS], rnd);
   return picked.map((t, i) => ({
     id: `${day}-${i}-${Math.random().toString(36).slice(2, 6)}`,
     giver: givers[i],

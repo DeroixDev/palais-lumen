@@ -158,9 +158,9 @@ export class Bag {
       const c = document.createElement('button');
       c.type = 'button';
       c.className = 'it-chip rtp' + (rtp.rtp > 1 ? ' up' : '');
-      c.innerHTML = `<b>${itemRtpLabel(rtp)}</b><small>statt ${fmtPct(rtp.base)} %</small>`;
+      c.innerHTML = `<b>${itemRtpLabel(rtp)}</b><small>statt ${fmtPct(rtp.plain)} %</small>`;
       c.title = this.rtpNote(g!, rtp);
-      c.setAttribute('aria-label', `Auszahlungsquote ${itemRtpLabel(rtp)}, ohne Items ${fmtPct(rtp.base)} %. ${c.title}`);
+      c.setAttribute('aria-label', `Auszahlungsquote ${itemRtpLabel(rtp)}, ohne Items ${fmtPct(rtp.plain)} %. ${c.title}`);
       c.addEventListener('click', () => this.open());
       this.rail.appendChild(c);
     }
@@ -219,7 +219,7 @@ export class Bag {
       p.className = 'bag-rtp';
       const base = r?.base ?? this.lastRtp.get(g) ?? ls?.rtp;
       p.textContent = r
-        ? `${this.host.gameName(g)}: Auszahlungsquote ohne Items ${fmtPct(r.base)} %, mit Items ${r.approx ? 'ca. ' : ''}${fmtPct(r.rtp)} %. ${this.rtpNote(g, r)}`
+        ? `${this.host.gameName(g)}: Auszahlungsquote ohne Items ${fmtPct(r.plain)} %, mit Items ${r.approx ? 'ca. ' : ''}${fmtPct(r.rtp)} %. ${this.rtpNote(g, r)}`
         : base !== undefined
           ? `${this.host.gameName(g)}: Auszahlungsquote ${fmtPct(base)} %. Items, die Verluste abfedern oder Gewinne erhöhen, zeigen hier und oben links die Quote mit Item.`
           : '';

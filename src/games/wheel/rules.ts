@@ -83,3 +83,59 @@ export function payout(bets: Partial<Record<Field, number>>, r: SpinResult) {
   const stake = bets[r.field] ?? 0;
   return stake * (r.rate + 1);
 }
+
+// ---- Radbremse (odds item) -------------------------------------------------------------------
+// The wheel turns towards lower segment numbers, so it enters segment i from segment i + 1.
+// With the brake on, where in its segment the pointer stops (u: 1 just past the peg, 0 at the
+// far end) is part of the draw. Stops on a segment without your chips (Bonus counts as yours)
+// in the quarter just past the peg (u ≥ 0.75), and the brake lets the wheel spring back one
+// segment, into i + 1. Exact return for any set of bets: brakeRtp.
+
+export const BRAKE_ZONE = 0.25;
+
+/** Does this segment carry a bet (Bonus always counts: every bet can win there)? */
+const carries = (bets: Partial<Record<Field, number>>, s: Segment) => s === 'bonus' || (bets[s] ?? 0) > 0;
+
+/** Expected payout of a segment for these bets (Bonus: averaged over the small wheel). */
+function segmentValue(bets: Partial<Record<Field, number>>, s: Segment) {
+  if (s !== 'bonus') return (bets[s] ?? 0) * (PAY[s] + 1);
+  return BONUS_WHEEL.reduce((a, f) => a + (bets[f] ?? 0) * (BONUS_PAY[f] + 1), 0) / BONUS_WHEEL.length;
+}
+
+/** Exact long-run return of these bets with the brake (the bets' own spread, any stakes). */
+export function brakeRtp(bets: Partial<Record<Field, number>>) {
+  const total = FIELDS.reduce((a, f) => a + (bets[f] ?? 0), 0);
+  if (!total) return 0;
+  let e = 0;
+  for (let i = 0; i < SEGMENTS; i++) {
+    const s = WHEEL[i];
+    e += carries(bets, s) ? segmentValue(bets, s) : BRAKE_ZONE * segmentValue(bets, WHEEL[(i + 1) % SEGMENTS]);
+  }
+  return e / SEGMENTS / total;
+}
+
+/** Brake return of a single field, and the range over the five fields (for the texts). */
+export const BRAKE_FIELD_RTP: Record<Field, number> = Object.fromEntries(FIELDS.map((f) => [f, brakeRtp({ [f]: 1 })])) as Record<Field, number>;
+export const BRAKE_MIN = Math.min(...FIELDS.map((f) => BRAKE_FIELD_RTP[f]));
+export const BRAKE_MAX = Math.max(...FIELDS.map((f) => BRAKE_FIELD_RTP[f]));
+
+export interface BrakeResult extends SpinResult {
+  /** Where in its segment the wheel first stopped (0..1, 1 = just past the peg). */
+  u: number;
+  /** Segment index where it first stopped (≠ index when it sprang back). */
+  first: number;
+  sprang: boolean;
+}
+
+/** One spin with the brake on: segment, stop point, maybe the spring back, then the bonus wheel. */
+export function brakeSpin(bets: Partial<Record<Field, number>>, rand = Math.random): BrakeResult {
+  const first = Math.floor(rand() * SEGMENTS);
+  const u = rand();
+  const sprang = !carries(bets, WHEEL[first]) && u >= 1 - BRAKE_ZONE;
+  const index = sprang ? (first + 1) % SEGMENTS : first;
+  const segment = WHEEL[index];
+  if (segment !== 'bonus') return { index, segment, bonusIndex: -1, field: segment, rate: PAY[segment], u, first, sprang };
+  const bonusIndex = Math.floor(rand() * BONUS_WHEEL.length);
+  const field = BONUS_WHEEL[bonusIndex];
+  return { index, segment, bonusIndex, field, rate: BONUS_PAY[field], u, first, sprang };
+}

@@ -13,7 +13,8 @@ import { formatChips } from '../../core/state';
 import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, rtpText, type Layout } from '../sceneShell';
-import { STYLES, STYLE_ORDER, drawHit, missChance, multFor, returnToPlayer, ringRadii, type Style } from './rules';
+import { EYE_RTP, STYLES, STYLE_ORDER, drawHit, eyeDrawHit, eyeExtra, eyeRadii, eyeRings, missChance, multFor, returnToPlayer, ringRadii, type Style } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { RING_COLORS, RING_INK, RT, archerTexture, armTexture, boardTexture, dartTexture, faceTexture, gladeTexture, stuckTexture } from './paint';
 
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -25,7 +26,7 @@ const SPIN = 0.45;
 type Phase = 'idle' | 'throw';
 
 const fmtM = (m: number) => `×${String(m).replace('.', ',')}`;
-const pct = (p: number) => `${(Math.abs(p * 100 - Math.round(p * 100)) < 1e-9 ? Math.round(p * 100).toString() : (p * 100).toFixed(1)).replace('.', ',')} %`;
+const pct = (p: number) => `${(Math.round(p * 10000) / 100).toString().replace('.', ',')} %`;
 
 class TargetGame implements GameInstance {
   view = new Container();
@@ -67,6 +68,9 @@ class TargetGame implements GameInstance {
 
   private bets: number[];
   private stakeWatch: StakeWatch;
+  private odds: OddsWatch;
+  /** The Eulenauge is on (face, legend and draw use the grown bull). */
+  private eye = false;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -77,6 +81,8 @@ class TargetGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'target', ['eulenauge']);
+    this.eye = !!this.odds.id;
     this.shell = new SceneShell({
       title: 'ZIELSCHEIBE',
       accent: MOON,
@@ -159,8 +165,9 @@ class TargetGame implements GameInstance {
   private buildLegend(w: number, h: number, tall: boolean) {
     const L = this.legend;
     L.removeChildren().forEach((c) => c.destroy({ children: true }));
-    const st = STYLES[this.style];
-    const rows = [...st.rings.map((r, i) => ({ col: RING_COLORS[i], ink: RING_INK[i], m: fmtM(r.mult), p: r.p, name: i === 0 ? 'Mitte' : `Ring ${i}` })), { col: 0x8a6a3a, ink: CREAM, m: '×0', p: missChance(this.style), name: 'Daneben' }];
+    const rings = this.eye ? eyeRings(this.style) : STYLES[this.style].rings;
+    const miss = missChance(this.style) - (this.eye ? eyeExtra(this.style) : 0);
+    const rows = [...rings.map((r, i) => ({ col: RING_COLORS[i], ink: RING_INK[i], m: fmtM(r.mult), p: r.p, name: i === 0 ? 'Mitte' : `Ring ${i}` })), { col: 0x8a6a3a, ink: CREAM, m: '×0', p: miss, name: 'Daneben' }];
     const plate = new Graphics();
     L.addChild(plate);
     const fs = this.shell.fs;
@@ -210,7 +217,7 @@ class TargetGame implements GameInstance {
     this.labels.removeChildren().forEach((c) => c.destroy({ children: true }));
     for (const g of this.flashes) g.destroy();
     this.flashes = [];
-    const radii = ringRadii(this.style).map((k) => k * RT);
+    const radii = this.radii(this.style).map((k) => k * RT);
     const st = STYLES[this.style];
     const k = this.R / RT;
     radii.forEach((rout, i) => {
@@ -308,7 +315,7 @@ class TargetGame implements GameInstance {
     const changed = s !== this.style;
     if (changed) this.talk.text = '';
     this.style = s;
-    this.faceSprite.texture = faceTexture(s);
+    this.faceSprite.texture = faceTexture(s, this.eye);
     if (this.legend.parent && this.shell.sw) {
       const tall = this.layoutMode === 'tall';
       const w = this.shell.sw;
@@ -345,7 +352,10 @@ class TargetGame implements GameInstance {
     });
     this.mainBtn.setEnabled(free);
     this.mainBtn.setLabel(free ? `WERFEN · ${formatChips(this.bet)}` : '…');
-    this.rtpLine.text = `${STYLES[this.style].label}: Mitte ${fmtM(STYLES[this.style].rings[0].mult)} · ${rtpText(returnToPlayer(this.style))}`;
+    this.rtpLine.text = this.eye
+      ? `${STYLES[this.style].label}: ${itemRtpText(EYE_RTP, 'eulenauge', 'größere Mitte').replace(' · ', '\n')}`
+      : `${STYLES[this.style].label}: Mitte ${fmtM(STYLES[this.style].rings[0].mult)} · ${rtpText(returnToPlayer(this.style))}`;
+    this.rtpLine.style.fill = this.eye ? 0xffd89a : 0xbfa98a;
   }
 
   private main() {
@@ -367,9 +377,12 @@ class TargetGame implements GameInstance {
       return;
     }
     const style = this.style;
-    // The result first: which ring (or a miss), and a spot inside it.
-    const ring = drawHit(style);
-    const spot = this.spotFor(style, ring);
+    // The result first: which ring (or a miss), and a spot inside it. With the owl's eye a bull
+    // can come from the grown part (-2): it lands there, in the ring that is new.
+    const eye = this.eye;
+    const hit = eye ? eyeDrawHit(style) : drawHit(style);
+    const ring = hit === -2 ? 0 : hit;
+    const spot = hit === -2 ? this.eyeSpot(style) : this.spotFor(style, ring);
     this.phase = 'throw';
     this.refreshButtons();
     this.talk.text = '';
@@ -410,12 +423,29 @@ class TargetGame implements GameInstance {
     dart.destroy();
     this.handDart.visible = true;
     void animate(260, (t) => !this.arm.destroyed && (this.arm.rotation = 1.2 - t * 0.6), ease.outCubic);
-    this.land(style, ring, spot, bet);
+    this.land(style, ring, spot, bet, eye);
+    if (hit === -2) {
+      const g = this.view.toLocal(this.face.toGlobal(spot));
+      void itemMoment(this.view, g.x, g.y - 90 * this.shell.s, 'eulenauge', 'EULENAUGE', Math.max(0.55, this.shell.s * 0.8));
+    }
+  }
+
+  private radii(style: Style) {
+    return this.eye ? eyeRadii(style) : ringRadii(style);
+  }
+
+  /** A spot in the part of the bull that only the owl's eye added. */
+  private eyeSpot(style: Style) {
+    const r0 = ringRadii(style)[0] * RT * (1 - missChance(style)) ** 0.5 / (1 - missChance(style) + eyeExtra(style)) ** 0.5;
+    const r1 = eyeRadii(style)[0] * RT - 4;
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(r0 * r0 + Math.random() * Math.max(0, r1 * r1 - r0 * r0));
+    return { x: Math.cos(a) * Math.max(r0, Math.min(r1, r)), y: Math.sin(a) * Math.max(r0, Math.min(r1, r)) };
   }
 
   /** A random spot inside the ring (face coordinates), or on the straw board for a miss. */
   private spotFor(style: Style, ring: number) {
-    const radii = ringRadii(style).map((k) => k * RT);
+    const radii = this.radii(style).map((k) => k * RT);
     const a = Math.random() * Math.PI * 2;
     if (ring >= 0) {
       const rin = ring ? radii[ring - 1] + 4 : 0;
@@ -432,7 +462,7 @@ class TargetGame implements GameInstance {
     }
   }
 
-  private land(style: Style, ring: number, spot: { x: number; y: number }, bet: number) {
+  private land(style: Style, ring: number, spot: { x: number; y: number }, bet: number, eye = false) {
     const s = new Sprite(stuckTexture());
     s.anchor.set(14 / 60, 46 / 60);
     s.position.set(spot.x, spot.y);
@@ -460,7 +490,7 @@ class TargetGame implements GameInstance {
     const tags = ['target'];
     if (ring === 0) tags.push('bull');
     if (ring < 0) tags.push('miss');
-    this.ctx.state.report({ game: 'target', stake: bet, win, rtp: returnToPlayer(style), tags });
+    this.ctx.state.report({ game: 'target', stake: bet, win, rtp: eye ? EYE_RTP : returnToPlayer(style), tags });
     this.shell.addHistory(ring >= 0 ? fmtM(mult) : 'daneben', ring >= 0 ? RING_COLORS[ring] : 0x5a4a3a, ring >= 0 ? RING_INK[ring] : 0xe6d6b4);
     const g = (ring >= 0 ? this.face : this.tgt).toGlobal(spot);
     const lp = this.view.toLocal(g);
@@ -519,6 +549,15 @@ class TargetGame implements GameInstance {
       this.bets = this.ctx.state.stakes(BETS);
       this.changeBet(0);
       this.ctx.toast(this.stakeWatch.note);
+    }
+    // The owl's eye switches the face, legend and payout line (between throws only).
+    if (this.phase === 'idle' && this.eye !== !!this.odds.on('eulenauge')) {
+      this.eye = !this.eye;
+      this.setStyle(this.style, true);
+      if (this.eye && !this.calm) {
+        this.face.scale.set(0.85);
+        void tween(this.face.scale, { x: 1, y: 1 }, 380, ease.outBack);
+      }
     }
     const dt = Math.min(dtMs, 60) / 1000;
     this.time += dt;

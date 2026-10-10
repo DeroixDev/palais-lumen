@@ -197,6 +197,8 @@ export interface ItemRtp {
   approx: boolean;
   /** The assumption behind "ca.". */
   how: string;
+  /** The game's own share without any item (for "statt X %"). */
+  plain: number;
   /** Names of the items in the number. */
   items: string[];
   /** Stake up to which the capped items (Goldjeton, Heilige Motte) count fully, in Falter. */
@@ -211,6 +213,7 @@ export function itemRtp(state: GameState, game: string, base?: number): ItemRtp 
   const d = state.data;
   const ls = LOSS_SHARE[game];
   let b = base ?? ls?.rtp ?? 0.95;
+  const plain = ls?.rtp ?? b;
   let approx = !ls?.exact;
   const items: string[] = [];
   // An odds item of this game sets the base (exact, from its rtp script).
@@ -255,7 +258,7 @@ export function itemRtp(state: GameState, game: string, base?: number): ItemRtp 
   // With an odds item on, L of the changed game is not in the table.
   if (econ && odds) approx = true;
   if (!econ) approx = false;
-  return { base: b, rtp: r, approx, how: ls?.how ?? '', items, cap: Number.isFinite(cap) ? Math.floor(cap) : 0 };
+  return { base: b, plain, rtp: r, approx, how: ls?.how ?? '', items, cap: Number.isFinite(cap) ? Math.floor(cap) : 0 };
 }
 
 /** "Mit Items: ca. 103,4 %" */

@@ -17,6 +17,13 @@ import { steadyRtp } from '../games/ice/rules';
 import { starRtp as kenoStarRtp } from '../games/keno/rules';
 import { MODES, starRtp as bingoStarRtp } from '../games/bingo/rules';
 import { FEATHER_RTP } from '../games/slots/slots';
+import { BRAKE_FIELD_RTP } from '../games/wheel/rules';
+import { FLY_RTP } from '../games/shells/rules';
+import { CRUMB_RANGE } from '../games/derby/rules';
+import { EYE_RTP } from '../games/target/rules';
+import { DESIGNS as SCRATCH_DESIGNS, dustRtp } from '../games/scratch/rules';
+import { MIRROR_BEST_RTP } from '../games/hilo/rules';
+import { NET_RTP } from '../games/blackjack/rules';
 
 const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   {
@@ -117,6 +124,84 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
     games: ['keno', 'bingo'],
     odds: true,
     rtp: { keno: kenoStarRtp(5), bingo: bingoStarRtp(MODES[3]) },
+  },
+  // The seven games that had none (wheel, shells, derby, target, scratch, hilo, blackjack).
+  {
+    id: 'falternetz',
+    name: 'Falternetz',
+    desc: 'Die erste Karte einer Runde, mit der du dich überkaufst, fängt das Netz weg – die Hand bleibt stehen. Mit Grundstrategie 103,7 % statt 96 %.',
+    price: 60,
+    tier: 'mittel',
+    duration: { rounds: 5 },
+    games: ['blackjack'],
+    odds: true,
+    rtp: { blackjack: NET_RTP },
+  },
+  {
+    id: 'brotkrumen',
+    name: 'Brotkrumen',
+    desc: 'Krumen vor deiner Ente: Sie schwimmt um ein Viertel kräftiger, die Quoten bleiben. Jede Wette zahlt 102,2–119,0 % statt 93,9–96,5 %.',
+    price: 65,
+    tier: 'mittel',
+    duration: { rounds: 3 },
+    games: ['derby'],
+    odds: true,
+    rtp: { derby: CRUMB_RANGE.mean },
+  },
+  {
+    id: 'leuchtkaefer',
+    name: 'Leuchtkäfer',
+    desc: 'Nach dem Tanz setzt sich ein Leuchtkäfer auf eine Laterne. Er mag es dunkel: Nur jedes fünfte Mal sitzt die Motte darunter, unter jeder anderen 2 zu 5. Dort 114,0 % statt 95 %.',
+    price: 70,
+    tier: 'mittel',
+    duration: { rounds: 5 },
+    games: ['shells'],
+    odds: true,
+    rtp: { shells: FLY_RTP },
+  },
+  {
+    id: 'eulenauge',
+    name: 'Eulenauge',
+    desc: 'Die Eule sieht im Dunkeln: Die Mitte der Zielscheibe wird größer, Fehlwürfe werden seltener. Jeder Wurfstil zahlt genau 110 % statt 95 %.',
+    price: 75,
+    tier: 'mittel',
+    duration: { rounds: 5 },
+    games: ['target'],
+    odds: true,
+    rtp: { target: EYE_RTP },
+  },
+  {
+    id: 'radbremse',
+    name: 'Radbremse',
+    desc: 'Bleibt das Große Rad auf einem Feld ohne deine Chips im ersten Viertel hinter dem Stift stehen, federt die Bremse es ein Feld zurück. Ein Feld allein: ×1 106,9 %, ×2 115,6 %, ×5 bis ×20 118,8 %.',
+    price: 80,
+    tier: 'mittel',
+    duration: { rounds: 5 },
+    games: ['wheel'],
+    odds: true,
+    rtp: { wheel: BRAKE_FIELD_RTP.x2 },
+  },
+  {
+    id: 'mottenstaub',
+    name: 'Mottenstaub',
+    desc: 'Zeigt ein Verlierlos zwei Monde und zwei Motten, pustet die Motte Staub darüber und tauscht es einmal gegen ein frisches Los. Mottenflügel 108,7 %, Mondschein 114,4 %, Goldstaub 115,3 %.',
+    price: 110,
+    tier: 'gross',
+    duration: { rounds: 3 },
+    games: ['scratch'],
+    odds: true,
+    rtp: { scratch: dustRtp(SCRATCH_DESIGNS[0]) },
+  },
+  {
+    id: 'mondspiegel',
+    name: 'Mondspiegel',
+    desc: 'Vor dem ersten Tipp jeder Runde an der Kartenleiter zeigt der Spiegel zwei Kartenhöhen, die als nächste nicht kommen. Mit dem jeweils besten Tipp 112,1 % statt 95 %.',
+    price: 130,
+    tier: 'gross',
+    duration: { rounds: 3 },
+    games: ['hilo'],
+    odds: true,
+    rtp: { hilo: MIRROR_BEST_RTP },
   },
 ];
 

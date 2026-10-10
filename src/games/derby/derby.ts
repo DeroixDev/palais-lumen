@@ -15,10 +15,13 @@ import { formatChips } from '../../core/state';
 import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, rtpText, type Layout } from '../sceneShell';
-import { FORMS, betRtp, drawOrder, makeCard, randomCard, settle, type BetKind, type RaceCard } from './rules';
+import { CRUMB, FORMS, betRtp, crumbProbs, crumbRtp, drawOrder, makeCard, randomCard, settle, type BetKind, type RaceCard } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import {
   DUCK,
   DUCKS,
+  crumbTexture,
   PODIUM,
   bankTexture,
   duckTexture,
@@ -140,6 +143,10 @@ class DerbyGame implements GameInstance {
 
   private bets: number[];
   private stakeWatch: StakeWatch;
+  private oddsWatch: OddsWatch;
+  /** Brotkrumen thrown for this race (the order was drawn with them). */
+  private crumbs = false;
+  private crumbSp: Sprite | null = null;
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -150,6 +157,7 @@ class DerbyGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.oddsWatch = new OddsWatch(ctx.state, 'derby', ['brotkrumen']);
     this.pick = this.favourite();
     this.shell = new SceneShell({
       title: 'TEICH-DERBY',
@@ -458,9 +466,15 @@ class DerbyGame implements GameInstance {
     else if (this.locked) this.mainBtn.setLabel('RENNEN LÄUFT …');
     else this.mainBtn.setLabel(`START · ${formatChips(this.bet)}`);
     this.mainBtn.setEnabled(!this.locked);
-    const rtp = betRtp(this.card, this.pick, this.kind);
     const head = this.shell.layout === 'wide' ? `${this.kind === 'win' ? 'Sieg' : 'Platz'} auf ${DUCKS[this.pick].name}: ` : '';
-    this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))} · ${rtpText(rtp)}`;
+    const crumbs = this.locked ? this.crumbs : !!this.oddsWatch.id;
+    if (crumbs) {
+      // With the crumbs: the exact return of this very bet (its duck pulls 1.25 times as strong).
+      const rtp = crumbRtp(this.card, this.pick, this.kind);
+      setItemRtp('derby', 'brotkrumen', rtp);
+      this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))} · ${itemRtpText(rtp, 'brotkrumen')}`;
+    } else this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))} · ${rtpText(betRtp(this.card, this.pick, this.kind))}`;
+    this.rtpLine.style.fill = crumbs ? 0xffd89a : 0xbfa98a;
   }
 
   /** Lane texts, your lane's glow and the buttons for the current card and pick. */
@@ -500,6 +514,9 @@ class DerbyGame implements GameInstance {
     this.card = randomCard();
     this.phase = 'idle';
     this.overLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.crumbSp?.destroy();
+    this.crumbSp = null;
+    this.crumbs = false;
     this.u = 0;
     this.cam = 0;
     this.talk.text = 'Neue Rennkarte! Wähle deine Ente.';
@@ -519,8 +536,10 @@ class DerbyGame implements GameInstance {
       return;
     }
     this.stake = bet;
-    // The result first: the whole finishing order.
-    this.order = drawOrder(this.card.p);
+    // The result first: the whole finishing order (with crumbs: your duck pulls harder).
+    this.crumbs = this.oddsWatch.on('brotkrumen');
+    this.order = drawOrder(this.crumbs ? crumbProbs(this.card.p, this.pick) : this.card.p);
+    if (this.crumbs) this.throwCrumbs();
     this.scriptRace();
     this.phase = 'count';
     this.settled = false;
@@ -549,6 +568,28 @@ class DerbyGame implements GameInstance {
     this.finalStretch = false;
     for (const r of this.runners) r.splash = 1;
     this.refreshButtons();
+  }
+
+  /** Brotkrumen: a handful of crumbs lands on the water in front of your duck. */
+  private throwCrumbs() {
+    const r = this.runners[this.pick];
+    this.crumbSp?.destroy();
+    const sp = new Sprite(crumbTexture());
+    sp.anchor.set(0, 0.5);
+    const k = Math.max(0.6, this.duckScale);
+    sp.scale.set(k * 1.4);
+    sp.position.set(r.c.x + 50 * k, r.c.y - 6 * k);
+    sp.alpha = 0;
+    this.world.addChildAt(sp, this.world.getChildIndex(r.c));
+    this.crumbSp = sp;
+    void tween(sp, { alpha: 1 }, this.calm ? 120 : 260);
+    if (!this.calm) {
+      sp.y -= 30 * k;
+      void tween(sp, { y: sp.y + 30 * k }, 320, ease.outBack);
+    }
+    this.ctx.sfx.rustle();
+    const g = this.view.toLocal(this.world.toGlobal({ x: r.c.x + 90 * k, y: r.c.y - 70 * k }));
+    void itemMoment(this.view, g.x, Math.max(80, g.y), 'brotkrumen', `BROTKRUMEN ×${String(CRUMB).replace('.', ',')}`, Math.max(0.55, this.shell.s * 0.75));
   }
 
   /** Lays out every duck's path so the drawn order comes true at the line. */
@@ -608,7 +649,7 @@ class DerbyGame implements GameInstance {
     if (this.photo) tags.push('photo');
     if (this.kind === 'place') tags.push('place');
     if (win > 0) this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'derby', stake: this.stake, win, rtp: betRtp(this.card, this.pick, this.kind), tags });
+    this.ctx.state.report({ game: 'derby', stake: this.stake, win, rtp: this.crumbs ? crumbRtp(this.card, this.pick, this.kind) : betRtp(this.card, this.pick, this.kind), tags });
     const w = this.order[0];
     this.shell.addHistory(`${win > 0 ? '★ ' : ''}${DUCKS[w].name}`, DUCKS[w].team, CREAM);
     const r = this.runners[this.pick];
@@ -800,6 +841,9 @@ class DerbyGame implements GameInstance {
     dtMs = Math.min(dtMs, 50);
     const dt = dtMs / 1000;
     this.time += dt;
+    if (this.oddsWatch.poll()) this.refreshButtons();
+    // The crumbs are eaten once the race is under way.
+    if (this.crumbSp && this.phase === 'race' && this.u > 0.08) this.crumbSp.alpha = Math.max(0, this.crumbSp.alpha - dt * 2);
     const sw = this.shell.sw;
 
     if (this.phase === 'race') {

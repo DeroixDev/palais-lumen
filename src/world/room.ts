@@ -19,8 +19,11 @@ import { buildPaintedDecor } from './painted';
 import { paintedAchBoard, paintedVitrine } from './painted/foyerProps';
 import { Guests, type Spot } from './guests';
 import { RoomExtras, type ExtraInteractable } from './roomExtras';
-import { CorridorScene } from './bossRun';
+import { CORRIDOR_BOTTOM, CorridorScene, corridorLeadPx, corridorZoom } from './bossRun';
 import { RoomSpecials } from './sideRooms';
+import { albumLectern } from './albumLectern';
+import { MinibossFigure } from './minibossFigure';
+import { Regulars } from './regulars';
 import { guestFactor, onEventSwitch } from '../core/events';
 import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
@@ -56,6 +59,7 @@ const USE_TITLE: Partial<Record<DecorKind, string>> = {
   crystal: 'Kristall anschlagen',
   iceSwan: 'Eisschwan bestaunen',
   brazier: 'Glut anfachen',
+  plaque: 'Wie das Haus gewinnt',
   ...CLUB_USE_TITLE,
 };
 
@@ -86,6 +90,10 @@ export class RoomScene {
   corridor: CorridorScene | null = null;
   /** Side-room finds, spotlit special machines and ambience (src/world/sideRooms.ts). */
   private specials: RoomSpecials | null = null;
+  /** Today's mini boss on its floor (src/world/minibossFigure.ts). */
+  miniboss: MinibossFigure | null = null;
+  /** The regulars standing here today (src/world/regulars.ts). */
+  regulars: Regulars | null = null;
   private fxLayer = new Container();
   private prompt = new Container();
   private promptText: Text;
@@ -155,6 +163,10 @@ export class RoomScene {
     this.extras = new RoomExtras(state, this.def, { spots: this.spots, world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position });
     if (this.def.corridor) this.corridor = new CorridorScene(state, this.def, { world: this.world, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, player: () => this.player.view.position });
     this.specials = new RoomSpecials(state, this.def, { floor: this.floorDecor, entities: this.entities, lights: this.lights, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, floatText: (t, x, y, c, sz) => this.floatText(t, x, y, c, sz), refreshPrompt: () => (this.nearest = null) });
+    // The moth album's lectern in the foyer (src/world/albumLectern.ts).
+    albumLectern(this.def, { entities: this.entities, obstacles: this.obstacles, interactables: this.interactables });
+    this.miniboss = MinibossFigure.for(state, this.def, { entities: this.entities, lights: this.lights, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y) });
+    if (!this.def.corridor) this.regulars = new Regulars(state, this.def, { entities: this.entities, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position, refreshPrompt: () => (this.nearest = null) });
     this.spawnGuests();
     // Debug switched today's event: closed games and the crowd change right away.
     this.offEventSwitch = onEventSwitch(() => {
@@ -1155,6 +1167,8 @@ export class RoomScene {
     this.extras.update(dtMs);
     this.corridor?.update(dtMs);
     this.specials?.update(dtMs);
+    this.miniboss?.update(dtMs);
+    this.regulars?.update(dtMs);
     this.updateCompanion(dt);
     this.drawStick();
 
@@ -1185,7 +1199,7 @@ export class RoomScene {
     this.screenW = w;
     this.screenH = h;
     const narrow = w < 700;
-    this.zoom = Math.max(narrow ? 0.72 : 0.5, Math.min(1.2, Math.min(w / 1000, (h - this.topInset) / 720)));
+    this.zoom = this.def.corridor ? corridorZoom(w, h, this.topInset) : Math.max(narrow ? 0.72 : 0.5, Math.min(1.2, Math.min(w / 1000, (h - this.topInset) / 720)));
     this.world.scale.set(this.zoom);
     this.updateCamera();
   }
@@ -1208,11 +1222,13 @@ export class RoomScene {
     const z = this.world.scale.x;
     const W = this.def.width * z;
     const H = this.def.height * z;
-    const px = this.player.view.x * z;
+    // The boss corridor looks ahead in walking direction.
+    const lead = this.corridor ? this.corridor.lead * corridorLeadPx(this.screenW / z) : 0;
+    const px = (this.player.view.x + lead) * z;
     const py = this.player.view.y * z;
     const cx = W <= this.screenW ? (this.screenW - W) / 2 : Math.min(0, Math.max(this.screenW - W, this.screenW / 2 - px));
     const top = this.topInset;
-    const free = this.screenH - top;
+    const free = this.screenH - top - (this.def.corridor ? CORRIDOR_BOTTOM : 0);
     const cy = H <= free ? top + (free - H) / 2 : Math.min(top, Math.max(this.screenH - H, top + free / 2 - py));
     this.world.position.set(cx, cy);
   }
@@ -1240,6 +1256,8 @@ export class RoomScene {
     this.extras?.destroy();
     this.corridor?.destroy();
     this.specials?.destroy();
+    this.miniboss?.destroy();
+    this.regulars?.destroy();
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.clearKeys);

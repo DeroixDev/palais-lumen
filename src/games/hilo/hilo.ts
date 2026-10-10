@@ -6,7 +6,7 @@
 // Report tags: 'hilo' (every round), 'rung5' / 'rung10' (the round reached rung 5 / 10),
 // 'cashout' (the player cashed out with a win).
 
-import { Container, Sprite, Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
 import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, glowTexture, reducedMotion } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
@@ -16,7 +16,8 @@ import { formatChips } from '../../core/state';
 import { freshDecks, RANK_NAME, type Card } from '../cards/cards';
 import { CARD_H, CARD_W, CardView, backTexture, dealCard } from '../cards/cardArt';
 import { RulesCard, StakeControl, infoButton, pct, presentWin, readable, rtpLine, slide } from '../cards/tableKit';
-import { CALL_LABEL, MAX_MULT, RTP, RUNGS, cashOut, chance, nextMult, wins, type Call } from './rules';
+import { CALL_LABEL, MAX_MULT, MIRROR_BEST_RTP, RTP, RUNGS, cardRank, cashOut, chance, ladderRank, mirrorBest, mirrorChance, mirrorNext, mirrorRanks, mirrorRtp, nextMult, wins, type Call } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { LADDER_W, ladderTexture, mothTexture, plateTexture, station, stripTexture } from './paint';
 
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -104,6 +105,12 @@ class HiloGame implements GameInstance {
   private rtpText!: Text;
   private btn: Record<'higher' | 'lower' | 'same' | 'skip' | 'cash' | 'info', Button>;
   private time = 0;
+  private odds: OddsWatch;
+  /** Mondspiegel: the two ladder ranks (2..14) that will not come on the first call. */
+  private mirror: [number, number] | null = null;
+  private mirrorView = new Container();
+  /** Return of this round (the first call's, with the mirror; later rungs are fair). */
+  private roundRtp = RTP;
   private keyHandler = (e: KeyboardEvent) => {
     if (this.rules.open) {
       if (e.code === 'Escape') this.rules.hide();
@@ -121,6 +128,7 @@ class HiloGame implements GameInstance {
 
   constructor(private ctx: GameContext) {
     this.stake = new StakeControl(ctx, BETS, 1);
+    this.odds = new OddsWatch(ctx.state, 'hilo', ['mondspiegel']);
     this.rules = new RulesCard("SO GEHT'S", [
       '• Sag an, ob die nächste Karte höher oder tiefer ist. 2 ist die tiefste, das Ass die höchste Karte. Gleicher Rang verliert „Höher“ und „Tiefer“ – dafür gibt es den Tipp „Gleich“.',
       '• Jeder Treffer bringt dich eine Sprosse höher. Der Multiplikator jeder Sprosse kommt aus der echten Wahrscheinlichkeit deines Tipps (gemischt wird vor jeder Karte, alle 52 Karten).',
@@ -226,12 +234,15 @@ class HiloGame implements GameInstance {
     this.potText.position.set(cx, L.spot.y + (CARD_H * L.spot.s) / 2 + 44);
     this.chanceText.position.set(cx, L.spot.y + (CARD_H * L.spot.s) / 2 + 86);
     this.fx.addChild(this.potText, this.chanceText);
+    this.mirrorView = new Container();
+    this.fx.addChild(this.mirrorView);
+    if (this.mirror) this.paintMirror(false);
 
     // Title, panel, controls.
     const title = glowText('KARTENLEITER', { fontFamily: FONT_DISPLAY, fontSize: 30, fill: 0xfff6e6, letterSpacing: 3 }, { color: 0x7af0e0, distance: 12, outerStrength: 2 });
     title.anchor.set(0.5);
     title.position.set(L.mode === 'wide' ? L.strip.x + L.strip.w / 2 : L.W / 2, L.mode === 'wide' ? 30 : 28);
-    this.rtpText = new Text({ text: L.mode === 'wide' ? `Auszahlungsquote ${pct(RTP)}\nHausvorteil ${pct(1 - RTP)}` : `${rtpLine(RTP)}\ngleich, wann du auszahlst`, style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, align: 'center', lineHeight: 20 } });
+    this.rtpText = new Text({ text: this.rtpLabel(), style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, align: 'center', lineHeight: 20 } });
     this.rtpText.anchor.set(0.5, 0);
     const pw = L.mode === 'wide' ? 262 : L.W - 20;
     const py = L.mode === 'wide' ? 80 : L.strip.y + L.strip.h + 2;
@@ -315,15 +326,87 @@ class HiloGame implements GameInstance {
     } else void tween(r.glow, { alpha: 0 }, 300);
   }
 
+  private rtpLabel() {
+    const wide = this.L.mode === 'wide';
+    if (!this.odds?.id) return wide ? `Auszahlungsquote ${pct(RTP)}\nHausvorteil ${pct(1 - RTP)}` : `${rtpLine(RTP)}\ngleich, wann du auszahlst`;
+    const head = itemRtpText(MIRROR_BEST_RTP, 'mondspiegel', 'bester Tipp');
+    const best = this.mirror ? mirrorBest(this.card.rank, this.mirror) : null;
+    const now = best && this.rung === 0 ? `jetzt: ${CALL_LABEL[best]} ${pct(mirrorRtp(this.card.rank, best, this.mirror!))}` : 'ab Sprosse 1 fair';
+    return wide ? `${head.replace(' · ', '\n').replace(' mit ', '\nmit ')}\n${now}` : `${head.replace(' · ', '\n')} · ${now}`;
+  }
+
+  // ---- Mondspiegel -------------------------------------------------------------------------------
+
+  /** Two little cards with a crescent mirror frame and a cross: the ranks that will not come. */
+  private paintMirror(moment: boolean) {
+    const m = this.mirrorView;
+    m.removeChildren().forEach((c) => c.destroy({ children: true }));
+    if (!this.mirror) return;
+    const L = this.L;
+    const wide = L.mode === 'wide';
+    const s = wide ? 0.5 : 0.4;
+    const x0 = wide ? L.spot.x - 205 : L.spot.x - 165;
+    const y0 = L.spot.y - (wide ? 30 : 10);
+    const glow = new Sprite(glowTexture());
+    glow.anchor.set(0.5);
+    glow.position.set(x0, y0);
+    glow.width = 240;
+    glow.height = 260;
+    glow.tint = 0xcfe6ff;
+    glow.blendMode = 'add';
+    glow.alpha = 0.35;
+    m.addChild(glow);
+    const names = this.mirror.map((l) => RANK_NAME[cardRank(l)]).join(' · ');
+    const cap = new Text({ text: `KOMMT NICHT\n${names}`, style: { fontFamily: FONT_DISPLAY, fontSize: wide ? 18 : 16, fill: 0xcfe6ff, stroke: { color: 0x0a2a2e, width: 4 }, letterSpacing: 1, align: 'center' } });
+    if (cap.width > (wide ? 230 : 190)) cap.scale.set((wide ? 230 : 190) / cap.width);
+    cap.anchor.set(0.5, 1);
+    cap.position.set(x0, y0 - (CARD_H * s) / 2 - 18);
+    m.addChild(cap);
+    this.mirror.forEach((l, i) => {
+      const v = new CardView({ rank: cardRank(l), suit: (i * 2 + 1) as Card['suit'] }, { faceUp: true });
+      v.scale.set(s);
+      const x = x0 + (i ? 1 : -1) * (CARD_W * s * 0.56);
+      v.position.set(x, y0 + (i ? 14 : 0));
+      v.rotation = i ? 0.08 : -0.08;
+      v.alpha = 0.92;
+      const cross = new Graphics();
+      const h = (CARD_H * s) / 2 - 8;
+      const w = (CARD_W * s) / 2 - 6;
+      cross.moveTo(-w, -h).lineTo(w, h).moveTo(w, -h).lineTo(-w, h).stroke({ color: 0x14080f, width: 6, cap: 'round' });
+      cross.moveTo(-w, -h).lineTo(w, h).moveTo(w, -h).lineTo(-w, h).stroke({ color: 0xff6a7a, width: 3, cap: 'round' });
+      cross.alpha = 0.8;
+      cross.position.copyFrom(v.position);
+      cross.rotation = v.rotation;
+      m.addChild(v, cross);
+    });
+    if (moment) {
+      void itemMoment(this.fx, x0, y0 + (CARD_H * s) / 2 + 70, 'mondspiegel', 'MONDSPIEGEL', 0.7);
+      if (!reducedMotion()) {
+        m.alpha = 0;
+        void tween(m, { alpha: 1 }, 420);
+      }
+    }
+  }
+
+  /** A fresh mirror for the next first call (or none when the item is off or a round runs). */
+  private setMirror(moment: boolean) {
+    const want = this.odds.on('mondspiegel') && this.rung === 0;
+    this.mirror = want ? mirrorRanks() : null;
+    this.paintMirror(want && moment);
+    this.refresh();
+  }
+
   /** Buttons show what each call would pay; impossible calls are off. */
   private refresh() {
     const r = this.card.rank;
     const free = this.phase !== 'anim';
     const top = this.rung >= RUNGS;
+    const mir0 = this.mirror && this.rung === 0 ? this.mirror : null;
     for (const c of ['higher', 'lower', 'same'] as Call[]) {
       const p = chance(r, c);
       const b = this.btn[c];
-      b.setEnabled(free && p > 0 && !top);
+      // A call the mirror has ruled out can't win: off.
+      b.setEnabled(free && p > 0 && !top && (!mir0 || mirrorChance(r, c, mir0) > 0));
       b.setLabel(p > 0 ? `${CALL_LABEL[c].toUpperCase()}  ×${fmtMult(nextMult(this.mult, this.rung, r, c))}` : CALL_LABEL[c].toUpperCase());
     }
     this.btn.skip.setEnabled(free);
@@ -331,9 +414,19 @@ class HiloGame implements GameInstance {
     const pay = cashOut(this.staked, this.mult);
     this.btn.cash.setLabel(this.rung > 0 ? `AUSZAHLEN ${formatChips(pay)}` : 'AUSZAHLEN');
     this.stake.setEnabled(this.phase === 'idle');
-    const ph = chance(r, 'higher');
-    const pl = chance(r, 'lower');
-    this.chanceText.text = `${RANK_NAME[r]}:  höher ${pct(ph)} · tiefer ${pct(pl)} · gleich ${pct(1 / 13)}`;
+    const mir = this.mirror && this.rung === 0 ? this.mirror : null;
+    const ph = mir ? mirrorChance(r, 'higher', mir) : chance(r, 'higher');
+    const pl = mir ? mirrorChance(r, 'lower', mir) : chance(r, 'lower');
+    const ps = mir ? mirrorChance(r, 'same', mir) : 1 / 13;
+    this.chanceText.text = `${RANK_NAME[r]}${mir ? ' (Spiegel)' : ''}:  höher ${pct(ph)} · tiefer ${pct(pl)} · gleich ${pct(ps)}`;
+    if (this.rtpText && !this.rtpText.destroyed) {
+      const t = this.rtpLabel();
+      if (t !== this.rtpText.text) {
+        this.rtpText.text = t;
+        this.rtpText.style.fill = this.odds.id ? 0xcfe6ff : 0xe6d6b4;
+        readable(this.rtpText, 17, this.root.scale.x || 1, this.L.mode === 'wide' ? 250 : this.L.W - 110);
+      }
+    }
     this.potText.text = this.rung > 0 ? `×${fmtMult(this.mult)}  =  ${formatChips(pay)}` : this.phase === 'idle' ? 'Tipp abgeben!' : '';
     this.potText.style.fill = this.rung > 0 ? COLORS.lamp : 0xfff6e6;
     this.fitPot();
@@ -380,9 +473,14 @@ class HiloGame implements GameInstance {
       this.clearTrail();
     }
     this.phase = 'anim';
+    // The next card is decided now; the table only shows it. With the mirror (first call only)
+    // it comes from the eleven ranks the mirror left.
+    const mir = this.rung === 0 ? this.mirror : null;
+    if (this.rung === 0) this.roundRtp = mir ? mirrorRtp(from.rank, c, mir) : RTP;
+    const next = mir ? this.cardOfLadder(mirrorNext(mir)) : randomCard();
+    this.mirror = null;
     this.refresh();
-    // The next card is decided now; the table only shows it.
-    const next = randomCard();
+    if (mir) void tween(this.mirrorView, { alpha: 0 }, 300).then(() => this.paintMirror(false));
     const ok = wins(from.rank, next.rank, c);
     const L = this.L;
     const v = new CardView(next, { faceUp: false, tilt: 0.18 });
@@ -425,14 +523,14 @@ class HiloGame implements GameInstance {
     this.ctx.sfx.lose();
     v.setGlow(0.7, 0xff5f6a);
     const reached = this.rung;
-    this.ctx.state.report({ game: 'hilo', stake: this.staked, win: 0, rtp: RTP, tags: this.tags(reached, false) });
+    this.ctx.state.report({ game: 'hilo', stake: this.staked, win: 0, rtp: this.roundRtp, tags: this.tags(reached, false) });
     this.potText.text = from.rank === next.rank && c !== 'same' ? 'Gleicher Rang – verloren' : 'Daneben!';
     this.potText.style.fill = 0xff9a9a;
     this.fitPot();
     await this.resetLadder();
     if (this.dead) return;
     this.phase = 'idle';
-    this.refresh();
+    this.setMirror(true);
     this.potText.text = 'Neue Runde!';
     this.fitPot();
     void wait(400).then(() => !v.destroyed && v.setGlow(0));
@@ -453,7 +551,7 @@ class HiloGame implements GameInstance {
     const mult = this.mult;
     const reached = this.rung;
     if (win > 0) this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'hilo', stake: this.staked, win, rtp: RTP, tags: this.tags(reached, true) });
+    this.ctx.state.report({ game: 'hilo', stake: this.staked, win, rtp: this.roundRtp, tags: this.tags(reached, true) });
     this.potText.text = auto ? `GANZ OBEN!  +${formatChips(win)}` : `AUSGEZAHLT  +${formatChips(win)}`;
     this.potText.style.fill = COLORS.lamp;
     this.fitPot();
@@ -469,7 +567,13 @@ class HiloGame implements GameInstance {
     await this.resetLadder();
     if (this.dead) return;
     this.phase = 'idle';
-    this.refresh();
+    this.setMirror(true);
+  }
+
+  /** A card of this ladder rank (2..14), any suit. */
+  private cardOfLadder(l: number): Card {
+    const all = DECK.filter((c) => ladderRank(c.rank) === l);
+    return all[Math.floor(Math.random() * all.length)];
   }
 
   private async resetLadder() {
@@ -509,7 +613,8 @@ class HiloGame implements GameInstance {
     this.cardView = v;
     this.card = next;
     this.phase = prev;
-    this.refresh();
+    if (this.rung === 0 && this.mirror) this.setMirror(false);
+    else this.refresh();
   }
 
   private pushTrail(v: CardView) {
@@ -536,6 +641,7 @@ class HiloGame implements GameInstance {
 
   update(dtMs: number) {
     this.stake.update(this.busy());
+    if (this.odds.poll() && this.phase === 'idle' && !this.dead) this.setMirror(true);
     this.time += dtMs;
     if (!reducedMotion() && this.phase !== 'anim' && this.moth) {
       // The moth breathes on its rung.

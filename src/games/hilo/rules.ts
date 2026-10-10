@@ -41,3 +41,61 @@ export function nextMult(mult: number, rung: number, rank: number, call: Call) {
 
 /** Whole Falter paid for a cash-out (rounded down). */
 export const cashOut = (stake: number, mult: number) => Math.floor(stake * mult);
+
+// ---- Mondspiegel (odds item) -----------------------------------------------------------------
+// Before the first call of a round the mirror shows two ranks that will NOT come next. Drawn as:
+// two ranks at random, then the next card from the other eleven (which is the same as drawing
+// the card first and then two of the twelve ranks it is not). Later rungs stay untouched and
+// fair, so a round returns exactly the first call's return; with the best call for every start
+// card and mirror that is MIRROR_BEST_RTP.
+
+/** Ladder ranks 2..14. */
+const LADDER = Array.from({ length: 13 }, (_, i) => i + 2);
+/** Ladder rank 2..14 back to a card rank 1..13. */
+export const cardRank = (l: number) => (l === 14 ? 1 : l);
+
+/** Chance that the next card wins `call` from `rank`, with the ladder ranks in `hidden` ruled out. */
+export function mirrorChance(rank: number, call: Call, hidden: readonly number[]) {
+  const a = ladderRank(rank);
+  const left = LADDER.filter((b) => !hidden.includes(b));
+  return left.filter((b) => (call === 'higher' ? b > a : call === 'lower' ? b < a : b === a)).length / left.length;
+}
+
+/** Return of a first call with the mirror (pays as always: RTP / chance without the mirror). */
+export function mirrorRtp(rank: number, call: Call, hidden: readonly number[]) {
+  const p = chance(rank, call);
+  return p > 0 ? (mirrorChance(rank, call, hidden) * RTP) / p : 0;
+}
+
+export function mirrorBest(rank: number, hidden: readonly number[]): Call {
+  const calls: Call[] = ['higher', 'lower', 'same'];
+  return calls.reduce((a, b) => (mirrorRtp(rank, b, hidden) > mirrorRtp(rank, a, hidden) ? b : a));
+}
+
+/** Two ladder ranks (2..14) shown by the mirror. */
+export function mirrorRanks(rand = Math.random): [number, number] {
+  const a = LADDER[Math.floor(rand() * 13)];
+  const rest = LADDER.filter((b) => b !== a);
+  const b = rest[Math.floor(rand() * 12)];
+  return a < b ? [a, b] : [b, a];
+}
+
+/** The next card's ladder rank, from the eleven the mirror left. */
+export function mirrorNext(hidden: readonly number[], rand = Math.random) {
+  const left = LADDER.filter((b) => !hidden.includes(b));
+  return left[Math.floor(rand() * left.length)];
+}
+
+/** Long-run return with the mirror when the best first call is made every time (exact). */
+export const MIRROR_BEST_RTP = (() => {
+  let s = 0;
+  let n = 0;
+  for (let r = 1; r <= 13; r++)
+    for (let i = 0; i < 13; i++)
+      for (let j = i + 1; j < 13; j++) {
+        const h = [LADDER[i], LADDER[j]];
+        s += mirrorRtp(r, mirrorBest(r, h), h);
+        n++;
+      }
+  return s / n;
+})();

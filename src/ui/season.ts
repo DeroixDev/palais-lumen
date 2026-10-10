@@ -2,6 +2,7 @@
 // the moon dial at the start of a season (src/ui/moonDial.ts), the boss phases (src/ui/boss.ts)
 // and their bits in the top bar (src/ui/seasonHud.ts). main.ts only calls a few hooks.
 
+import { dailyRandom } from '../core/daily';
 import type { Container } from 'pixi.js';
 import type { Particles } from '../core/fx';
 import { sfx } from '../core/audio';
@@ -78,7 +79,7 @@ export class Season {
 
   /** Right after state.endEvening(): a passed day (not the season's end) earns a draft. Saved at once. */
   dayEnded(r: EveningResult) {
-    if (r.passed && !r.seasonWon) this.state.data.draft = rollDraft(this.state.data, draftSize(this.state.data));
+    if (r.passed && !r.seasonWon) this.state.data.draft = rollDraft(this.state.data, draftSize(this.state.data), dailyRandom(this.state.data, 'draft'));
   }
 
   /** After the recap: the draft if one is waiting, then `next`. */
@@ -97,7 +98,7 @@ export class Season {
   showDraft(next: () => void) {
     if (this.busy) return;
     const d = this.state.data;
-    if (!d.draft?.length) d.draft = rollDraft(d, draftSize(d));
+    if (!d.draft?.length) d.draft = rollDraft(d, draftSize(d), dailyRandom(d, 'draft'));
     this.busy = true;
     sfx.shimmer();
     this.host.showOverlay(

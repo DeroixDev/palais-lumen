@@ -15,7 +15,9 @@ import { light } from '../../world/painted/brush';
 import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
 import { lightWave, winStage } from '../slots/stage';
-import { BONUS_PAY, BONUS_WHEEL, COUNT, FIELDS, FIELD_RTP, MIN_RTP, PAY, SEGMENTS, payout, spin, type Field, type SpinResult } from './rules';
+import { BONUS_PAY, BONUS_WHEEL, BRAKE_MAX, BRAKE_MIN, COUNT, FIELDS, FIELD_RTP, MIN_RTP, PAY, SEGMENTS, brakeRtp, brakeSpin, payout, spin, type BrakeResult, type Field, type SpinResult } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { setItemRtp } from '../../core/modifiers';
 import {
   BR,
   BULB_R,
@@ -100,6 +102,10 @@ class WheelGame implements GameInstance {
   private stakeWatch: StakeWatch;
   private sceneW = 600;
   private sceneH = 400;
+  private odds: OddsWatch;
+  private rtpText!: Text;
+  /** Widest the payout line may get in the bar (from its layout). */
+  private rtpMaxW = 0;
 
   private minus!: Button;
   private plus!: Button;
@@ -117,6 +123,7 @@ class WheelGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.chips = ctx.state.stakes(CHIPS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'wheel', ['radbremse']);
     this.shell = new SceneShell({
       title: 'GROSSES RAD',
       accent: 0xff5fa2,
@@ -290,9 +297,12 @@ class WheelGame implements GameInstance {
   private buildControls(c: Container, width: number, height: number, layout: Layout, fs: (px: number) => number) {
     const tall = layout === 'tall';
     const rtp = new Text({
-      text: `Auszahlungsquote ${pct(MIN_RTP)}–${pct(MAX_RTP)}\u00a0% je Feld${tall ? ' · ' : '\n'}Hausvorteil ${pct(1 - MAX_RTP)}–${pct(1 - MIN_RTP)}\u00a0%`,
+      text: '',
       style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 13 : 15), fontWeight: '600', fill: 0xbfa98a, lineHeight: fs(18) },
     });
+    this.rtpText = rtp;
+    this.rtpMaxW = 0;
+    this.refreshRtp();
     const bar = layoutBar(c, width, height, layout, fs, {
       stepCaption: 'CHIP',
       onStep: (d) => this.changeChip(d),
@@ -306,7 +316,35 @@ class WheelGame implements GameInstance {
     this.chipText = bar.text;
     this.clearBtn = bar.secondary;
     this.spinBtn = bar.main;
+    this.rtpMaxW = rtp.width;
     this.changeChip(0);
+  }
+
+  /** The payout line: per field, or with the Radbremse the exact share for the bets on the table. */
+  private refreshRtp() {
+    const t = this.rtpText;
+    if (!t || t.destroyed) return;
+    const tall = this.shell.layout === 'tall';
+    const sep = tall ? ' · ' : '\n';
+    if (this.odds.id) {
+      const bets = this.total > 0 ? this.bets : this.lastBets;
+      const b = Object.fromEntries(bets) as Partial<Record<Field, number>>;
+      const has = bets.size > 0;
+      if (has) setItemRtp('wheel', 'radbremse', brakeRtp(b));
+      t.text = has
+        ? itemRtpText(brakeRtp(b), 'radbremse', 'deine Einsätze').replace(' · ', sep)
+        : `Mit Radbremse: ein Feld allein ${pct(BRAKE_MIN)}–${pct(BRAKE_MAX)}\u00a0%${sep}mehrere Felder: weniger (Bremse greift seltener)`;
+      t.style.fill = 0xffb8d8;
+    } else {
+      t.text = `Auszahlungsquote ${pct(MIN_RTP)}–${pct(MAX_RTP)}\u00a0% je Feld${sep}Hausvorteil ${pct(1 - MAX_RTP)}–${pct(1 - MIN_RTP)}\u00a0%`;
+      t.style.fill = 0xbfa98a;
+    }
+    // Keep inside the room the bar gave the line.
+    if (this.rtpMaxW > 0) {
+      const base = t.scale.x;
+      const w = t.width / base;
+      t.scale.set(Math.min(base, this.rtpMaxW / Math.max(1, w)) || base);
+    }
   }
 
 
@@ -387,6 +425,7 @@ class WheelGame implements GameInstance {
     else this.spinBtn.setLabel('FELD WÄHLEN');
     this.spinBtn.setEnabled(!this.spinning && (total > 0 || last > 0));
     this.clearBtn.setEnabled(!this.spinning && total > 0);
+    if (!this.spinning) this.refreshRtp();
   }
 
   // ---- Round -----------------------------------------------------------------------------------------
@@ -414,10 +453,19 @@ class WheelGame implements GameInstance {
     this.bonusWedge.alpha = 0;
     for (const t of this.tiles) t.glow.alpha = 0;
 
-    // Result first, then the wheel is turned to stop on it.
-    const r = spin();
+    // Result first, then the wheel is turned to stop on it. With the Radbremse the stop point
+    // in the segment is part of the draw: just past the peg on a field without chips, it springs back.
+    const bets = Object.fromEntries(this.bets) as Partial<Record<Field, number>>;
+    const brake = this.odds.on('radbremse');
+    const br: BrakeResult | null = brake ? brakeSpin(bets) : null;
+    const r: SpinResult = br ?? spin();
+    this.brakeRound = brake ? brakeRtp(bets) : null;
     this.ctx.sfx.spinStart();
-    await this.turnMain(r.index);
+    if (br) {
+      const at = Math.min(0.94, Math.max(0.06, br.u));
+      await this.turnMain(br.first, at);
+      if (br.sprang) await this.springBack(at);
+    } else await this.turnMain(r.index);
     const seg = r.segment;
     this.showWedge(this.wedge, r.index, SEGMENTS, FIELD_COLOR[seg]);
     this.ctx.sfx.thud();
@@ -435,8 +483,22 @@ class WheelGame implements GameInstance {
     this.refreshBets();
   }
 
-  private async turnMain(index: number) {
-    const u = 0.3 + Math.random() * 0.4;
+  private brakeRound: number | null = null;
+
+  /** Radbremse: the wheel stood just past the peg on a field without chips and springs back one. */
+  private async springBack(at: number) {
+    const from = this.rotor.rotation;
+    const to = from - (1.12 - at) * SEG;
+    const p = this.view.toLocal(this.clicker.getGlobalPosition());
+    await wait(this.calm ? 150 : 350);
+    void itemMoment(this.view, p.x, p.y + 70 * this.shell.s, 'radbremse', 'ZURÜCK!', Math.max(0.55, this.shell.s * 0.8));
+    this.ctx.sfx.thud();
+    await animate(this.calm ? 200 : 520, (k) => (this.rotor.rotation = from + (to - from) * k), ease.outBack);
+    this.rotor.rotation = to;
+  }
+
+  private async turnMain(index: number, at?: number) {
+    const u = at ?? 0.3 + Math.random() * 0.4;
     const now = this.rotor.rotation;
     let target = -(index + u) * SEG;
     const turns = this.calm ? 1 : 4 + Math.floor(Math.random() * 2);
@@ -499,7 +561,7 @@ class WheelGame implements GameInstance {
   private async settle(r: SpinResult, total: number) {
     const bets = Object.fromEntries(this.bets) as Partial<Record<Field, number>>;
     const win = payout(bets, r);
-    const rtp = FIELDS.reduce((s, f) => s + (bets[f] ?? 0) * FIELD_RTP[f], 0) / total;
+    const rtp = this.brakeRound ?? FIELDS.reduce((s, f) => s + (bets[f] ?? 0) * FIELD_RTP[f], 0) / total;
     // Tags: wheel; x20 = the wheel stopped on ×20; bonus = the bonus wheel turned.
     const tags = ['wheel'];
     if (r.segment === 'x20') tags.push('x20');
@@ -572,6 +634,7 @@ class WheelGame implements GameInstance {
     }
     const dt = Math.min(0.05, dtMs / 1000);
     this.time += dt;
+    if (this.odds.poll()) this.refreshRtp();
     this.updateClicker(dt);
     // Bulb chase: slow when idle, racing while spinning, flashing the winner's colour.
     const t = this.time;

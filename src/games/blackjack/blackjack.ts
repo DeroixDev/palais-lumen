@@ -15,7 +15,8 @@ import { PANEL_PAD, panelTexture } from '../../ui/kit';
 import { Shoe, cardName, type Card } from '../cards/cards';
 import { CARD_H, CARD_W, CardView, SHOE_MOUTH, dealCard, shoeTexture } from '../cards/cardArt';
 import { Bubble, RulesCard, StakeControl, TotalBadge, chipPile, infoButton, pct, presentWin, readable, rtpLine, slide } from '../cards/tableKit';
-import { RULES, canDouble, canSplit, dealerShouldHit, handValue, isNatural, newHand, settleHand, type Hand } from './rules';
+import { NET_RTP, NET_RTP_INITIAL, RULES, canDouble, canSplit, dealerShouldHit, handValue, isNatural, newHand, settleHand, type Hand } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DEALER_H, DEALER_NECK, DEALER_W, HEAD_NECK, dealerBodyTexture, dealerHeadTexture, station, tableTexture, type Face, type TableGeo } from './paint';
 
 /** Basic-strategy return per initial stake and per Falter wagered (scripts/rtp-blackjack.mjs, 20 M rounds). */
@@ -168,6 +169,10 @@ class BlackjackGame implements GameInstance {
   private luckNote!: Text;
   private title!: Sprite;
   private usedLuck = false;
+  private odds!: OddsWatch;
+  /** Falternetz on for this round, and whether it has caught its card. */
+  private net = false;
+  private netUsed = false;
   private keyHandler = (e: KeyboardEvent) => {
     if (this.rules.open) {
       if (e.code === 'Escape') this.rules.hide();
@@ -187,6 +192,7 @@ class BlackjackGame implements GameInstance {
 
   constructor(private ctx: GameContext) {
     this.stake = new StakeControl(ctx, BETS, 1);
+    this.odds = new OddsWatch(ctx.state, 'blackjack', ['falternetz']);
     this.rules = new RulesCard("SO GEHT'S", [
       '• Ziel: näher an 21 als die Bank, ohne darüber zu kommen. Bilder zählen 10, das Ass 1 oder 11.',
       '• Blackjack (Ass + Zehnerkarte als erste zwei Karten) zahlt 6:5. Sonst zahlt ein Sieg 1:1, Gleichstand gibt den Einsatz zurück.',
@@ -256,8 +262,8 @@ class BlackjackGame implements GameInstance {
     this.title.position.set(L.mode === 'tall' ? L.W / 2 : 26, 34);
     this.rtpText?.destroy();
     this.rtpText = new Text({
-      text: L.mode === 'wide' ? `Auszahlungsquote ${pct(RTP_INITIAL)}\nHausvorteil ${pct(1 - RTP_INITIAL)}\nmit Grundstrategie` : `${rtpLine(RTP_INITIAL)}\nmit Grundstrategie`,
-      style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, align: L.mode === 'tall' ? 'center' : 'left', lineHeight: 20 },
+      text: this.rtpLabel(),
+      style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: this.odds.id ? 0x9fe8c8 : 0xe6d6b4, align: L.mode === 'tall' ? 'center' : 'left', lineHeight: 20 },
     });
     this.rtpText.anchor.set(L.mode === 'tall' ? 0.5 : 0, 0);
     this.rtpText.position.set(L.mode === 'tall' ? L.W / 2 : 28, 58);
@@ -438,6 +444,44 @@ class BlackjackGame implements GameInstance {
     return this.shoe.draw();
   }
 
+  /** The payout line (with the Falternetz: its share with basic strategy). */
+  private rtpLabel() {
+    const wide = this.L.mode === 'wide';
+    if (this.odds.id) {
+      const t = itemRtpText(NET_RTP_INITIAL, 'falternetz');
+      return wide ? `${t.replace(' · ', '\n').replace(' mit ', '\nmit ')}\nmit Grundstrategie` : `${t}\nmit Grundstrategie`;
+    }
+    return wide ? `Auszahlungsquote ${pct(RTP_INITIAL)}\nHausvorteil ${pct(1 - RTP_INITIAL)}\nmit Grundstrategie` : `${rtpLine(RTP_INITIAL)}\nmit Grundstrategie`;
+  }
+
+  /** Falternetz: the card that busted the hand is caught and carried off; the hand stands. */
+  private async catchCard(seat: Seat) {
+    this.netUsed = true;
+    const v = seat.views.pop()!;
+    seat.hand.cards.pop();
+    seat.views.forEach((x) => x.setGlow(0));
+    this.dealer.react('oh', 'Das Netz! Die Karte ist weg.', 1500);
+    this.ctx.sfx.flutter();
+    void itemMoment(this.fxLayer, v.x, v.y - CARD_H * this.L.cardScale * 0.5 - 40, 'falternetz', 'GEFANGEN!', 0.8);
+    const g = this.fxLayer.toGlobal(v.position);
+    this.ctx.particles.sparkle(g.x, g.y, 12, 0x9fe8c8, 110);
+    const x0 = v.x;
+    const y0 = v.y;
+    await animate(reducedMotion() ? 200 : 700, (k) => {
+      if (v.destroyed) return;
+      v.x = x0 + Math.sin(k * Math.PI) * 40;
+      v.y = y0 - 220 * k * k;
+      v.rotation = 0.6 * k;
+      v.scale.set(this.L.cardScale * (1 - 0.6 * k));
+      v.alpha = 1 - k;
+    }, ease.inCubic);
+    v.destroy({ children: true });
+    this.relayoutCards(true);
+    this.updateBadges(false);
+    await wait(250);
+    await this.nextHand();
+  }
+
   private async clearTable() {
     const all = [...this.dealerViews, ...this.seats.flatMap((s) => s.views)];
     const piles = this.seats.map((s) => s.pile);
@@ -524,6 +568,8 @@ class BlackjackGame implements GameInstance {
       return;
     }
     this.phase = 'dealing';
+    this.net = this.odds.on('falternetz');
+    this.netUsed = false;
     this.refreshButtons();
     await this.clearTable();
     if (this.dead) return;
@@ -639,6 +685,10 @@ class BlackjackGame implements GameInstance {
   /** After a new card: bust (maybe offer the Glückskarte), 21 stands by itself. */
   private async afterCard(seat: Seat) {
     const v = handValue(seat.hand.cards).total;
+    if (v > 21 && this.net && !this.netUsed) {
+      await this.catchCard(seat);
+      return;
+    }
     if (v > 21) {
       this.ctx.sfx.lose();
       seat.views.forEach((x) => x.setGlow(0.5, 0xff5f6a));
@@ -848,7 +898,7 @@ class BlackjackGame implements GameInstance {
     if (this.seats.some((s) => s.lucky)) tags.push('luck');
     const uniq = [...new Set(tags)];
     if (win > 0) this.ctx.state.payout(win);
-    this.ctx.state.report({ game: 'blackjack', stake: staked, win, rtp: RTP_WAGERED, tags: uniq });
+    this.ctx.state.report({ game: 'blackjack', stake: staked, win, rtp: this.net ? NET_RTP : RTP_WAGERED, tags: uniq });
     // The croupier reacts.
     if (best === 'bj') this.dealer.react('oh', 'Blackjack! Bravo!', 2000);
     else if (best === 'win') this.dealer.react(dealerTotal > 21 ? 'sad' : 'happy', dealerTotal > 21 ? 'Oh – die Bank ist überkauft.' : 'Gut gespielt!', 1800);
@@ -871,6 +921,11 @@ class BlackjackGame implements GameInstance {
   update(dtMs: number) {
     this.stake.update(this.busy());
     this.dealer.update(dtMs);
+    if (this.odds.poll() && this.rtpText && !this.rtpText.destroyed) {
+      this.rtpText.text = this.rtpLabel();
+      this.rtpText.style.fill = this.odds.id ? 0x9fe8c8 : 0xe6d6b4;
+      readable(this.rtpText, 17, this.root.scale.x || 1, this.L.mode === 'wide' ? 300 : this.L.W - 120);
+    }
   }
 
   busy() {

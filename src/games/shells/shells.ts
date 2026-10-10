@@ -12,7 +12,8 @@ import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
-import { PAY, RTP, hitPays, mothUnder } from './rules';
+import { FLY_RTP, FLY_SELF_RTP, PAY, RTP, flyRound, hitPays, mothUnder } from './rules';
+import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { FLAME_Y, LANTERN, boothLayout, boothTexture, drawShellsStation, flameTexture, lanternTexture, mothTexture, type BoothLayout } from './paint';
 
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -79,6 +80,13 @@ class ShellsGame implements GameInstance {
   private stakeWatch: StakeWatch;
   private mothFlap = 0;
   private mothIdle = true;
+  private odds: OddsWatch;
+  /** Leuchtkäfer round: where the firefly sits and the moth is (drawn after the dance). */
+  private fly: { fly: number; moth: number } | null = null;
+  private firefly = new Container();
+  private rtpText!: Text;
+  private sceneW = 600;
+  private sceneH = 400;
 
   private minus!: Button;
   private plus!: Button;
@@ -100,6 +108,7 @@ class ShellsGame implements GameInstance {
   constructor(private ctx: GameContext) {
     this.bets = ctx.state.stakes(BETS);
     this.stakeWatch = new StakeWatch(ctx.state);
+    this.odds = new OddsWatch(ctx.state, 'shells', ['leuchtkaefer']);
     this.shell = new SceneShell({
       title: 'DREI LATERNEN',
       accent: 0x9fe0ff,
@@ -117,6 +126,7 @@ class ShellsGame implements GameInstance {
     this.mothGlow.alpha = 0.5;
     this.mothSprite.anchor.set(0.5);
     this.moth.addChild(this.mothGlow, this.mothSprite);
+    this.buildFirefly();
     window.addEventListener('keydown', this.keyHandler);
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
   }
@@ -177,6 +187,8 @@ class ShellsGame implements GameInstance {
   // ---- Layout ------------------------------------------------------------------------------------------
 
   private layoutScene(sw: number, sh: number, tall: boolean) {
+    this.sceneW = sw;
+    this.sceneH = sh;
     this.L = boothLayout(sw, sh, tall);
     const L = this.L;
     this.boothTex?.destroy(true);
@@ -199,12 +211,14 @@ class ShellsGame implements GameInstance {
     }
     this.mothSprite.width = this.mothSprite.height = 70 * L.k;
     this.mothGlow.width = this.mothGlow.height = 150 * L.k;
-    this.table.addChild(this.moth);
+    this.table.addChild(this.moth, this.firefly);
+    this.firefly.scale.set(L.k);
+    if (this.fly) this.placeFirefly(this.lanterns.find((x) => x.slot === this.fly!.fly)!);
     if (this.mothIdle) this.moth.visible = true;
     const fs = this.shell.fs;
     this.luck?.destroy();
     this.prompt?.destroy();
-    this.luck = new Text({ text: `${LUCK}\nTrefferchance 1 zu 3 · zahlt ${String(PAY).replace('.', ',')}×`, style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 16 : 19), fontWeight: '700', fill: 0xf2e6c9, align: 'center', lineHeight: fs(tall ? 19 : 23), stroke: { color: 0x0a0410, width: 4 } } });
+    this.luck = new Text({ text: this.luckText(), style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 16 : 19), fontWeight: '700', fill: 0xf2e6c9, align: 'center', lineHeight: fs(tall ? 19 : 23), stroke: { color: 0x0a0410, width: 4 } } });
     this.luck.anchor.set(0.5, 0);
     this.luck.position.set(sw / 2, Math.min(sh - this.luck.height - 6, L.apronY));
     if (this.luck.width > sw - 16) this.luck.scale.set((sw - 16) / this.luck.width);
@@ -218,9 +232,11 @@ class ShellsGame implements GameInstance {
   private buildControls(c: Container, width: number, height: number, layout: Layout, fs: (px: number) => number) {
     const tall = layout === 'tall';
     const rtp = new Text({
-      text: `Auszahlungsquote ${pct(RTP)}\u00a0% · Hausvorteil ${pct(1 - RTP)}\u00a0%\nDas Tempo ändert nur den Tanz, nicht die Chance`,
+      text: '',
       style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 13 : 15), fontWeight: '600', fill: 0xbfa98a, lineHeight: fs(tall ? 15 : 18) },
     });
+    this.rtpText = rtp;
+    this.refreshRtp();
     const bar = layoutBar(c, width, height, layout, fs, {
       stepCaption: 'EINSATZ',
       onStep: (d) => this.changeBet(d),
@@ -270,7 +286,87 @@ class ShellsGame implements GameInstance {
 
   private refreshPrompt() {
     if (!this.prompt) return;
-    this.prompt.text = this.phase === 'pick' ? 'WÄHLE EINE LATERNE' : '';
+    this.prompt.text = this.phase === 'pick' ? (this.fly ? 'DER KÄFER MAG ES DUNKEL' : 'WÄHLE EINE LATERNE') : '';
+  }
+
+  private luckText() {
+    return this.odds.id
+      ? `Leuchtkäfer: unter seiner Laterne 1 zu 5, unter jeder anderen 2 zu 5\nzahlt ${String(PAY).replace('.', ',')}× · Auszahlungsquote ${pct(FLY_RTP)}\u00a0% ohne Käfer-Laterne`
+      : `${LUCK}\nTrefferchance 1 zu 3 · zahlt ${String(PAY).replace('.', ',')}×`;
+  }
+
+  /** The honest line under the controls (and the luck line on the cloth). */
+  private refreshRtp() {
+    if (this.rtpText) {
+      this.rtpText.text = this.odds.id
+        ? this.shell.layout === 'tall'
+          ? `${itemRtpText(FLY_RTP, 'leuchtkaefer')}\nnur die Käfer-Laterne: ${pct(FLY_SELF_RTP)}\u00a0%`
+          : `${itemRtpText(FLY_RTP, 'leuchtkaefer').replace(' · ', '\n')}\nnur die Käfer-Laterne: ${pct(FLY_SELF_RTP)}\u00a0%`
+        : `Auszahlungsquote ${pct(RTP)}\u00a0% · Hausvorteil ${pct(1 - RTP)}\u00a0%\nDas Tempo ändert nur den Tanz, nicht die Chance`;
+      this.rtpText.style.fill = this.odds.id ? 0xe4ffb0 : 0xbfa98a;
+    }
+    if (this.luck && !this.luck.destroyed && this.L) {
+      this.luck.scale.set(1);
+      this.luck.text = this.luckText();
+      if (this.luck.width > this.sceneW - 16) this.luck.scale.set((this.sceneW - 16) / this.luck.width);
+      this.luck.y = Math.min(this.sceneH - this.luck.height - 6, this.L.apronY);
+    }
+  }
+
+  // ---- Leuchtkäfer -------------------------------------------------------------------------------------
+
+  /** A painted firefly: green-gold glow, dark wings flicking. */
+  private buildFirefly() {
+    const glow = new Sprite(glowTexture());
+    glow.anchor.set(0.5);
+    glow.width = glow.height = 230;
+    glow.tint = 0xd8ff7a;
+    glow.blendMode = 'add';
+    glow.alpha = 0.8;
+    const core = new Sprite(glowTexture());
+    core.anchor.set(0.5);
+    core.width = core.height = 70;
+    core.y = 8;
+    core.tint = 0xf0ffb0;
+    core.blendMode = 'add';
+    const bug = new Sprite(mothTexture());
+    bug.anchor.set(0.5);
+    bug.width = bug.height = 38;
+    bug.tint = 0x8a7a3a;
+    const tail = new Sprite(glowTexture());
+    tail.anchor.set(0.5);
+    tail.width = tail.height = 40;
+    tail.y = 10;
+    tail.tint = 0xf4ffc0;
+    tail.blendMode = 'add';
+    this.firefly.addChild(glow, bug, tail, core);
+    this.firefly.visible = false;
+    this.firefly.zIndex = 30000;
+  }
+
+  private placeFirefly(l: Lantern) {
+    this.firefly.position.set(l.root.x + 34 * this.L.k, l.root.y - (LANTERN.ay - 30) * this.L.k);
+    this.firefly.visible = true;
+    // Its lantern stands in a green-gold pool of light.
+    l.ring.tint = 0xd8ff7a;
+    l.ring.alpha = 0.7;
+  }
+
+  /** After the dance: the firefly drifts in and settles on its lantern. */
+  private async landFirefly() {
+    const fly = flyRound();
+    this.fly = fly;
+    const l = this.lanterns.find((x) => x.slot === fly.fly)!;
+    const to = { x: l.root.x + 34 * this.L.k, y: l.root.y - (LANTERN.ay - 30) * this.L.k };
+    const from = { x: this.L.moon.x, y: this.L.moon.y };
+    this.firefly.visible = true;
+    this.ctx.sfx.flutter();
+    await animate(this.calm ? 200 : 900, (k) => {
+      const e = ease.inOutCubic(k);
+      this.firefly.position.set(from.x + (to.x - from.x) * e + (this.calm ? 0 : Math.sin(k * 11) * 18 * (1 - k)), from.y + (to.y - from.y) * e);
+    });
+    this.placeFirefly(l);
+    await itemMoment(this.layer, to.x + (fly.fly === 2 ? -150 : 90) * this.L.k, to.y - 40 * this.L.k, 'leuchtkaefer', 'LEUCHTKÄFER', Math.max(0.55, this.L.k * 0.75));
   }
 
   // ---- Round -------------------------------------------------------------------------------------------
@@ -299,6 +395,7 @@ class ShellsGame implements GameInstance {
     await this.lift(mid, false);
     await wait(this.calm ? 100 : 250);
     await this.shuffle();
+    if (this.odds.on('leuchtkaefer')) await this.landFirefly();
     this.phase = 'pick';
     this.refreshButtons();
     this.refreshPrompt();
@@ -466,9 +563,12 @@ class ShellsGame implements GameInstance {
     this.refreshPrompt();
     this.ctx.sfx.click();
     for (const x of this.lanterns) x.body.y = 0;
-    // The pick is made: now chance decides where the moth is.
-    const under = mothUnder(l.slot);
+    // The pick is made: now chance decides where the moth is (with the firefly: drawn with it).
+    const fly = this.fly;
+    const under = fly ? fly.moth : mothUnder(l.slot);
+    const rtp = fly ? (l.slot === fly.fly ? FLY_SELF_RTP : FLY_RTP) : RTP;
     const won = under === l.slot;
+    l.ring.tint = 0xffcf7a;
     l.ring.alpha = 0.9;
     await this.lift(l, true, -0.12);
     const spot = { x: l.root.x, y: l.root.y - 18 * this.L.k };
@@ -499,10 +599,15 @@ class ShellsGame implements GameInstance {
       this.shell.addHistory(`${l.slot + 1} ✗`, 0x6a4a5a, 0xf2e6c9);
     }
     // One report per round (tags: shells).
-    this.ctx.state.report({ game: 'shells', stake: this.stake, win, rtp: RTP, tags: ['shells'] });
+    this.ctx.state.report({ game: 'shells', stake: this.stake, win, rtp, tags: ['shells'] });
     await wait(this.calm ? 400 : 900);
     await Promise.all(this.lanterns.filter((x) => x.body.y < -20).map((x) => this.lift(x, false)));
-    for (const x of this.lanterns) x.ring.alpha = 0;
+    for (const x of this.lanterns) {
+      x.ring.alpha = 0;
+      x.ring.tint = 0xffcf7a;
+    }
+    this.fly = null;
+    this.firefly.visible = false;
     // The moth comes back and rests in front of the middle lantern for the next round.
     const home = this.idleSpot();
     if (!won) this.moth.position.set(this.L.moon.x, this.L.moon.y);
@@ -535,9 +640,18 @@ class ShellsGame implements GameInstance {
       this.changeBet(0);
       this.ctx.toast(this.stakeWatch.note);
     }
+    if (this.odds.poll()) {
+      this.shell.rebuildControls();
+      this.refreshRtp();
+    }
     const dt = Math.min(0.05, dtMs / 1000);
     this.time += dt;
     if (!this.L) return;
+    if (this.firefly.visible && !this.calm) {
+      const f = this.firefly.children[0];
+      f.alpha = 0.75 + 0.25 * Math.sin(this.time * 5);
+      this.firefly.children[1].scale.x = (38 / 72) * (0.4 + 0.6 * Math.abs(Math.cos(this.time * 20)));
+    }
     const t = this.time;
     this.lanterns.forEach((l, i) => {
       const flick = this.calm ? 0 : Math.sin(t * 13 + i * 2) * 0.06 + Math.sin(t * 29 + i) * 0.04;

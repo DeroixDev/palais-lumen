@@ -2,9 +2,11 @@
 // Events only touch the economy — goal, stake size, bonus Mondsteine, stamps, which games
 // are open — never the odds. Every game keeps its true house edge.
 
+import { dailyRandom } from './daily';
 import { floorRooms } from './registry';
 import { BOSS_DAY, floorForDay, type GameState, type RoundReport, type SaveData } from './state';
 import { bossClosedGame } from './boss';
+import { isMinibossDay, minibossBlocks, minibossClosed } from './miniboss';
 
 export interface DayEvent {
   id: string;
@@ -177,7 +179,7 @@ export function eventsFor(day: number) {
 
 /** True if a game is closed today (by the day's event, or by the boss's "Letzter Tanz"). */
 export function isClosed(d: SaveData, game: string) {
-  return !!currentEvent(d)?.closed?.includes(game) || bossClosedGame(d) === game;
+  return !!currentEvent(d)?.closed?.includes(game) || bossClosedGame(d) === game || minibossBlocks(d, game);
 }
 
 /** All games closed right now (event and boss phase). */
@@ -185,6 +187,7 @@ export function closedGames(d: SaveData): string[] {
   const out = [...(currentEvent(d)?.closed ?? [])];
   const b = bossClosedGame(d);
   if (b && !out.includes(b)) out.push(b);
+  for (const g of minibossClosed(d)) if (!out.includes(g)) out.push(g);
   return out;
 }
 
@@ -202,10 +205,13 @@ function roll(d: SaveData) {
   const day = d.evening.number;
   // The first day stays plain; the boss day has its own phases.
   if (day <= 1 || day >= BOSS_DAY) return '';
-  if (Math.random() < PLAIN) return '';
+  // A mini boss day (src/core/miniboss.ts) brings its own rule instead.
+  if (isMinibossDay(day)) return '';
+  const rnd = dailyRandom(d, 'event');
+  if (rnd() < PLAIN) return '';
   const last = d.counters.lastEvent ?? -1;
   const pool = eventsFor(day).filter((e) => EVENTS.indexOf(e) !== last);
-  let r = Math.random() * pool.reduce((s, e) => s + e.weight, 0);
+  let r = rnd() * pool.reduce((s, e) => s + e.weight, 0);
   for (const e of pool) if ((r -= e.weight) < 0) return e.id;
   return pool[0]?.id ?? '';
 }

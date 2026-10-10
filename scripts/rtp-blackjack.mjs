@@ -36,3 +36,25 @@ console.log(`RTP per Falter wagered (incl. doubles/splits) ${(perWagered * 100).
 const ok = perInitial >= 0.93 && perInitial <= 0.97 && perWagered >= 0.93 && perWagered <= 0.97;
 console.log(ok ? 'OK: inside 93–97 %' : 'FAIL: outside 93–97 %');
 if (!ok) process.exitCode = 1;
+
+// Falternetz (odds item): the same rounds with the net (the first busting card of a round is
+// caught and the hand stands), same seed and shoe; the game shows this per-Falter-wagered value.
+{
+  s = 0x9e3779b9;
+  const shoe2 = new Shoe(rules.decks, 0.25, rand);
+  const { NET_RTP } = await loadTs('src/games/blackjack/rules.ts');
+  let st = 0, bk = 0, sq2 = 0;
+  for (let i = 0; i < N; i++) {
+    shoe2.checkCut();
+    const r = playRound(() => shoe2.draw(), rules, true);
+    st += r.staked;
+    bk += r.back;
+    sq2 += (r.back - r.staked) ** 2;
+  }
+  const init = 1 + (bk - st) / N;
+  const se2 = Math.sqrt(sq2 / N - ((bk - st) / N) ** 2) / Math.sqrt(N);
+  const okNet = init >= 1 && init <= 1.25 && Math.abs(bk / st - NET_RTP) < 3 * se2 + 0.001;
+  console.log(`Falternetz: RTP per initial stake ${(init * 100).toFixed(3)} % (±${(se2 * 196).toFixed(3)} %), per Falter wagered ${((bk / st) * 100).toFixed(3)} % (rules.ts NET_RTP ${(NET_RTP * 100).toFixed(2)} %)`);
+  console.log(okNet ? 'OK: Falternetz' : 'FAIL: Falternetz');
+  if (!okNet) process.exitCode = 1;
+}

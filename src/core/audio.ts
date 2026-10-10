@@ -49,7 +49,17 @@ class Sfx {
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -16;
       comp.ratio.value = 4;
-      comp.connect(ctx.destination);
+      // Safety limiter after the glue compressor: hard knee at -3 dBFS, so loud club nights
+      // plus big-win effects never clip. The trim cancels Chrome's automatic makeup gain.
+      const lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = -3;
+      lim.knee.value = 0;
+      lim.ratio.value = 20;
+      lim.attack.value = 0.001;
+      lim.release.value = 0.12;
+      const limTrim = ctx.createGain();
+      limTrim.gain.value = Math.pow(10, (-0.6 * (3 - 3 / 20)) / 20);
+      comp.connect(lim).connect(limTrim).connect(ctx.destination);
       this.master = ctx.createGain();
       this.master.gain.value = this.muted ? 0 : 0.5;
       this.master.connect(comp);
@@ -667,7 +677,7 @@ class Sfx {
     // Club floor: louder and fuller near the dance floor; a game ducks it back down.
     const prox = this.scene === 'casino' && this.floorMood in CLUB_BPM ? this.proximity : 0;
     this.clubMix.setLevel(this.ctx, prox);
-    const level = !this.musicOn ? 0 : this.scene === 'menu' ? 0.55 : this.scene === 'casino' ? 0.32 + prox * 0.3 : this.scene === 'game' ? 0.18 : 0;
+    const level = !this.musicOn ? 0 : this.scene === 'menu' ? 0.55 : this.scene === 'casino' ? 0.32 + prox * 0.45 : this.scene === 'game' ? 0.18 : 0;
     this.musicBus.gain.setTargetAtTime(Math.max(0.0001, level), this.ctx.currentTime, 0.6);
     const amb = this.scene === 'casino' ? 0.5 : this.scene === 'game' ? 0.25 : this.scene === 'menu' ? 0.45 : 0;
     this.ambBus.gain.setTargetAtTime(Math.max(0.0001, amb), this.ctx.currentTime, 0.8);

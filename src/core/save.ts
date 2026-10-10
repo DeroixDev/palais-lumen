@@ -8,6 +8,9 @@ export const MANUAL_SLOTS: SlotId[] = ['slot1', 'slot2', 'slot3'];
 
 const PREFIX = 'nachtfalter.save.';
 
+/** The daily challenge keeps its run under its own key ('daily'), outside the normal slots. */
+export const DAILY_SLOT = 'daily' as const;
+
 export interface SlotInfo {
   id: SlotId;
   data: SaveData | null;
@@ -72,6 +75,7 @@ export function migrate(raw: unknown): SaveData | null {
     storySeen: Array.isArray(d.storySeen) ? d.storySeen : [],
     dailySeed: typeof d.dailySeed === 'string' ? d.dailySeed : '',
     dailyBest: d.dailyBest && typeof d.dailyBest === 'object' ? { ...d.dailyBest } : {},
+    longRun: d.longRun && Array.isArray(d.longRun.net) && Array.isArray(d.longRun.exp) && d.longRun.net.length === d.longRun.exp.length ? { net: [...d.longRun.net], exp: [...d.longRun.exp] } : { net: [0], exp: [0] },
     version: SAVE_VERSION,
   };
   merged.balance = Math.max(0, Math.floor(merged.balance));
@@ -103,12 +107,12 @@ function parse(json: string | null): SaveData | null {
   }
 }
 
-export function readSlot(id: SlotId): SaveData | null {
+export function readSlot(id: SlotId | 'daily'): SaveData | null {
   // Fall back to the backup if the main entry is damaged.
   return parse(storage.read(PREFIX + id)) ?? parse(storage.read(PREFIX + id + '.bak'));
 }
 
-export function writeSlot(id: SlotId, data: SaveData) {
+export function writeSlot(id: SlotId | 'daily', data: SaveData) {
   data.savedAt = Date.now();
   const prev = storage.read(PREFIX + id);
   if (prev) storage.write(PREFIX + id + '.bak', prev);
@@ -122,7 +126,7 @@ export function listSlots(): SlotInfo[] {
 export function latestSave(): SaveData | null {
   const all = listSlots()
     .map((s) => s.data)
-    .filter((d): d is SaveData => !!d);
+    .filter((d): d is SaveData => !!d && !d.dailySeed);
   all.sort((a, b) => b.savedAt - a.savedAt);
   return all[0] ?? null;
 }

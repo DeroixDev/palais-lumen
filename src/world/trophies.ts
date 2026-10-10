@@ -42,6 +42,12 @@ export function drawTrophy(kind: TrophyKind, medal: Medal): Container {
     g.circle(-18, -40, 4).fill(COLORS.cyan);
     g.circle(18, -40, 4).fill(COLORS.cyan);
     g.rect(-30, -50, 60, 4).fill({ color: m.light, alpha: 0.7 });
+  } else if (kind.startsWith('mb')) {
+    // Mini boss trophy: a medallion on a stem (the painted statuette is in src/ui/trophyArt.ts).
+    g.rect(-4, -60, 8, 42).fill(m.dark);
+    g.circle(0, -78, 26).fill(m.base).stroke({ color: m.dark, width: 3 });
+    g.circle(0, -78, 16).fill({ color: m.light, alpha: 0.6 });
+    g.circle(0, -78, 6).fill(COLORS.red);
   } else {
     // Jackpot: a tiny golden slot machine.
     g.roundRect(-24, -96, 48, 78, 8).fill(m.base).stroke({ color: m.dark, width: 2 });

@@ -21,7 +21,23 @@ interface Chain {
   lp: BiquadFilterNode;
   /** Stage layer gain (0 far away, 1 on the dance floor). */
   layer: GainNode;
+  /** Base level of the mood (see TRIM). */
+  trim: GainNode;
+  mood: ClubMood;
 }
+
+/**
+ * Level balance per mood, measured on the master output (RMS/K-weighted, see the polish
+ * notes): `far`/`near` scale the whole groove away from and on the dance floor (so far
+ * away it sits with the other floors), `layer` evens out the stage layers, so club, bunker and
+ * hip-hop floor reach the same loudness at the stage.
+ */
+const TRIM: Record<ClubMood, { far: number; near: number; layer: number }> = {
+  club: { far: 1, near: 1, layer: 1 },
+  techno: { far: 0.75, near: 1.12, layer: 1.6 },
+  hiphop: { far: 1, near: 1, layer: 1.7 },
+};
+const trimGain = (m: ClubMood, lvl: number) => TRIM[m].far + (TRIM[m].near - TRIM[m].far) * lvl;
 
 const cutoff = (lvl: number) => 2200 * Math.pow(8, lvl);
 const layerGain = (lvl: number) => Math.max(0.0001, Math.pow(lvl, 1.3));
@@ -31,18 +47,20 @@ export class ClubMix {
   private chains: Chain[] = [];
   level = 0;
 
-  private chain(v: Voices, out: GainNode) {
+  private chain(v: Voices, out: GainNode, mood: ClubMood) {
     let c = this.chains.find((x) => x.out === out);
     if (c) return c;
     const lp = v.ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = cutoff(this.level);
     lp.Q.value = 0.7;
-    lp.connect(out);
+    const trim = v.ctx.createGain();
+    trim.gain.value = trimGain(mood, this.level);
+    lp.connect(trim).connect(out);
     const layer = v.ctx.createGain();
-    layer.gain.value = layerGain(this.level);
+    layer.gain.value = layerGain(this.level) * TRIM[mood].layer;
     layer.connect(lp);
-    c = { out, lp, layer };
+    c = { out, lp, layer, trim, mood };
     this.chains.push(c);
     // Old outputs have faded out long ago.
     if (this.chains.length > 4) this.chains.shift();
@@ -55,12 +73,13 @@ export class ClubMix {
     const now = ctx.currentTime;
     for (const c of this.chains) {
       c.lp.frequency.setTargetAtTime(cutoff(this.level), now, 0.25);
-      c.layer.gain.setTargetAtTime(layerGain(this.level), now, 0.25);
+      c.layer.gain.setTargetAtTime(layerGain(this.level) * TRIM[c.mood].layer, now, 0.25);
+      c.trim.gain.setTargetAtTime(trimGain(c.mood, this.level), now, 0.25);
     }
   }
 
   play(m: ClubMood, v: Voices, bar: number, b: number, d: number, spb: number, out: GainNode) {
-    const c = this.chain(v, out);
+    const c = this.chain(v, out, m);
     if (m === 'club') clubBeat(v, bar, b, d, spb, c);
     else if (m === 'techno') technoBeat(v, bar, b, d, spb, c);
     else hiphopBeat(v, bar, b, d, spb, c);

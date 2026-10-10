@@ -283,7 +283,7 @@ export class BossRun {
     this.bar.view.visible = px > CORRIDOR.gates[MACHINES - 1] - 200;
     if (this.bar.view.visible) this.bar.update(dtMs);
     // Walking into a closed gate: say why, once per gate and visit.
-    const g = cor.corridor?.closedGateNear(px, 64) ?? -1;
+    const g = cor.corridor?.closedGateNear(px, 64, cor.player.view.y) ?? -1;
     if (g >= 0 && !this.hinted.has(g)) {
       this.hinted.add(g);
       sfx.thud();

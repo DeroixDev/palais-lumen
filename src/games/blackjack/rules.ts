@@ -124,8 +124,19 @@ export function basicStrategy(h: Hand, upRank: number, handsInRound: number, rul
   return 'hit';
 }
 
-/** One whole round with basic strategy; returns what came back per staked unit and the units staked. */
-export function playRound(draw: () => Card, rules: BjRules = RULES) {
+/**
+ * One whole round with basic strategy; returns what came back per staked unit and the units
+ * staked. With `net` (the Falternetz item) the first card of the round that busts a player hand
+ * is caught and taken away again: that hand stands on what it had.
+ */
+export function playRound(draw: () => Card, rules: BjRules = RULES, net = false) {
+  let caught = false;
+  const catchBust = (h: Hand) => {
+    if (!net || caught || handValue(h.cards).total <= 21) return;
+    caught = true;
+    h.cards.pop();
+    h.done = true;
+  };
   const p = [draw(), draw()];
   const d = [draw(), draw()];
   const hands: Hand[] = [newHand([p[0], p[1]])];
@@ -155,8 +166,11 @@ export function playRound(draw: () => Card, rules: BjRules = RULES) {
         h.doubled = true;
         h.cards.push(draw());
         h.done = true;
-      } else if (m === 'hit') h.cards.push(draw());
-      else h.done = true;
+        catchBust(h);
+      } else if (m === 'hit') {
+        h.cards.push(draw());
+        catchBust(h);
+      } else h.done = true;
     }
   }
   if (hands.some((h) => handValue(h.cards).total <= 21)) while (dealerShouldHit(d, rules)) d.push(draw());
@@ -168,3 +182,10 @@ export function playRound(draw: () => Card, rules: BjRules = RULES) {
   }
   return { staked, back };
 }
+
+// ---- Falternetz (odds item) ------------------------------------------------------------------
+// The net catches the first card of a round that busts one of your hands: the card flies off
+// and that hand stands on what it had. With basic strategy (scripts/rtp-blackjack.mjs, the
+// same seeded rounds as the stated RTP, 20 M): per initial stake and per Falter wagered.
+export const NET_RTP_INITIAL = 1.0367;
+export const NET_RTP = 1.0327;

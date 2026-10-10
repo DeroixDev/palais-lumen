@@ -1,7 +1,8 @@
 // Start menu (HTML over the street scene) and the group card at the foyer reception, where
 // players gather: for now it has your seat, the other three are kept for coop.
 
-import { formatChips, type GameState } from '../core/state';
+import { formatChips, type GameState, type SaveData } from '../core/state';
+import { dailyLine, showDailyBoard, type DailyStart } from './dailyBoard';
 import { sfx } from '../core/audio';
 import { dark, ellipse, fillInk, glowAt, light, rgb, rim, rrect, shadow, vgrad } from '../world/painted/brush';
 
@@ -15,6 +16,8 @@ const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 export interface LobbyActions {
   openSaves(): void;
   go(): void;
+  /** Tagesherausforderung: start, practise or continue (src/ui/dailyBoard.ts). */
+  daily(kind: DailyStart): void;
 }
 
 export class Lobby {
@@ -26,6 +29,19 @@ export class Lobby {
       sfx.unlock();
       sfx.click();
       this.actions.go();
+    });
+    // Tagesherausforderung: a button under "Spielstände" and one line about today.
+    const daily = document.createElement('button');
+    daily.id = 'm-daily';
+    daily.textContent = 'Tagesherausforderung';
+    $('#m-saves').after(daily);
+    const line = document.createElement('div');
+    line.id = 'daily-line';
+    $('#menu-main .menu-btns').after(line);
+    daily.addEventListener('click', () => {
+      sfx.unlock();
+      sfx.click();
+      this.showDaily();
     });
     $('#m-saves').addEventListener('click', () => {
       sfx.unlock();
@@ -101,8 +117,15 @@ export class Lobby {
     void get;
   }
 
+  /** The daily challenge card; `justEnded` is a daily run that just finished, for its result. */
+  showDaily(justEnded: SaveData | null = null) {
+    showDailyBoard(this.state.data, { start: (k) => this.actions.daily(k), close: () => this.showMain() }, justEnded);
+  }
+
   /** Main menu: logo and buttons. */
   showMain() {
+    document.getElementById('daily-card')?.remove();
+    $('#daily-line').textContent = dailyLine(this.state.data);
     const t = $('#title');
     t.hidden = false;
     t.classList.remove('out', 'arriving');

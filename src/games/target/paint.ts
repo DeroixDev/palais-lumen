@@ -6,7 +6,7 @@ import { Container, Sprite, type Texture } from 'pixi.js';
 import { drawMoth, glowTexture } from '../../core/fx';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, propSprite, rgb, rrect, seeded, shadow, vgrad } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
-import { ringRadii, type Style } from './rules';
+import { eyeRadii, ringRadii, type Style } from './rules';
 
 const cache = new Map<string, Texture>();
 function cached(key: string, make: () => Texture) {
@@ -95,11 +95,12 @@ export function gladeTexture(w: number, h: number, tx: number, ty: number, R: nu
 export const RT = 160;
 
 /** The target face for a style: rings sized by their odds, a deco pattern that shows the spin. */
-export function faceTexture(style: Style) {
-  return cached(`face-${style}`, () =>
+/** The face of a style; `eye`: with the Eulenauge (bigger bull, amber owl's-eye iris round it). */
+export function faceTexture(style: Style, eye = false) {
+  return cached(`face-${style}${eye ? '-eye' : ''}`, () =>
     paint(RT * 2 + 24, RT * 2 + 24, (c) => {
       c.translate(RT + 12, RT + 12);
-      const radii = ringRadii(style).map((k) => k * RT);
+      const radii = (eye ? eyeRadii(style) : ringRadii(style)).map((k) => k * RT);
       // Brass rim.
       ellipse(c, 0, 0, RT + 10, RT + 10);
       fillInk(c, gold(c, -RT, -RT, RT, RT), 2.6);
@@ -143,6 +144,23 @@ export function faceTexture(style: Style) {
       c.restore();
       // A brass moth in the bullseye.
       const b = radii[0];
+      if (eye) {
+        // The owl's eye: an amber iris with dark streaks round the grown bull.
+        glowAt(c, 0, 0, b * 1.25, b * 1.25, 0xffb43a, 0.55, 'lighter');
+        c.strokeStyle = 'rgba(122,60,10,0.55)';
+        c.lineWidth = 1.6;
+        c.beginPath();
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * Math.PI * 2;
+          c.moveTo(Math.cos(a) * b * 0.45, Math.sin(a) * b * 0.45);
+          c.lineTo(Math.cos(a) * b * 0.92, Math.sin(a) * b * 0.92);
+        }
+        c.stroke();
+        ellipse(c, 0, 0, b, b);
+        c.strokeStyle = 'rgba(255,180,58,0.95)';
+        c.lineWidth = 4;
+        c.stroke();
+      }
       drawMoth(c, 0, 1, b * 1.1, 'rgba(90,50,10,0.55)', 'rgba(60,30,8,0.7)');
     }, 2),
   );
