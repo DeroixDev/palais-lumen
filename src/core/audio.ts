@@ -113,9 +113,16 @@ class Sfx {
     this.v = new Voices(ctx, this.fx);
     this.noiseBuf = this.v.noiseBuffer;
     this.voiceSet = this.v;
-    // The effects' recordings and the band of the current place load in the background.
-    void this.v.need(...SFX_INSTRUMENTS);
+    // The band of the current place loads first; the effects' recordings follow one at a time
+    // (decoding them all at once would stall a phone). Until then the effects use their synth stand-ins.
     this.preloadMood();
+    const v = this.v;
+    const queue = [...SFX_INSTRUMENTS];
+    const next = () => {
+      const id = queue.shift();
+      if (id) void v.need(id).then(next);
+    };
+    next();
 
     if (this.scene !== 'off') {
       const sc = this.scene;
