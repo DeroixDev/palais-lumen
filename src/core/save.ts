@@ -19,6 +19,7 @@ export interface SlotInfo {
 interface Storage {
   read(key: string): string | null;
   write(key: string, value: string): void;
+  remove(key: string): void;
 }
 
 const storage: Storage = {
@@ -34,6 +35,13 @@ const storage: Storage = {
       localStorage.setItem(key, value);
     } catch {
       /* storage blocked or full: the game keeps running, the save just isn't kept */
+    }
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* storage blocked: nothing to remove */
     }
   },
 };
@@ -117,6 +125,12 @@ export function writeSlot(id: SlotId | 'daily', data: SaveData) {
   const prev = storage.read(PREFIX + id);
   if (prev) storage.write(PREFIX + id + '.bak', prev);
   storage.write(PREFIX + id, JSON.stringify(data));
+}
+
+/** Deletes a slot and its backup for good. */
+export function deleteSlot(id: SlotId) {
+  storage.remove(PREFIX + id);
+  storage.remove(PREFIX + id + '.bak');
 }
 
 export function listSlots(): SlotInfo[] {

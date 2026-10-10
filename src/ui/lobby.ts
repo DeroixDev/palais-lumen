@@ -16,6 +16,8 @@ const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 export interface LobbyActions {
   openSaves(): void;
   go(): void;
+  /** Start over from the title screen (asks first). */
+  newGame(): void;
   /** Tagesherausforderung: start, practise or continue (src/ui/dailyBoard.ts). */
   daily(kind: DailyStart): void;
 }
@@ -42,6 +44,16 @@ export class Lobby {
       sfx.unlock();
       sfx.click();
       this.showDaily();
+    });
+    // "Neues Spiel" next to "Spielstände" while a game is running.
+    const fresh = document.createElement('button');
+    fresh.id = 'm-new';
+    fresh.textContent = 'Neues Spiel';
+    $('#m-saves').before(fresh);
+    fresh.addEventListener('click', () => {
+      sfx.unlock();
+      sfx.click();
+      this.actions.newGame();
     });
     $('#m-saves').addEventListener('click', () => {
       sfx.unlock();
@@ -135,6 +147,7 @@ export class Lobby {
     const d = this.state.data;
     const fresh = d.stats.rounds === 0 && d.evening.number === 1 && d.season.number === 1;
     $('#m-play').textContent = fresh ? 'Spielen' : 'Weiterspielen';
+    $('#m-new').hidden = fresh;
     $('#title-info').textContent = fresh
       ? 'Du startest mit 1.000 Falter.'
       : `Saison ${d.season.number} · Tag ${d.evening.number} · ${formatChips(d.balance)} Falter · ${d.trophies.length} Trophäen`;

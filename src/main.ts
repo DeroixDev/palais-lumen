@@ -972,6 +972,7 @@ async function boot() {
   const lobby = new Lobby(state, {
     openSaves: () => hud.openSaves(),
     go: lobbyGo,
+    newGame: () => hud.confirmNewGame(lobbyGo),
     daily: startDaily,
   });
   roomLayer.visible = false;

@@ -2,7 +2,7 @@
 
 import { BOSS_DAY, floorForDay, formatChips, type GameState } from '../core/state';
 import { mainRoomOf } from '../core/registry';
-import { MANUAL_SLOTS, exportCode, importCode, listSlots, type SlotId } from '../core/save';
+import { MANUAL_SLOTS, deleteSlot, exportCode, importCode, listSlots, type SlotId } from '../core/save';
 import type { SaveData } from '../core/state';
 import { sfx } from '../core/audio';
 import { coinDataUrl } from '../core/fx';
@@ -550,6 +550,12 @@ export class Hud {
           this.toast(`${names[s.id]} geladen.`);
         });
         btns.appendChild(load);
+        const del = document.createElement('button');
+        del.textContent = 'Löschen';
+        del.className = 'danger';
+        del.setAttribute('aria-label', `${names[s.id]} löschen`);
+        del.addEventListener('click', () => this.confirmDelete(s.id, names[s.id]));
+        btns.appendChild(del);
       }
       row.appendChild(btns);
       wrap.appendChild(row);
@@ -561,7 +567,10 @@ export class Hud {
       <textarea id="save-code" rows="3" spellcheck="false" aria-label="Spielstand-Code"></textarea>
       <div class="actions"><button id="code-copy">Aktuellen Stand als Code</button><button id="code-load" class="primary">Code laden</button></div>`;
     wrap.appendChild(transfer);
-    this.modal('Spielstände', wrap, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
+    this.modal('Spielstände', wrap, [
+      { label: 'Neues Spiel', onClick: () => this.confirmNewGame() },
+      { label: 'Schließen', primary: true, onClick: () => this.closeModal() },
+    ]);
     const area = $('#save-code') as unknown as HTMLTextAreaElement;
     $('#code-copy').addEventListener('click', async () => {
       area.value = exportCode(this.state.data);
@@ -605,8 +614,9 @@ export class Hud {
     ]);
   }
 
-  confirmNewGame() {
-    this.modal('Neues Spiel starten?', 'Der Autosave wird mit dem neuen Spiel überschrieben. Was in Platz 1 bis 3 liegt, bleibt erhalten. Speichere vorher dort, wenn du den aktuellen Stand behalten willst.', [
+  /** Asks before starting over; `after` runs once the new game is set up (the title screen walks in). */
+  confirmNewGame(after?: () => void) {
+    this.modal('Neues Spiel starten?', 'Du beginnst bei Tag 1 mit 1.000 Falter. Der Autosave wird mit dem neuen Spiel überschrieben. Was in Platz 1 bis 3 liegt, bleibt erhalten. Speichere vorher dort, wenn du den aktuellen Stand behalten willst.', [
       { label: 'Abbrechen', onClick: () => this.closeModal() },
       {
         label: 'Neues Spiel',
@@ -614,6 +624,25 @@ export class Hud {
         onClick: () => {
           this.closeModal();
           this.actions.newGame();
+          after?.();
+        },
+      },
+    ]);
+  }
+
+  /** Deleting a slot asks first. The autosave is the running game, so deleting it starts over. */
+  private confirmDelete(id: SlotId, name: string) {
+    const auto = id === 'auto';
+    this.modal(`${name} löschen?`, auto ? 'Der Autosave ist dein laufendes Spiel. Löschst du ihn, beginnt ein neues Spiel bei Tag 1. Das lässt sich nicht rückgängig machen.' : 'Der Spielstand ist danach weg. Das lässt sich nicht rückgängig machen.', [
+      { label: 'Abbrechen', onClick: () => this.openSaves() },
+      {
+        label: 'Löschen',
+        primary: true,
+        onClick: () => {
+          deleteSlot(id);
+          if (auto) this.actions.newGame();
+          this.toast(`${name} gelöscht.`, '', true);
+          this.openSaves();
         },
       },
     ]);
