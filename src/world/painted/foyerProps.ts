@@ -4,10 +4,11 @@
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
-import { COLORS, FONT_BODY, glowTexture, emblemTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, glowTexture } from '../../core/fx';
 import type { BuiltDecor, Rect } from '../decor';
 import { Chibi } from './chibi';
 import { P_WALL_H } from './foyerShell';
+import { FLOOR_NAMES } from '../../core/brand';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from './brush';
 
 export function glow(c: Container, x: number, y: number, w: number, h: number, tint: number, alpha: number) {
@@ -113,8 +114,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
         shadow(c, 0, 4, rw * 0.55, rh * 0.55, 0.35);
         rrect(c, -rw / 2, -rh / 2, rw, rh, 10);
         const g = c.createRadialGradient(0, 0, 10, 0, 0, rw * 0.6);
-        g.addColorStop(0, '#9a2a40');
-        g.addColorStop(1, '#4a0f22');
+        g.addColorStop(0, '#2a3a78');
+        g.addColorStop(1, '#0e1430');
         c.fillStyle = g;
         c.fill();
         rrect(c, -rw / 2 + 12, -rh / 2 + 10, rw - 24, rh - 20, 6);
@@ -127,7 +128,7 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
         c.stroke();
         c.save();
         c.scale(1, rh / rw);
-        for (const [rr, col] of [[rw * 0.24, '#1d4f4c'], [rw * 0.17, '#e0b25a'], [rw * 0.12, '#6b1a2e']] as const) {
+        for (const [rr, col] of [[rw * 0.24, '#1d4f4c'], [rw * 0.17, '#e0b25a'], [rw * 0.12, '#141c44']] as const) {
           c.beginPath();
           c.arc(0, 0, rr, 0, Math.PI * 2);
           c.fillStyle = col;
@@ -275,15 +276,13 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.fillText('ANDENKEN · MONDSTEINE', 0, by - H);
         }),
       );
-      // A moth in a bell jar on the counter, glowing softly.
+      // A little moon light floating in a bell jar on the counter, glowing softly.
       const jar = glow(v, x - 20, y - ch / 2 - 64 + 10, 70, 70, 0x9fe8ff, 0.5);
-      const moth = new Sprite(emblemTexture());
-      moth.anchor.set(0.5);
-      moth.width = moth.height = 16;
-      moth.tint = 0x9fe8ff;
-      moth.position.set(x - 20, y - ch / 2 - 56);
-      v.addChild(moth);
-      const mBase = moth.scale.x;
+      const orb = new Graphics();
+      orb.circle(0, 0, 5).fill(0xdff4ff);
+      orb.circle(-1.5, -1.5, 2).fill(0xffffff);
+      orb.position.set(x - 20, y - ch / 2 - 56);
+      v.addChild(orb);
       const keeper = new Chibi(0x5fe3ff, { jacket: 0x1f5a44, hairStyle: 'sidePart', hair: 0xcfd6e0, accessory: 'bowTie', skin: 0xd9a27a });
       keeper.view.position.set(x + 40, T - 34);
       keeper.faceTowards(Math.PI / 2);
@@ -292,8 +291,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
       const kick = kicker(1200);
       return [
         ent(v, [{ x: L - 10, y: P_WALL_H, w: cw + 20, h: T + ch - P_WALL_H }], T + ch, (time) => {
-          moth.scale.x = mBase * (0.4 + 0.6 * Math.abs(Math.cos(time * 9)));
-          moth.y = y - ch / 2 - 56 + Math.sin(time * 2) * 3;
+          orb.scale.set(0.9 + Math.sin(time * 2.4) * 0.12);
+          orb.y = y - ch / 2 - 56 + Math.sin(time * 2) * 3;
           jar.alpha = 0.4 + Math.sin(time * 1.7) * 0.1;
         }, kick.poke),
         ent(kv, [], T - 34, (time, dt) => {
@@ -320,11 +319,22 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.ellipse(0, -H, r, ry, 0, Math.PI, 0, true);
           c.closePath();
           const fg = c.createLinearGradient(-r, 0, r, 0);
-          fg.addColorStop(0, '#2a1208');
-          fg.addColorStop(0.35, '#7a3a1c');
-          fg.addColorStop(0.6, '#5a2814');
-          fg.addColorStop(1, '#1e0c06');
+          fg.addColorStop(0, '#0a0e24');
+          fg.addColorStop(0.35, '#26346e');
+          fg.addColorStop(0.6, '#1a2452');
+          fg.addColorStop(1, '#080b1e');
           fillInk(c, fg, 2.4);
+          // Brass flutes down the curved front.
+          for (let k = -4; k <= 4; k++) {
+            const fx = (k / 5) * r;
+            const fyb = Math.sqrt(Math.max(0, 1 - (fx / r) ** 2)) * ry;
+            c.beginPath();
+            c.moveTo(fx, -H + fyb + 4);
+            c.lineTo(fx, fyb - 4);
+            c.strokeStyle = 'rgba(224,178,90,0.28)';
+            c.lineWidth = 1.2;
+            c.stroke();
+          }
           for (const dy of [-H + 6, -6]) {
             c.beginPath();
             c.ellipse(0, dy, r - 1, ry, 0, 0.15, Math.PI - 0.15);
@@ -332,16 +342,24 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
             c.lineWidth = 2.5;
             c.stroke();
           }
-          // Gold moth emblem.
+          // Gold sunburst with a crescent.
           c.save();
-          c.translate(0, ry - 16);
-          for (const s of [-1, 1]) {
+          c.translate(0, ry - 14);
+          for (let k = 0; k < 11; k++) {
+            const a = Math.PI + (k + 0.5) * (Math.PI / 11);
             c.beginPath();
-            c.ellipse(s * 8, -2, 8, 6, s * 0.4, 0, Math.PI * 2);
-            fillInk(c, gold(c, -14, -8, 14, 6), 1.2);
+            c.moveTo(0, 4);
+            c.lineTo(Math.cos(a - 0.07) * 18, 4 + Math.sin(a - 0.07) * 18);
+            c.lineTo(Math.cos(a + 0.07) * 18, 4 + Math.sin(a + 0.07) * 18);
+            c.closePath();
+            c.fillStyle = gold(c, -18, -14, 18, 4);
+            c.fill();
           }
-          c.fillStyle = '#3a2008';
-          c.fillRect(-1.2, -8, 2.4, 14);
+          ellipse(c, 0, 0, 6.5, 6.5);
+          fillInk(c, gold(c, -6, -6, 6, 6), 1.2);
+          ellipse(c, 2.6, -1, 5.2, 5.2);
+          c.fillStyle = '#1a2452';
+          c.fill();
           c.restore();
           // Marble top.
           c.beginPath();
@@ -391,9 +409,10 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           const sign = 'EMPFANG';
           c.font = `700 11px ${FONT_BODY}`;
           c.textAlign = 'center';
-          rrect(c, -34, ry - 2, 68, 16, 4);
-          fillInk(c, gold(c, -34, ry - 2, 34, ry + 14), 1.4);
-          c.fillStyle = '#3a1a08';
+          c.font = '700 10px Cinzel, Georgia, serif';
+          rrect(c, -36, ry - 2, 72, 16, 2);
+          fillInk(c, gold(c, -36, ry - 2, 36, ry + 14), 1.4);
+          c.fillStyle = '#1a1206';
           c.fillText(sign, 0, ry + 10);
         }),
       );
@@ -608,22 +627,27 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.ellipse(0, -wall - 80, 27, 8, 0, 0, Math.PI * 2);
           c.fillStyle = '#3fb0b0';
           c.fill();
-          // Golden moth on top.
+          // Brass sunburst finial with a little glass lamp.
           c.save();
-          c.translate(0, -wall - 100);
-          for (const s of [-1, 1]) {
+          c.translate(0, -wall - 96);
+          for (let k = 0; k < 9; k++) {
+            const an = Math.PI + (k + 0.5) * (Math.PI / 9);
             c.beginPath();
-            c.ellipse(s * 13, -6, 13, 9, s * 0.5, 0, Math.PI * 2);
-            fillInk(c, gold(c, -24, -16, 24, 6), 1.6);
-            c.beginPath();
-            c.ellipse(s * 9, 8, 7, 6, -s * 0.4, 0, Math.PI * 2);
-            fillInk(c, gold(c, -16, 0, 16, 14), 1.4);
-            ellipse(c, s * 13, -7, 3, 2.2);
-            c.fillStyle = '#5fe3ff';
-            c.fill();
+            c.moveTo(0, 6);
+            c.lineTo(Math.cos(an - 0.09) * 24, 6 + Math.sin(an - 0.09) * 24);
+            c.lineTo(Math.cos(an + 0.09) * 24, 6 + Math.sin(an + 0.09) * 24);
+            c.closePath();
+            fillInk(c, gold(c, -24, -18, 24, 6), 1);
           }
-          rrect(c, -2.5, -14, 5, 28, 2.5);
+          rrect(c, -3, -2, 6, 16, 2);
           fillInk(c, '#7a4e18', 1.2);
+          ellipse(c, 0, -6, 7, 7);
+          const orb = c.createRadialGradient(-2, -9, 1, 0, -6, 7);
+          orb.addColorStop(0, '#ffffff');
+          orb.addColorStop(0.5, '#cfe4ff');
+          orb.addColorStop(1, '#5a78c0');
+          fillInk(c, orb, 1.4);
+          glowAt(c, 0, -6, 18, 18, 0xdfe8ff, 0.6, 'lighter');
           c.restore();
         }),
       );
@@ -1283,8 +1307,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           glowAt(c, 0, 30, 120, 70, 0xffc070, 0.55, 'lighter');
           rrect(c, -90, -80, 180, 50, 8);
           const mg = c.createLinearGradient(0, -80, 0, -30);
-          mg.addColorStop(0, '#6b1a2e');
-          mg.addColorStop(1, '#3a0c18');
+          mg.addColorStop(0, '#1e2a5a');
+          mg.addColorStop(1, '#0a0e24');
           fillInk(c, mg, 2);
           rrect(c, -82, -74, 164, 38, 5);
           c.strokeStyle = '#e0b25a';
@@ -1298,8 +1322,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.fillRect(-80, -4, 160, 8);
         }),
       );
-      const wings = new Graphics();
-      v.addChild(wings);
+      const spokes = new Graphics();
+      v.addChild(spokes);
       const ring = new Graphics().ellipse(x, wy + 24, 62, 20).stroke({ color: 0xe0b25a, width: 4 });
       v.addChild(ring);
       const kick = kicker(2500);
@@ -1312,12 +1336,12 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           z: wy + 60,
           update: (_time, dt) => {
             ang += dt * (0.0003 + kick.step(dt) * 0.004);
-            wings.clear();
+            spokes.clear();
             for (let i = 0; i < 4; i++) {
               const a = ang + (i / 4) * Math.PI * 2;
-              wings.moveTo(x, wy + 24).lineTo(x + Math.cos(a) * 60, wy + 24 + Math.sin(a) * 19).stroke({ color: 0xbfe6ff, width: 4, alpha: 0.5 });
+              spokes.moveTo(x, wy + 24).lineTo(x + Math.cos(a) * 60, wy + 24 + Math.sin(a) * 19).stroke({ color: 0xbfe6ff, width: 4, alpha: 0.5 });
             }
-            wings.circle(x, wy + 24, 5).fill(0xe0b25a);
+            spokes.circle(x, wy + 24, 5).fill(0xe0b25a);
           },
           poke: kick.poke,
         },
@@ -1431,6 +1455,198 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
       );
       return [{ view: v, layer: 'wall', obstacles: [] }];
     }
+
+    case 'moonWindow': {
+      // Round moon window in a stepped brass frame: night sky, the moon, a few stars.
+      const pw = w || 92;
+      const v = new Container();
+      const R = pw / 2 - 6;
+      const cy = 30 + R + 6;
+      v.addChild(
+        propSprite(x, 0, pw + 30, cy + R + 40, (pw + 30) / 2, 0, (c) => {
+          ellipse(c, 4, cy + 6, R + 8, R + 8);
+          c.fillStyle = 'rgba(0,0,0,0.4)';
+          c.fill();
+          // Stepped deco frame: two brass rings.
+          ellipse(c, 0, cy, R + 8, R + 8);
+          fillInk(c, gold(c, -R, cy - R, R, cy + R), 2);
+          ellipse(c, 0, cy, R + 3, R + 3);
+          c.strokeStyle = 'rgba(80,46,10,0.8)';
+          c.lineWidth = 1.2;
+          c.stroke();
+          c.save();
+          ellipse(c, 0, cy, R, R);
+          c.clip();
+          const sky = c.createLinearGradient(0, cy - R, 0, cy + R);
+          sky.addColorStop(0, '#0a1030');
+          sky.addColorStop(1, '#24346e');
+          c.fillStyle = sky;
+          c.fillRect(-R, cy - R, R * 2, R * 2);
+          for (let k = 0; k < 14; k++) {
+            c.fillStyle = `rgba(255,248,220,${0.4 + rnd() * 0.5})`;
+            c.fillRect(-R + rnd() * R * 2, cy - R + rnd() * R * 1.3, 1.4, 1.4);
+          }
+          glowAt(c, R * 0.25, cy - R * 0.25, R * 0.8, R * 0.8, 0xdfe8ff, 0.45, 'lighter');
+          ellipse(c, R * 0.25, cy - R * 0.25, R * 0.32, R * 0.32);
+          c.fillStyle = '#f2f0e6';
+          c.fill();
+          ellipse(c, R * 0.25 + R * 0.12, cy - R * 0.3, R * 0.27, R * 0.27);
+          c.fillStyle = '#16204a';
+          c.fill();
+          // City silhouette.
+          c.fillStyle = '#060a1c';
+          for (let bx = -R; bx < R; bx += 8 + rnd() * 6) c.fillRect(bx, cy + R * 0.45 - rnd() * R * 0.35, 7, R);
+          c.restore();
+          // Mullions: a cross and a ring, like an art-deco porthole.
+          c.strokeStyle = gold(c, -R, cy - R, R, cy + R);
+          c.lineWidth = 2.4;
+          c.beginPath();
+          c.moveTo(-R, cy);
+          c.lineTo(R, cy);
+          c.moveTo(0, cy - R);
+          c.lineTo(0, cy + R);
+          c.stroke();
+          ellipse(c, 0, cy, R * 0.45, R * 0.45);
+          c.lineWidth = 1.6;
+          c.stroke();
+          c.fillStyle = 'rgba(255,255,255,0.12)';
+          c.beginPath();
+          c.ellipse(-R * 0.4, cy - R * 0.45, R * 0.35, R * 0.12, -0.7, 0, Math.PI * 2);
+          c.fill();
+          // Sunburst keystone on top.
+          for (let k = 0; k < 7; k++) {
+            const a = Math.PI + (k + 0.5) * (Math.PI / 7);
+            c.beginPath();
+            c.moveTo(0, cy - R - 8);
+            c.lineTo(Math.cos(a - 0.08) * 16, cy - R - 8 + Math.sin(a - 0.08) * 16);
+            c.lineTo(Math.cos(a + 0.08) * 16, cy - R - 8 + Math.sin(a + 0.08) * 16);
+            c.closePath();
+            c.fillStyle = gold(c, -16, cy - R - 24, 16, cy - R - 8);
+            c.fill();
+          }
+        }),
+      );
+      const shine = glow(v, x + R * 0.25, cy - R * 0.25, R * 2.4, R * 2.4, 0xa8c8ff, 0.18);
+      return [{ view: v, layer: 'wall', obstacles: [], update: (time: number) => void (shine.alpha = 0.16 + Math.sin(time * 0.7) * 0.04) }];
+    }
+
+    case 'floorBoard': {
+      // Floor directory: "ETAGEN" with the five floors in their light-era colours.
+      const pw = w || 104;
+      const ph = 92;
+      const v = new Container();
+      const rows: [string, string][] = [
+        ['5', FLOOR_NAMES.f5],
+        ['4', FLOOR_NAMES.f4],
+        ['3', FLOOR_NAMES.f3],
+        ['2', FLOOR_NAMES.f2],
+        ['1', FLOOR_NAMES.f1],
+      ];
+      const cols = ['#fff2d0', '#ff5fa2', '#e6eca0', '#a8c8ff', '#ffb347'];
+      v.addChild(
+        propSprite(x, 0, pw + 20, ph + 50, (pw + 20) / 2, 0, (c) => {
+          const T = 26;
+          c.fillStyle = 'rgba(0,0,0,0.4)';
+          rrect(c, -pw / 2 + 4, T + 6, pw, ph, 4);
+          c.fill();
+          // Stepped top.
+          c.beginPath();
+          c.moveTo(-pw / 2, T + 8);
+          c.lineTo(-pw / 2 + 10, T + 8);
+          c.lineTo(-pw / 2 + 10, T + 2);
+          c.lineTo(-pw / 2 + 22, T + 2);
+          c.lineTo(-pw / 2 + 22, T - 4);
+          c.lineTo(pw / 2 - 22, T - 4);
+          c.lineTo(pw / 2 - 22, T + 2);
+          c.lineTo(pw / 2 - 10, T + 2);
+          c.lineTo(pw / 2 - 10, T + 8);
+          c.lineTo(pw / 2, T + 8);
+          c.lineTo(pw / 2, T + ph);
+          c.lineTo(-pw / 2, T + ph);
+          c.closePath();
+          fillInk(c, gold(c, -pw / 2, T, pw / 2, T + ph), 2);
+          rrect(c, -pw / 2 + 5, T + 12, pw - 10, ph - 17, 2);
+          const g = c.createLinearGradient(0, T + 12, 0, T + ph);
+          g.addColorStop(0, '#16204a');
+          g.addColorStop(1, '#0a0e24');
+          c.fillStyle = g;
+          c.fill();
+          c.textAlign = 'center';
+          c.fillStyle = '#3a2008';
+          c.font = '700 8px Cinzel, Georgia, serif';
+          c.fillText('ETAGEN', 0, T + 7);
+          c.textAlign = 'left';
+          rows.forEach(([n, name], i) => {
+            const ry = T + 25 + i * 14;
+            ellipse(c, -pw / 2 + 14, ry - 3, 3.2, 3.2);
+            c.fillStyle = cols[i];
+            c.fill();
+            glowAt(c, -pw / 2 + 14, ry - 3, 7, 7, parseInt(cols[i].slice(1), 16), 0.5, 'lighter');
+            c.fillStyle = '#e0b25a';
+            c.font = '700 9px Cinzel, Georgia, serif';
+            c.fillText(n, -pw / 2 + 21, ry);
+            c.fillStyle = '#e8e4f2';
+            c.font = `600 10px ${FONT_BODY}`;
+            c.fillText(name, -pw / 2 + 31, ry, pw - 40);
+          });
+        }),
+      );
+      return [{ view: v, layer: 'wall', obstacles: [] }];
+    }
+
+    case 'keyBoard': {
+      // Key cabinet behind the reception: brass hooks and keys with coloured fobs, a crescent crest.
+      const kw = 96;
+      const kh = 104;
+      const v = new Container();
+      v.addChild(
+        propSprite(x, y, kw + 30, kh + 30, (kw + 30) / 2, kh + 14, (c) => {
+          shadow(c, 0, 0, kw * 0.55, 8, 0.5);
+          rrect(c, -kw / 2, -kh, kw, kh, 3);
+          fillInk(c, vgrad(c, -kh, 0, 0x16204a, 0.2, 0.45), 2.2);
+          // Brass frame and stepped crown.
+          c.strokeStyle = gold(c, -kw / 2, -kh, kw / 2, 0);
+          c.lineWidth = 2.5;
+          c.strokeRect(-kw / 2 + 5, -kh + 16, kw - 10, kh - 30);
+          rrect(c, -kw / 2 - 3, -kh - 6, kw + 6, 9, 2);
+          fillInk(c, gold(c, -kw / 2, -kh - 6, kw / 2, -kh + 3), 1.4);
+          rrect(c, -kw / 4, -kh - 12, kw / 2, 8, 2);
+          fillInk(c, gold(c, -kw / 4, -kh - 12, kw / 4, -kh - 4), 1.2);
+          // Crescent crest.
+          ellipse(c, 0, -kh + 7, 5.5, 5.5);
+          c.fillStyle = '#e0b25a';
+          c.fill();
+          ellipse(c, 2.4, -kh + 6, 4.6, 4.6);
+          c.fillStyle = '#16204a';
+          c.fill();
+          // Keys: 3 rows of 5.
+          const fobs = ['#ffb347', '#a8c8ff', '#e6eca0', '#ff5fa2', '#fff2d0'];
+          for (let r = 0; r < 3; r++)
+            for (let k = 0; k < 5; k++) {
+              const hx = -kw / 2 + 16 + k * ((kw - 32) / 4);
+              const hy = -kh + 26 + r * 22;
+              ellipse(c, hx, hy, 1.8, 1.8);
+              c.fillStyle = '#e0b25a';
+              c.fill();
+              if (rnd() < 0.18) continue; // a guest has this key
+              c.strokeStyle = '#c9a24a';
+              c.lineWidth = 1.2;
+              c.beginPath();
+              c.moveTo(hx, hy);
+              c.lineTo(hx, hy + 8);
+              c.stroke();
+              rrect(c, hx - 2.5, hy + 8, 5, 8, 1.5);
+              c.fillStyle = fobs[k];
+              c.fill();
+            }
+          // Little counter shelf at the foot.
+          rrect(c, -kw / 2 - 4, -16, kw + 8, 8, 2);
+          fillInk(c, gold(c, -kw / 2, -16, kw / 2, -8), 1.4);
+          glowAt(c, 0, -kh + 10, kw * 0.6, 26, 0xffe2a8, 0.3, 'lighter');
+        }),
+      );
+      return [ent(v, [{ x: x - kw / 2, y: y - 8, w: kw, h: 8 }], y)];
+    }
   }
   return null;
 }
@@ -1440,11 +1656,11 @@ export function paintedVitrine(w: number, h: number) {
   const back = propSprite(0, 0, w + 20, h + 90, 10, 70, (c) => {
     shadow(c, w / 2, h + 8, w * 0.6, 14, 0.55);
     rrect(c, 0, -62, w, h + 72, 8);
-    fillInk(c, vgrad(c, -62, h + 10, 0x3a1a10, 0.15, 0.4), 2.4);
+    fillInk(c, vgrad(c, -62, h + 10, 0x141a3a, 0.15, 0.4), 2.4);
     rrect(c, 7, -54, w - 14, h + 48, 5);
     const g = c.createLinearGradient(0, -54, 0, h);
-    g.addColorStop(0, '#4a0f22');
-    g.addColorStop(1, '#22060f');
+    g.addColorStop(0, '#1e2a5a');
+    g.addColorStop(1, '#0a0e24');
     c.fillStyle = g;
     c.fill();
     glowAt(c, w / 2, -50, w * 0.5, 30, 0xffe2a8, 0.4, 'lighter');
@@ -1494,8 +1710,8 @@ export function paintedAchBoard(w: number, h: number, done: boolean[], label: st
     fillInk(c, gold(c, 0, 0, w, h), 2.2);
     rrect(c, 7, 7, w - 14, h - 14, 5);
     const g = c.createLinearGradient(0, 7, 0, h - 7);
-    g.addColorStop(0, '#3a1a10');
-    g.addColorStop(1, '#1a0a06');
+    g.addColorStop(0, '#1a2452');
+    g.addColorStop(1, '#0a0e24');
     c.fillStyle = g;
     c.fill();
     c.font = `700 13px ${FONT_BODY}`;
@@ -1513,10 +1729,10 @@ export function paintedAchBoard(w: number, h: number, done: boolean[], label: st
         c.fill();
         glowAt(c, mx, my, 12, 12, 0xffe2a8, 0.5, 'lighter');
       } else {
-        c.fillStyle = '#120808';
+        c.fillStyle = '#060818';
         c.fill();
       }
-      c.strokeStyle = on ? '#fff1c4' : '#5a3a14';
+      c.strokeStyle = on ? '#fff1c4' : '#5a4a2a';
       c.lineWidth = 1.4;
       c.stroke();
     });

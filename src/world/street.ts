@@ -1,18 +1,22 @@
-// The street in front of the casino at night, painted in the 3/4 look of the house: the
-// lacquered art-deco façade with its neon sign, warm windows, wet pavement, drizzle and mist.
-// It is the backdrop of the start screen and the stage for the arrival: the taxi pulls up,
-// you step onto the red carpet, the doorman greets you and the doors open.
+// The street in front of the house at night, painted in the 3/4 look of the game: the art-deco
+// grand hotel in night blue and brass, five lit floors in the colours of their light era
+// (candle, moon, gas, neon and the dome), the glass dome with the moon lamp sweeping its two
+// beams over the sky, the marquee sign, globe lamps and rising sparks. It is the backdrop of
+// the start screen and the stage for the arrival: the taxi pulls up, you step onto the red
+// carpet, the doorman bows and the doors swing open.
 
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { COLORS, FONT_DISPLAY, glowText, glowTexture, emblemTexture, reducedMotion } from '../core/fx';
+import { COLORS, glowTexture, reducedMotion } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { Chibi } from './painted/chibi';
 import type { PlayerLook } from './player';
-import { INK, dark, ellipse, glowAt, gold, grain, light, mix, paint, rgb, rrect, seeded, type Ctx } from './painted/brush';
+import { INK, dark, ellipse, fillInk, glowAt, gold, light, mix, paint, rgb, rrect, seeded, shadow, type Ctx } from './painted/brush';
 
-import { HOUSE_CAPS } from '../core/brand';
-const W = 1600;
+import { HOUSE_CAPS, HOUSE_TAGLINE } from '../core/brand';
+
+/** World width: wide enough that landscape screens never run out of street. */
+const W = 2600;
 const H = 900;
 /** Where the façade meets the pavement. */
 const BASE = 600;
@@ -20,15 +24,24 @@ const BASE = 600;
 const CURB = 702;
 /** Where the road starts below the kerb. */
 const ROAD = 720;
-const DOOR_X = 1000;
-const DOOR = { l: 915, r: 1085, top: 414 };
-const FACADE = { x: 620, w: 760, top: 172 };
-const SIGN = { x: DOOR_X - 300, y: 232, w: 600, h: 116 };
-const CANOPY = { l: 816, r: 1184, top: 360, bottom: 402 };
+const DOOR_X = W / 2;
+/** Façade scale: the house is drawn in its own units (0 at the door sill, up is negative). */
+const FS = 1.2;
+const fx = (u: number) => DOOR_X + u * FS;
+const fy = (v: number) => BASE + v * FS;
+/** The entrance in façade units, and in world units. */
+const DW = 120;
+const DH = 124;
+const DOOR = { l: fx(-DW / 2), r: fx(DW / 2), top: fy(-DH) };
 /** Lanes: the taxi stops at the kerb, other traffic passes in the near lane. */
 const LANE_KERB = 800;
 const LANE_NEAR = 884;
-const LAMPS = [470, 1520];
+/** Globe lamps on the kerb, in façade units from the door. */
+const LAMPS = [-360, -178, 178, 360];
+/** What the title camera keeps in view (world units): the dome lantern down to the kerb. */
+const FRAME = { top: fy(-860), bottom: CURB + 16, minW: 780 };
+/** The painted façade layer: its own canvas around the house. */
+const FAC = { x: DOOR_X - 640, y: fy(-870), w: 1280, h: ROAD + 2 - fy(-870) };
 
 export interface Look extends PlayerLook {
   color: number;
@@ -42,732 +55,661 @@ export interface Look extends PlayerLook {
 /** The weather of the street: a clear night, light drizzle (title) or steady rain. */
 export type StreetMood = 'clear' | 'drizzle' | 'rain';
 
+/** Five floors, five ages of light, from the candle hall up to the moon lamp under the dome. */
+const FLOORS = [
+  { col: 0xffb347, glassTop: 0xffe2a0, glassBot: 0xd0701e, kind: 'candle' },
+  { col: 0xa8c8ff, glassTop: 0xeef4ff, glassBot: 0x5a78c0, kind: 'moon' },
+  { col: 0xe6eca0, glassTop: 0xfafbd8, glassBot: 0x98a050, kind: 'gas' },
+  { col: 0xff5fa2, glassTop: 0x3a0c3a, glassBot: 0x12061e, kind: 'neon' },
+  { col: 0xfff2d0, glassTop: 0xffffff, glassBot: 0xe8c890, kind: 'dome' },
+] as const;
+
+interface Lit {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  floor: number;
+  alt: boolean;
+  ph: number;
+}
+
+/** Collected while the façade is painted: where the live glows go. */
+interface Spots {
+  windows: Lit[];
+  bulbs: { x: number; y: number; canopy: boolean }[];
+  lamps: { x: number; y: number }[];
+  lens: { x: number; y: number };
+}
+
 // ---- Painting the backdrop ----------------------------------------------------------------------
 
+/** Sky canvas: spans y -1100..600 and reaches past the street on both sides. */
+const SKY = { x: -1200, y: -1100, w: W + 2400, h: 1700 };
 function paintSky(c: Ctx) {
-  // Canvas spans y -900..600 so tall screens get sky above the scene.
-  c.translate(0, 900);
-  const g = c.createLinearGradient(0, -900, 0, 600);
-  g.addColorStop(0, '#07071a');
-  g.addColorStop(0.45, '#0c0b26');
-  g.addColorStop(0.7, '#1a1236');
-  g.addColorStop(0.88, '#331c44');
-  g.addColorStop(1, '#5a2a4a');
+  c.translate(-SKY.x, -SKY.y);
+  const g = c.createLinearGradient(0, SKY.y, 0, BASE);
+  g.addColorStop(0, '#03040f');
+  g.addColorStop(0.45, '#070b22');
+  g.addColorStop(0.72, '#0e1638');
+  g.addColorStop(0.9, '#1e2452');
+  g.addColorStop(1, '#3a2c58');
   c.fillStyle = g;
-  c.fillRect(0, -900, W, 1500);
-  // Warm city glow at the horizon.
-  glowAt(c, 800, 600, 1100, 260, 0xc0506a, 0.35);
-  glowAt(c, 1000, 560, 600, 200, 0xffb070, 0.18);
-  const r = seeded(77);
-  for (let i = 0; i < 260; i++) {
-    const y = -900 + r() * 1300;
-    const a = (0.25 + r() * 0.6) * Math.max(0, Math.min(1, (420 - y) / 400));
-    c.fillStyle = `rgba(255,246,230,${a})`;
-    c.beginPath();
-    c.arc(r() * W, y, 0.9 + r() * 1.6, 0, Math.PI * 2);
-    c.fill();
+  c.fillRect(SKY.x, SKY.y, SKY.w, SKY.h);
+  const r = seeded(7);
+  for (let i = 0; i < 900; i++) {
+    const x = SKY.x + r() * SKY.w;
+    const y = SKY.y + r() * (BASE - 120 - SKY.y);
+    const a = (0.2 + r() * 0.6) * Math.min(1, (BASE - y) / 500);
+    const sz = r() < 0.92 ? 1.6 : 2.8;
+    c.fillStyle = `rgba(230,236,255,${a})`;
+    c.fillRect(x, y, sz, sz);
   }
-  // Long soft clouds, lit from below by the city and from above by the moon.
-  for (const [x, y, w, h, a] of [[260, 150, 520, 46, 0.55], [700, 70, 420, 30, 0.4], [1250, 190, 600, 54, 0.5], [1500, 40, 340, 26, 0.35], [420, -160, 560, 40, 0.35], [1150, -320, 460, 36, 0.3]]) {
-    glowAt(c, x, y, w, h, 0x2a1c46, a);
-    glowAt(c, x - w * 0.15, y - h * 0.35, w * 0.6, h * 0.35, 0x8a7ab0, a * 0.25);
-    glowAt(c, x + w * 0.1, y + h * 0.4, w * 0.7, h * 0.3, 0xc0607a, a * 0.18);
+  // Veil clouds, lit by the moon.
+  for (const [x, y, w, a] of [[0.3, -300, 0.4, 0.12], [0.75, -520, 0.32, 0.1], [0.6, -60, 0.5, 0.08], [0.15, 120, 0.3, 0.07]]) {
+    glowAt(c, SKY.x + SKY.w * x, y, SKY.w * w * 0.5, 34, 0x8090c0, a);
   }
+  // City glow at the horizon.
+  glowAt(c, DOOR_X, BASE, 1600, 260, 0x4a3a80, 0.35);
 }
 
 function paintMoon(c: Ctx) {
-  glowAt(c, 90, 90, 90, 90, 0xd8d0ff, 0.25);
-  glowAt(c, 90, 90, 55, 55, 0xfff1d0, 0.35);
-  ellipse(c, 90, 90, 30, 30);
-  const g = c.createRadialGradient(80, 80, 4, 90, 90, 32);
-  g.addColorStop(0, '#fffbea');
-  g.addColorStop(0.7, '#f0e4c4');
-  g.addColorStop(1, '#c8b896');
-  c.fillStyle = g;
+  const m = 120;
+  const mr = 52;
+  glowAt(c, m, m, mr * 2.3, mr * 2.3, 0x8ea8ff, 0.2);
+  glowAt(c, m, m, mr * 1.5, mr * 1.5, 0xdfe8ff, 0.3);
+  const mg = c.createRadialGradient(m - mr * 0.35, m - mr * 0.35, mr * 0.1, m, m, mr);
+  mg.addColorStop(0, '#fffdf2');
+  mg.addColorStop(0.7, '#e6e8f0');
+  mg.addColorStop(1, '#b8bfd6');
+  c.beginPath();
+  c.arc(m, m, mr, 0, Math.PI * 2);
+  c.fillStyle = mg;
   c.fill();
-  for (const [x, y, r] of [[98, 82, 6], [82, 100, 4], [100, 102, 3.5], [78, 84, 2.5]]) {
-    ellipse(c, x, y, r, r);
-    c.fillStyle = 'rgba(160,140,110,0.35)';
+  const r = seeded(3);
+  for (let i = 0; i < 7; i++) {
+    const a = r() * Math.PI * 2;
+    const d = r() * mr * 0.6;
+    ellipse(c, m + Math.cos(a) * d, m + Math.sin(a) * d, mr * (0.08 + r() * 0.12), mr * (0.07 + r() * 0.1));
+    c.fillStyle = 'rgba(150,160,190,0.35)';
     c.fill();
   }
-  // A wisp of cloud across the moon.
-  glowAt(c, 100, 104, 70, 9, 0x2a1c46, 0.75);
 }
 
-function paintSkyline(c: Ctx) {
-  const r = seeded(4242);
-  // Two layers of distant buildings, the far one hazier.
-  for (const [col, hMin, hMax, haze, seedOff] of [[0x2a2044, 120, 300, 0.5, 0], [0x1d1630, 70, 200, 0.25, 9]] as const) {
-    let x = -30 + seedOff * 7;
-    while (x < W + 30) {
-      const bw = 60 + r() * 110;
-      const bh = hMin + r() * (hMax - hMin);
-      const top = BASE - bh;
+/** The far city: two rows of houses with scattered lit windows, the back row hazier. */
+const CITY = { y: BASE - 470 };
+function paintCity(c: Ctx) {
+  c.translate(0, -CITY.y);
+  const r = seeded(11);
+  for (const [depth, col, hmax] of [[0, 0x141a3a, 380], [1, 0x0c1028, 260]] as const) {
+    let x = -20;
+    while (x < W + 20) {
+      const w = 70 + r() * 130;
+      const h = 90 + r() * hmax;
       c.fillStyle = rgb(col);
-      c.fillRect(x, top, bw, bh);
-      // Some roofs get a spire, a water tank or a stepped crown.
-      const k = r();
-      if (k < 0.2) {
+      c.fillRect(x, BASE - h, w + 1, h);
+      if (r() < 0.3) c.fillRect(x + w * 0.3, BASE - h - 22, w * 0.4, 22);
+      else if (r() < 0.15) {
         c.beginPath();
-        c.moveTo(x + bw / 2 - 6, top);
-        c.lineTo(x + bw / 2, top - 40 - r() * 30);
-        c.lineTo(x + bw / 2 + 6, top);
+        c.moveTo(x + w / 2 - 6, BASE - h);
+        c.lineTo(x + w / 2, BASE - h - 50);
+        c.lineTo(x + w / 2 + 6, BASE - h);
         c.fill();
-      } else if (k < 0.35) {
-        c.fillRect(x + bw * 0.6, top - 18, 22, 18);
-        c.fillRect(x + bw * 0.6 + 3, top - 22, 16, 4);
-      } else if (k < 0.5) {
-        c.fillRect(x + bw * 0.2, top - 16, bw * 0.6, 16);
       }
-      for (let wy = top + 12; wy < BASE - 10; wy += 16)
-        for (let wx = x + 8; wx < x + bw - 8; wx += 12)
-          if (r() < 0.16) {
-            c.fillStyle = r() < 0.8 ? `rgba(255,200,120,${0.25 + r() * 0.45})` : `rgba(160,210,255,${0.2 + r() * 0.3})`;
-            c.fillRect(wx, wy, 4, 6);
+      for (let wy = BASE - h + 14; wy < BASE - 30; wy += 26)
+        for (let wx = x + 9; wx < x + w - 12; wx += 19)
+          if (r() < 0.22) {
+            c.fillStyle = r() < 0.7 ? `rgba(255,200,120,${depth ? 0.55 : 0.35})` : `rgba(170,200,255,${depth ? 0.45 : 0.3})`;
+            c.fillRect(wx, wy, 7, 11);
           }
-      x += bw + 4 + r() * 10;
+      x += w + r() * 12;
     }
-    const hz = c.createLinearGradient(0, BASE - 320, 0, BASE);
-    hz.addColorStop(0, 'rgba(90,60,110,0)');
-    hz.addColorStop(1, `rgba(110,70,120,${haze})`);
+    const hz = c.createLinearGradient(0, BASE - 240, 0, BASE);
+    hz.addColorStop(0, 'rgba(40,40,90,0)');
+    hz.addColorStop(1, `rgba(60,46,96,${depth ? 0.5 : 0.35})`);
     c.fillStyle = hz;
-    c.fillRect(0, BASE - 320, W, 320);
+    c.fillRect(0, BASE - 240, W, 240);
   }
 }
 
-/** A tall window: lit (warm room, maybe a curtain or a guest) or dark (moonlit glass). */
-function paintWindow(c: Ctx, x: number, y: number, w: number, h: number, lit: boolean, r: () => number, arched = false) {
-  const shape = () => {
-    if (arched) {
-      c.beginPath();
-      c.moveTo(x, y + h);
-      c.lineTo(x, y + w / 2);
-      c.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0);
-      c.lineTo(x + w, y + h);
-      c.closePath();
-    } else rrect(c, x, y, w, h, 2);
-  };
-  // Light from the window falls on the wall around it.
-  if (lit) glowAt(c, x + w / 2, y + h / 2, w * 1.3, h * 0.9, 0xffb860, 0.22);
-  shape();
-  if (lit) {
-    const g = c.createLinearGradient(0, y, 0, y + h);
-    g.addColorStop(0, '#ffe2a0');
-    g.addColorStop(0.6, '#f0a850');
-    g.addColorStop(1, '#a8582a');
-    c.fillStyle = g;
-  } else {
-    const g = c.createLinearGradient(x, y, x + w, y + h);
-    g.addColorStop(0, '#3a3a64');
-    g.addColorStop(1, '#141428');
-    c.fillStyle = g;
+// ---- The house ----------------------------------------------------------------------------------
+
+const FACADE = 0x232c58;
+
+function facadeFill(c: Ctx, x0: number, x1: number, y0: number, y1: number, col = FACADE) {
+  const g = c.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, rgb(dark(col, 0.35)));
+  g.addColorStop(0.7, rgb(col));
+  g.addColorStop(1, rgb(light(col, 0.06)));
+  c.fillStyle = g;
+  c.fillRect(x0, y0, x1 - x0, y1 - y0);
+  // Vertical flutes, like brushed limestone in the night light.
+  for (let x = x0 + 6; x < x1; x += 12) {
+    c.fillStyle = 'rgba(255,255,255,0.025)';
+    c.fillRect(x, y0, 2, y1 - y0);
   }
+}
+
+function brassBand(c: Ctx, x0: number, x1: number, y: number, h = 6) {
+  c.fillStyle = gold(c, 0, y, 0, y + h);
+  c.fillRect(x0, y, x1 - x0, h);
+  c.fillStyle = 'rgba(6,6,16,0.6)';
+  c.fillRect(x0, y + h, x1 - x0, 2);
+}
+
+/** Art-deco sunburst fan: rays from one point, alternately wide and narrow. */
+function sunburst(c: Ctx, x: number, y: number, r: number, a0: number, a1: number, n: number, colA: string, colB: string, inner = 0) {
+  for (let i = 0; i < n; i++) {
+    const t0 = a0 + ((a1 - a0) * i) / n;
+    const t1 = a0 + ((a1 - a0) * (i + 1)) / n;
+    c.beginPath();
+    c.moveTo(x + Math.cos(t0) * inner, y + Math.sin(t0) * inner);
+    c.lineTo(x + Math.cos(t0) * r, y + Math.sin(t0) * r);
+    c.lineTo(x + Math.cos(t1) * r, y + Math.sin(t1) * r);
+    c.lineTo(x + Math.cos(t1) * inner, y + Math.sin(t1) * inner);
+    c.closePath();
+    c.fillStyle = i % 2 ? colB : colA;
+    c.fill();
+  }
+}
+
+/** A window lit in the colour of its floor's light era; the glow on top of it lives. */
+function windowAt(c: Ctx, sp: Spots, x: number, y: number, w: number, h: number, floor: number, opts: { arch?: boolean; alt?: boolean } = {}) {
+  const F = FLOORS[floor];
+  const arch = !!opts.arch;
+  const shape = (pad: number, bottomPad: number) => {
+    c.beginPath();
+    if (arch) {
+      c.moveTo(x - w / 2 - pad, y + h + bottomPad);
+      c.lineTo(x - w / 2 - pad, y + w / 2);
+      c.arc(x, y + w / 2, w / 2 + pad, Math.PI, Math.PI * 2);
+      c.lineTo(x + w / 2 + pad, y + h + bottomPad);
+    } else c.rect(x - w / 2 - pad, y - pad, w + pad * 2, h + pad + bottomPad);
+    c.closePath();
+  };
+  // Reveal.
+  shape(4, 3);
+  c.fillStyle = '#0a0c1e';
+  c.fill();
+  // Glass.
+  shape(0, 0);
+  const g = c.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, rgb(F.glassTop));
+  g.addColorStop(1, rgb(F.glassBot));
+  c.fillStyle = g;
   c.fill();
   c.save();
-  shape();
   c.clip();
-  if (lit) {
-    const k = r();
-    if (k < 0.3) {
-      // A guest's silhouette.
-      c.fillStyle = 'rgba(70,30,30,0.55)';
-      ellipse(c, x + w * (0.3 + r() * 0.4), y + h * 0.55, w * 0.13, w * 0.15);
-      c.fill();
-      rrect(c, x + w * 0.2 + r() * w * 0.3, y + h * 0.66, w * 0.34, h * 0.4, 6);
-      c.fill();
-    } else if (k < 0.55) {
-      // Curtains drawn to the sides.
-      c.fillStyle = 'rgba(150,40,60,0.85)';
+  // What one glimpses inside.
+  if (F.kind === 'candle') {
+    for (const sx of [-1, 1]) {
       c.beginPath();
-      c.moveTo(x, y);
-      c.quadraticCurveTo(x + w * 0.35, y + h * 0.4, x + w * 0.12, y + h);
-      c.lineTo(x, y + h);
+      c.moveTo(x + sx * (w / 2), y - 2);
+      c.quadraticCurveTo(x + sx * (w * 0.2), y + h * 0.4, x + sx * (w * 0.38), y + h);
+      c.lineTo(x + sx * (w / 2), y + h);
+      c.closePath();
+      c.fillStyle = 'rgba(120,20,40,0.85)';
       c.fill();
-      c.beginPath();
-      c.moveTo(x + w, y);
-      c.quadraticCurveTo(x + w * 0.65, y + h * 0.4, x + w * 0.88, y + h);
-      c.lineTo(x + w, y + h);
-      c.fill();
-    } else if (k < 0.7) {
-      // A lamp inside.
-      glowAt(c, x + w * 0.5, y + h * 0.35, w * 0.5, w * 0.5, 0xfff4d0, 0.7);
     }
-  } else {
-    // Moonlight on the glass.
-    c.strokeStyle = 'rgba(190,200,255,0.18)';
-    c.lineWidth = w * 0.18;
+    glowAt(c, x, y + h * 0.35, w * 0.4, w * 0.4, 0xfff0c0, 0.7);
+    for (let k = -1; k <= 1; k++) {
+      c.fillStyle = 'rgba(80,30,10,0.6)';
+      c.fillRect(x + k * w * 0.18 - 1, y + h * 0.3, 2, 8);
+    }
+  } else if (F.kind === 'moon') {
+    for (let k = 0; k < 4; k++) {
+      const px = x - w / 2 + (k + 0.5) * (w / 4);
+      ellipse(c, px, y + h * 0.85, w * 0.22, h * 0.32);
+      c.fillStyle = 'rgba(30,60,70,0.55)';
+      c.fill();
+    }
+    ellipse(c, x + w * 0.15, y + h * 0.25, w * 0.12, w * 0.12);
+    c.fillStyle = 'rgba(255,255,255,0.8)';
+    c.fill();
+  } else if (F.kind === 'gas') {
+    c.save();
+    c.translate(x - w * 0.15, y + h * 0.65);
     c.beginPath();
-    c.moveTo(x - 4, y + h * 0.7);
-    c.lineTo(x + w * 0.8, y - 4);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const rr = i % 2 ? w * 0.3 : w * 0.24;
+      c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    c.closePath();
+    c.fillStyle = 'rgba(70,74,30,0.55)';
+    c.fill();
+    c.restore();
+    c.fillStyle = 'rgba(70,74,30,0.5)';
+    c.fillRect(x - w / 2, y + h * 0.18, w, 2);
+  } else if (F.kind === 'neon') {
+    const pink = opts.alt ? 0x5fe3ff : 0xff5fa2;
+    c.strokeStyle = rgb(pink, 0.95);
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.moveTo(x - w * 0.35, y + h * 0.3);
+    c.lineTo(x + w * 0.35, y + h * 0.3);
+    c.moveTo(x - w * 0.3, y + h * 0.55);
+    c.lineTo(x, y + h * 0.42);
+    c.lineTo(x + w * 0.3, y + h * 0.55);
     c.stroke();
-  }
-  c.restore();
-  // Mullions and frame.
-  c.strokeStyle = lit ? 'rgba(90,40,20,0.7)' : 'rgba(10,8,20,0.7)';
+    glowAt(c, x, y + h * 0.42, w * 0.7, h * 0.5, pink, 0.45, 'lighter');
+  } else glowAt(c, x, y + h * 0.5, w, h, 0xffffff, 0.4);
+  // Glazing bars.
+  c.strokeStyle = 'rgba(10,12,30,0.85)';
   c.lineWidth = 2;
   c.beginPath();
-  c.moveTo(x + w / 2, y + (arched ? 4 : 0));
-  c.lineTo(x + w / 2, y + h);
-  c.moveTo(x, y + h * 0.5);
-  c.lineTo(x + w, y + h * 0.5);
+  c.moveTo(x, y);
+  c.lineTo(x, y + h);
+  c.moveTo(x - w / 2, y + h * 0.62);
+  c.lineTo(x + w / 2, y + h * 0.62);
   c.stroke();
-  shape();
-  c.strokeStyle = INK;
-  c.lineWidth = 2.5;
+  c.restore();
+  // Brass frame and sill.
+  shape(0, 0);
+  c.strokeStyle = gold(c, x - w / 2, y, x + w / 2, y + h);
+  c.lineWidth = 2;
   c.stroke();
-  // Sill with a lit top.
-  rrect(c, x - 5, y + h, w + 10, 6, 2);
-  c.fillStyle = '#8a7a8a';
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 1.5;
-  c.stroke();
+  c.fillStyle = gold(c, 0, y + h, 0, y + h + 5);
+  c.fillRect(x - w / 2 - 6, y + h + 1, w + 12, 4);
+  sp.windows.push({ x: fx(x), y: fy(y + h * 0.5), w: w * FS, h: h * FS, floor, alt: !!opts.alt, ph: (x * 0.37 + y * 0.11) % 10 });
 }
 
-function paintNeighbours(c: Ctx) {
-  const r = seeded(91);
-  const blocks: [number, number, number, number][] = [
-    // x, width, top, colour
-    [-20, 330, 250, 0x45283a],
-    [310, 330, 320, 0x2e2c48],
-    [1380, 260, 210, 0x3e2a36],
-  ];
-  for (const [x, w, top, col] of blocks) {
-    // Wall lit from the upper left.
-    c.fillStyle = rgb(dark(col, 0.1));
-    c.fillRect(x, top, w, BASE - top);
-    const lg = c.createLinearGradient(x, 0, x + w, 0);
-    lg.addColorStop(0, rgb(light(col, 0.12), 0.9));
-    lg.addColorStop(0.5, rgb(col, 0));
-    lg.addColorStop(1, rgb(dark(col, 0.4), 0.8));
-    c.fillStyle = lg;
-    c.fillRect(x, top, w, BASE - top);
-    // Brick courses.
-    c.strokeStyle = rgb(dark(col, 0.35), 0.35);
-    c.lineWidth = 1;
-    for (let by = top + 10; by < BASE; by += 9) {
-      c.beginPath();
-      c.moveTo(x, by);
-      c.lineTo(x + w, by);
-      c.stroke();
+function wings(c: Ctx, sp: Spots) {
+  for (const sx of [-1, 1]) {
+    const x0 = sx < 0 ? -430 : 280;
+    const x1 = sx < 0 ? -280 : 430;
+    facadeFill(c, x0, x1, -300, 0, 0x1c2448);
+    brassBand(c, x0, x1, -300, 5);
+    // Balustrade.
+    for (let x = x0 + 8; x < x1 - 4; x += 12) {
+      c.fillStyle = 'rgba(200,170,110,0.5)';
+      c.fillRect(x, -318, 4, 14);
     }
-    grain(c, x, top, w, BASE - top, w * 1.2, x + 7, 0.05);
-    // Cornice.
-    rrect(c, x - 6, top - 10, w + 12, 14, 2);
-    c.fillStyle = rgb(light(col, 0.25));
-    c.fill();
-    c.strokeStyle = INK;
-    c.lineWidth = 2;
-    c.stroke();
-    // Windows, three to four storeys.
-    const cols = Math.floor((w - 30) / 62);
-    const off = x + (w - cols * 62) / 2 + 12;
-    for (let wy = top + 28; wy < BASE - 150; wy += 92)
-      for (let i = 0; i < cols; i++) paintWindow(c, off + i * 62, wy, 38, 58, r() < 0.45, r, wy < top + 40);
-    c.strokeStyle = INK;
-    c.lineWidth = 2.5;
-    c.strokeRect(x, top, w, BASE - top);
+    c.fillStyle = gold(c, 0, -322, 0, -317);
+    c.fillRect(x0, -322, x1 - x0, 4);
+    brassBand(c, x0, x1, -150, 4);
+    for (const x of sx < 0 ? [-395, -315] : [315, 395]) {
+      windowAt(c, sp, x, -128, 40, 92, 0, { arch: true });
+      windowAt(c, sp, x, -232, 34, 64, 1);
+    }
+    // Corner pier.
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.fillRect(sx < 0 ? x1 - 6 : x0, -300, 6, 300);
   }
-  // Ground floor of the left house: a closed café with a teal awning and a lit display.
-  paintShop(c, 30, 'CAFÉ', 0x2a7a72, r);
-  // Next door: a small bar with a cyan neon script.
-  paintShop(c, 360, 'BAR', 0x6b1a2e, r);
-  // The house on the right: a dark entrance with a brass lamp.
-  rrect(c, 1450, 470, 80, 130, 6);
-  c.fillStyle = '#1a1020';
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 3;
-  c.stroke();
-  glowAt(c, 1490, 462, 50, 30, 0xffcf7a, 0.5);
-  ellipse(c, 1490, 462, 7, 9);
-  c.fillStyle = '#fff1c4';
-  c.fill();
 }
 
-function paintShop(c: Ctx, x: number, label: string, awning: number, r: () => number) {
-  const top = 470;
-  const w = 250;
-  // Shop window with a warm display.
-  rrect(c, x + 10, top + 30, w - 20, BASE - top - 40, 4);
-  const g = c.createLinearGradient(0, top + 30, 0, BASE - 10);
-  g.addColorStop(0, '#ffcf8a');
-  g.addColorStop(1, '#8a4a2a');
+function mainBlock(c: Ctx, sp: Spots) {
+  facadeFill(c, -280, 280, -440, 0);
+  // Cornices between the floors.
+  for (const y of [-150, -245, -340]) brassBand(c, -280, 280, y, 5);
+  brassBand(c, -290, 290, -446, 8);
+  for (let x = -286; x < 286; x += 10) {
+    c.fillStyle = '#c9963e';
+    c.fillRect(x, -437, 5, 4);
+  }
+  // Pilasters with gilded edges.
+  for (const x of [-280, -205, -145, 145, 205, 280]) {
+    const g = c.createLinearGradient(x - 9, 0, x + 9, 0);
+    g.addColorStop(0, rgb(dark(FACADE, 0.35)));
+    g.addColorStop(0.4, rgb(light(FACADE, 0.12)));
+    g.addColorStop(1, rgb(dark(FACADE, 0.45)));
+    c.fillStyle = g;
+    c.fillRect(x - 9, -440, 18, 420);
+    c.fillStyle = gold(c, x - 1, 0, x + 1, 0);
+    c.fillRect(x - 1, -430, 2, 410);
+  }
+  // Floors 2 to 4 (moon garden, lantern works, club).
+  const cols = [-243, -175, -112, 112, 175, 243];
+  for (const [fl, y] of [[1, -232], [2, -327], [3, -422]] as const) cols.forEach((x, i) => windowAt(c, sp, x, y, 36, 66, fl, { alt: i % 2 === 1 }));
+  // The light shaft in the middle: warm at the bottom, white at the top, with deco chevrons.
+  const lg = c.createLinearGradient(0, -150, 0, -440);
+  lg.addColorStop(0, '#ffb347');
+  lg.addColorStop(0.35, '#c8d8ff');
+  lg.addColorStop(0.65, '#e6eca0');
+  lg.addColorStop(0.85, '#ff8ac0');
+  lg.addColorStop(1, '#fff6e0');
+  c.fillStyle = '#0a0c1e';
+  c.fillRect(-46, -440, 92, 290);
+  c.fillStyle = lg;
+  c.fillRect(-38, -432, 76, 278);
+  c.strokeStyle = 'rgba(10,12,30,0.75)';
+  c.lineWidth = 3;
+  for (let y = -420; y < -160; y += 22) {
+    c.beginPath();
+    c.moveTo(-38, y + 12);
+    c.lineTo(0, y);
+    c.lineTo(38, y + 12);
+    c.stroke();
+  }
+  c.strokeStyle = gold(c, -46, 0, 46, 0);
+  c.lineWidth = 4;
+  c.strokeRect(-42, -436, 84, 282);
+  // Ground floor: candle-hall windows in round arches, dark granite plinth.
+  for (const x of cols) windowAt(c, sp, x, -136, 40, 100, 0, { arch: true });
+  const pg = c.createLinearGradient(0, -22, 0, 0);
+  pg.addColorStop(0, '#2a2438');
+  pg.addColorStop(1, '#0c0a14');
+  c.fillStyle = pg;
+  c.fillRect(-292, -22, 584, 22);
+  c.fillStyle = gold(c, 0, -24, 0, -20);
+  c.fillRect(-292, -24, 584, 3);
+}
+
+function tower(c: Ctx, sp: Spots) {
+  // Ziggurat steps with fans at the corners.
+  for (const [hw, y0, y1] of [[250, -446, -470], [205, -470, -500]]) {
+    facadeFill(c, -hw, hw, y1, y0, 0x1e2650);
+    brassBand(c, -hw - 4, hw + 4, y1, 4);
+  }
+  for (const sx of [-1, 1]) sunburst(c, sx * 228, -446, 30, Math.PI, Math.PI * 2, 9, 'rgba(242,205,114,0.75)', 'rgba(168,116,31,0.55)', 4);
+  facadeFill(c, -150, 150, -650, -500, 0x202a56);
+  // Three tall windows of the dome floor.
+  for (const x of [-95, 0, 95]) windowAt(c, sp, x, -638, 34, 72, 4, { arch: true });
+  brassBand(c, -160, 160, -656, 7);
+  for (const x of [-150, 150]) {
+    c.fillStyle = gold(c, x - 3, 0, x + 3, 0);
+    c.fillRect(x - 3, -650, 6, 150);
+  }
+}
+
+function dome(c: Ctx, sp: Spots) {
+  const cy = -656;
+  const rx = 128;
+  const ry = 90;
+  facadeFill(c, -118, 118, cy - 8, cy, 0x1a2248);
+  // Glass dome with brass ribs, lit warm white from inside.
+  c.save();
+  c.beginPath();
+  c.ellipse(0, cy, rx, ry, 0, Math.PI, Math.PI * 2);
+  c.closePath();
+  const g = c.createRadialGradient(0, cy - 20, 10, 0, cy - 20, rx);
+  g.addColorStop(0, '#fff8e0');
+  g.addColorStop(0.45, '#b8c8f0');
+  g.addColorStop(1, '#2a3870');
   c.fillStyle = g;
   c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 3;
-  c.stroke();
-  // Little tables and chairs in the window.
-  for (let i = 0; i < 3; i++) {
-    const tx = x + 50 + i * 75;
-    c.fillStyle = 'rgba(60,24,20,0.6)';
-    ellipse(c, tx, BASE - 52, 18, 5);
-    c.fill();
-    c.fillRect(tx - 2, BASE - 52, 4, 32);
-    if (r() < 0.6) {
-      ellipse(c, tx + 12, BASE - 64, 6, 7);
-      c.fill();
-    }
-  }
-  glowAt(c, x + w / 2, top + 70, w * 0.5, 50, 0xfff0c8, 0.45);
-  // Striped awning.
-  c.beginPath();
-  c.moveTo(x - 4, top);
-  c.lineTo(x + w + 4, top);
-  c.lineTo(x + w + 14, top + 34);
-  c.lineTo(x - 14, top + 34);
-  c.closePath();
-  c.fillStyle = rgb(awning);
-  c.fill();
-  c.save();
   c.clip();
-  for (let sx = x - 20; sx < x + w + 20; sx += 28) {
-    c.fillStyle = 'rgba(255,240,215,0.85)';
+  for (let i = -6; i <= 6; i++) {
+    const k = i / 6.5;
     c.beginPath();
-    c.moveTo(sx, top);
-    c.lineTo(sx + 14, top);
-    c.lineTo(sx + 16, top + 34);
-    c.lineTo(sx + 2, top + 34);
-    c.fill();
+    c.ellipse(0, cy, Math.abs(k) * rx, ry, 0, Math.PI, Math.PI * 2);
+    c.strokeStyle = 'rgba(120,80,24,0.9)';
+    c.lineWidth = 2.6;
+    c.stroke();
   }
-  const sh = c.createLinearGradient(0, top, 0, top + 34);
-  sh.addColorStop(0, 'rgba(255,255,255,0.15)');
-  sh.addColorStop(1, 'rgba(0,0,0,0.35)');
-  c.fillStyle = sh;
-  c.fillRect(x - 20, top, w + 40, 34);
-  c.restore();
-  c.strokeStyle = INK;
-  c.lineWidth = 2.5;
-  c.stroke();
-  // Scalloped edge.
-  for (let sx = x - 14; sx < x + w + 14; sx += 20) {
+  for (const f of [0.35, 0.65, 0.88]) {
+    const yy = cy - ry * f;
+    const ww = rx * Math.sqrt(1 - f * f);
     c.beginPath();
-    c.arc(sx + 10, top + 34, 10, 0, Math.PI);
-    c.fillStyle = rgb(dark(awning, 0.2));
-    c.fill();
-    c.strokeStyle = INK;
+    c.moveTo(-ww, yy);
+    c.lineTo(ww, yy);
+    c.strokeStyle = 'rgba(120,80,24,0.8)';
     c.lineWidth = 2;
     c.stroke();
   }
-  // Painted sign on the fascia above.
-  c.font = '700 22px "Barlow Condensed", sans-serif';
+  c.restore();
+  c.beginPath();
+  c.ellipse(0, cy, rx, ry, 0, Math.PI, Math.PI * 2);
+  c.strokeStyle = gold(c, -rx, cy - ry, rx, cy);
+  c.lineWidth = 4;
+  c.stroke();
+  // The lantern on top: the moon lamp.
+  const ly = cy - ry;
+  rrect(c, -22, ly - 40, 44, 40, 4);
+  fillInk(c, gold(c, -22, ly - 40, 22, ly), 2);
+  rrect(c, -15, ly - 34, 30, 28, 3);
+  c.fillStyle = '#fffdf0';
+  c.fill();
+  c.beginPath();
+  c.moveTo(-26, ly - 40);
+  c.lineTo(0, ly - 62);
+  c.lineTo(26, ly - 40);
+  c.closePath();
+  fillInk(c, gold(c, -26, ly - 62, 26, ly - 40), 2);
+  c.fillStyle = gold(c, -2, 0, 2, 0);
+  c.fillRect(-2, ly - 78, 4, 18);
+  ellipse(c, 0, ly - 80, 4.5, 4.5);
+  fillInk(c, gold(c, -5, ly - 85, 5, ly - 75), 1.4);
+  sp.lens = { x: fx(0), y: fy(ly - 20) };
+}
+
+/** The marquee: a stepped brass board with the house name, running bulbs and the tagline below. */
+function sign(c: Ctx, sp: Spots) {
+  const w = 500;
+  const h = 78;
+  const y = -548;
+  c.save();
+  c.translate(0, y);
+  glowAt(c, 0, h / 2, w * 0.75, h * 1.6, 0xffb45a, 0.25);
+  c.beginPath();
+  c.moveTo(-w / 2 + 16, 0);
+  c.lineTo(w / 2 - 16, 0);
+  c.lineTo(w / 2, 16);
+  c.lineTo(w / 2, h - 16);
+  c.lineTo(w / 2 - 16, h);
+  c.lineTo(-w / 2 + 16, h);
+  c.lineTo(-w / 2, h - 16);
+  c.lineTo(-w / 2, 16);
+  c.closePath();
+  c.fillStyle = gold(c, -w / 2, 0, w / 2, h);
+  c.fill();
+  c.strokeStyle = INK;
+  c.lineWidth = 2.5;
+  c.stroke();
+  rrect(c, -w / 2 + 10, 10, w - 20, h - 20, 5);
+  const ig = c.createLinearGradient(0, 10, 0, h - 10);
+  ig.addColorStop(0, '#0a0e24');
+  ig.addColorStop(1, '#1a2248');
+  c.fillStyle = ig;
+  c.fill();
+  for (const sx of [-1, 1]) sunburst(c, sx * (w / 2 - 32), h - 12, 22, Math.PI, Math.PI * 2, 7, 'rgba(242,205,114,0.85)', 'rgba(242,205,114,0.25)', 3);
+  // The house name (src/core/brand.ts); a longer one shrinks to fit the board.
+  c.font = '400 44px Limelight, Cinzel, Georgia, serif';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillStyle = 'rgba(255,230,190,0.85)';
-  c.fillText(label, x + w / 2, top - 14);
-}
-
-function paintFacade(c: Ctx) {
-  const { x, w, top } = FACADE;
-  const body = 0x4a1834;
-  const lacquer = (x0: number, y0: number, ww: number, y1: number) => {
-    c.fillStyle = vg(c, y0, y1, body);
-    c.fillRect(x0, y0, ww, y1 - y0);
-    const lg = c.createLinearGradient(x0, 0, x0 + ww, 0);
-    lg.addColorStop(0, 'rgba(255,200,220,0.12)');
-    lg.addColorStop(0.4, 'rgba(255,200,220,0)');
-    lg.addColorStop(1, 'rgba(10,0,10,0.35)');
-    c.fillStyle = lg;
-    c.fillRect(x0, y0, ww, y1 - y0);
-    grain(c, x0, y0, ww, y1 - y0, ww * 0.8, x0 + y0, 0.045);
-    c.strokeStyle = INK;
-    c.lineWidth = 3;
-    c.strokeRect(x0, y0, ww, y1 - y0);
-  };
-  // Stepped art-deco silhouette: crown, tower, main body.
-  lacquer(DOOR_X - 110, top - 110, 220, top - 50);
-  lacquer(DOOR_X - 240, top - 56, 480, top + 4);
-  lacquer(x, top, w, BASE);
-  // Brass cornices at every step.
-  for (const [x0, ww, y] of [[DOOR_X - 118, 236, top - 112], [DOOR_X - 248, 496, top - 60], [x - 10, w + 20, top - 6]]) {
-    rrect(c, x0, y, ww, 12, 3);
-    c.fillStyle = gold(c, x0, y, x0 + ww * 0.3, y + 12);
-    c.fill();
-    c.strokeStyle = INK;
-    c.lineWidth = 2;
-    c.stroke();
-  }
-  // Chevrons and the golden moth on the crown.
-  c.strokeStyle = 'rgba(224,178,90,0.7)';
-  c.lineWidth = 3;
-  for (let i = 0; i < 3; i++) {
-    c.beginPath();
-    c.moveTo(DOOR_X - 90 + i * 8, top - 56 - i * 0);
-    c.lineTo(DOOR_X, top - 96 + i * 14);
-    c.lineTo(DOOR_X + 90 - i * 8, top - 56);
-    c.stroke();
-  }
-  drawEmblemRelief(c, DOOR_X, top - 132, 52);
-  // Porthole windows on the tower.
-  for (let i = 0; i < 5; i++) {
-    const px = DOOR_X - 180 + i * 90;
-    if (i === 2) continue;
-    glowAt(c, px, top - 26, 30, 22, 0xffb860, 0.3);
-    ellipse(c, px, top - 26, 14, 14);
-    const g = c.createRadialGradient(px - 4, top - 30, 2, px, top - 26, 14);
-    g.addColorStop(0, '#fff0c0');
-    g.addColorStop(1, '#d08840');
-    c.fillStyle = g;
-    c.fill();
-    c.strokeStyle = gold(c, px - 14, top - 40, px + 14, top - 12);
-    c.lineWidth = 4;
-    c.stroke();
-    c.strokeStyle = INK;
-    c.lineWidth = 1.5;
-    ellipse(c, px, top - 26, 16, 16);
-    c.stroke();
-  }
-  // Fluted brass-edged pilasters.
-  for (const px of [x + 14, x + 186, x + w - 186 - 22, x + w - 14 - 22]) {
-    const pw = 22;
-    c.fillStyle = vg(c, top, BASE, 0x2a0e1e, 0.15, 0.2);
-    c.fillRect(px, top + 6, pw, BASE - top - 36);
-    for (let k = 0; k < 3; k++) {
-      c.fillStyle = 'rgba(255,220,200,0.08)';
-      c.fillRect(px + 3 + k * 6, top + 10, 2, BASE - top - 46);
-    }
-    c.fillStyle = gold(c, px, 0, px + 4, 0);
-    c.fillRect(px - 2, top + 6, 3, BASE - top - 36);
-    c.fillRect(px + pw - 1, top + 6, 3, BASE - top - 36);
-    c.strokeStyle = INK;
-    c.lineWidth = 2;
-    c.strokeRect(px - 2, top + 6, pw + 4, BASE - top - 36);
-    // Capital.
-    rrect(c, px - 6, top + 4, pw + 12, 10, 2);
-    c.fillStyle = gold(c, px, top, px + pw, top + 14);
-    c.fill();
-    c.stroke();
-  }
-  // Tall arched windows, two each side, two storeys.
-  const r = seeded(5150);
-  const wxs = [x + 52, x + 116, x + w - 52 - 54, x + w - 116 - 54];
-  for (const wx of wxs) {
-    paintWindow(c, wx, 380, 54, 86, true, r, true);
-    paintWindow(c, wx, 488, 54, 70, r() < 0.8, r, true);
-    // Little brass balconet on the upper ones.
-    c.strokeStyle = gold(c, wx, 456, wx + 54, 470);
-    c.lineWidth = 2.5;
-    rrect(c, wx - 6, 456, 66, 14, 3);
-    c.stroke();
-    for (let k = 0; k < 6; k++) {
-      c.beginPath();
-      c.moveTo(wx - 1 + k * 11, 457);
-      c.lineTo(wx - 1 + k * 11, 469);
-      c.stroke();
-    }
-  }
-  // Sign board (the neon letters and bulbs are live on top of it).
-  const s = SIGN;
-  glowAt(c, s.x + s.w / 2, s.y + s.h / 2, s.w * 0.62, s.h * 1.1, 0xff5fa2, 0.25);
-  rrect(c, s.x - 8, s.y - 8, s.w + 16, s.h + 16, 26);
-  c.fillStyle = gold(c, s.x, s.y, s.x + 80, s.y + s.h);
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 3;
-  c.stroke();
-  rrect(c, s.x, s.y, s.w, s.h, 20);
-  const sg = c.createLinearGradient(0, s.y, 0, s.y + s.h);
-  sg.addColorStop(0, '#2a1024');
-  sg.addColorStop(1, '#0e0610');
-  c.fillStyle = sg;
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.stroke();
-  // Gloss edge, upper left.
-  c.beginPath();
-  c.moveTo(s.x - 4, s.y + s.h - 20);
-  c.lineTo(s.x - 4, s.y + 16);
-  c.quadraticCurveTo(s.x - 4, s.y - 4, s.x + 16, s.y - 4);
-  c.lineTo(s.x + s.w * 0.5, s.y - 4);
-  c.strokeStyle = 'rgba(255,248,220,0.85)';
-  c.lineWidth = 2;
-  c.stroke();
-  for (let i = 0; i < 14; i++) {
-    for (const by of [s.y + 11, s.y + s.h - 11]) {
-      ellipse(c, s.x + 14 + i * ((s.w - 28) / 13), by, 4.5, 4.5);
-      c.fillStyle = '#3a2418';
-      c.fill();
-    }
-  }
-  // Brackets holding the sign.
-  for (const bx of [s.x + 70, s.x + s.w - 70]) {
-    c.fillStyle = gold(c, bx - 6, s.y - 30, bx + 6, s.y);
-    c.fillRect(bx - 4, s.y - 34, 8, 28);
-    c.strokeStyle = INK;
-    c.lineWidth = 1.5;
-    c.strokeRect(bx - 4, s.y - 34, 8, 28);
-  }
-  // Marble plinth.
-  c.fillStyle = vg(c, BASE - 30, BASE, 0x3a3040, 0.2, 0.4);
-  c.fillRect(x - 6, BASE - 30, w + 12, 30);
-  c.fillStyle = gold(c, x, BASE - 32, x + 60, BASE - 28);
-  c.fillRect(x - 6, BASE - 32, w + 12, 4);
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.strokeRect(x - 6, BASE - 32, w + 12, 32);
-}
-
-/** Vertical gradient that keeps the dark lacquer readable. */
-function vg(c: Ctx, y0: number, y1: number, col: number, top = 0.18, bottom = 0.35) {
-  const g = c.createLinearGradient(0, y0, 0, y1);
-  g.addColorStop(0, rgb(light(col, top)));
-  g.addColorStop(0.5, rgb(col));
-  g.addColorStop(1, rgb(dark(col, bottom)));
-  return g;
-}
-
-function drawEmblemRelief(c: Ctx, x: number, y: number, s: number) {
-  glowAt(c, x, y, s * 1.4, s, 0xffcf7a, 0.35);
-  for (const side of [-1, 1]) {
-    for (const [ox, oy, rx, ry, rot] of [[0.3, -0.08, 0.34, 0.22, -0.45], [0.2, 0.2, 0.2, 0.15, 0.6]]) {
-      c.save();
-      c.translate(x + side * ox * s, y + oy * s);
-      c.rotate(side * rot);
-      ellipse(c, 0, 0, rx * s, ry * s);
-      c.restore();
-      c.fillStyle = gold(c, x - s * 0.6, y - s * 0.3, x + s * 0.3, y + s * 0.4);
-      c.fill();
-      c.strokeStyle = INK;
-      c.lineWidth = 2;
-      c.stroke();
-    }
-  }
-  ellipse(c, x, y + 0.02 * s, 0.06 * s, 0.28 * s);
-  c.fillStyle = '#7a4e18';
-  c.fill();
-  c.stroke();
-}
-
-function paintDoorway(c: Ctx) {
-  // The warm interior seen through the open door: chandelier light over a checkered floor.
-  const { l, r, top } = DOOR;
+  const ls = 'letterSpacing' in c;
+  if (ls) (c as Ctx & { letterSpacing: string }).letterSpacing = '6px';
+  const tw = c.measureText(HOUSE_CAPS).width;
+  const fit = Math.min(1, (w - 120) / Math.max(1, tw));
   c.save();
-  rrect(c, l, top, r - l, BASE - top, 6);
+  c.translate(3, h / 2 + 3);
+  c.scale(fit, fit);
+  c.shadowColor = 'rgba(255,190,100,0.95)';
+  c.shadowBlur = 16;
+  c.fillStyle = '#fff2cc';
+  c.fillText(HOUSE_CAPS, 0, 0);
+  c.shadowBlur = 0;
+  c.restore();
+  if (ls) (c as Ctx & { letterSpacing: string }).letterSpacing = '0px';
+  c.fillStyle = 'rgba(255,255,255,0.07)';
+  c.fillRect(-w / 2 + 12, 12, w - 24, (h - 24) * 0.45);
+  // Running bulbs all around.
+  const per = (w + h) * 2;
+  const n = 52;
+  for (let i = 0; i < n; i++) {
+    let d = (i / n) * per;
+    let bx: number;
+    let by: number;
+    if (d < w) [bx, by] = [d - w / 2, 0];
+    else if ((d -= w) < h) [bx, by] = [w / 2, d];
+    else if ((d -= h) < w) [bx, by] = [w / 2 - d, h];
+    else [bx, by] = [-w / 2, h - (d - w)];
+    ellipse(c, bx, by, 2.6, 2.6);
+    c.fillStyle = '#fff1c4';
+    c.fill();
+    c.strokeStyle = '#3a2008';
+    c.lineWidth = 1;
+    c.stroke();
+    sp.bulbs.push({ x: fx(bx), y: fy(y + by), canopy: false });
+  }
+  c.restore();
+  // The tagline plate under the sign.
+  c.save();
+  c.translate(0, y + h + 8);
+  c.font = '700 11px Cinzel, Georgia, serif';
+  if (ls) (c as Ctx & { letterSpacing: string }).letterSpacing = '4px';
+  const tag = HOUSE_TAGLINE.toLocaleUpperCase('de-DE');
+  const pw = Math.max(200, c.measureText(tag).width + 40);
+  rrect(c, -pw / 2, 0, pw, 22, 3);
+  fillInk(c, '#0a0e24', 1.6);
+  c.strokeStyle = gold(c, -pw / 2, 0, pw / 2, 22);
+  c.lineWidth = 1.5;
+  rrect(c, -pw / 2 + 3, 3, pw - 6, 16, 2);
+  c.stroke();
+  c.fillStyle = '#f2cd72';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(tag, 2, 11.5);
+  if (ls) (c as Ctx & { letterSpacing: string }).letterSpacing = '0px';
+  c.restore();
+}
+
+/** Portal: tall dark recess, sunburst transom, the warm hall behind the doors, the marquee canopy. */
+function entrance(c: Ctx, sp: Spots) {
+  const dw = DW;
+  const dh = DH;
+  c.fillStyle = '#080a18';
+  c.fillRect(-dw / 2 - 14, -dh - 70, dw + 28, dh + 70);
+  // Sunburst transom.
+  c.save();
+  c.beginPath();
+  c.arc(0, -dh, dw / 2, Math.PI, Math.PI * 2);
+  c.closePath();
+  const fg = c.createRadialGradient(0, -dh, 4, 0, -dh, dw / 2);
+  fg.addColorStop(0, '#fff6d8');
+  fg.addColorStop(1, '#e0962e');
+  c.fillStyle = fg;
+  c.fill();
   c.clip();
-  const g = c.createLinearGradient(0, top, 0, BASE);
-  g.addColorStop(0, '#ffe7a8');
-  g.addColorStop(0.55, '#ffc66a');
-  g.addColorStop(1, '#c87a3a');
-  c.fillStyle = g;
-  c.fillRect(l, top, r - l, BASE - top);
-  for (let row = 0; row < 4; row++) {
-    const y0 = BASE - 50 + row * 14;
+  for (let i = 0; i <= 12; i++) {
+    const a = Math.PI + (i / 12) * Math.PI;
+    c.beginPath();
+    c.moveTo(0, -dh);
+    c.lineTo(Math.cos(a) * dw, -dh + Math.sin(a) * dw);
+    c.strokeStyle = 'rgba(90,52,12,0.85)';
+    c.lineWidth = 2;
+    c.stroke();
+  }
+  c.beginPath();
+  c.arc(0, -dh, 14, Math.PI, Math.PI * 2);
+  c.fillStyle = '#c8913a';
+  c.fill();
+  c.restore();
+  c.beginPath();
+  c.arc(0, -dh, dw / 2, Math.PI, Math.PI * 2);
+  c.strokeStyle = gold(c, -dw / 2, -dh - dw / 2, dw / 2, -dh);
+  c.lineWidth = 5;
+  c.stroke();
+  // The hall behind the doors: chandelier light over a chequered floor (the doors open onto it).
+  c.save();
+  c.beginPath();
+  c.rect(-dw / 2, -dh, dw, dh);
+  c.clip();
+  const hg = c.createLinearGradient(0, -dh, 0, 0);
+  hg.addColorStop(0, '#ffe7b0');
+  hg.addColorStop(0.55, '#ffc66a');
+  hg.addColorStop(1, '#b8641c');
+  c.fillStyle = hg;
+  c.fillRect(-dw / 2, -dh, dw, dh);
+  for (let row = 0; row < 3; row++) {
+    const y0 = -34 + row * 11;
     for (let i = -6; i < 7; i++) {
       if ((i + row) % 2) continue;
-      c.fillStyle = 'rgba(90,40,30,0.4)';
-      c.fillRect(DOOR_X + i * (16 + row * 3), y0, 16 + row * 3, 14);
+      c.fillStyle = 'rgba(20,24,60,0.35)';
+      c.fillRect(i * (12 + row * 2), y0, 12 + row * 2, 11);
     }
   }
-  glowAt(c, DOOR_X, top + 40, 70, 40, 0xffffff, 0.8);
+  glowAt(c, 0, -dh + 26, 50, 28, 0xffffff, 0.8);
   c.restore();
-  // Frame: deep brass jambs and a stepped lintel with a sunburst fan.
-  const fl = l - 16;
-  const fr = r + 16;
-  c.fillStyle = gold(c, fl, top - 30, fl + 30, BASE);
-  rrect(c, fl, top - 22, 16, BASE - top + 22, 3);
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.stroke();
-  rrect(c, r, top - 22, 16, BASE - top + 22, 3);
-  c.fillStyle = gold(c, r, top - 30, r + 30, BASE);
-  c.fill();
-  c.stroke();
-  rrect(c, fl - 4, top - 30, fr - fl + 8, 16, 3);
-  c.fillStyle = gold(c, fl, top - 30, fl + 80, top - 14);
-  c.fill();
-  c.stroke();
-}
-
-function paintCanopy(c: Ctx) {
-  const { l, r, top, bottom } = CANOPY;
-  // Shadow it casts on the wall.
-  glowAt(c, DOOR_X, bottom + 10, (r - l) * 0.55, 18, 0x0a0410, 0.5);
-  // Chains back to the façade.
-  c.strokeStyle = gold(c, l, top - 60, l + 20, top);
-  c.lineWidth = 3;
-  for (const [x0, x1] of [[l + 20, l + 60], [r - 20, r - 60]]) {
-    c.beginPath();
-    c.moveTo(x0, top + 4);
-    c.lineTo(x1, top - 48);
-    c.stroke();
-  }
-  // Top face, seen a little from above.
+  // Brass door frame and threshold.
+  c.strokeStyle = gold(c, -dw / 2, 0, dw / 2, 0);
+  c.lineWidth = 5;
+  c.strokeRect(-dw / 2 - 2, -dh - 2, dw + 4, dh + 4);
+  c.fillStyle = gold(c, 0, -3, 0, 2);
+  c.fillRect(-dw / 2 - 8, -3, dw + 16, 4);
+  // Marquee canopy with bulbs.
   c.beginPath();
-  c.moveTo(l + 14, top - 10);
-  c.lineTo(r - 14, top - 10);
-  c.lineTo(r, top + 2);
-  c.lineTo(l, top + 2);
+  c.moveTo(-dw / 2 - 50, -dh - 6);
+  c.lineTo(dw / 2 + 50, -dh - 6);
+  c.lineTo(dw / 2 + 64, -dh + 10);
+  c.lineTo(-dw / 2 - 64, -dh + 10);
   c.closePath();
-  c.fillStyle = '#8a2a40';
-  c.fill();
+  fillInk(c, gold(c, 0, -dh - 6, 0, -dh + 10), 2);
+  c.fillStyle = '#7e1f36';
+  c.fillRect(-dw / 2 - 64, -dh + 10, dw + 128, 10);
   c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.stroke();
-  // Velvet front face with gold piping.
-  rrect(c, l, top, r - l, bottom - top, 4);
-  c.fillStyle = vg(c, top, bottom, 0x7a1a32, 0.25, 0.4);
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 2.5;
-  c.stroke();
-  c.fillStyle = gold(c, l, top, l + 60, top + 6);
-  c.fillRect(l + 2, top + 3, r - l - 4, 4);
-  c.fillRect(l + 2, bottom - 8, r - l - 4, 3);
-  c.font = '18px Bungee, Impact, sans-serif';
-  c.textAlign = 'center';
-  c.textBaseline = 'middle';
-  c.fillStyle = '#ffe2a0';
-  c.fillText('CASINO', DOOR_X, (top + bottom) / 2 + 1);
-  // Valance scallops.
-  for (let sx = l; sx < r - 1; sx += 23) {
-    c.beginPath();
-    c.arc(sx + 11.5, bottom, 11.5, 0, Math.PI);
-    c.fillStyle = '#5a1024';
-    c.fill();
-    c.strokeStyle = INK;
-    c.lineWidth = 1.8;
-    c.stroke();
-    c.beginPath();
-    c.arc(sx + 11.5, bottom + 11, 2.2, 0, Math.PI * 2);
-    c.fillStyle = '#e0b25a';
-    c.fill();
-  }
-}
-
-function paintPavement(c: Ctx) {
-  // Wet stone pavement, seen from slightly above.
-  const g = c.createLinearGradient(0, BASE, 0, CURB);
-  g.addColorStop(0, '#2a2232');
-  g.addColorStop(1, '#3e3446');
-  c.fillStyle = g;
-  c.fillRect(0, BASE, W, CURB - BASE);
-  // Slab seams in perspective.
-  c.strokeStyle = 'rgba(10,6,16,0.6)';
   c.lineWidth = 1.5;
-  for (const y of [BASE + 22, BASE + 50, BASE + 84]) {
-    c.beginPath();
-    c.moveTo(0, y);
-    c.lineTo(W, y);
-    c.stroke();
+  c.strokeRect(-dw / 2 - 64, -dh + 10, dw + 128, 10);
+  for (let x = -dw / 2 - 56; x <= dw / 2 + 56; x += 14) {
+    ellipse(c, x, -dh + 22, 2.4, 2.4);
+    c.fillStyle = '#fff1c4';
+    c.fill();
+    sp.bulbs.push({ x: fx(x), y: fy(-dh + 22), canopy: true });
   }
-  for (let x = -100; x < W + 200; x += 96) {
-    c.beginPath();
-    c.moveTo(x, BASE);
-    c.lineTo(DOOR_X + (x - DOOR_X) * 1.22, CURB);
-    c.stroke();
-  }
-  c.strokeStyle = 'rgba(255,230,240,0.06)';
-  for (const y of [BASE + 23, BASE + 51, BASE + 85]) {
-    c.beginPath();
-    c.moveTo(0, y);
-    c.lineTo(W, y);
-    c.stroke();
-  }
-  // Reflections of lit windows and the sign in the wet stone.
-  for (const wx of [FACADE.x + 79, FACADE.x + 143, FACADE.x + FACADE.w - 79, FACADE.x + FACADE.w - 143]) glowAt(c, wx, BASE + 40, 26, 60, 0xffb860, 0.22, 'lighter');
-  glowAt(c, DOOR_X, BASE + 30, 260, 40, 0xff5fa2, 0.12, 'lighter');
-  glowAt(c, DOOR_X, BASE + 20, 160, 50, 0xffcf7a, 0.35, 'lighter');
-  // Kerb: lit top edge and the face.
-  c.fillStyle = '#6a5e70';
-  c.fillRect(0, CURB, W, 5);
-  c.fillStyle = vg(c, CURB + 5, ROAD, 0x3a3240, 0.1, 0.4);
-  c.fillRect(0, CURB + 5, W, ROAD - CURB - 5);
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.beginPath();
-  c.moveTo(0, CURB);
-  c.lineTo(W, CURB);
-  c.moveTo(0, ROAD);
-  c.lineTo(W, ROAD);
-  c.stroke();
 }
 
-function paintRoad(c: Ctx) {
-  const g = c.createLinearGradient(0, ROAD, 0, H);
-  g.addColorStop(0, '#16131e');
-  g.addColorStop(0.5, '#1d1a28');
-  g.addColorStop(1, '#121019');
-  c.fillStyle = g;
-  c.fillRect(0, ROAD, W, H - ROAD);
-  // Gutter water.
-  c.fillStyle = 'rgba(120,130,190,0.12)';
-  c.fillRect(0, ROAD, W, 6);
-  const r = seeded(31);
-  for (let i = 0; i < 900; i++) {
-    c.fillStyle = r() < 0.5 ? 'rgba(255,240,255,0.04)' : 'rgba(0,0,0,0.12)';
-    c.fillRect(r() * W, ROAD + r() * (H - ROAD), 2, 1.5);
-  }
-  // Long wet reflections: neon pink from the sign, gold from the lamps and the door.
-  glowAt(c, DOOR_X, ROAD + 70, 220, 110, 0xff5fa2, 0.14, 'lighter');
-  for (let i = 0; i < 9; i++) {
-    const x = SIGN.x + 40 + i * 65 + r() * 20;
-    glowAt(c, x, ROAD + 80 + r() * 30, 9, 70 + r() * 30, i % 3 === 1 ? 0xffcf7a : 0xff5fa2, 0.22, 'lighter');
-  }
-  for (const lx of LAMPS) {
-    glowAt(c, lx, ROAD + 80, 18, 110, 0xffcf7a, 0.35, 'lighter');
-    glowAt(c, lx, ROAD + 50, 60, 40, 0xffcf7a, 0.12, 'lighter');
-  }
-  // Puddles catching the sky.
-  for (const [x, y, rx, ry] of [[260, 790, 90, 12], [700, 864, 120, 14], [1310, 812, 80, 10], [1500, 876, 110, 13], [90, 880, 70, 10]]) {
-    ellipse(c, x, y, rx, ry);
-    const pg = c.createLinearGradient(0, y - ry, 0, y + ry);
-    pg.addColorStop(0, 'rgba(40,40,90,0.75)');
-    pg.addColorStop(1, 'rgba(90,60,120,0.55)');
-    c.fillStyle = pg;
-    c.fill();
-    c.strokeStyle = 'rgba(200,190,255,0.18)';
-    c.lineWidth = 1.5;
-    c.stroke();
-  }
-  // Dashed centre line, larger towards the viewer.
-  for (let x = 30; x < W; x += 150) {
+/** Topiaries in brass tubs beside the door (painted in front of the façade). */
+function topiaries(c: Ctx) {
+  for (const sx of [-1, 1]) {
+    c.save();
+    c.translate(sx * 98, 0);
+    shadow(c, 0, 2, 22, 6, 0.6);
     c.beginPath();
-    c.moveTo(x, 846);
-    c.lineTo(x + 80, 846);
-    c.lineTo(x + 84, 853);
-    c.lineTo(x - 4, 853);
+    c.moveTo(-13, -30);
+    c.lineTo(13, -30);
+    c.lineTo(10, 0);
+    c.lineTo(-10, 0);
     c.closePath();
-    c.fillStyle = 'rgba(240,226,190,0.32)';
-    c.fill();
+    fillInk(c, gold(c, -13, -30, 13, 0), 1.6);
+    for (const [yy, rr] of [[-44, 15], [-70, 12], [-90, 9]]) {
+      ellipse(c, 0, yy, rr, rr);
+      const g = c.createRadialGradient(-rr * 0.4, yy - rr * 0.4, 1, 0, yy, rr);
+      g.addColorStop(0, '#5aa86a');
+      g.addColorStop(1, '#14402a');
+      fillInk(c, g, 1.6);
+    }
+    c.restore();
   }
 }
 
-function paintCarpet(c: Ctx) {
-  const t = BASE + 2;
+/** Red carpet from the door to the kerb, with brass stanchions and velvet ropes (world units). */
+function carpet(c: Ctx) {
+  const t = BASE + 1;
   const quad = (inset: number) => {
     c.beginPath();
-    c.moveTo(DOOR.l + 14 + inset, t);
-    c.lineTo(DOOR.r - 14 - inset, t);
-    c.lineTo(DOOR_X + 112 - inset * 1.2, CURB);
-    c.lineTo(DOOR_X + 112 - inset * 1.2, ROAD - 2);
-    c.lineTo(DOOR_X - 112 + inset * 1.2, ROAD - 2);
-    c.lineTo(DOOR_X - 112 + inset * 1.2, CURB);
+    c.moveTo(DOOR.l + 6 + inset, t);
+    c.lineTo(DOOR.r - 6 - inset, t);
+    c.lineTo(DOOR_X + 96 - inset * 1.2, CURB);
+    c.lineTo(DOOR_X + 96 - inset * 1.2, ROAD - 2);
+    c.lineTo(DOOR_X - 96 + inset * 1.2, ROAD - 2);
+    c.lineTo(DOOR_X - 96 + inset * 1.2, CURB);
     c.closePath();
   };
   quad(0);
-  const g = c.createLinearGradient(0, t, 0, ROAD);
-  g.addColorStop(0, '#9a1830');
-  g.addColorStop(0.8, '#c42a40');
-  g.addColorStop(0.81, '#7a1024');
-  g.addColorStop(1, '#5a0a1a');
+  const g = c.createLinearGradient(DOOR_X - 96, 0, DOOR_X + 96, 0);
+  g.addColorStop(0, '#4a0f20');
+  g.addColorStop(0.5, '#8e2440');
+  g.addColorStop(1, '#4a0f20');
   c.fillStyle = g;
   c.fill();
   c.strokeStyle = INK;
   c.lineWidth = 2;
   c.stroke();
-  quad(8);
+  quad(7);
   c.strokeStyle = 'rgba(224,178,90,0.85)';
   c.lineWidth = 2;
   c.stroke();
+  // Small sunburst inlay at the kerb end.
+  c.save();
+  c.translate(DOOR_X, ROAD - 4);
+  c.scale(1, 0.4);
+  sunburst(c, 0, 0, 60, Math.PI, Math.PI * 2, 11, 'rgba(242,205,114,0.75)', 'rgba(242,205,114,0.2)', 6);
+  c.restore();
   glowAt(c, DOOR_X, t + 20, 90, 40, 0xffcf7a, 0.35, 'lighter');
-  // Brass stanchions with velvet ropes along both sides.
   for (const side of [-1, 1]) {
     const posts = [
-      [DOOR_X + side * 104, BASE + 26],
-      [DOOR_X + side * 122, CURB - 6],
+      [DOOR_X + side * 92, BASE + 30],
+      [DOOR_X + side * 108, CURB - 6],
     ];
     const [a, b] = posts;
     c.beginPath();
@@ -781,7 +723,7 @@ function paintCarpet(c: Ctx) {
     c.stroke();
     for (const [px, py] of posts) {
       ellipse(c, px, py, 9, 3.5);
-      c.fillStyle = 'rgba(10,4,16,0.5)';
+      c.fillStyle = 'rgba(4,6,16,0.5)';
       c.fill();
       rrect(c, px - 2.5, py - 34, 5, 34, 2);
       c.fillStyle = gold(c, px - 3, 0, px + 3, 0);
@@ -795,111 +737,183 @@ function paintCarpet(c: Ctx) {
       c.stroke();
     }
   }
-  // Potted topiaries beside the door.
-  for (const px of [DOOR.l - 64, DOOR.r + 64]) {
-    ellipse(c, px, BASE + 6, 26, 7);
-    c.fillStyle = 'rgba(10,4,16,0.55)';
-    c.fill();
+}
+
+/** Art-deco globe lamp on the kerb: brass post, two curled arms, three milk-glass globes (world units). */
+function lampPost(c: Ctx, sp: Spots, x: number) {
+  const foot = CURB - 6;
+  c.save();
+  c.translate(x, foot);
+  c.scale(FS, FS);
+  shadow(c, 0, 0, 22, 6, 0.6);
+  c.fillStyle = gold(c, -4, 0, 4, 0);
+  c.fillRect(-3, -150, 6, 150);
+  rrect(c, -9, -16, 18, 16, 3);
+  fillInk(c, gold(c, -9, -16, 9, 0), 1.4);
+  for (const sx of [-1, 1]) {
     c.beginPath();
-    c.moveTo(px - 20, BASE - 34);
-    c.lineTo(px + 20, BASE - 34);
-    c.lineTo(px + 14, BASE + 4);
-    c.lineTo(px - 14, BASE + 4);
-    c.closePath();
-    c.fillStyle = gold(c, px - 20, BASE - 34, px + 10, BASE + 4);
-    c.fill();
-    c.strokeStyle = INK;
-    c.lineWidth = 2;
+    c.moveTo(0, -140);
+    c.quadraticCurveTo(sx * 24, -150, sx * 28, -136);
+    c.strokeStyle = '#c8913a';
+    c.lineWidth = 3;
     c.stroke();
-    for (const [oy, rr] of [[-60, 24], [-104, 19], [-138, 13]]) {
-      ellipse(c, px, BASE + oy, rr, rr);
-      const lg = c.createRadialGradient(px - rr * 0.4, BASE + oy - rr * 0.4, 2, px, BASE + oy, rr);
-      lg.addColorStop(0, '#5aa86a');
-      lg.addColorStop(1, '#14402a');
-      c.fillStyle = lg;
-      c.fill();
-      c.strokeStyle = INK;
+    ellipse(c, sx * 28, -128, 9, 10);
+    c.fillStyle = '#fff4d8';
+    c.fill();
+    sp.lamps.push({ x: x + sx * 28 * FS, y: foot - 128 * FS });
+  }
+  ellipse(c, 0, -160, 11, 12);
+  c.fillStyle = '#fff4d8';
+  c.fill();
+  sp.lamps.push({ x, y: foot - 160 * FS });
+  c.restore();
+}
+
+/** The painted house layer (façade, entrance, carpet, lamps), in its own canvas around the door. */
+function paintHouse(sp: Spots) {
+  return paint(FAC.w, FAC.h, (c) => {
+    c.translate(-FAC.x, -FAC.y);
+    c.save();
+    c.translate(DOOR_X, BASE);
+    c.scale(FS, FS);
+    wings(c, sp);
+    mainBlock(c, sp);
+    tower(c, sp);
+    dome(c, sp);
+    sign(c, sp);
+    entrance(c, sp);
+    c.restore();
+    carpet(c);
+    c.save();
+    c.translate(DOOR_X, BASE);
+    c.scale(FS, FS);
+    topiaries(c);
+    c.restore();
+    for (const u of LAMPS) lampPost(c, sp, fx(u));
+  }, 1.5);
+}
+
+/** Pavement and wet road with the house mirrored in it (world units, y BASE..H). */
+function paintGround(sp: Spots) {
+  return paint(W, H - BASE, (c) => {
+    c.translate(0, -BASE);
+    // Pavement: dark stone slabs.
+    const g = c.createLinearGradient(0, BASE, 0, CURB);
+    g.addColorStop(0, '#3a3450');
+    g.addColorStop(1, '#221e34');
+    c.fillStyle = g;
+    c.fillRect(0, BASE, W, CURB - BASE);
+    c.strokeStyle = 'rgba(6,6,16,0.5)';
+    c.lineWidth = 1.5;
+    for (const y of [BASE + 26, BASE + 58]) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(W, y);
       c.stroke();
     }
-    c.fillStyle = '#3a2416';
-    c.fillRect(px - 2, BASE - 82, 4, 22);
-  }
+    for (let x = DOOR_X % 72; x < W; x += 72) {
+      c.beginPath();
+      c.moveTo(x, BASE);
+      c.lineTo(DOOR_X + (x - DOOR_X) * 1.18, CURB);
+      c.stroke();
+    }
+    c.strokeStyle = 'rgba(220,226,255,0.05)';
+    for (const y of [BASE + 27, BASE + 59]) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(W, y);
+      c.stroke();
+    }
+    // Kerb.
+    c.fillStyle = '#5a5070';
+    c.fillRect(0, CURB, W, 5);
+    c.fillStyle = vg(c, CURB + 5, ROAD, 0x2a2840, 0.1, 0.4);
+    c.fillRect(0, CURB + 5, W, ROAD - CURB - 5);
+    c.strokeStyle = INK;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(0, CURB);
+    c.lineTo(W, CURB);
+    c.moveTo(0, ROAD);
+    c.lineTo(W, ROAD);
+    c.stroke();
+    // Wet road.
+    const rg = c.createLinearGradient(0, ROAD, 0, H);
+    rg.addColorStop(0, '#141228');
+    rg.addColorStop(1, '#06060e');
+    c.fillStyle = rg;
+    c.fillRect(0, ROAD, W, H - ROAD);
+    const r = seeded(31);
+    for (let i = 0; i < 1400; i++) {
+      c.fillStyle = r() < 0.5 ? 'rgba(220,230,255,0.035)' : 'rgba(0,0,0,0.12)';
+      c.fillRect(r() * W, ROAD + r() * (H - ROAD), 2, 1.5);
+    }
+    // The house in the wet stone and the road: windows of the lower floors, the door, the lamps.
+    c.globalCompositeOperation = 'lighter';
+    for (const w of sp.windows) {
+      if (w.floor > 1 || w.y < BASE - 400) continue;
+      glowAt(c, w.x, BASE + 30 + (BASE - w.y) * 0.18, w.w * 0.45, 26, FLOORS[w.floor].col, 0.14);
+      glowAt(c, w.x, ROAD + 60 + (BASE - w.y) * 0.2, w.w * 0.35, 50, FLOORS[w.floor].col, 0.08);
+    }
+    glowAt(c, DOOR_X, BASE + 26, 150, 40, 0xffb347, 0.3);
+    glowAt(c, DOOR_X, ROAD + 80, 120, 90, 0xffb347, 0.18);
+    for (const u of LAMPS) {
+      glowAt(c, fx(u), ROAD + 80, 18, 110, 0xffcf7a, 0.3);
+      glowAt(c, fx(u), CURB - 6, 90, 22, 0xffcf7a, 0.25);
+    }
+    c.globalCompositeOperation = 'source-over';
+    // Puddles catching the sky.
+    for (const [x, y, rx, ry] of [[DOOR_X - 900, 790, 90, 12], [DOOR_X - 420, 868, 120, 14], [DOOR_X + 330, 812, 80, 10], [DOOR_X + 760, 876, 110, 13], [DOOR_X - 1180, 880, 70, 10], [DOOR_X + 1150, 800, 90, 11]]) {
+      ellipse(c, x, y, rx, ry);
+      const pg = c.createLinearGradient(0, y - ry, 0, y + ry);
+      pg.addColorStop(0, 'rgba(30,40,90,0.75)');
+      pg.addColorStop(1, 'rgba(60,56,120,0.55)');
+      c.fillStyle = pg;
+      c.fill();
+      c.strokeStyle = 'rgba(200,210,255,0.16)';
+      c.lineWidth = 1.5;
+      c.stroke();
+    }
+    // Dashed centre line.
+    for (let x = 30; x < W; x += 150) {
+      c.beginPath();
+      c.moveTo(x, 846);
+      c.lineTo(x + 80, 846);
+      c.lineTo(x + 84, 853);
+      c.lineTo(x - 4, 853);
+      c.closePath();
+      c.fillStyle = 'rgba(240,226,190,0.26)';
+      c.fill();
+    }
+  }, 1);
 }
 
-function paintLampPost(c: Ctx, x: number) {
-  const foot = CURB - 6;
-  ellipse(c, x, foot, 22, 6);
-  c.fillStyle = 'rgba(10,4,16,0.55)';
-  c.fill();
-  // Fluted base, slim post, ornate head.
-  c.beginPath();
-  c.moveTo(x - 14, foot);
-  c.lineTo(x + 14, foot);
-  c.lineTo(x + 8, foot - 40);
-  c.lineTo(x - 8, foot - 40);
-  c.closePath();
-  c.fillStyle = vg(c, foot - 40, foot, 0x26222e, 0.3, 0.3);
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.stroke();
-  rrect(c, x - 4, foot - 250, 8, 214, 3);
-  const pg = c.createLinearGradient(x - 4, 0, x + 4, 0);
-  pg.addColorStop(0, '#5a5468');
-  pg.addColorStop(1, '#16141c');
-  c.fillStyle = pg;
-  c.fill();
-  c.stroke();
-  // Curled arms.
-  c.strokeStyle = INK;
-  c.lineWidth = 4;
-  c.beginPath();
-  c.moveTo(x, foot - 230);
-  c.quadraticCurveTo(x - 26, foot - 236, x - 22, foot - 252);
-  c.moveTo(x, foot - 230);
-  c.quadraticCurveTo(x + 26, foot - 236, x + 22, foot - 252);
-  c.stroke();
-  // Lantern: a glass cage with a brass cap.
-  const ly = foot - 278;
-  c.beginPath();
-  c.moveTo(x - 14, ly);
-  c.lineTo(x + 14, ly);
-  c.lineTo(x + 10, ly + 30);
-  c.lineTo(x - 10, ly + 30);
-  c.closePath();
-  const gg = c.createLinearGradient(0, ly, 0, ly + 30);
-  gg.addColorStop(0, '#fffbe6');
-  gg.addColorStop(1, '#ffc870');
-  c.fillStyle = gg;
-  c.fill();
-  c.strokeStyle = INK;
-  c.lineWidth = 2;
-  c.stroke();
-  c.beginPath();
-  c.moveTo(x - 20, ly);
-  c.lineTo(x, ly - 18);
-  c.lineTo(x + 20, ly);
-  c.closePath();
-  c.fillStyle = gold(c, x - 20, ly - 18, x + 10, ly);
-  c.fill();
-  c.stroke();
-  rrect(c, x - 8, ly + 30, 16, 6, 2);
-  c.fill();
-  c.stroke();
+/** Vertical gradient that keeps dark paint readable. */
+function vg(c: Ctx, y0: number, y1: number, col: number, top = 0.18, bottom = 0.35) {
+  const g = c.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, rgb(light(col, top)));
+  g.addColorStop(0.5, rgb(col));
+  g.addColorStop(1, rgb(dark(col, bottom)));
+  return g;
 }
 
-function paintStreet() {
-  return paint(W, H, (c) => {
-    paintSkyline(c);
-    paintNeighbours(c);
-    paintFacade(c);
-    paintDoorway(c);
-    paintPavement(c);
-    paintRoad(c);
-    paintCarpet(c);
-    paintCanopy(c);
-    for (const lx of LAMPS) paintLampPost(c, lx);
-  }, 1.5);
+/** A soft beam of light: bright at the apex on the left, fading to the right. */
+let beamTex: Texture | null = null;
+function beamTexture() {
+  return (beamTex ??= paint(512, 64, (c) => {
+    const g = c.createLinearGradient(0, 0, 512, 0);
+    g.addColorStop(0, 'rgba(255,246,220,1)');
+    g.addColorStop(0.45, 'rgba(200,215,255,0.32)');
+    g.addColorStop(1, 'rgba(200,215,255,0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0, 30);
+    c.lineTo(512, 0);
+    c.lineTo(512, 64);
+    c.lineTo(0, 34);
+    c.closePath();
+    c.fill();
+  }, 1));
 }
 
 // ---- Cars ----------------------------------------------------------------------------------------
@@ -1019,7 +1033,7 @@ function carTexture(paintCol: number, taxi: boolean) {
       c.fillStyle = sg;
       c.fill();
       ink(2);
-      c.font = '12px Bungee, Impact, sans-serif';
+      c.font = '700 12px Cinzel, Georgia, serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = '#2a1020';
@@ -1116,7 +1130,7 @@ let mistTex: Texture | null = null;
 function mistTexture() {
   return (mistTex ??= paint(512, 128, (c) => {
     const r = seeded(12);
-    for (let i = 0; i < 9; i++) glowAt(c, 60 + r() * 392, 64 + (r() - 0.5) * 30, 90 + r() * 70, 26 + r() * 16, 0xb8a8d8, 0.28);
+    for (let i = 0; i < 9; i++) glowAt(c, 60 + r() * 392, 64 + (r() - 0.5) * 30, 90 + r() * 70, 26 + r() * 16, 0x8a98c8, 0.26);
   }, 0.5));
 }
 
@@ -1129,18 +1143,34 @@ interface Drop {
 
 // ---- The street ----------------------------------------------------------------------------------
 
+interface Spark {
+  s: Sprite;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  age: number;
+  sz: number;
+  ph: number;
+}
+
 export class Street {
   readonly view = new Container();
   private world = new Container();
   private chars = new Container();
   private traffic = new Container();
   private rainLayer = new Container();
-  private bulbs: Sprite[] = [];
-  private canopyBulbs: Sprite[] = [];
-  private sign!: Sprite;
-  private signGlow!: Sprite;
-  private signReflection!: Sprite;
+  private glowLayer = new Container();
+  private sparkLayer = new Container();
+  private spots: Spots = { windows: [], bulbs: [], lamps: [], lens: { x: DOOR_X, y: fy(-766) } };
+  private windowGlows: Sprite[] = [];
+  private bulbGlows: Sprite[] = [];
   private lampGlows: Sprite[] = [];
+  private beams: Sprite[] = [];
+  private lensGlow!: Sprite;
+  private lensCore!: Sprite;
+  private signGlow!: Sprite;
   private doorLight!: Sprite;
   private doorSpill!: Sprite;
   /** Both entrance doors, redrawn while they swing inwards (0 shut, 1 open). */
@@ -1150,7 +1180,7 @@ export class Street {
   private puffs: { s: Sprite; vx: number; vy: number; life: number }[] = [];
   private exhaust: { x: number; y: number; c: Container } | null = null;
   private puffAcc = 0;
-  private moths: { c: Container; wings: Sprite; base: number; cx: number; cy: number; ph: number; sp: number }[] = [];
+  private sparks: Spark[] = [];
   private cars: Car[] = [];
   private time = 0;
   private nextCar = 2;
@@ -1163,71 +1193,78 @@ export class Street {
   private moon!: Sprite;
   private screenW = 1280;
   private screenH = 800;
-  /** Camera: zoom 1 shows the whole street; the arrival zooms into the door. */
-  private cam = { x: W / 2 + 180, y: H / 2, zoom: 1 };
+  private calm = reducedMotion();
+  private measureAcc = 0;
+  /**
+   * Camera. `zoom` 1 and `inset` = height of the start menu show the whole house above the
+   * menu; the arrival lowers the inset to 0 and zooms towards the door.
+   */
+  private cam = { x: DOOR_X, y: (FRAME.top + FRAME.bottom) / 2, zoom: 1, inset: 0 };
+  /** False once the arrival takes the camera over: then the menu height no longer counts. */
+  private followMenu = true;
 
   constructor(mood: StreetMood = 'drizzle') {
     this.view.addChild(this.world, this.rainLayer);
+    // Paint the house first: it tells where the windows, bulbs, lamps and the lens are.
+    const house = paintHouse(this.spots);
     // Endless night around the scene, for screens with another shape.
-    this.world.addChild(new Graphics().rect(-3000, -3000, W + 6000, 3000).fill(0x07071a).rect(-3000, ROAD, W + 6000, 3000).fill(0x121019));
-    const sky = new Sprite(paint(W, 1500, paintSky, 0.5));
-    sky.position.set(0, -900);
-    this.moon = new Sprite(paint(180, 180, paintMoon, 1.5));
-    this.moon.position.set(170, 40);
+    this.world.addChild(new Graphics().rect(-4000, -4000, W + 8000, 4000 + BASE).fill(0x03040f).rect(-4000, ROAD, W + 8000, 4000).fill(0x06060e));
+    const sky = new Sprite(paint(SKY.w, SKY.h, paintSky, 0.5));
+    sky.position.set(SKY.x, SKY.y);
+    this.moon = new Sprite(paint(240, 240, paintMoon, 1.5));
     this.world.addChild(sky, this.moon);
-    // Mist between the skyline and the street houses.
-    this.addMist(BASE - 130, 0.35, 3);
-    this.world.addChild(new Sprite(paintStreet()));
-    // Pavements left and right of the scene for wide screens.
-    this.world.addChild(new Graphics().rect(-3000, BASE, 3000, CURB - BASE).fill(0x342a3c).rect(W, BASE, 3000, CURB - BASE).fill(0x342a3c));
-
+    // The moon lamp's two beams sweep the sky behind the house.
+    for (const a of [0.24, 0.14]) {
+      const b = new Sprite(beamTexture());
+      b.anchor.set(0, 0.5);
+      b.blendMode = 'add';
+      b.alpha = a;
+      b.position.set(this.spots.lens.x, this.spots.lens.y);
+      this.beams.push(b);
+      this.world.addChild(b);
+    }
+    const city = new Sprite(paint(W, BASE - CITY.y, paintCity, 1));
+    city.position.set(0, CITY.y);
+    this.world.addChild(city);
+    this.addMist(BASE - 150, 0.3, 4);
+    // Wide pavements and road beyond the painted strip.
+    this.world.addChild(new Graphics().rect(-4000, BASE, 4000, CURB - BASE).fill(0x2e2942).rect(W, BASE, 4000, CURB - BASE).fill(0x2e2942).rect(-4000, ROAD, 4000, H - ROAD).fill(0x0e0d1c).rect(W, ROAD, 4000, H - ROAD).fill(0x0e0d1c));
+    const ground = new Sprite(paintGround(this.spots));
+    ground.position.set(0, BASE);
+    this.world.addChild(ground);
+    const houseSprite = new Sprite(house);
+    houseSprite.position.set(FAC.x, FAC.y);
+    this.world.addChild(houseSprite);
     // Light inside the door and the spill on the pavement when it opens.
-    this.doorLight = this.glow(DOOR_X, BASE - 80, 420, 360, COLORS.lamp, 0.25);
+    this.doorLight = this.glow(DOOR_X, BASE - 70, 380, 320, COLORS.lamp, 0.22);
     this.world.addChild(this.doors);
     this.drawDoors(0);
-    this.doorSpill = this.glow(DOOR_X, BASE + 40, 420, 120, COLORS.lamp, 0);
-
-    // Neon sign with chasing bulbs and its reflection in the wet road.
-    this.signGlow = this.glow(DOOR_X, SIGN.y + SIGN.h / 2, 820, 220, COLORS.neon, 0.3);
-    for (let i = 0; i < 28; i++) {
-      const bx = SIGN.x + 14 + (i % 14) * ((SIGN.w - 28) / 13);
-      const by = i < 14 ? SIGN.y + 11 : SIGN.y + SIGN.h - 11;
-      this.bulbs.push(this.bulb(bx, by, 5));
-    }
-    this.sign = glowText(HOUSE_CAPS, { fontFamily: FONT_DISPLAY, fontSize: 64, fill: 0xfff0f6, letterSpacing: 6 }, { color: COLORS.neon, distance: 22, outerStrength: 3.5, innerStrength: 0.6 });
-    // The house name may change (src/core/brand.ts): a longer one shrinks to fit the sign.
-    const signFit = (SIGN.w - 56) / Math.max(1, this.sign.width);
-    if (signFit < 1) this.sign.scale.set(signFit);
-    this.sign.position.set(DOOR_X, SIGN.y + SIGN.h / 2 + 2);
-    this.world.addChild(this.sign);
-    this.signReflection = this.glow(DOOR_X, ROAD + 90, 640, 150, COLORS.neon, 0.16);
-    for (let i = 0; i < 16; i++) this.canopyBulbs.push(this.bulb(CANOPY.l + 12 + i * ((CANOPY.r - CANOPY.l - 24) / 15), CANOPY.bottom - 4, 4));
-
-    // Street lamps with moths.
-    for (const lx of LAMPS) {
-      const g = this.glow(lx, CURB - 270, 300, 300, COLORS.lamp, 0.5);
-      this.lampGlows.push(g);
-      this.glow(lx, CURB - 4, 220, 50, COLORS.lamp, 0.22);
-      for (let i = 0; i < 4; i++) this.addMoth(lx, CURB - 272);
-    }
-    for (let i = 0; i < 3; i++) this.addMoth(DOOR_X, SIGN.y + SIGN.h / 2);
-
-    // People stand on the pavement; cars pass in front of them.
-    this.world.addChild(this.chars, this.traffic);
-    this.doorman = new Chibi(COLORS.brass, { jacket: 0x6b1a2e, skin: 0xc68a5e, hair: 0x1b1b22, hat: 'topHat', hatColor: 0x6b1a2e, accessory: 'bowTie' });
+    this.doorSpill = this.glow(DOOR_X, BASE + 40, 380, 110, COLORS.lamp, 0);
+    // Live light on top of the painted house: windows breathing, bulbs, lamps, the lens.
+    this.world.addChild(this.glowLayer);
+    for (const w of this.spots.windows) this.windowGlows.push(this.glow(w.x, w.y, w.w * 2.6, w.h * 1.8, FLOORS[w.floor].col, 0.2, this.glowLayer));
+    for (const b of this.spots.bulbs) this.bulbGlows.push(this.glow(b.x, b.y, 22, 22, 0xffcf7a, 0.6, this.glowLayer));
+    for (const l of this.spots.lamps) this.lampGlows.push(this.glow(l.x, l.y, 150, 150, 0xffcf7a, 0.42, this.glowLayer));
+    this.signGlow = this.glow(DOOR_X, fy(-509), 760, 200, 0xffb45a, 0.16, this.glowLayer);
+    this.lensGlow = this.glow(this.spots.lens.x, this.spots.lens.y, 300, 300, 0xfff0d0, 0.6, this.glowLayer);
+    this.lensCore = this.glow(this.spots.lens.x, this.spots.lens.y, 84, 84, 0xffffff, 0.9, this.glowLayer);
+    // People stand on the pavement; cars pass in front of them; sparks rise over everything.
+    this.world.addChild(this.chars, this.traffic, this.sparkLayer);
+    this.doorman = new Chibi(COLORS.brass, { jacket: 0x7e1f36, skin: 0xc68a5e, hair: 0x1b1b22, hat: 'topHat', hatColor: 0x7e1f36, accessory: 'bowTie' });
     this.doormanWrap.addChild(this.doorman.view);
-    this.doormanWrap.position.set(DOOR.r + 116, BASE + 36);
-    this.doormanWrap.scale.set(1.3);
+    this.doormanWrap.position.set(DOOR.r + 70, BASE + 34);
+    this.doormanWrap.scale.set(1.15);
+    this.doorman.faceTowards(Math.PI / 2);
     this.chars.addChild(this.doormanWrap);
     this.chibis.push({ ch: this.doorman, dir: () => null });
-
+    this.resetSparks();
     // Low mist over the road.
-    this.addMist(ROAD + 20, 0.22, 3);
+    this.addMist(ROAD + 20, 0.2, 4);
     this.setMood(mood);
     if (import.meta.env.DEV) (window as unknown as { __street?: Street }).__street = this;
   }
 
-  private glow(x: number, y: number, w: number, h: number, tint: number, alpha: number) {
+  private glow(x: number, y: number, w: number, h: number, tint: number, alpha: number, layer: Container = this.world) {
     const s = new Sprite(glowTexture());
     s.anchor.set(0.5);
     s.position.set(x, y);
@@ -1236,21 +1273,7 @@ export class Street {
     s.tint = tint;
     s.alpha = alpha;
     s.blendMode = 'add';
-    this.world.addChild(s);
-    return s;
-  }
-
-  private bulb(x: number, y: number, r: number) {
-    const s = new Sprite(glowTexture());
-    s.anchor.set(0.5);
-    s.position.set(x, y);
-    s.width = s.height = r * 5;
-    s.tint = 0xffe7a8;
-    s.blendMode = 'add';
-    this.world.addChild(s);
-    const core = new Graphics().circle(x, y, r * 0.8).fill(0xfff6e0);
-    this.world.addChild(core);
-    (s as Sprite & { core?: Graphics }).core = core;
+    layer.addChild(s);
     return s;
   }
 
@@ -1258,14 +1281,51 @@ export class Street {
     for (let i = 0; i < n; i++) {
       const s = new Sprite(mistTexture());
       s.anchor.set(0.5);
-      s.width = 900;
-      s.height = 160;
+      s.width = 1100;
+      s.height = 170;
       s.alpha = alpha;
-      const x0 = (i / n) * (W + 900) - 450;
+      const x0 = (i / n) * (W + 1100) - 550;
       s.position.set(x0, y + (i % 2) * 30);
       this.world.addChild(s);
       this.mists.push({ s, v: 8 + Math.random() * 8, x0 });
     }
+  }
+
+  // ---- Sparks: points of light rising from the lamps, the portal and the dome. ----------------
+
+  private newSpark(s: Sprite | null, init: boolean): Spark {
+    const sp = this.spots;
+    const src = Math.random();
+    let x: number;
+    let y: number;
+    if (src < 0.45 && sp.lamps.length) {
+      const l = sp.lamps[(Math.random() * sp.lamps.length) | 0];
+      x = l.x + (Math.random() - 0.5) * 12;
+      y = l.y;
+    } else if (src < 0.7) {
+      x = sp.lens.x + (Math.random() - 0.5) * 36;
+      y = sp.lens.y;
+    } else {
+      x = DOOR_X + (Math.random() - 0.5) * 170;
+      y = fy(-130);
+    }
+    if (!s) {
+      s = new Sprite(glowTexture());
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      this.sparkLayer.addChild(s);
+    }
+    const warm = Math.random() < 0.8;
+    s.tint = warm ? 0xffc870 : 0xcfe0ff;
+    const life = 3 + Math.random() * 4;
+    return { s, x, y, vx: (Math.random() - 0.5) * 12, vy: -(17 + Math.random() * 30), life, age: init ? Math.random() * life : 0, sz: 7 + Math.random() * 9, ph: Math.random() * 10 };
+  }
+
+  private resetSparks() {
+    for (const p of this.sparks) p.s.destroy();
+    this.sparks = [];
+    const n = this.calm ? 22 : 80;
+    for (let i = 0; i < n; i++) this.sparks.push(this.newSpark(null, true));
   }
 
   /** Clear night, drizzle or rain. Reduced motion keeps a third of the drops. */
@@ -1273,7 +1333,7 @@ export class Street {
     this.mood = mood;
     for (const d of this.drops) d.s.destroy();
     this.drops = [];
-    const base = mood === 'clear' ? 0 : mood === 'drizzle' ? 70 : 190;
+    const base = mood === 'clear' ? 0 : mood === 'drizzle' ? 40 : 170;
     const n = reducedMotion() ? Math.ceil(base / 3) : base;
     const tex = dropTexture();
     for (let i = 0; i < n; i++) {
@@ -1282,15 +1342,15 @@ export class Street {
       s.rotation = 0.12;
       s.tint = 0xd8e0ff;
       const v = 900 + Math.random() * 500;
-      s.alpha = (mood === 'rain' ? 0.3 : 0.22) + Math.random() * 0.2;
-      s.scale.set(1, mood === 'rain' ? 1 : 0.7);
+      s.alpha = (mood === 'rain' ? 0.28 : 0.14) + Math.random() * 0.16;
+      s.scale.set(1, mood === 'rain' ? 1 : 0.6);
       this.rainLayer.addChild(s);
       this.drops.push({ s, x: Math.random() * this.screenW, y: Math.random() * this.screenH, v });
     }
-    for (const m of this.mists) m.s.alpha = mood === 'rain' ? 0.38 : mood === 'drizzle' ? 0.26 : 0.16;
+    for (const m of this.mists) m.s.alpha = mood === 'rain' ? 0.34 : mood === 'drizzle' ? 0.22 : 0.15;
   }
 
-  /** Inward-swinging double doors: each leaf turns away from the viewer around its hinge. */
+  /** Inward-swinging glass doors in brass: each leaf turns away from the viewer around its hinge. */
   private drawDoors(k: number) {
     const g = this.doors.clear();
     const top = DOOR.top;
@@ -1301,87 +1361,65 @@ export class Street {
     const sin = Math.sin(theta);
     for (const side of [-1, 1]) {
       const hx = DOOR_X + side * half; // hinge
-      const fx = hx - side * half * cos; // free edge
-      // The free edge moves away into the room, so it looks a little shorter and higher.
+      const fxe = hx - side * half * cos; // free edge
+      // The free edge moves away into the hall, so it looks a little shorter and higher.
       const shrink = 1 - sin * 0.14;
-      const ft = top + (hh * (1 - shrink)) * 0.35;
-      const fb = top + hh * shrink + (hh * (1 - shrink)) * 0.35;
+      const ft = top + hh * (1 - shrink) * 0.35;
+      const fb = top + hh * shrink + hh * (1 - shrink) * 0.35;
       const pt = (u: number, v: number) => {
-        const x = hx + (fx - hx) * u;
+        const x = hx + (fxe - hx) * u;
         const t0 = top + (ft - top) * u;
         const b0 = BASE + (fb - BASE) * u;
         return [x, t0 + (b0 - t0) * v];
       };
       const quad = (u0: number, u1: number, v0: number, v1: number) => [...pt(u0, v0), ...pt(u1, v0), ...pt(u1, v1), ...pt(u0, v1)];
-      const shade = mix(0x5a2414, 0x24100a, sin * 0.7);
-      g.poly(quad(0, 1, 0, 1)).fill(shade).stroke({ color: 0x160a14, width: 2.5, alpha: 0.9 });
-      // Glass panels glowing with the light inside.
-      g.poly(quad(0.18, 0.82, 0.08, 0.62)).fill({ color: 0xffd890, alpha: 0.8 - sin * 0.3 });
-      g.poly(quad(0.18, 0.82, 0.08, 0.62)).stroke({ color: COLORS.brass, width: 2 });
-      g.poly(quad(0.18, 0.82, 0.7, 0.92)).stroke({ color: COLORS.brass, width: 1.5, alpha: 0.8 });
-      // Moth etched into the glass.
-      const [mx, my] = pt(0.5, 0.33);
-      g.ellipse(mx - 6 * cos, my, 7 * cos, 5).fill({ color: 0xb07a2a, alpha: 0.55 });
-      g.ellipse(mx + 6 * cos, my, 7 * cos, 5).fill({ color: 0xb07a2a, alpha: 0.55 });
-      // Push bar.
-      const [px, py] = pt(0.86, 0.6);
-      g.roundRect(px - 2.5, py - 16, 5, 32, 2.5).fill(COLORS.brass).stroke({ color: 0x160a14, width: 1 });
+      // Brass leaf with a big pane of warm glass.
+      g.poly(quad(0, 1, 0, 1)).fill(mix(0xc8913a, 0x6e4614, sin * 0.6)).stroke({ color: 0x0e0a18, width: 2.5, alpha: 0.9 });
+      g.poly(quad(0.12, 0.88, 0.05, 0.86)).fill({ color: 0xffd890, alpha: 0.85 - sin * 0.35 });
+      g.poly(quad(0.12, 0.88, 0.05, 0.86)).stroke({ color: 0x7a4e18, width: 1.5 });
+      // Glazing bar and a little etched fan in the glass.
+      const [m0x, m0y] = pt(0.5, 0.05);
+      const [m1x, m1y] = pt(0.5, 0.86);
+      g.moveTo(m0x, m0y).lineTo(m1x, m1y).stroke({ color: 0xb07a2a, width: 2, alpha: 0.8 });
+      const [ax0, ay0] = pt(0.5, 0.3);
+      for (let i = 0; i < 5; i++) {
+        const a = Math.PI + ((i + 0.5) / 5) * Math.PI;
+        g.moveTo(ax0, ay0).lineTo(ax0 + Math.cos(a) * 14 * cos, ay0 + Math.sin(a) * 12).stroke({ color: 0xb07a2a, width: 1.2, alpha: 0.6 });
+      }
+      // Kick plate and push bar.
+      g.poly(quad(0.06, 0.94, 0.89, 0.97)).fill({ color: 0x7a4e18, alpha: 0.9 });
+      const [px, py] = pt(0.82, 0.55);
+      g.roundRect(px - 2.5, py - 14, 5, 28, 2.5).fill(0xfff2c0).stroke({ color: 0x0e0a18, width: 1 });
       // Upper-left rim light.
       const [ax, ay] = pt(0, 0);
       const [bx, by] = pt(1, 0);
-      g.moveTo(ax, ay + 1.5).lineTo(bx, by + 1.5).stroke({ color: 0xfff4dc, width: 1.5, alpha: 0.4 });
+      g.moveTo(ax, ay + 1.5).lineTo(bx, by + 1.5).stroke({ color: 0xfff4dc, width: 1.5, alpha: 0.5 });
     }
   }
 
-  /** Warm moths tumble out of the opened doors towards the street. */
-  private mothBurst() {
-    const n = reducedMotion() ? 5 : 14;
+  /** Warm sparks tumble out of the opened doors towards the street. */
+  private sparkBurst() {
+    const n = reducedMotion() ? 6 : 18;
     for (let i = 0; i < n; i++) {
-      const c = new Container();
-      const glow = new Sprite(glowTexture());
-      glow.anchor.set(0.5);
-      glow.width = glow.height = 36;
-      glow.tint = COLORS.lamp;
-      glow.alpha = 0.6;
-      glow.blendMode = 'add';
-      const m = new Sprite(emblemTexture());
-      m.anchor.set(0.5);
-      m.width = m.height = 16;
-      m.tint = 0xfff1c4;
-      c.addChild(glow, m);
-      const sx = DOOR_X + (Math.random() - 0.5) * 120;
-      const sy = BASE - 40 - Math.random() * 110;
-      c.position.set(sx, sy);
-      this.world.addChild(c);
+      const s = new Sprite(glowTexture());
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      s.tint = Math.random() < 0.8 ? 0xffc870 : 0xfff6e0;
+      const sx = DOOR_X + (Math.random() - 0.5) * 110;
+      const sy = BASE - 30 - Math.random() * 100;
+      s.position.set(sx, sy);
+      const size = 14 + Math.random() * 14;
+      s.width = s.height = size;
+      this.sparkLayer.addChild(s);
       const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.6;
       const dist = 120 + Math.random() * 220;
-      const base = 16 / m.texture.width;
       const ph = Math.random() * 10;
       void animate(1400 + Math.random() * 900, (k) => {
-        if (c.destroyed) return;
-        c.position.set(sx + Math.cos(ang) * dist * k + Math.sin(k * 9 + ph) * 14, sy + Math.sin(ang) * dist * k);
-        c.scale.set(1 + k * 0.8);
-        c.alpha = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
-        m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(k * 60 + ph)));
-      }).then(() => !c.destroyed && c.destroy({ children: true }));
+        if (s.destroyed) return;
+        s.position.set(sx + Math.cos(ang) * dist * k + Math.sin(k * 9 + ph) * 14, sy + Math.sin(ang) * dist * k);
+        s.alpha = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+      }).then(() => !s.destroyed && s.destroy());
     }
-  }
-
-  private addMoth(cx: number, cy: number) {
-    const c = new Container();
-    const glow = new Sprite(glowTexture());
-    glow.anchor.set(0.5);
-    glow.width = glow.height = 30;
-    glow.tint = COLORS.lamp;
-    glow.alpha = 0.5;
-    glow.blendMode = 'add';
-    const wings = new Sprite(emblemTexture());
-    wings.anchor.set(0.5);
-    wings.width = wings.height = 14;
-    wings.tint = 0xfff1c4;
-    c.addChild(glow, wings);
-    this.world.addChild(c);
-    this.moths.push({ c, wings, base: 14 / wings.texture.width, cx, cy, ph: Math.random() * 10, sp: 1 + Math.random() * 1.5 });
   }
 
   private makeCar(taxi: boolean, facing = 1): Car & { door: Container } {
@@ -1390,13 +1428,13 @@ export class Street {
     const body = new Container();
     body.pivot.set(0, -20);
     body.position.set(0, -20);
-    const shadow = new Sprite(glowTexture());
-    shadow.anchor.set(0.5);
-    shadow.tint = 0x05020a;
-    shadow.width = 330;
-    shadow.height = 30;
-    shadow.alpha = 0.8;
-    c.addChild(shadow);
+    const shadowS = new Sprite(glowTexture());
+    shadowS.anchor.set(0.5);
+    shadowS.tint = 0x02030a;
+    shadowS.width = 330;
+    shadowS.height = 30;
+    shadowS.alpha = 0.8;
+    c.addChild(shadowS);
     const col = taxi ? 0xe0a030 : [0x1d2a4a, 0x2a2a30, 0x5a1a2a, 0x1f4a3e][Math.floor(Math.random() * 4)];
     const s = new Sprite(carTexture(col, taxi));
     s.anchor.set(0.5, 140 / 160);
@@ -1437,55 +1475,114 @@ export class Street {
   resize(w: number, h: number) {
     this.screenW = w;
     this.screenH = h;
-    // Tall screens see the sky above the house instead of the left street: the moon moves there.
-    this.moon?.position.set(...((h > w * 1.2 ? [1130, -330] : [170, 40]) as [number, number]));
+    // Tall screens see the moon above the house, wide ones beside it.
+    const tall = h > w * 1.1;
+    this.moon.position.set(tall ? DOOR_X - 380 : DOOR_X - 1000, tall ? FRAME.top - 260 : FRAME.top + 40);
     for (const d of this.drops) {
       d.x = Math.random() * w;
       d.y = Math.random() * h;
     }
+    this.measureMenu();
     this.applyCam();
   }
 
+  /** How much of the screen bottom the start menu covers (the house stands above it). */
+  private measureMenu() {
+    if (!this.followMenu) return;
+    const rail = document.querySelector<HTMLElement>('#menu-main:not([hidden]) .menu-btns');
+    const title = document.getElementById('title');
+    let inset = 0;
+    if (rail && title && !title.hidden && !title.classList.contains('out') && !title.classList.contains('arriving')) {
+      const r = rail.getBoundingClientRect();
+      if (r.height > 0) inset = Math.max(0, this.screenH - r.top + 10);
+    }
+    this.cam.inset = Math.min(this.screenH * 0.6, inset);
+  }
+
+  /** Scale at zoom 1: the whole house (dome to kerb) above the menu; narrow screens keep the main block. */
+  private baseScale(inset = this.cam.inset) {
+    const free = Math.max(120, this.screenH - inset);
+    return Math.max(this.screenW / (W + 1600), Math.min(free / (FRAME.bottom - FRAME.top), this.screenW / FRAME.minW));
+  }
+
+  /** The zoom (relative to the base scale) at which the arrival shows the street and the taxi. */
+  private streetZoom() {
+    const zs = Math.min(this.screenH / 780, this.screenW / 660);
+    return Math.max(1, zs / this.baseScale(0));
+  }
+
   private applyCam() {
-    // "Cover" the screen; on narrow screens keep the door in view.
-    // Portrait screens: keep the whole sign in view and let the sky fill the space above.
-    const base = Math.min(Math.max(this.screenW / W, this.screenH / H), this.screenW / 760);
-    const z = base * this.cam.zoom;
+    const z = this.baseScale() * this.cam.zoom;
     this.world.scale.set(z);
-    let x = this.screenW / 2 - this.cam.x * z;
-    let y = this.screenH / 2 - this.cam.y * z;
-    x = Math.min(0, Math.max(this.screenW - W * z, x));
-    if (H * z >= this.screenH) y = Math.min(0, Math.max(this.screenH - H * z, y));
-    else y = Math.max(this.screenH - H * z - this.screenH * 0.12, Math.min(y, this.screenH * 0.35));
+    const sw = this.screenW;
+    const freeH = this.screenH - this.cam.inset;
+    let x = sw / 2 - this.cam.x * z;
+    let y = freeH / 2 - this.cam.y * z;
+    // Stay on the painted strip when it covers the screen. Below the road the night goes on
+    // (on the title screen the menu sits there anyway).
+    if (W * z >= sw) x = Math.min(0, Math.max(sw - W * z, x));
+    if (this.cam.inset < 1) y = Math.max(y, this.screenH - (H + 160) * z);
     this.world.position.set(x, y);
   }
 
   update(dtMs: number) {
     const dt = Math.min(dtMs, 100) / 1000;
     this.time += dt;
-    this.bulbs.forEach((b, i) => {
-      const on = Math.floor(this.time * 6 + i) % 3 === 0;
-      b.alpha = on ? 0.9 : 0.25;
-      (b as Sprite & { core?: Graphics }).core!.alpha = on ? 1 : 0.45;
+    const calm = reducedMotion();
+    if (calm !== this.calm) {
+      this.calm = calm;
+      this.resetSparks();
+    }
+    const tt = calm ? this.time * 0.35 : this.time;
+    // The moon lamp: two beams sweep slowly over the sky.
+    this.beams.forEach((b, i) => {
+      const ang = -Math.PI / 2 + Math.sin(tt * 0.32 + i * Math.PI) * 1.15;
+      b.rotation = ang;
+      b.width = 2400;
+      b.height = 2400 * 0.15;
     });
-    this.canopyBulbs.forEach((b, i) => {
-      const on = Math.floor(this.time * 4 - i) % 4 !== 0;
-      b.alpha = on ? 0.8 : 0.2;
-      (b as Sprite & { core?: Graphics }).core!.alpha = on ? 1 : 0.5;
+    const pulse = 1 + Math.sin(tt * 1.6) * 0.08;
+    this.lensGlow.width = this.lensGlow.height = 300 * pulse;
+    this.lensCore.alpha = 0.85 + Math.sin(tt * 2.3) * 0.08;
+    // Windows breathe in the manner of their light.
+    this.spots.windows.forEach((w, i) => {
+      const g = this.windowGlows[i];
+      const F = FLOORS[w.floor];
+      let a = 0.18;
+      if (F.kind === 'candle') a = 0.26 + Math.sin(tt * 9 + w.ph) * 0.04 + Math.sin(tt * 23 + w.ph) * 0.03;
+      else if (F.kind === 'moon') a = 0.16 + Math.sin(tt * 0.8 + w.ph) * 0.05;
+      else if (F.kind === 'gas') a = 0.18 + Math.sin(tt * 3 + w.ph) * 0.015;
+      else if (F.kind === 'neon') {
+        g.tint = w.alt ? 0x5fe3ff : 0xff5fa2;
+        a = 0.2 + (Math.sin(tt * 2.2 + w.ph) > 0.92 ? -0.12 : 0.06);
+      } else a = 0.3;
+      g.alpha = a;
     });
-    const flick = Math.sin(this.time * 29) > 0.985 || (Math.sin(this.time * 0.7) > 0.995 && Math.sin(this.time * 41) > 0);
-    this.sign.alpha = flick ? 0.55 : 1;
-    this.signGlow.alpha = flick ? 0.12 : 0.28 + Math.sin(this.time * 2) * 0.03;
-    this.signReflection.alpha = flick ? 0.06 : 0.16 + Math.sin(this.time * 2) * 0.02;
-    this.lampGlows.forEach((g, i) => (g.alpha = 0.48 + Math.sin(this.time * 3.1 + i * 2) * 0.03));
-    for (const m of this.moths) {
-      const a = this.time * m.sp + m.ph;
-      m.c.position.set(m.cx + Math.cos(a) * 34 + Math.sin(a * 2.3) * 10, m.cy + Math.sin(a * 1.4) * 22);
-      m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 24 + m.ph)));
+    this.spots.bulbs.forEach((b, i) => {
+      const k = b.canopy ? 0.6 + 0.4 * Math.sin(tt * 3 + i) : 0.3 + 0.7 * Math.max(0, Math.sin(tt * 4 - i * 0.5));
+      this.bulbGlows[i].alpha = k * 0.9;
+    });
+    this.lampGlows.forEach((g, i) => (g.alpha = (0.55 + Math.sin(tt * 2 + i) * 0.04) * 0.75));
+    this.signGlow.alpha = 0.16 + Math.sin(tt * 1.3) * 0.03;
+    // Sparks rise and fade.
+    const step = calm ? dt * 0.4 : dt;
+    for (let i = 0; i < this.sparks.length; i++) {
+      const p = this.sparks[i];
+      p.age += step;
+      if (p.age > p.life) {
+        this.sparks[i] = this.newSpark(p.s, false);
+        continue;
+      }
+      p.x += (p.vx + Math.sin(this.time * 1.3 + p.ph) * 9) * step;
+      p.y += p.vy * step;
+      const k = p.age / p.life;
+      p.s.position.set(p.x, p.y);
+      p.s.width = p.s.height = p.sz;
+      p.s.alpha = Math.sin(k * Math.PI) * (0.6 + 0.4 * Math.sin(this.time * 7 + p.ph));
     }
     for (const m of this.mists) {
       m.s.x += m.v * dt;
-      if (m.s.x > W + 500) m.s.x -= W + 1000;
+      if (m.s.x > W + 600) m.s.x -= W + 1200;
     }
     this.updateWeather(dt);
     // Passing traffic in the near lane, driving to the left.
@@ -1493,14 +1590,14 @@ export class Street {
     if (this.nextCar <= 0) {
       this.nextCar = 6 + Math.random() * 8;
       const car = this.makeCar(false, -1);
-      car.c.position.set(W + 260, LANE_NEAR);
+      car.c.position.set(DOOR_X + 1500, LANE_NEAR);
       car.v = -(380 + Math.random() * 160);
       this.cars.push(car);
     }
     for (const car of [...this.cars]) {
       car.c.x += car.v * dt;
       for (const w of car.wheels) w.rotation += Math.abs(car.v * dt) / 27;
-      if (car.c.x < -300 || car.c.x > W + 300) {
+      if (car.c.x < DOOR_X - 1600 || car.c.x > DOOR_X + 1700) {
         car.c.destroy({ children: true });
         this.cars.splice(this.cars.indexOf(car), 1);
       }
@@ -1514,7 +1611,7 @@ export class Street {
         const p = new Sprite(glowTexture());
         p.anchor.set(0.5);
         p.width = p.height = 26;
-        p.tint = 0xbfb8c8;
+        p.tint = 0xb8bccc;
         p.alpha = 0.35;
         const ex = this.exhaust;
         p.position.set(ex.c.x + ex.x, ex.c.y + ex.y);
@@ -1533,6 +1630,12 @@ export class Street {
         this.puffs.splice(this.puffs.indexOf(p), 1);
       }
     }
+    // The menu can change height (fonts, a hidden key): look again now and then.
+    this.measureAcc += dt;
+    if (this.measureAcc > 0.4) {
+      this.measureAcc = 0;
+      this.measureMenu();
+    }
     this.applyCam();
   }
 
@@ -1550,13 +1653,13 @@ export class Street {
     }
     if (this.mood === 'clear') return;
     // Rings on the wet pavement and the road.
-    this.rippleAcc += dt * (this.mood === 'rain' ? 14 : 5) * (reducedMotion() ? 0.34 : 1);
+    this.rippleAcc += dt * (this.mood === 'rain' ? 14 : 4) * (reducedMotion() ? 0.34 : 1);
     while (this.rippleAcc > 1) {
       this.rippleAcc -= 1;
       const s = new Sprite(rippleTexture());
       s.anchor.set(0.5);
       const y = BASE + 10 + Math.random() * (H - BASE - 10);
-      s.position.set(Math.random() * W, y);
+      s.position.set(DOOR_X - 1300 + Math.random() * 2600, y);
       const k = 0.6 + (y - BASE) / (H - BASE);
       s.scale.set(0.3 * k);
       s.alpha = 0.5;
@@ -1579,16 +1682,18 @@ export class Street {
   /** The arrival: the taxi pulls up, you step onto the red carpet, the doors swing open. */
   async arrive(look: Look) {
     this.nextCar = 999;
+    this.followMenu = false;
     sfx.ignition();
     const engine = sfx.car();
     engine.set(0.75, 0.9, 0.4);
     const taxi = this.makeCar(true, 1);
     // The rear door stops right at the carpet.
     const stopX = DOOR_X + 62;
-    taxi.c.position.set(-320, LANE_KERB);
+    taxi.c.position.set(DOOR_X - 1500, LANE_KERB);
     this.exhaust = { x: -150, y: -30, c: taxi.c };
     const startX = taxi.c.x;
-    void tween(this.cam, { x: DOOR_X - 20, zoom: 1.12 }, 2400, ease.inOutCubic);
+    const sz = this.streetZoom();
+    void tween(this.cam, { x: DOOR_X - 20, y: 470, zoom: sz, inset: 0 }, 2400, ease.inOutCubic);
     let braking = false;
     await animate(2300, (k) => {
       const x = startX + (stopX - startX) * ease.outCubic(k);
@@ -1614,7 +1719,7 @@ export class Street {
     const you = new Chibi(look.color, look);
     const wrap = new Container();
     wrap.addChild(you.view);
-    wrap.scale.set(1.35);
+    wrap.scale.set(1.2);
     wrap.position.set(DOOR_X, CURB + 26);
     wrap.alpha = 0;
     this.chars.addChild(wrap);
@@ -1631,7 +1736,7 @@ export class Street {
     void animate(1100, (k) => {
       const b = Math.sin(Math.min(1, k * 1.3) * Math.PI);
       this.doormanWrap.rotation = b * 0.16;
-      this.doormanWrap.scale.y = 1.3 * (1 - b * 0.05);
+      this.doormanWrap.scale.y = 1.15 * (1 - b * 0.05);
     }, ease.linear);
     // The taxi pulls away: revs, a gear change, revs again.
     engine.set(0.7, 0.4, 0.25);
@@ -1640,7 +1745,7 @@ export class Street {
     void wait(1900).then(() => engine.stop());
     void animate(2200, (k) => {
       if (taxi.c.destroyed) return;
-      const x = stopX + 1300 * k * k;
+      const x = stopX + 1500 * k * k;
       for (const w of taxi.wheels) w.rotation += (x - taxi.c.x) / 27;
       taxi.c.x = x;
       taxi.body.rotation = -Math.sin(Math.min(1, k * 3) * Math.PI) * 0.02;
@@ -1651,22 +1756,22 @@ export class Street {
     await wait(350);
     // Up the carpet, away from the viewer.
     walkDir = -Math.PI / 2;
-    void tween(this.cam, { x: DOOR_X, y: BASE - 110, zoom: 1.6 }, 2300, ease.inOutCubic);
+    void tween(this.cam, { x: DOOR_X, y: BASE - 90, zoom: sz * 1.45 }, 2300, ease.inOutCubic);
     void wait(1200).then(() => {
       sfx.bigDoors();
       void animate(900, (k) => !this.doors.destroyed && this.drawDoors(k), ease.outCubic);
-      void tween(this.doorLight, { alpha: 0.75, width: 760, height: 600 }, 900, ease.outCubic);
-      void tween(this.doorSpill, { alpha: 0.7, width: 560, height: 180 }, 900, ease.outCubic);
-      this.mothBurst();
+      void tween(this.doorLight, { alpha: 0.75, width: 680, height: 540 }, 900, ease.outCubic);
+      void tween(this.doorSpill, { alpha: 0.7, width: 500, height: 160 }, 900, ease.outCubic);
+      this.sparkBurst();
     });
     // Further away means a little smaller.
-    void tween(wrap.scale, { x: 1.18, y: 1.18 }, 2100, ease.linear);
+    void tween(wrap.scale, { x: 1.05, y: 1.05 }, 2100, ease.linear);
     await tween(wrap, { y: BASE + 4 }, 2100, ease.linear);
     void tween(this.doormanWrap, { rotation: 0 }, 300);
     await wait(150);
     void tween(wrap, { y: BASE - 14, alpha: 0 }, 900, ease.inCubic);
-    void tween(wrap.scale, { x: 1, y: 1 }, 900, ease.inCubic);
-    await tween(this.cam, { zoom: 3.2, y: BASE - 80 }, 1000, ease.inCubic);
+    void tween(wrap.scale, { x: 0.9, y: 0.9 }, 900, ease.inCubic);
+    await tween(this.cam, { zoom: sz * 2.9, y: BASE - 70 }, 1000, ease.inCubic);
     walkDir = null;
   }
 

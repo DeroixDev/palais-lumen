@@ -109,6 +109,7 @@ export type DecorKind =
   | 'runner' | 'dais' | 'pond' | 'path' | 'pavilion' | 'conveyor' | 'catwalk' | 'grate'
   // foyer
   | 'shopCounter' | 'reception' | 'wardrobe' | 'clothesRack' | 'jukebox' | 'entrance' | 'achievementWall' | 'plaque'
+  | 'moonWindow' | 'floorBoard' | 'keyBoard'
   // club floor (src/world/painted/propsClub.ts)
   | 'djStage' | 'danceFloor' | 'speakerStack' | 'clubBar' | 'vipBooth' | 'lightDesk' | 'railing' | 'ledPillar'
   | 'fogMachine' | 'turntables' | 'boombox' | 'sneakerShelf' | 'chainDisplay'

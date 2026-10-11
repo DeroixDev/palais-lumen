@@ -375,7 +375,7 @@ export class RoomScene {
     const sb = this.sign.getLocalBounds();
     const half = Math.min(320, sb.width / 2);
     add(this.sign.x - half - 20, this.sign.x + half + 20);
-    const WALL_W: Partial<Record<DecorKind, number>> = { painting: 80, sconce: 40, window: 66, mirror: 60, wallClock: 40, ivy: 80, banner: 50, relief: 80, gauge: 40, curtain: 80, neonArt: 140, laser: 40, strobe: 40, hoop: 60, plaque: 120, achievementWall: 250 };
+    const WALL_W: Partial<Record<DecorKind, number>> = { painting: 80, sconce: 40, window: 66, mirror: 60, wallClock: 40, ivy: 80, banner: 50, relief: 80, gauge: 40, curtain: 80, neonArt: 140, laser: 40, strobe: 40, hoop: 60, plaque: 120, achievementWall: 250, moonWindow: 92, floorBoard: 104 };
     for (const d of this.def.decor) {
       const wallPiece = WALL_W[d.kind];
       if (wallPiece !== undefined) {

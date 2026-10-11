@@ -1,4 +1,5 @@
-// The painted foyer: marble floor, lacquered back wall, sign and elevator, all painted once.
+// The painted foyer: cream and midnight marble with the sunburst rosette, the night-blue back
+// wall with gilded fans, sign and elevator, all painted once.
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { RoomDefinition, RoomTheme } from '../../core/registry';
@@ -62,27 +63,27 @@ function floor(c: Ctx, W: number, H: number, t: RoomTheme, lights: LightSpot[]) 
 
   // Ambient occlusion where the floor meets the walls, and a soft vignette.
   const ao = c.createLinearGradient(0, top, 0, top + 90);
-  ao.addColorStop(0, 'rgba(6,2,12,0.75)');
-  ao.addColorStop(1, 'rgba(6,2,12,0)');
+  ao.addColorStop(0, 'rgba(4,6,18,0.75)');
+  ao.addColorStop(1, 'rgba(4,6,18,0)');
   c.fillStyle = ao;
   c.fillRect(0, top, W, 90);
   for (const [x0, x1] of [[P_SIDE, P_SIDE + 80], [W - P_SIDE, W - P_SIDE - 80]]) {
     const g = c.createLinearGradient(x0, 0, x1, 0);
-    g.addColorStop(0, 'rgba(6,2,12,0.6)');
-    g.addColorStop(1, 'rgba(6,2,12,0)');
+    g.addColorStop(0, 'rgba(4,6,18,0.6)');
+    g.addColorStop(1, 'rgba(4,6,18,0)');
     c.fillStyle = g;
     c.fillRect(Math.min(x0, x1), top, 80, H - top);
   }
   const bot = c.createLinearGradient(0, H - 120, 0, H);
-  bot.addColorStop(0, 'rgba(6,2,12,0)');
-  bot.addColorStop(1, 'rgba(6,2,12,0.55)');
+  bot.addColorStop(0, 'rgba(4,6,18,0)');
+  bot.addColorStop(1, 'rgba(4,6,18,0.55)');
   c.fillStyle = bot;
   c.fillRect(0, H - 120, W, 120);
 }
 
 function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
   const r = seeded(W * 3 + H);
-  c.fillStyle = '#1a161e';
+  c.fillStyle = '#0c1026';
   c.fillRect(0, top, W, H - top);
   // Harlequin marble, squashed a little for the slanted view.
   const a = 44;
@@ -92,11 +93,11 @@ function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
       const darkTile = row % 2 === 1;
       const g = c.createLinearGradient(x - a, y - b, x + a * 0.5, y + b);
       if (darkTile) {
-        g.addColorStop(0, '#2c2532');
-        g.addColorStop(1, '#100c14');
+        g.addColorStop(0, '#26305e');
+        g.addColorStop(1, '#0b0f26');
       } else {
-        g.addColorStop(0, '#d6c19c');
-        g.addColorStop(1, '#a48a64');
+        g.addColorStop(0, '#e2d4b2');
+        g.addColorStop(1, '#ad9a76');
       }
       c.beginPath();
       c.moveTo(x, y - b);
@@ -114,7 +115,7 @@ function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
         c.beginPath();
         c.moveTo(vx - 20, y - b);
         c.bezierCurveTo(vx + (r() - 0.5) * 40, y - b * 0.3, vx + (r() - 0.5) * 40, y + b * 0.3, vx + (r() - 0.5) * 30 + 10, y + b);
-        c.strokeStyle = darkTile ? 'rgba(220,210,235,0.13)' : 'rgba(120,96,70,0.18)';
+        c.strokeStyle = darkTile ? 'rgba(200,215,255,0.13)' : 'rgba(110,96,80,0.2)';
         c.lineWidth = 0.6 + r() * 1.1;
         c.stroke();
       }
@@ -137,8 +138,8 @@ function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
     }
   }
 
-  // The marble sits in dusk; only the lamps below bring it up.
-  c.fillStyle = 'rgba(16,6,22,0.28)';
+  // The marble sits in night-blue dusk; only the lamps below bring it up.
+  c.fillStyle = 'rgba(6,10,30,0.26)';
   c.fillRect(0, top, W, H - top);
 
   // Compass star in the middle, with the runner from the door.
@@ -169,51 +170,91 @@ function foyerFloor(c: Ctx, W: number, H: number, top: number, accent: number) {
     c.fillStyle = rgb(accent, 0.7);
     c.fill();
   }
+  // The rosette: a midnight disc in a dotted gold ring, a sunburst of gold, cream and jade
+  // rays, and the crescent moon of the house in the middle.
   c.save();
   c.translate(cx, cy);
   c.scale(1, 0.74);
+  glowAt(c, 0, 0, 260, 260, 0x0a0e24, 0.5);
   c.beginPath();
-  c.arc(0, 0, 200, 0, Math.PI * 2);
-  c.fillStyle = '#120f16';
+  c.arc(0, 0, 204, 0, Math.PI * 2);
+  const disc = c.createRadialGradient(-40, -60, 10, 0, 0, 204);
+  disc.addColorStop(0, '#2a3466');
+  disc.addColorStop(1, '#10152e');
+  c.fillStyle = disc;
   c.fill();
-  c.lineWidth = 9;
-  c.strokeStyle = gold(c, -200, -200, 200, 200);
+  c.lineWidth = 10;
+  c.strokeStyle = gold(c, -204, -204, 204, 204);
   c.stroke();
   c.beginPath();
-  c.arc(0, 0, 184, 0, Math.PI * 2);
-  c.lineWidth = 2;
+  c.arc(0, 0, 186, 0, Math.PI * 2);
+  c.lineWidth = 1.6;
   c.strokeStyle = rgb(accent, 0.7);
   c.stroke();
+  for (let i = 0; i < 72; i++) {
+    const ang = (i / 72) * Math.PI * 2;
+    c.beginPath();
+    c.arc(Math.cos(ang) * 195, Math.sin(ang) * 195, 2.2, 0, Math.PI * 2);
+    c.fillStyle = '#fff1c4';
+    c.fill();
+  }
+  // Fine gold hairlines between the rays.
+  for (let i = 0; i < 32; i++) {
+    const ang = (i / 32) * Math.PI * 2;
+    c.beginPath();
+    c.moveTo(Math.cos(ang) * 50, Math.sin(ang) * 50);
+    c.lineTo(Math.cos(ang) * 170, Math.sin(ang) * 170);
+    c.strokeStyle = 'rgba(242,205,114,0.18)';
+    c.lineWidth = 1;
+    c.stroke();
+  }
+  // Rays: two halves each (lit and shaded) so they look carved.
+  const ray = (ang: number, len: number, wid: number, litCol: string, shadeCol: string) => {
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.lineTo(Math.cos(ang + side * wid) * 40, Math.sin(ang + side * wid) * 40);
+      c.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+      c.closePath();
+      c.fillStyle = side < 0 ? litCol : shadeCol;
+      c.fill();
+    }
+  };
   for (let i = 0; i < 16; i++) {
-    const ang = (i / 16) * Math.PI * 2 - Math.PI / 2;
-    const rr = i % 4 === 0 ? 178 : i % 2 ? 108 : 150;
-    const a1 = ang - Math.PI / 16;
-    const a2 = ang + Math.PI / 16;
-    // Two halves, lit and shaded, so the points look carved.
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.lineTo(Math.cos(a1) * 36, Math.sin(a1) * 36);
-    c.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
-    c.closePath();
-    c.fillStyle = i % 2 ? '#2f7a76' : i % 4 ? '#f2e6c8' : '#f3c766';
-    c.fill();
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.lineTo(Math.cos(a2) * 36, Math.sin(a2) * 36);
-    c.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
-    c.closePath();
-    c.fillStyle = i % 2 ? '#1d4f4c' : i % 4 ? '#bba57c' : '#a8741f';
-    c.fill();
+    const ang = (i / 16) * Math.PI * 2 - Math.PI / 2 + Math.PI / 16;
+    ray(ang, 118, 0.1, '#3f9a92', '#1d5a56');
   }
-  for (let i = 0; i < 64; i++) {
-    const ang = (i / 64) * Math.PI * 2;
-    c.beginPath();
-    c.arc(Math.cos(ang) * 192, Math.sin(ang) * 192, 2.4, 0, Math.PI * 2);
-    c.fillStyle = '#ffe7a8';
-    c.fill();
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2 - Math.PI / 2 + Math.PI / 8;
+    ray(ang, 150, 0.09, '#f2e6c8', '#b8a47e');
   }
+  for (let i = 0; i < 4; i++) {
+    const ang = (i / 4) * Math.PI * 2 - Math.PI / 2;
+    ray(ang, 182, 0.11, '#f8d27a', '#a8741f');
+  }
+  // The crescent medallion.
+  c.beginPath();
+  c.arc(0, 0, 48, 0, Math.PI * 2);
+  c.fillStyle = '#141a3a';
+  c.fill();
+  c.lineWidth = 5;
+  c.strokeStyle = gold(c, -48, -48, 48, 48);
+  c.stroke();
+  c.beginPath();
+  c.arc(-4, 0, 30, 0, Math.PI * 2);
+  c.arc(8, -6, 25, 0, Math.PI * 2, true);
+  c.fillStyle = gold(c, -34, -30, 26, 30);
+  c.fill('evenodd');
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? 3 : 10;
+    c.lineTo(10 + Math.cos(a) * rr, -4 + Math.sin(a) * rr);
+  }
+  c.closePath();
+  c.fillStyle = '#fff4d8';
+  c.fill();
   c.restore();
-
 }
 
 // ---- Back wall --------------------------------------------------------------------------------
@@ -309,14 +350,14 @@ function wall(c: Ctx, W: number, t: RoomTheme, lights: LightSpot[]) {
     c.lineWidth = 1;
     c.stroke();
   }
-  c.fillStyle = '#1a0e0a';
+  c.fillStyle = '#0a0c1c';
   c.fillRect(0, WH - 6, W, 6);
   // Warm light washes from the lamps.
   for (const l of lights) if (l.y <= WH) glowAt(c, l.x, l.y, l.r, l.r * 0.8, l.col, l.a, 'lighter');
   // Darker towards the ceiling.
   const tg = c.createLinearGradient(0, 0, 0, 60);
-  tg.addColorStop(0, 'rgba(4,2,8,0.5)');
-  tg.addColorStop(1, 'rgba(4,2,8,0)');
+  tg.addColorStop(0, 'rgba(3,4,14,0.5)');
+  tg.addColorStop(1, 'rgba(3,4,14,0)');
   c.fillStyle = tg;
   c.fillRect(0, 12, W, 60);
 }
@@ -365,8 +406,8 @@ export function paintedSign(text: string, x: number, y: number, font: string) {
       ctx.stroke();
       rrect(ctx, 9, 9, w - 18, h - 18, 6);
       const ig = ctx.createLinearGradient(0, 9, 0, h - 9);
-      ig.addColorStop(0, '#120a14');
-      ig.addColorStop(1, '#2a1426');
+      ig.addColorStop(0, '#0a0e24');
+      ig.addColorStop(1, '#1a2248');
       ctx.fillStyle = ig;
       ctx.fill();
       ctx.font = `${Math.round(h * 0.52)}px ${font}`;
@@ -549,13 +590,14 @@ export function paintedElevator(ex: number, floors: number) {
       ctx.beginPath();
       ctx.arc(0, dy, 25, Math.PI, 0);
       ctx.closePath();
-      ctx.fillStyle = '#1b1013';
+      ctx.fillStyle = '#0c1026';
       ctx.fill();
       for (let f = 0; f < floors; f++) {
         const ang = Math.PI + ((f + 0.5) / floors) * Math.PI;
         ctx.beginPath();
         ctx.arc(Math.cos(ang) * 19, dy + Math.sin(ang) * 19, f === floors - 1 ? 2.8 : 2.1, 0, Math.PI * 2);
-        ctx.fillStyle = f === floors - 1 ? '#c9a0ff' : f === 0 ? '#5fe3ff' : '#fff1c4';
+        // Each floor's dot glows in the colour of its light era.
+        ctx.fillStyle = ['#ffb347', '#a8c8ff', '#e6eca0', '#ff5fa2', '#fff2d0'][f] ?? '#fff1c4';
         ctx.fill();
       }
       // Call button plate.
