@@ -1,5 +1,5 @@
 // "Kartenleiter": higher or lower? Every right call climbs one rung of a brass ladder and the
-// moth climbs with it; cash out whenever you like, a wrong call drops everything. Each rung's
+// lantern climbs with it; cash out whenever you like, a wrong call drops everything. Each rung's
 // multiplier comes from the true chance of the call, so the round returns exactly 95 % however
 // you play and whenever you stop (see rules.ts and scripts/rtp-hilo.mjs).
 //
@@ -305,9 +305,9 @@ class HiloGame implements GameInstance {
       if (this.moth.destroyed) return;
       this.moth.x = x0 + (x - x0) * k;
       this.moth.y = y0 + (y - y0) * k - Math.sin(k * Math.PI) * 18;
-      this.moth.scale.x = 0.8 * (0.5 + 0.5 * Math.abs(Math.cos(k * Math.PI * 3)));
+      this.moth.rotation = Math.sin(k * Math.PI * 3) * 0.18;
       this.emblemGlow.position.set(this.moth.x, this.moth.y);
-    }, ease.outCubic).then(() => !this.moth.destroyed && this.moth.scale.set(0.8));
+    }, ease.outCubic).then(() => !this.moth.destroyed && (this.moth.rotation = 0));
   }
 
   private lightRung(r: Rung, on: boolean, animated: boolean, mult?: number) {
@@ -525,7 +525,7 @@ class HiloGame implements GameInstance {
       this.refresh();
       return;
     }
-    // Wrong call: the ladder goes dark, the moth flutters down.
+    // Wrong call: the ladder goes dark, the lantern sinks down.
     this.ctx.sfx.lose();
     v.setGlow(0.7, 0xff5f6a);
     const reached = this.rung;
@@ -650,8 +650,8 @@ class HiloGame implements GameInstance {
     if (this.odds.poll() && this.phase === 'idle' && !this.dead) this.setMirror(true);
     this.time += dtMs;
     if (!reducedMotion() && this.phase !== 'anim' && this.moth) {
-      // The moth breathes on its rung.
-      this.moth.scale.x = 0.8 * (0.86 + 0.14 * Math.abs(Math.cos(this.time / 260)));
+      // The lantern sways a little on its rung.
+      this.moth.rotation = Math.sin(this.time / 700) * 0.06;
       this.emblemGlow.alpha = 0.4 + 0.15 * Math.sin(this.time / 500) + Math.min(0.4, this.rung * 0.04);
     }
   }

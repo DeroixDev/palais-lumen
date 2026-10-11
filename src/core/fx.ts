@@ -4,6 +4,7 @@ import { CanvasSource, Container, Graphics, Sprite, Text, Texture, type Renderer
 import { GlowFilter } from 'pixi-filters';
 import { animate, ease, tween, wait } from './tween';
 import { formatChips } from './state';
+import { chandelierArm, drawSunEmblem, paintChandelier, paintLightMote, paintLumenCoin, paintSconce, paintSparkStreak } from './lumenArt';
 
 export const COLORS = {
   ink: 0x120c14,
@@ -60,8 +61,47 @@ export function gradientTexture(key: string, w: number, h: number, stops: [numbe
   });
 }
 
-/** Draws the house emblem (still the moth until the art pass) on a 2D canvas. */
+/**
+ * Draws the house emblem on a 2D canvas: the rising half sun with seven rays (src/core/lumenArt.ts).
+ * Same arguments as the old crest: `wing` paints the rays and sun, `body` the base line and
+ * outline, `spots` an optional bright core.
+ */
 export function drawEmblem(c: CanvasRenderingContext2D, cx: number, cy: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
+  drawSunEmblem(c, cx, cy, s, wing, body, spots);
+}
+
+/** The Lumen coin: brass, milled edge and the sunburst; 64×64. */
+export function coinTexture() {
+  return canvasTexture('coin', 64, 64, (c) => paintCoin(c, 64));
+}
+
+/** Paints the Lumen coin into a size×size square (rim legend from 72 px on). */
+export function paintCoin(c: CanvasRenderingContext2D, size: number) {
+  c.save();
+  c.translate(size / 2, size / 2);
+  paintLumenCoin(c, size * 0.48);
+  c.restore();
+}
+
+/**
+ * A small floating light, white; tint it. Used where the house once had moths: the light
+ * motes in the rooms, the companions and the swarm. Squashing x makes it twinkle.
+ */
+export function emblemTexture() {
+  return canvasTexture('light-mote', 64, 64, (c) => paintLightMote(c));
+}
+
+/** The spark of the "Funkenflug": a bright head with a tail pointing left; white, tint it. */
+export function sparkStreakTexture() {
+  return canvasTexture('spark-streak', 64, 16, (c) => paintSparkStreak(c));
+}
+
+/** A real little moth (kept for the two or three that may still dance round a candle on floor 1). */
+export function mothTexture() {
+  return canvasTexture('moth', 64, 64, (c) => drawMoth(c, 32, 34, 56, 'rgba(255,255,255,0.95)', 'rgba(255,255,255,1)', 'rgba(200,200,200,0.9)'));
+}
+
+function drawMoth(c: CanvasRenderingContext2D, cx: number, cy: number, s: number, wing: string, body: string, spots?: string) {
   c.save();
   c.fillStyle = wing;
   for (const side of [-1, 1]) {
@@ -84,54 +124,29 @@ export function drawEmblem(c: CanvasRenderingContext2D, cx: number, cy: number, 
   c.beginPath();
   c.ellipse(cx, cy + 0.02 * s, 0.055 * s, 0.27 * s, 0, 0, Math.PI * 2);
   c.fill();
-  c.strokeStyle = body;
-  c.lineWidth = Math.max(1, 0.025 * s);
-  c.lineCap = 'round';
-  for (const side of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(cx + side * 0.02 * s, cy - 0.22 * s);
-    c.quadraticCurveTo(cx + side * 0.06 * s, cy - 0.42 * s, cx + side * 0.17 * s, cy - 0.46 * s);
-    c.stroke();
-  }
   c.restore();
 }
 
-/** The house coin: brass with an embossed moth. */
-export function coinTexture() {
-  return canvasTexture('coin', 64, 64, (c) => paintCoin(c, 64));
+/** The house chandelier (front view, 340×230 around its crown), baked once. */
+export function chandelierTexture() {
+  return canvasTexture('chandelier', 680, 460, (c) => {
+    c.scale(2, 2);
+    c.translate(170, 60);
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    paintChandelier(c);
+  });
 }
 
-export function paintCoin(c: CanvasRenderingContext2D, size: number) {
-  const k = size / 64;
-  const g = c.createRadialGradient(24 * k, 22 * k, 4 * k, 32 * k, 32 * k, 30 * k);
-  g.addColorStop(0, '#fff3c4');
-  g.addColorStop(0.5, '#f0c25a');
-  g.addColorStop(1, '#a8741f');
-  c.fillStyle = g;
-  c.beginPath();
-  c.arc(32 * k, 32 * k, 29 * k, 0, Math.PI * 2);
-  c.fill();
-  c.strokeStyle = '#7a5214';
-  c.lineWidth = 3 * k;
-  c.stroke();
-  // Milled rim.
-  c.strokeStyle = 'rgba(122,82,20,0.55)';
-  c.lineWidth = 1.2 * k;
-  for (let i = 0; i < 40; i++) {
-    const a = (i / 40) * Math.PI * 2;
-    c.beginPath();
-    c.moveTo(32 * k + Math.cos(a) * 25 * k, 32 * k + Math.sin(a) * 25 * k);
-    c.lineTo(32 * k + Math.cos(a) * 28 * k, 32 * k + Math.sin(a) * 28 * k);
-    c.stroke();
-  }
-  // Embossed moth: dark offset, then light face.
-  drawEmblem(c, 33 * k, 35 * k, 38 * k, 'rgba(110,70,15,0.75)', 'rgba(110,70,15,0.9)');
-  drawEmblem(c, 32 * k, 34 * k, 38 * k, '#ffe7a0', '#c9902e', 'rgba(168,116,31,0.7)');
-}
-
-/** White moth for particles; tint it. Wings flap by scaling x. */
-export function emblemTexture() {
-  return canvasTexture('moth', 64, 64, (c) => drawEmblem(c, 32, 34, 56, 'rgba(255,255,255,0.95)', 'rgba(255,255,255,1)', 'rgba(200,200,200,0.9)'));
+/** A brass wall sconce (70×60 around its plate), baked once. */
+export function sconceTexture() {
+  return canvasTexture('sconce', 160, 120, (c) => {
+    c.scale(2, 2);
+    c.translate(40, 26);
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    paintSconce(c);
+  });
 }
 
 /** Coin as an image URL for the HTML HUD. */
@@ -219,19 +234,57 @@ interface Particle {
   base?: number;
 }
 
-interface Moth {
+/** One spark of the "Funkenflug": bursts out, may circle something, then flies to a lamp. */
+interface Spark {
   c: Container;
-  wings: Sprite;
+  head: Sprite;
+  halo: Sprite;
   x: number;
   y: number;
   vx: number;
   vy: number;
   t: number;
-  life: number;
+  /** When it leaves for its lamp (seconds after birth). */
+  leave: number;
   phase: number;
   orbit: { x: number; y: number; r: number } | null;
   angle: number;
   spin: number;
+  lamp: Lamp;
+  fly: { x0: number; y0: number; cx: number; cy: number; t: number; dur: number } | null;
+  size: number;
+}
+
+/** A lamp the sparks fly to: a wall sconce at the top edge or one arm of the jackpot chandelier. */
+interface Lamp {
+  pos: () => { x: number; y: number };
+  /** 0..1.5, rises when sparks arrive, falls off by itself. */
+  heat: number;
+  flare: Sprite;
+}
+
+/** The two wall sconces (or four on wide screens) that answer a big win. */
+interface SconceRig {
+  view: Container;
+  lamps: Lamp[];
+  flames: Sprite[];
+  age: number;
+  /** Seconds the rig stays after the last spark arrived. */
+  linger: number;
+}
+
+/** The jackpot chandelier: drops in at the top, lights arm by arm, then fades. */
+interface ChandelierRig {
+  view: Container;
+  body: Container;
+  lamps: Lamp[];
+  flames: Sprite[];
+  flashes: Sprite[];
+  ambient: Sprite;
+  age: number;
+  lit: number;
+  scale: number;
+  y0: number;
 }
 
 interface FlyingCoin {
@@ -269,56 +322,183 @@ export function ringTexture() {
 
 export class Particles {
   readonly view = new Container();
+  /** Screen size and the HUD's height, set by main.ts on every layout. */
+  bounds = { w: 0, h: 0, top: 0 };
   private list: Particle[] = [];
-  private moths: Moth[] = [];
+  private sparks: Spark[] = [];
   private coins: FlyingCoin[] = [];
+  private sconces: SconceRig | null = null;
+  private chand: ChandelierRig | null = null;
 
   /** How many of `n` requested particles may be spawned now (budget and reduced motion). */
   private budget(n: number) {
     const want = reducedMotion() ? Math.ceil(n / 3) : n;
-    const live = this.list.length + this.moths.length * 2 + this.coins.length;
+    const live = this.list.length + this.sparks.length * 2 + this.coins.length;
     return Math.max(0, Math.min(want, MAX_LIVE - live));
   }
 
+  private size() {
+    const w = this.bounds.w || (typeof window !== 'undefined' ? window.innerWidth : 1280);
+    const h = this.bounds.h || (typeof window !== 'undefined' ? window.innerHeight : 800);
+    return { w, h, top: this.bounds.top };
+  }
+
   /**
-   * The brand effect for big wins: glowing moths burst out of a point,
-   * optionally circle something (a wheel, a machine), then flutter away.
+   * The brand effect for big wins, the "Funkenflug": glowing sparks burst out of a point,
+   * optionally circle something (a wheel, a machine), then each flies to one of the house's
+   * lamps, which flares up when it arrives. With a chandelier on screen (jackpot) most sparks
+   * fly to its arms. Same flight paths and timings as the old swarm.
    */
   drawSwarm(x: number, y: number, count: number, orbit: { x: number; y: number; r: number } | null = null, tint = 0xffe7a8, lifeS = 3.2) {
     count = this.budget(count);
+    if (!count) return;
+    const rig = this.sconceRig();
+    const arms = this.chand?.lamps ?? [];
     for (let i = 0; i < count; i++) {
+      const lamp = arms.length && i % 5 < 3 ? arms[i % arms.length] : rig.lamps[i % rig.lamps.length];
       const c = new Container();
-      const glow = new Sprite(glowTexture());
-      glow.anchor.set(0.5);
-      glow.width = glow.height = 70;
-      glow.tint = tint;
-      glow.alpha = 0.5;
-      glow.blendMode = 'add';
-      const wings = new Sprite(emblemTexture());
-      wings.anchor.set(0.5);
-      wings.tint = tint;
-      c.addChild(glow, wings);
-      const sc = 0.4 + Math.random() * 0.35;
-      c.scale.set(sc);
+      const halo = new Sprite(glowTexture());
+      halo.anchor.set(0.5);
+      halo.tint = tint;
+      halo.alpha = 0.55;
+      halo.blendMode = 'add';
+      const head = new Sprite(sparkStreakTexture());
+      head.anchor.set(0.86, 0.5);
+      head.tint = i % 4 ? tint : 0xfff6e0;
+      head.blendMode = 'add';
+      c.addChild(halo, head);
       c.position.set(x, y);
+      c.alpha = 0;
       this.view.addChild(c);
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
       const sp = 260 + Math.random() * 320;
-      this.moths.push({
+      const size = 0.75 + Math.random() * 0.55;
+      halo.width = halo.height = 70 * size;
+      this.sparks.push({
         c,
-        wings,
+        head,
+        halo,
         x,
         y,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         t: -Math.random() * 0.25,
-        life: lifeS + Math.random() * 0.8,
+        leave: orbit ? Math.max(1, lifeS - 1.2 + Math.random() * 0.8) : 0.55 + Math.random() * 0.6,
         phase: Math.random() * 10,
         orbit,
         angle: Math.random() * Math.PI * 2,
         spin: (0.9 + Math.random() * 0.8) * (Math.random() < 0.5 ? -1 : 1),
+        lamp,
+        fly: null,
+        size,
       });
     }
+  }
+
+  /** Lamps at the top edge: two sconces, four on wide screens. Faded in on demand. */
+  private sconceRig(): SconceRig {
+    if (this.sconces) {
+      this.sconces.linger = 1.4;
+      return this.sconces;
+    }
+    const { w, top } = this.size();
+    const view = new Container();
+    this.view.addChildAt(view, 0);
+    const xs = w < 700 ? [0.12, 0.88] : [0.07, 0.3, 0.7, 0.93];
+    const sc = Math.max(0.6, Math.min(1, w / 1100));
+    const lamps: Lamp[] = [];
+    const flames: Sprite[] = [];
+    for (const fx of xs) {
+      const lx = Math.round(w * fx);
+      const ly = top + 30 * sc;
+      const body = new Sprite(sconceTexture());
+      body.anchor.set(40 / 80, 26 / 60);
+      body.scale.set(0.5 * sc);
+      body.position.set(lx, ly);
+      view.addChild(body);
+      for (const dx of [-26, 0, 26]) {
+        const f = new Sprite(glowTexture());
+        f.anchor.set(0.5);
+        f.tint = COLORS.lamp;
+        f.blendMode = 'add';
+        f.width = 22 * sc;
+        f.height = 30 * sc;
+        f.position.set(lx + dx * sc, ly - 15 * sc);
+        f.alpha = 0.85;
+        view.addChild(f);
+        flames.push(f);
+      }
+      const flare = new Sprite(glowTexture());
+      flare.anchor.set(0.5);
+      flare.tint = 0xffcf7a;
+      flare.blendMode = 'add';
+      flare.position.set(lx, ly - 10 * sc);
+      flare.alpha = 0;
+      view.addChild(flare);
+      lamps.push({ pos: () => ({ x: lx, y: ly - 10 * sc }), heat: 0, flare });
+    }
+    view.alpha = 0;
+    this.sconces = { view, lamps, flames, age: 0, linger: 1.4 };
+    return this.sconces;
+  }
+
+  /**
+   * The jackpot's chandelier (from 50×): it comes down at the top centre, lights arm by arm with
+   * a flash each, then the room glows and it fades away. Reduced motion: it only fades in.
+   */
+  chandelier() {
+    this.chand?.view.destroy({ children: true });
+    const { w, top } = this.size();
+    const scale = Math.max(0.5, Math.min(0.85, (w * 0.6) / 340));
+    const view = new Container();
+    this.view.addChildAt(view, this.sconces ? 1 : 0);
+    const ambient = new Sprite(glowTexture());
+    ambient.anchor.set(0.5);
+    ambient.tint = 0xffd9a0;
+    ambient.blendMode = 'add';
+    ambient.width = 900 * scale;
+    ambient.height = 620 * scale;
+    ambient.alpha = 0;
+    view.addChild(ambient);
+    const body = new Container();
+    view.addChild(body);
+    const rod = new Graphics().rect(-1.5, -2000, 3, 2000 - 60).fill(0xc8913a);
+    const img = new Sprite(chandelierTexture());
+    img.anchor.set(170 / 340, 60 / 230);
+    img.scale.set(0.5);
+    body.addChild(rod, img);
+    const flames: Sprite[] = [];
+    const flashes: Sprite[] = [];
+    const lamps: Lamp[] = [];
+    for (let i = 0; i < 6; i++) {
+      const p = chandelierArm(i);
+      const f = new Sprite(glowTexture());
+      f.anchor.set(0.5);
+      f.tint = 0xffb347;
+      f.blendMode = 'add';
+      f.position.set(p.x, p.y - 14);
+      f.width = 30;
+      f.height = 40;
+      f.alpha = 0.15;
+      body.addChild(f);
+      flames.push(f);
+      const fl = new Sprite(glowTexture());
+      fl.anchor.set(0.5);
+      fl.tint = 0xffc870;
+      fl.blendMode = 'add';
+      fl.position.set(p.x, p.y - 14);
+      fl.alpha = 0;
+      body.addChild(fl);
+      flashes.push(fl);
+      lamps.push({ pos: () => ({ x: view.x + p.x * body.scale.x, y: body.y + (p.y - 14) * body.scale.y }), heat: 0, flare: fl });
+    }
+    body.scale.set(scale);
+    const y0 = top + 66 * scale;
+    view.position.set(w / 2, 0);
+    ambient.position.set(0, y0 + 70 * scale);
+    body.y = reducedMotion() ? y0 : y0 - 260 * scale;
+    view.alpha = reducedMotion() ? 0 : 1;
+    this.chand = { view, body, lamps, flames, flashes, ambient, age: 0, lit: 0, scale, y0 };
   }
 
   /** Coins fly from a point into the HUD purse (about 400 ms each, slightly staggered). */
@@ -369,40 +549,134 @@ export class Particles {
     this.list.push({ s: glow, vx: 0, vy: 0, vr: 0, g: 0, life: 0, max: 0.5, flip: 0, fade: true });
   }
 
-  private updateMoths(dt: number) {
-    for (let i = this.moths.length - 1; i >= 0; i--) {
-      const m = this.moths[i];
+  private updateSparks(dt: number) {
+    for (let i = this.sparks.length - 1; i >= 0; i--) {
+      const m = this.sparks[i];
       m.t += dt;
       if (m.t < 0) continue;
-      const leaving = m.t > m.life - 1;
-      if (m.t < 0.55) {
-        // Burst: fly out and slow down.
-        m.vx *= 1 - 2.2 * dt;
-        m.vy *= 1 - 2.2 * dt;
-      } else if (m.orbit && !leaving) {
-        m.angle += m.spin * dt;
-        const r = m.orbit.r * (1 + 0.12 * Math.sin(m.t * 3 + m.phase));
-        const tx = m.orbit.x + Math.cos(m.angle) * r;
-        const ty = m.orbit.y + Math.sin(m.angle) * r * 0.85;
-        m.vx += ((tx - m.x) * 6 - m.vx) * Math.min(1, dt * 4);
-        m.vy += ((ty - m.y) * 6 - m.vy) * Math.min(1, dt * 4);
+      const ox = m.x;
+      const oy = m.y;
+      if (m.fly) {
+        // Flight to the lamp on a curve (the old swarm's arc), gathering speed.
+        const f = m.fly;
+        f.t += dt;
+        const k = Math.min(1, f.t / f.dur);
+        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        const tgt = m.lamp.pos();
+        const u = 1 - e;
+        m.x = u * u * f.x0 + 2 * u * e * f.cx + e * e * tgt.x;
+        m.y = u * u * f.y0 + 2 * u * e * f.cy + e * e * tgt.y;
+        if (k >= 1) {
+          m.lamp.heat = Math.min(1.5, m.lamp.heat + 0.3);
+          if (this.sconces?.lamps.includes(m.lamp)) this.sconces.linger = 1.2;
+          m.c.destroy({ children: true });
+          this.sparks.splice(i, 1);
+          continue;
+        }
       } else {
-        // Flutter: a wobbly drift that drifts upwards when leaving.
-        m.vx += Math.sin(m.t * 5 + m.phase) * 500 * dt;
-        m.vy += (Math.cos(m.t * 4 + m.phase) * 400 - (leaving ? 700 : 60)) * dt;
-        m.vx *= 1 - 0.8 * dt;
-        m.vy *= 1 - 0.8 * dt;
+        if (m.t < 0.55) {
+          m.vx *= 1 - 2.2 * dt;
+          m.vy *= 1 - 2.2 * dt;
+        } else if (m.orbit) {
+          m.angle += m.spin * dt;
+          const r = m.orbit.r * (1 + 0.12 * Math.sin(m.t * 3 + m.phase));
+          const tx = m.orbit.x + Math.cos(m.angle) * r;
+          const ty = m.orbit.y + Math.sin(m.angle) * r * 0.85;
+          m.vx += ((tx - m.x) * 6 - m.vx) * Math.min(1, dt * 4);
+          m.vy += ((ty - m.y) * 6 - m.vy) * Math.min(1, dt * 4);
+        } else {
+          // A short drift upwards, like embers over a fire.
+          m.vx += Math.sin(m.t * 5 + m.phase) * 300 * dt;
+          m.vy += (Math.cos(m.t * 4 + m.phase) * 200 - 160) * dt;
+          m.vx *= 1 - 1.2 * dt;
+          m.vy *= 1 - 1.2 * dt;
+        }
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        if (m.t >= m.leave) {
+          const tgt = m.lamp.pos();
+          const dist = Math.hypot(tgt.x - m.x, tgt.y - m.y);
+          m.fly = {
+            x0: m.x,
+            y0: m.y,
+            cx: (m.x + tgt.x) / 2 + (Math.random() - 0.5) * Math.min(260, dist * 0.6),
+            cy: Math.min(m.y, tgt.y) - 40 - Math.random() * 120,
+            t: 0,
+            dur: Math.min(1.4, 0.55 + dist / 1400 + Math.random() * 0.3),
+          };
+        }
       }
-      m.x += m.vx * dt;
-      m.y += m.vy * dt;
       m.c.position.set(m.x, m.y);
-      m.c.rotation = Math.atan2(m.vy, m.vx) + Math.PI / 2;
-      m.wings.scale.x = 0.25 + 0.75 * Math.abs(Math.sin(m.t * 22 + m.phase));
-      m.c.alpha = Math.min(1, m.t * 4) * (leaving ? Math.max(0, m.life - m.t) : 1);
-      if (m.t >= m.life) {
-        m.c.destroy({ children: true });
-        this.moths.splice(i, 1);
-      }
+      const vx = (m.x - ox) / Math.max(dt, 1e-3);
+      const vy = (m.y - oy) / Math.max(dt, 1e-3);
+      const speed = Math.hypot(vx, vy);
+      if (speed > 4) m.head.rotation = Math.atan2(vy, vx);
+      const stretch = Math.max(0.28, Math.min(1.3, speed / 480));
+      m.head.scale.set(0.8 * m.size * stretch, 0.75 * m.size);
+      m.halo.alpha = 0.6 + 0.2 * Math.sin(m.t * 18 + m.phase);
+      m.c.alpha = Math.min(1, m.t * 5);
+    }
+  }
+
+  /** Sconces fade in while sparks are on their way and glow as they arrive. */
+  private updateSconces(dt: number) {
+    const r = this.sconces;
+    if (!r) return;
+    r.age += dt;
+    const busy = this.sparks.some((s) => r.lamps.includes(s.lamp));
+    if (!busy) r.linger -= dt;
+    const target = busy || r.linger > 0 ? 1 : 0;
+    r.view.alpha += (target - r.view.alpha) * Math.min(1, dt * (target ? 5 : 2.5));
+    for (const l of r.lamps) {
+      l.heat = Math.max(0, l.heat - dt * 1.4);
+      const h = Math.min(1.5, l.heat);
+      l.flare.width = l.flare.height = 60 + h * 130;
+      l.flare.alpha = 0.18 + h * 0.4;
+    }
+    r.flames.forEach((f, i) => (f.alpha = 0.75 + Math.sin(r.age * 12 + i * 1.7) * 0.08));
+    if (!busy && r.linger <= 0 && r.view.alpha < 0.02) {
+      r.view.destroy({ children: true });
+      this.sconces = null;
+    }
+  }
+
+  private updateChandelier(dt: number) {
+    const ch = this.chand;
+    if (!ch) return;
+    ch.age += dt;
+    const calm = reducedMotion();
+    const t = ch.age;
+    // Comes down (0.5 s), or fades in with reduced motion.
+    if (calm) ch.view.alpha = Math.min(1, t / 0.4);
+    else {
+      const k = Math.min(1, t / 0.5);
+      ch.body.y = ch.y0 - 260 * ch.scale * Math.pow(1 - k, 3);
+    }
+    // Arm by arm from 0.7 s, one every 0.16 s.
+    const n = Math.min(6, Math.max(0, Math.floor((t - 0.7) / 0.16) + 1));
+    while (ch.lit < n) {
+      const i = ch.lit++;
+      ch.lamps[i].heat = 1.5;
+      const p = ch.lamps[i].pos();
+      this.sparkle(p.x, p.y, calm ? 3 : 8, 0xffe6b0, 90);
+    }
+    const fade = t > 3.6 ? Math.max(0, 1 - (t - 3.6) / 0.7) : 1;
+    ch.flames.forEach((f, i) => {
+      const on = i < ch.lit;
+      f.alpha = on ? 0.62 + Math.sin(t * 13 + i * 2.1) * 0.06 : 0.12;
+      f.width = on ? 26 : 18;
+      f.height = on ? 36 : 22;
+    });
+    ch.lamps.forEach((l) => {
+      l.heat = Math.max(0, l.heat - dt * 2.2);
+      l.flare.width = l.flare.height = 30 + l.heat * 90;
+      l.flare.alpha = Math.min(0.45, l.heat * 0.3);
+    });
+    ch.ambient.alpha = (ch.lit / 6) * 0.35 * fade;
+    if (t > 3.6) ch.view.alpha = fade;
+    if (fade <= 0) {
+      ch.view.destroy({ children: true });
+      this.chand = null;
     }
   }
 
@@ -436,7 +710,9 @@ export class Particles {
 
   update(dtMs: number) {
     const dt = dtMs / 1000;
-    this.updateMoths(dt);
+    this.updateSparks(dt);
+    this.updateSconces(dt);
+    this.updateChandelier(dt);
     this.updateCoins(dt);
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i];
@@ -548,10 +824,14 @@ export class Particles {
 
   clear() {
     for (const p of this.list) p.s.destroy();
-    for (const m of this.moths) m.c.destroy({ children: true });
+    for (const m of this.sparks) m.c.destroy({ children: true });
     for (const c of this.coins) c.s.destroy();
+    this.sconces?.view.destroy({ children: true });
+    this.chand?.view.destroy({ children: true });
+    this.sconces = null;
+    this.chand = null;
     this.list = [];
-    this.moths = [];
+    this.sparks = [];
     this.coins = [];
   }
 }

@@ -16,7 +16,7 @@ export interface ScratchDesign {
   mult: number[];
   /** Tickets per million that win tier i; the rest lose. */
   weight: number[];
-  /** Coating colours (wing base, wing dark, accent). */
+  /** Coating colours (foil base, foil dark, sun accent). */
   wing: [number, number, number];
   card: number;
 }
@@ -30,7 +30,7 @@ export const DESIGNS: ScratchDesign[] = [
     ladder: [10, 20, 50],
     mult: [1, 2, 5, 10, 20, 100],
     weight: [220_000, 130_000, 45_000, 12_000, 4_000, 400],
-    wing: [0xc89a5a, 0x6a3a1a, 0xff5fa2],
+    wing: [0xc89a5a, 0x6a3a1a, 0xffcf7a],
     card: 0x5a1a3a,
   },
   {

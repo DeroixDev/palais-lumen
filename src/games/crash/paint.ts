@@ -1,4 +1,4 @@
-// Painted pieces of "Mondflug": the night sky, moon, moth, candle, clouds, the observatory
+// Painted pieces of "Mondflug": the night sky, moon, sky lantern, candle, clouds, the observatory
 // window frame and the brass multiplier display. All drawn once with Canvas 2D (no ctx.filter).
 
 import type { Texture } from 'pixi.js';
@@ -58,7 +58,7 @@ export function skylineTexture(w: number) {
     c.closePath();
     c.fillStyle = '#1c1036';
     c.fill();
-    // Casino roof with a dome and a moth spire.
+    // Casino roof with a dome and a lamp spire.
     const dx = w * 0.62;
     c.beginPath();
     c.moveTo(dx - 150, h);
@@ -147,7 +147,7 @@ export function starTexture() {
   );
 }
 
-// ---- Moon, moth, candle --------------------------------------------------------------------------
+// ---- Moon, sky lantern, candle -----------------------------------------------------------------------
 
 export const MOON_R = 54;
 
@@ -196,69 +196,63 @@ export function moonTexture() {
   );
 }
 
-/** The flying moth, wings spread; flap it by scaling x. Faces up. */
+/** The sky lantern ("Himmelslaterne"): a paper lantern lit from inside by its little flame. Upright. */
 export function flyerTexture() {
   return cached('flyer', () =>
     paint(96, 96, (c) => {
       c.translate(48, 50);
-      for (const side of [-1, 1]) {
-        // Fore wing.
-        c.save();
-        c.scale(side, 1);
+      glowAt(c, 0, 4, 46, 46, 0xffb347, 0.45);
+      // Paper body: wide dome on top, narrowing to the ring.
+      c.beginPath();
+      c.moveTo(-15, 28);
+      c.bezierCurveTo(-30, 8, -30, -26, -20, -36);
+      c.quadraticCurveTo(0, -46, 20, -36);
+      c.bezierCurveTo(30, -26, 30, 8, 15, 28);
+      c.closePath();
+      const g = c.createRadialGradient(0, 16, 3, 0, -2, 42);
+      g.addColorStop(0, '#fffbe6');
+      g.addColorStop(0.35, '#ffd98a');
+      g.addColorStop(0.75, '#f29a3a');
+      g.addColorStop(1, '#b8501e');
+      fillInk(c, g, 2.2);
+      // Paper seams.
+      c.strokeStyle = 'rgba(150,70,20,0.45)';
+      c.lineWidth = 1.2;
+      for (const k of [-0.55, 0, 0.55]) {
         c.beginPath();
-        c.moveTo(3, -6);
-        c.bezierCurveTo(16, -34, 44, -36, 44, -16);
-        c.bezierCurveTo(44, -2, 24, 4, 4, 4);
-        c.closePath();
-        const g = c.createLinearGradient(0, -30, 40, 4);
-        g.addColorStop(0, '#fff6dc');
-        g.addColorStop(0.5, '#f0cf8a');
-        g.addColorStop(1, '#b07a3a');
-        fillInk(c, g, 2);
-        // Eyespot.
-        ellipse(c, 28, -16, 6, 5);
-        c.fillStyle = '#7a3a5a';
-        c.fill();
-        ellipse(c, 28, -16, 3, 2.5);
-        c.fillStyle = '#ffe9a8';
-        c.fill();
-        // Hind wing.
-        c.beginPath();
-        c.moveTo(3, 2);
-        c.bezierCurveTo(22, 4, 32, 18, 24, 28);
-        c.bezierCurveTo(16, 34, 6, 22, 3, 12);
-        c.closePath();
-        const h = c.createLinearGradient(0, 2, 26, 30);
-        h.addColorStop(0, '#f6dca0');
-        h.addColorStop(1, '#9a6230');
-        fillInk(c, h, 2);
-        // Vein strokes.
-        c.strokeStyle = 'rgba(122,70,30,0.45)';
-        c.lineWidth = 1;
-        c.beginPath();
-        c.moveTo(5, -2);
-        c.quadraticCurveTo(22, -18, 38, -22);
-        c.moveTo(5, 4);
-        c.quadraticCurveTo(16, 12, 20, 24);
+        c.moveTo(k * 15, 28);
+        c.bezierCurveTo(k * 30, 8, k * 30, -26, k * 20, -38);
         c.stroke();
-        c.restore();
       }
-      // Body and antennae.
-      ellipse(c, 0, 2, 4.5, 15);
-      fillInk(c, (() => {
-        const b = c.createLinearGradient(-4, 0, 4, 0);
-        b.addColorStop(0, '#d8a860');
-        b.addColorStop(1, '#6a3a1a');
-        return b;
-      })(), 1.8);
+      // Rim light on the left.
+      c.beginPath();
+      c.moveTo(-20, -32);
+      c.bezierCurveTo(-27, -20, -26, 4, -16, 20);
+      c.strokeStyle = 'rgba(255,248,220,0.6)';
+      c.lineWidth = 2;
+      c.stroke();
+      // Small art-deco band of the house.
+      c.beginPath();
+      c.moveTo(-26, -14);
+      c.quadraticCurveTo(0, -8, 26, -14);
+      c.strokeStyle = 'rgba(168,100,30,0.7)';
+      c.lineWidth = 2.4;
+      c.stroke();
+      // Wire ring and the flame below.
+      ellipse(c, 0, 29, 15, 4);
       c.strokeStyle = INK;
+      c.lineWidth = 3.2;
+      c.stroke();
+      c.strokeStyle = gold(c, -15, 26, 15, 32);
       c.lineWidth = 1.6;
-      for (const side of [-1, 1]) {
-        c.beginPath();
-        c.moveTo(side * 1.5, -12);
-        c.quadraticCurveTo(side * 5, -26, side * 13, -28);
-        c.stroke();
-      }
+      c.stroke();
+      glowAt(c, 0, 30, 14, 12, 0xfff1c4, 0.9, 'lighter');
+      c.beginPath();
+      c.moveTo(0, 22);
+      c.bezierCurveTo(5, 27, 5, 33, 0, 34);
+      c.bezierCurveTo(-5, 33, -5, 27, 0, 22);
+      c.fillStyle = '#fffbe6';
+      c.fill();
     }, 3),
   );
 }
@@ -421,7 +415,7 @@ export function frameTexture(w: number, h: number) {
 
 export const PLAQUE = { w: 340, h: 132 };
 
-/** The brass multiplier display: deco frame, dark glass and a moth crest. */
+/** The brass multiplier display: deco frame, dark glass and a sunburst crest. */
 export function plaqueTexture() {
   const { w, h } = PLAQUE;
   return cached('plaque', () =>

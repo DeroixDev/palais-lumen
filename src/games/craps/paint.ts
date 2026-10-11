@@ -187,23 +187,25 @@ export function streetTexture(L: StreetLayout, res = 2) {
     c.fillStyle = ng;
     c.fillRect(0, 0, sw, wallH);
     glowAt(c, L.lantern.x, L.lantern.y, 190, 110, 0xffb860, 0.45, 'lighter');
-    // Chalk moth scribbled on the bricks.
+    // Chalk sun scribbled on the bricks.
     const mx = L.slate.x + L.slate.w + (L.lantern.x - (L.slate.x + L.slate.w)) * 0.45;
     if (L.lantern.x - (L.slate.x + L.slate.w) > 140) {
       c.save();
       c.translate(mx, wallH * 0.48);
-      for (const s of [-1, 1]) {
+      c.beginPath();
+      c.arc(0, 10, 9, Math.PI, Math.PI * 2);
+      chalkStroke(c, 1.8);
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI + ((i + 0.5) / 7) * Math.PI;
         c.beginPath();
-        c.ellipse(s * 14, -4, 14, 9, s * -0.4, 0, Math.PI * 2);
-        chalkStroke(c, 1.6);
-        c.beginPath();
-        c.ellipse(s * 9, 9, 8, 6, s * 0.5, 0, Math.PI * 2);
+        c.moveTo(Math.cos(a) * 13, 10 + Math.sin(a) * 13);
+        c.lineTo(Math.cos(a) * (i % 2 ? 21 : 25), 10 + Math.sin(a) * (i % 2 ? 21 : 25));
         chalkStroke(c, 1.6);
       }
       c.beginPath();
-      c.moveTo(0, -12);
-      c.lineTo(0, 16);
-      chalkStroke(c, 2);
+      c.moveTo(-26, 10);
+      c.lineTo(26, 10);
+      chalkStroke(c, 1.6);
       c.restore();
     }
     // Curb: a long stone ledge the dice knock against.
@@ -332,7 +334,7 @@ const PIPS: Record<number, [number, number][]> = {
 
 export const DIE_TEX = 72;
 
-/** A bone die seen from above, soft bevel, plum pips (the 1 in moth red). */
+/** A bone die seen from above, soft bevel, plum pips (the 1 in house red). */
 export function dieTexture(v: number) {
   return cached(`die-${v}`, () =>
     paint(DIE_TEX, DIE_TEX, (c) => {
@@ -403,7 +405,7 @@ export function puckTexture(on: boolean) {
       g.addColorStop(1, on ? '#d8d0c0' : '#0e0a12');
       c.fillStyle = g;
       c.fill();
-      c.font = `400 ${on ? 19 : 16}px Bungee, Impact, sans-serif`;
+      c.font = `700 ${on ? 19 : 16}px Cinzel, Georgia, serif`;
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = on ? '#1a0c14' : '#fff3dc';
@@ -478,14 +480,17 @@ function crapsStation(): PaintedStation {
     // Curb.
     rrect(x, -64, -22, 128, 9, 3);
     fillInk(x, vgrad(x, -22, -13, 0x7a7286, 0.35, 0.4), 1.8);
-    // Chalk moth on the wall.
+    // Chalk sun on the wall.
     x.strokeStyle = 'rgba(244,238,222,0.7)';
     x.lineWidth = 1.2;
-    for (const s of [-1, 1]) {
-      x.beginPath();
-      x.ellipse(-24 + s * 6, -44, 6, 4, s * -0.4, 0, Math.PI * 2);
-      x.stroke();
+    x.beginPath();
+    x.arc(-24, -40, 4, Math.PI, Math.PI * 2);
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI + ((i + 0.5) / 5) * Math.PI;
+      x.moveTo(-24 + Math.cos(a) * 6, -40 + Math.sin(a) * 6);
+      x.lineTo(-24 + Math.cos(a) * 10, -40 + Math.sin(a) * 10);
     }
+    x.stroke();
     // Gas lantern on a bracket, rising over the wall.
     x.strokeStyle = INK;
     x.lineWidth = 3.5;

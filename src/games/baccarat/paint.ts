@@ -237,7 +237,7 @@ export function bacTableTexture(g: BacGeo) {
         c.strokeStyle = 'rgba(240,206,130,0.25)';
         c.lineWidth = 1;
         c.stroke();
-        c.font = '22px Bungee, Impact, sans-serif';
+        c.font = '700 22px Cinzel, Georgia, serif';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         c.fillStyle = rgb(light(SIDE_COLOR[side], 0.35), 0.55);
@@ -255,7 +255,7 @@ export function bacTableTexture(g: BacGeo) {
         c.stroke();
         const [name, pays] = FIELD_TEXT[side];
         const fs = Math.min(26, (f.w - 30) / (name.length * 0.82));
-        c.font = `${Math.round(fs)}px Bungee, Impact, sans-serif`;
+        c.font = `700 ${Math.round(fs)}px Cinzel, Georgia, serif`;
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         c.fillStyle = 'rgba(255,240,220,0.92)';
@@ -283,7 +283,7 @@ export function beadTexture(side: 'player' | 'banker' | 'tie') {
       g.addColorStop(0.35, rgb(light(col, 0.4)));
       g.addColorStop(1, rgb(dark(col, 0.35)));
       fillInk(c, g, 1.6);
-      c.font = '16px Bungee, Impact, sans-serif';
+      c.font = '700 16px Cinzel, Georgia, serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = 'rgba(20,8,16,0.85)';

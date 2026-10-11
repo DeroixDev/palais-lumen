@@ -6,6 +6,7 @@ import { glowTexture } from '../../core/fx';
 import { INK, ellipse, fillInk, glowAt, gold, paint, propSprite, rim, rrect, seeded, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 import { paintEmblem } from '../slots/symbols';
+import { sunburst } from '../../core/lumenArt';
 import { SCENE_H, SCENE_W } from '../ladderKit';
 import type { Side } from './rules';
 
@@ -134,7 +135,7 @@ function coinDisc(c: Ctx, R: number) {
   c.stroke();
 }
 
-/** One side of the brass coin: a crescent moon with stars, or a moth. */
+/** One side of the brass coin: a crescent moon with stars, or the sun (face "Sonne", ID 'falter'). */
 export function faceTexture(side: Side) {
   return cached(`face-${side}`, () =>
     paint(COIN_R * 2 + 8, COIN_R * 2 + 8, (c) => {
@@ -172,6 +173,12 @@ export function faceTexture(side: Side) {
           c.stroke();
         }
       } else {
+        // Faint sunburst over the whole field, then the embossed half sun.
+        c.save();
+        ellipse(c, 0, 0, COIN_R - 13, COIN_R - 13);
+        c.clip();
+        sunburst(c, 0, 0, COIN_R, 0, Math.PI * 2, 24, 'rgba(255,240,190,0.28)', 'rgba(110,70,20,0.12)', 14);
+        c.restore();
         paintEmblem(c, 2, 5, 96, { wing: 0xa8741f, wingDark: 0x6e4a10, body: 0x5a3a0a, eye: 0x6e4a10 }, 0.01);
         paintEmblem(c, 0, 2, 96, { wing: 0xffe7a0, wingDark: 0xc9902e, body: 0x9a6418, eye: 0xd8a040 }, 1.6);
       }

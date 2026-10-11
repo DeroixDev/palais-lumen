@@ -20,106 +20,74 @@ export const SYMBOL_NAMES: Record<SymbolId, string> = {
 const S = 200;
 const LW = 5;
 
-// ---- Shared painted moth ------------------------------------------------------------------
+// ---- Shared painted emblem ---------------------------------------------------------------
 
-export interface MothColours {
+export interface EmblemColours {
+  /** Rays, lit. */
   wing: number;
+  /** Rays, shaded side. */
   wingDark: number;
+  /** Base line and sun rim. */
   body: number;
+  /** The sun's bright core. */
   eye: number;
 }
+/** Older name of the palette type. */
+export type MothColours = EmblemColours;
 
-/** The house moth: four bezier wings with eye spots, a furry body and feathered antennae. Centred on (x, y), s ≈ wingspan. */
-export function paintEmblem(c: Ctx, x: number, y: number, s: number, col: MothColours, lw = LW) {
+/**
+ * The house emblem, painted: a rising half sun with nine tapered rays over a stepped base,
+ * chunky ink edges and rim light. Centred on (x, y); s ≈ width.
+ */
+export function paintEmblem(c: Ctx, x: number, y: number, s: number, col: EmblemColours, lw = LW) {
   const k = s / 200;
   c.save();
   c.translate(x, y);
   c.scale(k, k);
-  for (const side of [-1, 1]) {
-    // Forewing.
+  const by = 34;
+  // Rays.
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI + ((i + 0.5) / 9) * Math.PI;
+    const len = i === 4 ? 104 : i % 2 ? 84 : 96;
+    const w = 0.1;
     c.beginPath();
-    c.moveTo(side * 8, -18);
-    c.bezierCurveTo(side * 40, -78, side * 92, -78, side * 98, -46);
-    c.bezierCurveTo(side * 102, -20, side * 70, 4, side * 10, 6);
+    c.moveTo(Math.cos(a - w) * 40, by + Math.sin(a - w) * 40);
+    c.lineTo(Math.cos(a) * len, by + Math.sin(a) * len);
+    c.lineTo(Math.cos(a + w) * 40, by + Math.sin(a + w) * 40);
     c.closePath();
-    const fg = c.createLinearGradient(side * 10, -70, side * 90, 10);
-    fg.addColorStop(0, rgb(light(col.wing, 0.45)));
-    fg.addColorStop(0.5, rgb(col.wing));
-    fg.addColorStop(1, rgb(col.wingDark));
-    fillInk(c, fg, lw / k);
-    rim(c, 0.55, 2.4 / k);
-    // Hindwing.
-    c.beginPath();
-    c.moveTo(side * 8, 2);
-    c.bezierCurveTo(side * 64, 4, side * 80, 40, side * 58, 62);
-    c.bezierCurveTo(side * 40, 78, side * 14, 52, side * 6, 24);
-    c.closePath();
-    const hg = c.createLinearGradient(0, 0, side * 60, 70);
-    hg.addColorStop(0, rgb(col.wing));
-    hg.addColorStop(1, rgb(dark(col.wingDark, 0.2)));
-    fillInk(c, hg, lw / k);
-    // Eye spots and vein strokes.
-    ellipse(c, side * 62, -38, 13, 11);
-    fillInk(c, rgb(col.wingDark), 2.4 / k);
-    ellipse(c, side * 62, -38, 6, 5);
-    c.fillStyle = rgb(col.eye);
-    c.fill();
-    ellipse(c, side * 59, -41, 2.4, 2);
-    c.fillStyle = 'rgba(255,255,255,0.85)';
-    c.fill();
-    ellipse(c, side * 40, 34, 8, 7);
-    c.fillStyle = rgb(col.wingDark, 0.8);
-    c.fill();
-    c.strokeStyle = rgb(dark(col.wingDark, 0.3), 0.45);
-    c.lineWidth = 2;
-    c.beginPath();
-    c.moveTo(side * 12, -10);
-    c.quadraticCurveTo(side * 44, -36, side * 84, -54);
-    c.moveTo(side * 14, -4);
-    c.quadraticCurveTo(side * 50, -12, side * 92, -30);
-    c.stroke();
+    const g = c.createLinearGradient(Math.cos(a) * 40, by + Math.sin(a) * 40, Math.cos(a) * len, by + Math.sin(a) * len);
+    g.addColorStop(0, rgb(light(col.wing, 0.35)));
+    g.addColorStop(0.6, rgb(col.wing));
+    g.addColorStop(1, rgb(col.wingDark));
+    fillInk(c, g, lw / k);
   }
-  // Antennae, feathered.
-  c.strokeStyle = INK;
-  c.lineWidth = 4;
-  for (const side of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(side * 4, -30);
-    c.quadraticCurveTo(side * 14, -62, side * 34, -70);
-    c.stroke();
-    c.lineWidth = 2;
-    for (let i = 1; i < 5; i++) {
-      const t = i / 5;
-      const ax = side * (4 + 30 * t);
-      const ay = -30 - 40 * t + 6 * t * t;
-      c.beginPath();
-      c.moveTo(ax, ay);
-      c.lineTo(ax + side * 6, ay + 4);
-      c.stroke();
-    }
-    c.lineWidth = 4;
-  }
-  // Furry body.
-  ellipse(c, 0, 8, 12, 40);
+  // Half sun.
+  c.beginPath();
+  c.arc(0, by, 36, Math.PI, Math.PI * 2);
+  c.closePath();
+  const sg = c.createRadialGradient(-10, by - 20, 2, 0, by, 40);
+  sg.addColorStop(0, rgb(light(col.eye, 0.6)));
+  sg.addColorStop(0.55, rgb(col.eye));
+  sg.addColorStop(1, rgb(dark(col.wing, 0.15)));
+  fillInk(c, sg, lw / k);
+  rim(c, 0.6, 2.4 / k);
+  c.beginPath();
+  c.arc(0, by, 22, Math.PI, Math.PI * 2);
+  c.strokeStyle = rgb(col.wingDark, 0.55);
+  c.lineWidth = 3;
+  c.stroke();
+  // Stepped base.
+  c.beginPath();
+  c.rect(-96, by, 192, 12);
   fillInk(c, (() => {
-    const g = c.createLinearGradient(-12, 0, 12, 0);
-    g.addColorStop(0, rgb(light(col.body, 0.4)));
-    g.addColorStop(1, rgb(dark(col.body, 0.35)));
+    const g = c.createLinearGradient(0, by, 0, by + 12);
+    g.addColorStop(0, rgb(light(col.body, 0.35)));
+    g.addColorStop(1, rgb(dark(col.body, 0.2)));
     return g;
   })(), lw / k);
-  ellipse(c, 0, -30, 11, 10);
-  fillInk(c, rgb(light(col.body, 0.15)), lw / k);
-  c.strokeStyle = rgb(dark(col.body, 0.4), 0.6);
-  c.lineWidth = 2;
-  for (let i = 0; i < 4; i++) {
-    c.beginPath();
-    c.moveTo(-9, 0 + i * 11);
-    c.quadraticCurveTo(0, 5 + i * 11, 9, 0 + i * 11);
-    c.stroke();
-  }
-  ellipse(c, -4, -33, 3, 3);
-  c.fillStyle = 'rgba(255,250,230,0.9)';
-  c.fill();
+  c.beginPath();
+  c.rect(-56, by + 12, 112, 10);
+  fillInk(c, rgb(col.body), lw / k);
   c.restore();
 }
 
@@ -303,8 +271,25 @@ function lantern(c: Ctx) {
   gl.addColorStop(0.45, '#ffd76e');
   gl.addColorStop(1, '#c86a1a');
   fillInk(c, gl, LW);
-  // Tiny moth fluttering at the flame.
-  paintEmblem(c, 100, 104, 50, { wing: 0x6a3a14, wingDark: 0x3a1a08, body: 0x3a1a08, eye: 0xffcf7a }, 3);
+  // The flame inside, on a little wick.
+  glowAt(c, 100, 104, 30, 38, 0xfffbe6, 0.8, 'lighter');
+  c.beginPath();
+  c.moveTo(100, 74);
+  c.bezierCurveTo(116, 96, 114, 120, 100, 124);
+  c.bezierCurveTo(86, 120, 84, 96, 100, 74);
+  const fl = c.createRadialGradient(100, 112, 2, 100, 104, 26);
+  fl.addColorStop(0, '#fffef0');
+  fl.addColorStop(0.5, '#ffd35a');
+  fl.addColorStop(1, '#e8731f');
+  fillInk(c, fl, 3);
+  c.beginPath();
+  c.moveTo(100, 96);
+  c.bezierCurveTo(106, 106, 105, 118, 100, 119);
+  c.bezierCurveTo(95, 118, 94, 106, 100, 96);
+  c.fillStyle = '#fffbe6';
+  c.fill();
+  c.fillStyle = INK;
+  c.fillRect(98.5, 124, 3, 8);
   // Frame bars.
   c.strokeStyle = INK;
   c.lineWidth = 9;
@@ -361,7 +346,7 @@ function key(c: Ctx) {
     c.rect(x - 3, -13, 6, 26);
     fillInk(c, gold(c, x - 4, -13, x + 4, 13), 3);
   }
-  // Ornate bow: quatrefoil with a moth window.
+  // Ornate bow: quatrefoil with a sun window.
   c.beginPath();
   for (let i = 0; i < 4; i++) {
     const a = (i * Math.PI) / 2;
@@ -423,8 +408,6 @@ function moon(c: Ctx) {
   c.restore();
   ellipse(c, 100, 100, 66, 66);
   rim(c, 0.7, 2.6);
-  // A small moth silhouette crossing the moon.
-  paintEmblem(c, 146, 52, 42, { wing: 0x3a2050, wingDark: 0x1a0a28, body: 0x1a0a28, eye: 0xffe7a8 }, 2.5);
   // Twinkles.
   for (const [x, y, r] of [
     [34, 44, 5],
@@ -448,23 +431,104 @@ function moon(c: Ctx) {
 }
 
 function moth(c: Ctx) {
-  // The wild: a golden moth on a sunburst, lit like a trophy.
+  // The wild ("Goldener Lüster", ID 'moth' kept for saves and stats): a golden chandelier
+  // on a sunburst, lit like a trophy.
   glowAt(c, 100, 100, 100, 100, 0xffc864, 0.8, 'lighter');
   c.save();
-  c.translate(100, 100);
+  c.translate(100, 104);
   for (let i = 0; i < 16; i++) {
     c.rotate((Math.PI * 2) / 16);
     c.beginPath();
-    c.moveTo(-5, 30);
+    c.moveTo(-6, 30);
     c.lineTo(0, 98);
-    c.lineTo(5, 30);
+    c.lineTo(6, 30);
     c.closePath();
-    c.fillStyle = i % 2 ? 'rgba(255,230,150,0.35)' : 'rgba(255,200,90,0.22)';
+    c.fillStyle = i % 2 ? 'rgba(255,230,150,0.38)' : 'rgba(255,200,90,0.22)';
     c.fill();
   }
   c.restore();
-  paintEmblem(c, 100, 104, 190, { wing: 0xf0c25a, wingDark: 0x9a6418, body: 0x6e3a10, eye: 0xd8243a });
-  glowAt(c, 66, 58, 18, 18, 0xffffff, 0.6, 'lighter');
+  const metal = (x0: number, y0: number, x1: number, y1: number) => gold(c, x0, y0, x1, y1);
+  // Chain and crown.
+  c.strokeStyle = INK;
+  c.lineWidth = 9;
+  c.beginPath();
+  c.moveTo(100, 0);
+  c.lineTo(100, 40);
+  c.stroke();
+  c.strokeStyle = metal(96, 0, 104, 40);
+  c.lineWidth = 4.5;
+  c.stroke();
+  for (let i = 0; i < 3; i++) {
+    const ww = 30 - i * 8;
+    c.beginPath();
+    c.rect(100 - ww, 44 - i * 10, ww * 2, 9);
+    fillInk(c, metal(100 - ww, 34 - i * 10, 100 + ww, 53 - i * 10), 3.5);
+  }
+  // Five arms, the middle one in front, each with a candle and a flame.
+  const arms: [number, number][] = [[28, 104], [56, 116], [100, 122], [144, 116], [172, 104]];
+  for (const [ax, ay] of arms) {
+    c.beginPath();
+    c.moveTo(100, 112);
+    c.bezierCurveTo(100 + (ax - 100) * 0.3, 150, ax, 142, ax, ay + 10);
+    c.strokeStyle = INK;
+    c.lineWidth = 11;
+    c.stroke();
+    c.strokeStyle = metal(20, 100, 180, 150);
+    c.lineWidth = 6;
+    c.stroke();
+  }
+  // Crystal body.
+  c.beginPath();
+  c.moveTo(70, 56);
+  c.lineTo(130, 56);
+  c.lineTo(122, 112);
+  c.lineTo(100, 168);
+  c.lineTo(78, 112);
+  c.closePath();
+  const cg = c.createLinearGradient(70, 56, 130, 168);
+  cg.addColorStop(0, '#fffdf0');
+  cg.addColorStop(0.45, '#ffe08a');
+  cg.addColorStop(1, '#b07a2a');
+  fillInk(c, cg, LW);
+  rim(c, 0.7, 2.4);
+  c.strokeStyle = 'rgba(122,78,24,0.55)';
+  c.lineWidth = 2.5;
+  c.beginPath();
+  c.moveTo(78, 112);
+  c.lineTo(122, 112);
+  c.moveTo(100, 56);
+  c.lineTo(100, 168);
+  c.stroke();
+  ellipse(c, 100, 58, 34, 8);
+  fillInk(c, metal(66, 50, 134, 66), 4);
+  // Drops along the arms.
+  for (const [dx, dy] of [[44, 136], [72, 142], [128, 142], [156, 136], [100, 176]]) {
+    c.beginPath();
+    c.moveTo(dx, dy);
+    c.lineTo(dx - 5, dy + 10);
+    c.lineTo(dx, dy + 20);
+    c.lineTo(dx + 5, dy + 10);
+    c.closePath();
+    fillInk(c, '#fff4d0', 2.4);
+  }
+  for (const [ax, ay] of arms) {
+    ellipse(c, ax, ay + 10, 13, 5);
+    fillInk(c, metal(ax - 13, ay + 5, ax + 13, ay + 15), 3);
+    c.beginPath();
+    c.rect(ax - 5, ay - 14, 10, 24);
+    fillInk(c, '#fff8ea', 3);
+    glowAt(c, ax, ay - 26, 22, 26, 0xffd27a, 0.9, 'lighter');
+    c.beginPath();
+    c.moveTo(ax, ay - 40);
+    c.bezierCurveTo(ax + 9, ay - 28, ax + 8, ay - 18, ax, ay - 16);
+    c.bezierCurveTo(ax - 8, ay - 18, ax - 9, ay - 28, ax, ay - 40);
+    const f = c.createRadialGradient(ax, ay - 22, 1, ax, ay - 26, 14);
+    f.addColorStop(0, '#fffef0');
+    f.addColorStop(0.5, '#ffd35a');
+    f.addColorStop(1, '#e8731f');
+    fillInk(c, f, 2.5);
+  }
+  glowAt(c, 84, 76, 18, 18, 0xffffff, 0.6, 'lighter');
 }
 
 const painters: Record<SymbolId, (c: Ctx) => void> = { firefly, candle, lantern, key, moon, moth };

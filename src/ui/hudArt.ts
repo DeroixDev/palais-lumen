@@ -1,4 +1,4 @@
-// Painted materials for the HTML overlay: brass frames, velvet, medal studs and the Selene's
+// Painted materials for the HTML overlay: brass frames, velvet, medal studs and Selene's
 // emblem. Everything is drawn once with Canvas 2D (same brush as the world, no ctx.filter) and
 // handed to CSS as data URLs in custom properties, so the DOM panels wear the same paint as the room.
 
@@ -55,7 +55,7 @@ function rrPath(c: C, x: number, y: number, w: number, h: number, r: number) {
   c.closePath();
 }
 
-/** Art-deco fan with a little moth, for the inner top-left corner; mirrored for the others. */
+/** Art-deco fan with the little sun emblem, for the inner top-left corner; mirrored for the others. */
 function cornerOrnament(c: C) {
   // Fan rays.
   for (let i = 0; i < 5; i++) {
@@ -79,7 +79,7 @@ function cornerOrnament(c: C) {
   c.strokeStyle = gold(c, 0, 0, 26, 26);
   c.lineWidth = 2;
   c.stroke();
-  // Disc on the corner with a small embossed moth.
+  // Disc on the corner with the small embossed sun.
   ellipse(c, 2, 2, 10, 10);
   fillInk(c, gold(c, -8, -8, 12, 12), 1.6);
   drawEmblem(c, 2.6, 3.2, 14, 'rgba(110,70,15,0.8)', 'rgba(110,70,15,0.9)');
@@ -225,27 +225,49 @@ function stud(kind: 'bronze' | 'silver' | 'gold' | 'diamond') {
   });
 }
 
-/** The Selene's emblem for the boss gauge: a violet moth under a little crown. */
+/** Selene's emblem for the boss gauge: a crescent moon before her fan of light rays. */
 function queen() {
   const S = 40;
   return canvasUrl(S, S, (c) => {
-    glowAt(c, 20, 22, 18, 16, 0xc9a0ff, 0.45);
-    const w = c.createLinearGradient(0, 8, 0, 36);
-    w.addColorStop(0, '#e6d0ff');
-    w.addColorStop(0.5, '#9a5ad8');
-    w.addColorStop(1, '#4a1a6a');
-    drawEmblem(c, 20, 24, 34, 'rgba(22,10,20,0.85)', 'rgba(22,10,20,0.9)');
-    drawEmblem(c, 20, 23, 30, w, '#2a0c3a', 'rgba(255,220,250,0.7)');
+    glowAt(c, 20, 22, 19, 17, 0xbcd0ff, 0.5);
+    // Fan of rays, moon silver and brass, opening upwards.
+    c.save();
+    c.translate(20, 27);
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI + ((i + 0.5) / 9) * Math.PI;
+      const len = i % 2 ? 15 : 18.5;
+      c.beginPath();
+      c.moveTo(Math.cos(a - 0.12) * 5, Math.sin(a - 0.12) * 5);
+      c.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+      c.lineTo(Math.cos(a + 0.12) * 5, Math.sin(a + 0.12) * 5);
+      c.closePath();
+      c.fillStyle = i % 2 ? '#f2cd72' : '#e6ebf5';
+      c.fill();
+      c.strokeStyle = 'rgba(22,10,40,0.75)';
+      c.lineWidth = 0.9;
+      c.stroke();
+    }
+    c.restore();
+    // Crescent in front.
+    c.save();
+    c.translate(20, 25);
     c.beginPath();
-    c.moveTo(13, 11);
-    c.lineTo(15, 4);
-    c.lineTo(18, 8);
-    c.lineTo(20, 2.5);
-    c.lineTo(22, 8);
-    c.lineTo(25, 4);
-    c.lineTo(27, 11);
-    c.closePath();
-    fillInk(c, gold(c, 13, 2, 27, 11), 1.4);
+    c.arc(0, 0, 9, 0, Math.PI * 2);
+    c.arc(4, -2.5, 7.6, 0, Math.PI * 2, true);
+    c.fillStyle = 'rgba(22,10,40,0.85)';
+    c.fill('evenodd');
+    c.translate(-0.6, -0.6);
+    c.beginPath();
+    c.arc(0, 0, 8.4, 0, Math.PI * 2);
+    c.arc(4, -2.5, 7.4, 0, Math.PI * 2, true);
+    const g = c.createLinearGradient(-8, -8, 8, 8);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#9aa6c8');
+    c.fillStyle = g;
+    c.fill('evenodd');
+    c.restore();
+    ellipse(c, 20, 31.5, 9, 1.8);
+    fillInk(c, gold(c, 11, 30, 29, 33), 1);
   });
 }
 

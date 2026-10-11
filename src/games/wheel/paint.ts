@@ -47,7 +47,7 @@ function segPath(c: Ctx, i: number, n: number, r0: number, r1: number) {
   c.closePath();
 }
 
-function mothMark(c: Ctx, x: number, y: number, s: number, col: string) {
+function sunMark(c: Ctx, x: number, y: number, s: number, col: string) {
   drawEmblem(c, x, y, s, col, col);
 }
 
@@ -80,8 +80,8 @@ export function wheelTexture() {
         c.save();
         c.rotate(a + Math.PI / 2);
         if (s === 'bonus') {
-          mothMark(c, 0, -SEG_OUT + 26, 22, '#3a1606');
-          c.font = '400 13px Bungee, Impact, sans-serif';
+          sunMark(c, 0, -SEG_OUT + 26, 22, '#3a1606');
+          c.font = '700 13px Cinzel, Georgia, serif';
           c.textAlign = 'center';
           c.textBaseline = 'middle';
           c.fillStyle = '#3a1606';
@@ -92,7 +92,7 @@ export function wheelTexture() {
           c.restore();
         } else {
           const label = s.slice(1);
-          c.font = `400 ${label.length > 1 ? 20 : 24}px Bungee, Impact, sans-serif`;
+          c.font = `700 ${label.length > 1 ? 20 : 24}px Cinzel, Georgia, serif`;
           c.textAlign = 'center';
           c.textBaseline = 'middle';
           c.lineWidth = 4;
@@ -136,7 +136,7 @@ export function wheelTexture() {
         c.fill();
         c.restore();
       }
-      mothMark(c, 0, 2, 54, '#f0c868');
+      sunMark(c, 0, 2, 54, '#f0c868');
       // Pegs between the segments.
       for (let i = 0; i < n; i++) {
         const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
@@ -247,10 +247,10 @@ export function bonusWheelTexture() {
         c.rotate(a + Math.PI / 2);
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        c.font = '400 14px Bungee, Impact, sans-serif';
+        c.font = '700 14px Cinzel, Georgia, serif';
         c.fillStyle = 'rgba(255,246,230,0.8)';
         c.fillText(FIELD_LABEL[f], 0, -BR + 34);
-        c.font = '400 24px Bungee, Impact, sans-serif';
+        c.font = '700 24px Cinzel, Georgia, serif';
         c.lineWidth = 4;
         c.strokeStyle = 'rgba(16,6,12,0.85)';
         const t = `${BONUS_PAY[f]}`;
@@ -261,7 +261,7 @@ export function bonusWheelTexture() {
       });
       ellipse(c, 0, 0, 28, 28);
       fillInk(c, gold(c, -28, -28, 28, 28), 2.4);
-      mothMark(c, 0, 1, 30, '#3a1606');
+      sunMark(c, 0, 1, 30, '#3a1606');
       for (let i = 0; i < n; i++) {
         const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
         ellipse(c, Math.cos(a) * (BR - 6), Math.sin(a) * (BR - 6), 3.2, 3.2);

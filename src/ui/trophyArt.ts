@@ -113,7 +113,7 @@ export function paintedTrophy(kind: TrophyKind, medal: Medal, heat = 0): Sprite 
         c.beginPath();
         c.ellipse(0, -112, 32, 6, 0, 0, Math.PI * 2);
         fillInk(c, rgb(dark(k.base, 0.45)), 2);
-        // Shine and an engraved moth.
+        // Shine and the engraved sun emblem.
         c.beginPath();
         c.moveTo(-22, -104);
         c.bezierCurveTo(-22, -84, -14, -70, -6, -64);
@@ -203,7 +203,7 @@ export function paintedTrophy(kind: TrophyKind, medal: Medal, heat = 0): Sprite 
         fillInk(c, metal(c, medal, -26, -110, 26, -26), 2.4);
         rrect(c, -19, -94, 38, 24, 4);
         fillInk(c, '#1a0b06', 1.6);
-        c.font = '700 17px Bungee, Impact, sans-serif';
+        c.font = '700 17px Cinzel, Georgia, serif';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         c.fillStyle = '#e8324a';
@@ -270,7 +270,7 @@ export function paintedMedal(medal: Medal): Container {
       c.strokeStyle = rgb(k.dark, 0.7);
       c.lineWidth = 2;
       c.stroke();
-      // Embossed moth.
+      // Embossed sun emblem.
       drawEmblem(c, 3, 7, 92, rgb(dark(k.dark, 0.2), 0.75), rgb(dark(k.dark, 0.3), 0.85));
       drawEmblem(c, 0, 4, 92, rgb(light(k.light, 0.1)), rgb(k.dark), rgb(k.base, 0.8));
       // Gloss.

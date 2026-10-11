@@ -76,7 +76,7 @@ class QueenGame implements GameInstance {
     this.bar = new QueenBar(ctx.state);
     this.deck = new LadderDeck({
       rtp: QUEEN_RTP,
-      accent: 0xc9a0ff,
+      accent: 0xbcd0ff,
       rules: RULES,
       options: (tall, w) => this.buildOptions(tall, w),
       refresh: () => this.refreshOptions(),
@@ -340,11 +340,11 @@ class QueenGame implements GameInstance {
       s.alpha = 0.7 + 0.3 * Math.sin(k * 20);
     }, ease.inCubic);
     if (s.destroyed) return;
-    // Burst: gold sparks on a hit, a purple shield ring on a block.
+    // Burst: gold sparks on a hit, a moon-silver shield ring on a block.
     const ring = new Sprite(glowTexture());
     ring.anchor.set(0.5);
     ring.position.set(x1, y1);
-    ring.tint = hit ? a.color : 0xb06ad8;
+    ring.tint = hit ? a.color : 0x8aa8ff;
     ring.blendMode = 'add';
     this.fxLayer.addChild(ring);
     s.destroy();
@@ -356,7 +356,7 @@ class QueenGame implements GameInstance {
     if (!ring.destroyed) ring.destroy();
   }
 
-  /** Her life is gone: she falls, the moths scatter, and the day can be settled. */
+  /** Her life is gone: she sinks, her sparks fly to the lamps, and the day can be settled. */
   private victory(already: boolean) {
     this.phase = 'won';
     this.fall = already ? 1 : 0.001;
@@ -366,7 +366,7 @@ class QueenGame implements GameInstance {
     this.ctx.sfx.bigWin();
     setTimeout(() => !this.view.destroyed && this.ctx.sfx.medal(), 700);
     const g = this.scene.toGlobal({ x: QUEEN.x, y: QUEEN.y });
-    this.ctx.particles.drawSwarm(g.x, g.y, this.calm ? 8 : 36, null, 0xc9a0ff, 3.5);
+    this.ctx.particles.drawSwarm(g.x, g.y, this.calm ? 8 : 36, null, 0xdfe6ff, 3.5);
     this.ctx.particles.lightWave(g.x, g.y, 0xfff1c4, 300);
     const at = this.view.toLocal(g);
     void banner(this.view, `SIEG ÜBER ${BOSS_CAPS}`, COLORS.lamp, at.x, at.y, Math.max(200, this.lastW - 24));

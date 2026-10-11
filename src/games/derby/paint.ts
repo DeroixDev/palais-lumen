@@ -295,7 +295,7 @@ export function skyTexture(w: number, h: number) {
 
 export const BANK_TILE = 640;
 
-/** The far bank as a seamless strip: reeds, willows, lantern posts with a garland, little moth fans. */
+/** The far bank as a seamless strip: reeds, willows, lantern posts with a garland, little paper lanterns. */
 export function bankTexture(h: number) {
   const w = BANK_TILE;
   return paint(w, h, (c) => {
@@ -365,19 +365,18 @@ export function bankTexture(h: number) {
       fillInk(c, '#ffe7a8', 1.2);
       glowAt(c, x, base - h * 0.68, 26, 22, 0xffcf7a, 0.5, 'lighter');
     }
-    // Moth spectators on the grass, waving wings.
+    // Paper lanterns set out on the grass, glowing.
     for (let i = 0; i < 9; i++) {
       const x = 20 + r() * (w - 40);
       const y = base - h * 0.08 - r() * 4;
-      const col = ['#e8c87a', '#c8a0e8', '#f0e0c0', '#ffb07a'][i % 4];
-      for (const s of [-1, 1]) {
-        ellipse(c, x + s * 4, y - 6, 4, 5);
-        c.fillStyle = col;
-        c.fill();
-      }
-      ellipse(c, x, y - 5, 1.6, 4);
-      c.fillStyle = '#2a1a10';
+      const col = ['#ffd27a', '#ffb07a', '#f0e0c0', '#ff9a7a'][i % 4];
+      glowAt(c, x, y - 6, 12, 10, 0xffc870, 0.5, 'lighter');
+      ellipse(c, x, y - 6, 4.5, 5.5);
+      c.fillStyle = col;
       c.fill();
+      c.fillStyle = '#2a1a10';
+      c.fillRect(x - 3, y - 12.5, 6, 1.6);
+      c.fillRect(x - 3, y - 1, 6, 1.6);
     }
     // Reeds and cattails in front.
     for (let i = 0; i < 46; i++) {

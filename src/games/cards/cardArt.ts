@@ -1,5 +1,5 @@
 // The painted house deck shared by the card tables (Blackjack, Baccarat, Kartenleiter):
-// 52 faces in four night suits (Mond ♥, Laterne ♦, Stern ♠, Schlüssel ♣), a moth-wing back,
+// 52 faces in four night suits (Mond ♥, Laterne ♦, Stern ♠, Schlüssel ♣), a sunburst back,
 // the dealing shoe and a card view that flips with real 3/4 perspective. Every texture is
 // painted once with Canvas 2D and cached; the flip only moves the four corners of a mesh.
 
@@ -122,32 +122,27 @@ function suitIcon(s: Suit) {
     rrect(c, -14, 42, 28, 9, 3);
     fillInk(c, fill(-14, 42, 14, 51), 3);
   } else if (s === 2) {
-    // Stern (still painted as a moth) with feathered antennae.
-    for (const side of [-1, 1]) {
-      c.beginPath();
-      c.moveTo(side * 3, -10);
-      c.bezierCurveTo(side * 20, -46, side * 52, -50, side * 54, -28);
-      c.bezierCurveTo(side * 56, -8, side * 34, 6, side * 4, 4);
-      c.closePath();
-      fillInk(c, fill(side * 4, -50, side * 54, 6), 3);
-      c.beginPath();
-      c.moveTo(side * 4, 2);
-      c.bezierCurveTo(side * 36, 4, side * 46, 30, side * 32, 44);
-      c.bezierCurveTo(side * 20, 54, side * 6, 34, side * 3, 16);
-      c.closePath();
-      fillInk(c, fill(side * 4, 2, side * 46, 50), 3);
-      ellipse(c, side * 34, -24, 7, 6);
-      c.fillStyle = 'rgba(255,236,226,0.7)';
-      c.fill();
-      c.strokeStyle = INK;
-      c.lineWidth = 2.6;
-      c.beginPath();
-      c.moveTo(side * 2, -20);
-      c.quadraticCurveTo(side * 8, -44, side * 22, -50);
-      c.stroke();
+    // Stern: a deco star, four long points and four short, with a facet line on each point.
+    const pts: [number, number][] = [];
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 - Math.PI / 2;
+      const rr = i % 4 === 0 ? 54 : i % 2 === 0 ? 30 : 15;
+      pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
     }
-    ellipse(c, 0, 4, 6, 26);
-    fillInk(c, rgb(dark(col, 0.45)), 2.4);
+    c.beginPath();
+    pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+    c.closePath();
+    fillInk(c, fill(-54, -54, 54, 54), 3);
+    c.strokeStyle = rgb(dark(col, 0.45), 0.6);
+    c.lineWidth = 2;
+    c.beginPath();
+    for (let i = 0; i < 16; i += 2) {
+      c.moveTo(0, 0);
+      c.lineTo(pts[i][0] * 0.82, pts[i][1] * 0.82);
+    }
+    c.stroke();
+    ellipse(c, 0, 0, 9, 9);
+    fillInk(c, 'rgba(255,240,220,0.85)', 2.2);
   } else {
     // Schlüssel: round bow with a moon hole, shaft and bit.
     c.beginPath();
@@ -245,7 +240,7 @@ function corner(c: Ctx, card: Card) {
     c.fillStyle = col;
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
-    c.font = `${text.length > 1 ? 26 : 32}px Bungee, Impact, sans-serif`;
+    c.font = `700 ${text.length > 1 ? 26 : 32}px Cinzel, Georgia, serif`;
     if (text.length > 1) {
       c.save();
       c.translate(19, 36);
@@ -293,23 +288,26 @@ function aceFace(c: Ctx, card: Card) {
   stamp(c, card.suit, cx, cy, 52);
 }
 
-/** Half of a court card: a moth-folk bust in the suit's colours (painted once per rank/suit). */
+/** Half of a court card: a bust before a fan of light, in the suit's colours (painted once per rank/suit). */
 function courtBust(c: Ctx, rank: number, s: Suit, w: number, h: number) {
   const ink = suitInk(s);
   const robe = isRedSuit(s) ? 0x9a1838 : 0x2a2a6a;
   const wing = isRedSuit(s) ? 0xe89a5a : 0x9a8ae0;
   const cx = w / 2;
-  // Wings behind the shoulders.
-  for (const side of [-1, 1]) {
+  // A fan of light rays behind the head and shoulders (the house's art-deco sunburst).
+  for (let i = 0; i < 13; i++) {
+    const a = Math.PI + ((i + 0.5) / 13) * Math.PI;
+    const len = (i % 2 ? 0.42 : 0.5) * w;
     c.beginPath();
-    c.moveTo(cx + side * 6, h * 0.62);
-    c.bezierCurveTo(cx + side * 30, h * 0.1, cx + side * w * 0.58, h * 0.18, cx + side * w * 0.46, h * 0.62);
-    c.bezierCurveTo(cx + side * w * 0.4, h * 0.86, cx + side * 20, h * 0.9, cx + side * 6, h * 0.8);
+    c.moveTo(cx + Math.cos(a - 0.07) * 14, h * 0.5 + Math.sin(a - 0.07) * 14);
+    c.lineTo(cx + Math.cos(a) * len, h * 0.5 + Math.sin(a) * len);
+    c.lineTo(cx + Math.cos(a + 0.07) * 14, h * 0.5 + Math.sin(a + 0.07) * 14);
     c.closePath();
-    fillInk(c, vgrad(c, h * 0.1, h * 0.9, wing), 1.4);
-    ellipse(c, cx + side * w * 0.32, h * 0.42, 5, 4);
-    c.fillStyle = rgb(dark(ink, 0.2));
+    c.fillStyle = i % 2 ? rgb(wing, 0.85) : rgb(light(wing, 0.35));
     c.fill();
+    c.strokeStyle = rgb(dark(ink, 0.1), 0.6);
+    c.lineWidth = 0.9;
+    c.stroke();
   }
   // Robe / shoulders.
   c.beginPath();
@@ -329,36 +327,15 @@ function courtBust(c: Ctx, rank: number, s: Suit, w: number, h: number) {
   // Head.
   ellipse(c, cx, h * 0.45, 11, 12.5);
   fillInk(c, vgrad(c, h * 0.3, h * 0.6, 0xf3dcc0, 0.3, 0.2), 1.4);
-  // Big moth eyes.
+  // Eyes and mouth.
   for (const side of [-1, 1]) {
-    ellipse(c, cx + side * 4.5, h * 0.44, 2.2, 2.6);
+    ellipse(c, cx + side * 4, h * 0.44, 1.5, 1.9);
     c.fillStyle = '#1a0f20';
-    c.fill();
-    ellipse(c, cx + side * 4.5 - 0.6, h * 0.44 - 1, 0.7, 0.7);
-    c.fillStyle = '#ffffff';
     c.fill();
   }
   ellipse(c, cx, h * 0.53, 2.6, 1.2);
   c.fillStyle = 'rgba(160,60,70,0.7)';
   c.fill();
-  // Feathered antennae.
-  c.strokeStyle = INK;
-  c.lineWidth = 1.3;
-  for (const side of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(cx + side * 3, h * 0.36);
-    c.quadraticCurveTo(cx + side * 8, h * 0.14, cx + side * 20, h * 0.1);
-    c.stroke();
-    for (let i = 1; i < 5; i++) {
-      const t = i / 5;
-      const ax = cx + side * (3 + 16 * t);
-      const ay = h * (0.36 - 0.25 * t);
-      c.beginPath();
-      c.moveTo(ax, ay);
-      c.lineTo(ax + side * 3, ay - 3);
-      c.stroke();
-    }
-  }
   if (rank === 13) {
     // König: spiked crown and a white beard.
     c.beginPath();
@@ -469,7 +446,7 @@ export function cardTexture(card: Card) {
   );
 }
 
-/** The moth-wing back: midnight velvet, a gilt moth spread over a crescent moon, starry lattice. */
+/** The house back: night-blue velvet, two gilt sunbursts round a silver crescent, starry lattice. */
 export function backTexture() {
   return cached('card-back', () =>
     paint(CARD_W, CARD_H, (c) => {
@@ -477,9 +454,9 @@ export function backTexture() {
       fillInk(c, '#f3e6c8', 2);
       rrect(c, 6, 6, CARD_W - 12, CARD_H - 12, R - 4);
       const g = c.createRadialGradient(CARD_W / 2, CARD_H / 2, 8, CARD_W / 2, CARD_H / 2, CARD_H * 0.6);
-      g.addColorStop(0, '#3a1a5a');
-      g.addColorStop(0.6, '#24123e');
-      g.addColorStop(1, '#140a24');
+      g.addColorStop(0, '#2a3a7a');
+      g.addColorStop(0.6, '#1a2458');
+      g.addColorStop(1, '#0a0e24');
       c.fillStyle = g;
       c.fill();
       c.save();
@@ -506,46 +483,45 @@ export function backTexture() {
       }
       glowAt(c, CARD_W / 2, CARD_H / 2, 54, 54, 0xffcf7a, 0.22, 'lighter');
       c.restore();
-      // Crescent moon, then the big gilt moth, mirrored top and bottom.
+      // Two gilt sunbursts, mirrored top and bottom, rising from a brass bar; the crescent between.
       const cx = CARD_W / 2, cy = CARD_H / 2;
-      c.beginPath();
-      c.arc(cx, cy, 22, 0, Math.PI * 2);
-      c.moveTo(cx + 34, cy - 8);
-      c.arc(cx + 8, cy - 8, 26, 0, Math.PI * 2, true);
-      c.fillStyle = 'rgba(255,240,200,0.28)';
-      c.fill('evenodd');
       for (const down of [false, true]) {
         c.save();
         c.translate(cx, cy);
         if (down) c.rotate(Math.PI);
-        for (const side of [-1, 1]) {
+        for (let i = 0; i < 11; i++) {
+          const a = Math.PI + ((i + 0.5) / 11) * Math.PI;
+          const len = i % 2 ? 40 : 52;
           c.beginPath();
-          c.moveTo(side * 3, -6);
-          c.bezierCurveTo(side * 18, -40, side * 48, -52, side * 50, -26);
-          c.bezierCurveTo(side * 52, -8, side * 30, 0, side * 4, 0);
+          c.moveTo(Math.cos(a - 0.09) * 16, -12 + Math.sin(a - 0.09) * 16);
+          c.lineTo(Math.cos(a) * len, -12 + Math.sin(a) * len);
+          c.lineTo(Math.cos(a + 0.09) * 16, -12 + Math.sin(a + 0.09) * 16);
           c.closePath();
-          c.fillStyle = gold(c, side * 50, -52, side * 4, 0);
+          c.fillStyle = gold(c, -50, -64, 50, -12);
           c.fill();
           c.strokeStyle = INK;
-          c.lineWidth = 1.4;
-          c.stroke();
-          ellipse(c, side * 32, -24, 7, 6);
-          c.fillStyle = '#3a1a5a';
-          c.fill();
-          ellipse(c, side * 32, -24, 3, 2.6);
-          c.fillStyle = '#ff9ac2';
-          c.fill();
-          c.strokeStyle = 'rgba(90,50,10,0.5)';
-          c.lineWidth = 1;
-          c.beginPath();
-          c.moveTo(side * 8, -6);
-          c.quadraticCurveTo(side * 26, -30, side * 46, -36);
+          c.lineWidth = 1.1;
           c.stroke();
         }
+        c.beginPath();
+        c.arc(0, -12, 13, Math.PI, Math.PI * 2);
+        c.closePath();
+        c.fillStyle = gold(c, -13, -25, 13, -12);
+        c.fill();
+        c.strokeStyle = INK;
+        c.lineWidth = 1.2;
+        c.stroke();
+        rrect(c, -40, -12, 80, 3.5, 1.5);
+        c.fillStyle = gold(c, -40, -12, 40, -8);
+        c.fill();
         c.restore();
       }
-      ellipse(c, cx, cy, 4, 20);
-      fillInk(c, gold(c, cx - 4, cy - 20, cx + 4, cy + 20), 1.2);
+      c.beginPath();
+      c.arc(cx, cy, 8, 0, Math.PI * 2);
+      c.moveTo(cx + 13, cy - 3);
+      c.arc(cx + 3.5, cy - 3, 8.6, 0, Math.PI * 2, true);
+      c.fillStyle = '#e6ebf5';
+      c.fill('evenodd');
       rrect(c, 6, 6, CARD_W - 12, CARD_H - 12, R - 4);
       c.strokeStyle = gold(c, 0, 0, CARD_W, CARD_H);
       c.lineWidth = 2.4;
@@ -621,14 +597,14 @@ export function shoeTexture() {
         c.lineWidth = 2.4;
         c.stroke();
       }
-      // The top card in the mouth (a moth back).
+      // The top card in the mouth (the house back).
       c.beginPath();
       c.moveTo(22, 72);
       c.lineTo(54, 60);
       c.lineTo(62, 82);
       c.lineTo(30, 94);
       c.closePath();
-      fillInk(c, '#2a1446', 1.6);
+      fillInk(c, '#1a2458', 1.6);
       c.strokeStyle = 'rgba(240,200,104,0.7)';
       c.lineWidth = 1;
       c.stroke();
@@ -647,13 +623,17 @@ export function shoeTexture() {
         c.fillStyle = '#fff1c4';
         c.fill();
       }
-      // A little moth crest on the side.
+      // A little sun crest on the side.
       ellipse(c, 98, 66, 10, 7);
       fillInk(c, gold(c, 88, 59, 108, 73), 1.2);
-      for (const s of [-1, 1]) {
-        ellipse(c, 98 + s * 4, 66, 3.6, 2.6);
-        c.fillStyle = '#5a2a14';
-        c.fill();
+      for (let i = 0; i < 5; i++) {
+        const a = Math.PI + ((i + 0.5) / 5) * Math.PI;
+        c.beginPath();
+        c.moveTo(98, 69);
+        c.lineTo(98 + Math.cos(a) * 7, 69 + Math.sin(a) * 5.5);
+        c.strokeStyle = '#5a2a14';
+        c.lineWidth = 1.2;
+        c.stroke();
       }
       c.beginPath();
       c.moveTo(18, 70);

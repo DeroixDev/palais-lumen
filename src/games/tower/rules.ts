@@ -1,6 +1,6 @@
 // Drachenturm rules, kept free of Pixi so scripts/rtp-tower.mjs can import them.
 //
-// Each floor has 3 or 4 doors; behind some of them a moth-dragon sleeps. The dragons are
+// Each floor has 3 or 4 doors; behind some of them a dragon sleeps. The dragons are
 // placed when the floor is reached (independently per floor). After k floors the
 // multiplier is RTP / p^k with p the chance of a quiet door, so any cash-out plan returns
 // exactly RTP on average (5 % house edge).

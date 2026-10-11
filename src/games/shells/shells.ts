@@ -1,6 +1,6 @@
-// "Drei Laternen": a moth hides under one of three brass lanterns, the lanterns dance round
+// "Drei Laternen": a spark hides under one of three brass lanterns, the lanterns dance round
 // each other, the player picks one. The shuffle is only a show: when the pick is made, chance
-// alone decides (1 in 3) whether the moth is under it. The table says so, plainly.
+// alone decides (1 in 3) whether the spark is under it. The table says so, plainly.
 
 import { Container, Sprite, Text, type Texture } from 'pixi.js';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
@@ -331,7 +331,7 @@ class ShellsGame implements GameInstance {
     const bug = new Sprite(emblemTexture());
     bug.anchor.set(0.5);
     bug.width = bug.height = 38;
-    bug.tint = 0x8a7a3a;
+    bug.tint = 0xe8ff9a;
     const tail = new Sprite(glowTexture());
     tail.anchor.set(0.5);
     tail.width = tail.height = 40;
@@ -508,12 +508,13 @@ class ShellsGame implements GameInstance {
     s.alpha = 0.45;
   }
 
-  /** A little moth shadow darts from one lantern's glass to another's. */
+  /** A little stray spark darts from one lantern's glass to another's. */
   private async flit() {
     if (this.calm) return;
     const ghost = new Sprite(emblemTexture());
     ghost.anchor.set(0.5);
-    ghost.tint = 0x2a1a10;
+    ghost.tint = 0xffd27a;
+    ghost.blendMode = 'add';
     ghost.alpha = 0;
     ghost.width = ghost.height = 30 * this.L.k;
     this.table.addChild(ghost);
@@ -525,7 +526,7 @@ class ShellsGame implements GameInstance {
       if (ghost.destroyed) return;
       ghost.position.set(from.root.x + (to.root.x - from.root.x) * k, from.root.y + y + (to.root.y - from.root.y) * k - Math.sin(k * Math.PI) * 40 * this.L.k);
       ghost.alpha = Math.sin(k * Math.PI) * 0.8;
-      ghost.scale.x = (ghost.scale.y || 0.1) * (0.35 + 0.65 * Math.abs(Math.sin(k * 30)));
+      ghost.rotation = k * 6;
     });
     ghost.destroy();
   }
@@ -674,10 +675,11 @@ class ShellsGame implements GameInstance {
       if (this.phase === 'pick' && !this.calm) l.body.y = -3 - 3 * Math.sin(t * 3 + i * 1.7);
     });
     for (const c of this.trail.children) if (c.alpha > 0) c.alpha = Math.max(0, c.alpha - dt * 1.6);
-    // Moth: wings flap, and at rest it hovers by the middle lantern.
-    this.mothFlap += dt * (this.mothIdle ? 9 : 22);
+    // The spark twinkles, and at rest it hovers by the middle lantern.
+    this.mothFlap += dt * (this.mothIdle ? 3 : 7);
     const base = (70 * this.L.k) / 72;
-    this.mothSprite.scale.set(base * (0.35 + 0.65 * Math.abs(Math.cos(this.mothFlap))), base);
+    this.mothSprite.scale.set(base * (0.9 + 0.1 * Math.sin(this.mothFlap * 2.3)));
+    this.mothSprite.rotation = this.mothFlap * 0.4;
     if (this.mothIdle && this.phase === 'idle') {
       const p = this.idleSpot();
       this.moth.position.set(p.x + Math.sin(t * 1.3) * 14 * this.L.k, p.y + Math.sin(t * 2.1) * 8 * this.L.k);

@@ -1,5 +1,5 @@
 // Painted pieces of "Kratzglück": the vending machine around the card, the three card designs,
-// the moth-wing scratch coating, the soft eraser brush and the vending machine for the room.
+// the gold-foil scratch coating, the soft eraser brush and the vending machine for the room.
 // Painted once with Canvas 2D (no ctx.filter).
 
 import { Container, Sprite, type Texture } from 'pixi.js';
@@ -146,7 +146,7 @@ export function cardTexture(d: ScratchDesign) {
   );
 }
 
-/** The scratch coating: a big painted moth wing over the whole field (FIELD.size square). */
+/** The scratch coating ("Goldschicht"): foil with a big sunburst over the whole field (FIELD.size square). */
 export function coatingTexture(d: ScratchDesign) {
   return cached(`coat-${d.id}`, () =>
     paint(FIELD.size, FIELD.size, (c) => {
@@ -162,62 +162,52 @@ export function coatingTexture(d: ScratchDesign) {
       c.save();
       rrect(c, 0, 0, S, S, 8);
       c.clip();
-      // Two wings meeting at the middle, veins and eye spots.
-      for (const side of [-1, 1]) {
-        c.save();
-        c.translate(S / 2, S / 2);
-        c.scale(side, 1);
+      // The foil: a big art-deco sunburst rising from the lower edge, a stepped arch over it
+      // and the half sun in the middle (the design's colours).
+      const cx = S / 2, by = S * 0.78;
+      for (let i = 0; i < 22; i++) {
+        const a0 = Math.PI + (i / 22) * Math.PI;
+        const a1 = Math.PI + ((i + 1) / 22) * Math.PI;
         c.beginPath();
-        c.moveTo(4, -20);
-        c.bezierCurveTo(60, -180, 220, -170, 200, -40);
-        c.bezierCurveTo(190, 20, 120, 30, 4, 10);
+        c.moveTo(cx, by);
+        c.lineTo(cx + Math.cos(a0) * S, by + Math.sin(a0) * S);
+        c.lineTo(cx + Math.cos(a1) * S, by + Math.sin(a1) * S);
         c.closePath();
-        c.fillStyle = rgb(light(base, 0.12));
+        c.fillStyle = i % 2 ? rgb(light(base, 0.18)) : rgb(dark(base, 0.08));
         c.fill();
-        c.strokeStyle = rgb(deep, 0.8);
-        c.lineWidth = 4;
-        c.stroke();
-        c.beginPath();
-        c.moveTo(4, 14);
-        c.bezierCurveTo(90, 30, 170, 80, 120, 170);
-        c.bezierCurveTo(80, 210, 20, 140, 4, 40);
-        c.closePath();
-        c.fillStyle = rgb(dark(base, 0.12));
-        c.fill();
-        c.stroke();
-        c.strokeStyle = rgb(deep, 0.45);
-        c.lineWidth = 2;
-        for (const [x1, y1, x2, y2] of [[10, -10, 160, -120], [10, -5, 190, -60], [10, 0, 170, 0], [10, 20, 130, 120], [10, 26, 80, 160]]) {
-          c.beginPath();
-          c.moveTo(x1, y1);
-          c.quadraticCurveTo((x1 + x2) / 2, (y1 + y2) / 2 - 20, x2, y2);
-          c.stroke();
-        }
-        // Eye spot.
-        ellipse(c, 112, -70, 34, 30);
-        c.fillStyle = rgb(deep);
-        c.fill();
-        ellipse(c, 112, -70, 22, 19);
-        c.fillStyle = rgb(acc);
-        c.fill();
-        ellipse(c, 112, -70, 10, 9);
-        c.fillStyle = rgb(dark(deep, 0.5));
-        c.fill();
-        ellipse(c, 106, -76, 4, 3);
-        c.fillStyle = 'rgba(255,255,255,0.85)';
-        c.fill();
-        ellipse(c, 84, 90, 18, 15);
-        c.fillStyle = rgb(deep, 0.8);
-        c.fill();
-        ellipse(c, 84, 90, 9, 8);
-        c.fillStyle = rgb(acc, 0.9);
-        c.fill();
-        c.restore();
       }
-      // Furry body.
-      ellipse(c, S / 2, S / 2 + 10, 14, 70);
-      fillInk(c, vgrad(c, S / 2 - 60, S / 2 + 80, dark(base, 0.3), 0.3, 0.3), 2);
-      // Wing scales: thousands of tiny dabs (the dusty sheen).
+      for (const [rr, w] of [[S * 0.62, 6], [S * 0.5, 3], [S * 0.42, 3]] as const) {
+        c.beginPath();
+        c.arc(cx, by, rr, Math.PI, Math.PI * 2);
+        c.strokeStyle = rgb(deep, 0.75);
+        c.lineWidth = w;
+        c.stroke();
+      }
+      c.beginPath();
+      c.arc(cx, by, S * 0.2, Math.PI, Math.PI * 2);
+      c.closePath();
+      const sun = c.createRadialGradient(cx - 20, by - 40, 4, cx, by, S * 0.2);
+      sun.addColorStop(0, rgb(light(acc, 0.5)));
+      sun.addColorStop(0.6, rgb(acc));
+      sun.addColorStop(1, rgb(dark(acc, 0.25)));
+      fillInk(c, sun, 3);
+      c.fillStyle = rgb(deep);
+      c.fillRect(0, by, S, 8);
+      c.fillStyle = rgb(dark(base, 0.25));
+      c.fillRect(0, by + 8, S, S - by);
+      // Deco steps along the bottom band.
+      for (let i = 0; i < 9; i++) {
+        const x = (i + 0.5) * (S / 9);
+        c.beginPath();
+        c.moveTo(x - 12, S);
+        c.lineTo(x - 12, by + 30);
+        c.lineTo(x, by + 20);
+        c.lineTo(x + 12, by + 30);
+        c.lineTo(x + 12, S);
+        c.fillStyle = rgb(light(base, 0.1), 0.6);
+        c.fill();
+      }
+      // Foil grain: thousands of tiny dabs (the metallic sheen).
       const r = seeded(d.id.length * 97);
       for (let i = 0; i < 5200; i++) {
         const x = r() * S;
@@ -320,7 +310,7 @@ function scratchStation(): PaintedStation {
     rrect(x, -bw / 2, -146, bw, 138, 8);
     x.fillStyle = sg;
     x.fill();
-    // Crown with a moth.
+    // Crown with a little sun.
     x.beginPath();
     x.moveTo(-bw / 2 - 2, -144);
     x.lineTo(-bw / 2 - 2, -152);
@@ -328,11 +318,11 @@ function scratchStation(): PaintedStation {
     x.lineTo(bw / 2 + 2, -144);
     x.closePath();
     fillInk(x, gold(x, -bw / 2, -170, bw / 2, -144), 2);
-    for (const s of [-1, 1]) {
-      ellipse(x, s * 5, -154, 5, 3.5);
-      x.fillStyle = '#ff9ac8';
-      x.fill();
-    }
+    x.beginPath();
+    x.arc(0, -150, 6, Math.PI, Math.PI * 2);
+    x.closePath();
+    x.fillStyle = '#fff1c4';
+    x.fill();
     // Glass window with rows of cards in three colours.
     rrect(x, -24, -138, 48, 70, 5);
     fillInk(x, gold(x, -24, -138, 24, -68), 1.6);

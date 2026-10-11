@@ -1,6 +1,6 @@
 // Painted pieces of the Zielscheibe: the moonlit glade, the target face for each throwing
 // style (ring sizes follow the odds), the straw board on its easel, the dart in flight and
-// stuck, the moth archer, and the target stand in the room. Painted once and cached.
+// stuck, the dart thrower, and the target stand in the room. Painted once and cached.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { drawEmblem, glowTexture } from '../../core/fx';
@@ -142,7 +142,7 @@ export function faceTexture(style: Style, eye = false) {
       // Moonlight sheen.
       glowAt(c, -RT * 0.35, -RT * 0.4, RT * 0.8, RT * 0.6, 0xfff4dc, 0.18);
       c.restore();
-      // A brass moth in the bullseye.
+      // The brass sun emblem in the bullseye.
       const b = radii[0];
       if (eye) {
         // The owl's eye: an amber iris with dark streaks round the grown bull.
@@ -234,7 +234,7 @@ export function dartTexture() {
         c.fillStyle = 'rgba(240,200,104,0.9)';
         c.fillRect(-56 + k * 12, -4.5, 3, 9);
       }
-      // Moth-wing fletching.
+      // Feather fletching.
       for (const s of [-1, 1]) {
         c.beginPath();
         c.moveTo(-60, 0);
@@ -264,7 +264,7 @@ export function stuckTexture() {
       c.fillRect(8, -3, 2.5, 6);
       c.fillRect(16, -3, 2.5, 6);
       c.restore();
-      // Fletching seen end-on: a little cross of moth wings.
+      // Fletching seen end-on: a little cross of feathers.
       c.save();
       c.translate(28, -26);
       for (let k = 0; k < 4; k++) {
@@ -283,115 +283,112 @@ export function stuckTexture() {
   );
 }
 
-// ---- Moth archer -----------------------------------------------------------------------------------
+// ---- Dart thrower ------------------------------------------------------------------------------
 
-/** The moth thrower, a fuzzy moth in a little velvet waistcoat, seen from the side facing right. */
+/** The dart thrower: a guest of the house in a velvet waistcoat and cap, seen from the side facing right. */
 export function archerTexture() {
   return cached('archer', () =>
     paint(170, 200, (c) => {
       c.translate(84, 176);
       shadow(c, 0, 14, 50, 12, 0.5);
-      // Back wing (raised).
-      c.save();
-      c.translate(-10, -100);
-      c.rotate(-0.5);
-      ellipse(c, -30, -10, 46, 30);
-      fillInk(c, vgrad(c, -40, 20, 0xc8a8e8, 0.3, 0.35), 2);
-      ellipse(c, -34, -12, 12, 10);
-      c.fillStyle = 'rgba(90,40,120,0.5)';
-      c.fill();
-      c.restore();
-      // Legs.
-      for (const s of [-1, 1]) {
-        c.strokeStyle = INK;
-        c.lineWidth = 5;
-        c.beginPath();
-        c.moveTo(s * 8, -40);
-        c.lineTo(s * 12, 8);
-        c.stroke();
-        c.strokeStyle = '#3a2a40';
-        c.lineWidth = 3;
-        c.stroke();
-        ellipse(c, s * 12 + 4, 10, 8, 4);
-        fillInk(c, '#2a1a24', 1.2);
-      }
-      // Fuzzy body.
-      ellipse(c, 0, -72, 30, 40);
-      fillInk(c, vgrad(c, -112, -32, 0xe8d0a8, 0.35, 0.35), 2.4);
-      c.save();
-      ellipse(c, 0, -72, 30, 40);
-      c.clip();
-      const r = seeded(11);
-      for (let i = 0; i < 140; i++) {
-        c.strokeStyle = r() < 0.5 ? 'rgba(255,250,230,0.5)' : 'rgba(120,80,40,0.25)';
-        c.lineWidth = 1;
-        const x = -30 + r() * 60;
-        const y = -112 + r() * 80;
-        c.beginPath();
-        c.moveTo(x, y);
-        c.lineTo(x + (r() - 0.5) * 4, y + 4);
-        c.stroke();
-      }
-      // Waistcoat.
+      // Short evening cape behind the shoulders.
       c.beginPath();
-      c.moveTo(-30, -80);
-      c.quadraticCurveTo(0, -66, 30, -80);
+      c.moveTo(-6, -110);
+      c.quadraticCurveTo(-46, -96, -42, -38);
+      c.quadraticCurveTo(-24, -44, -8, -40);
+      c.closePath();
+      fillInk(c, vgrad(c, -110, -38, 0x22306a, 0.3, 0.35), 2);
+      // Legs in dark trousers.
+      for (const sd of [-1, 1]) {
+        c.strokeStyle = INK;
+        c.lineWidth = 9;
+        c.beginPath();
+        c.moveTo(sd * 8, -40);
+        c.lineTo(sd * 12, 8);
+        c.stroke();
+        c.strokeStyle = '#1a2040';
+        c.lineWidth = 6.5;
+        c.stroke();
+        ellipse(c, sd * 12 + 4, 10, 9, 4.5);
+        fillInk(c, '#140a14', 1.2);
+      }
+      // Body: cream shirt.
+      ellipse(c, 0, -72, 27, 38);
+      fillInk(c, vgrad(c, -110, -34, 0xf4e8cc, 0.35, 0.3), 2.4);
+      c.save();
+      ellipse(c, 0, -72, 27, 38);
+      c.clip();
+      // Waistcoat with brass buttons.
+      c.beginPath();
+      c.moveTo(-30, -84);
+      c.quadraticCurveTo(0, -70, 30, -84);
       c.lineTo(30, -32);
       c.lineTo(-30, -32);
       c.closePath();
-      c.fillStyle = vgrad(c, -80, -32, 0x7a1a3a, 0.2, 0.3);
+      c.fillStyle = vgrad(c, -84, -32, 0x7e1f36, 0.2, 0.3);
       c.fill();
       for (let k = 0; k < 3; k++) {
-        ellipse(c, 6, -66 + k * 11, 2, 2);
-        c.fillStyle = gold(c, 4, -68 + k * 11, 8, -64 + k * 11);
+        ellipse(c, 8, -68 + k * 11, 2.2, 2.2);
+        c.fillStyle = gold(c, 6, -70 + k * 11, 10, -66 + k * 11);
         c.fill();
       }
       c.restore();
-      // Head with big eyes and feathery antennae.
-      ellipse(c, 14, -124, 22, 20);
-      fillInk(c, vgrad(c, -144, -104, 0xf0dcb8, 0.35, 0.3), 2.2);
-      ellipse(c, 24, -126, 8, 9);
-      fillInk(c, '#1a0c18', 1.2);
-      ellipse(c, 26, -129, 2.6, 2.6);
-      c.fillStyle = '#ffffff';
+      // Bow tie.
+      c.beginPath();
+      c.moveTo(14, -106);
+      c.lineTo(6, -111);
+      c.lineTo(6, -101);
+      c.closePath();
+      c.moveTo(14, -106);
+      c.lineTo(22, -111);
+      c.lineTo(22, -101);
+      c.closePath();
+      fillInk(c, '#1a1a2a', 1.2);
+      // Head, hair and cap.
+      ellipse(c, 14, -126, 19, 18);
+      fillInk(c, vgrad(c, -144, -108, 0xf0d0b0, 0.35, 0.25), 2.2);
+      c.beginPath();
+      c.moveTo(-5, -124);
+      c.quadraticCurveTo(-4, -146, 14, -146);
+      c.quadraticCurveTo(26, -146, 30, -136);
+      c.quadraticCurveTo(12, -138, 2, -118);
+      c.closePath();
+      fillInk(c, '#4a2a18', 1.4);
+      c.beginPath();
+      c.moveTo(-6, -138);
+      c.quadraticCurveTo(8, -158, 28, -146);
+      c.quadraticCurveTo(40, -144, 42, -138);
+      c.quadraticCurveTo(18, -140, -6, -136);
+      c.closePath();
+      fillInk(c, vgrad(c, -158, -136, 0x22306a, 0.35, 0.3), 1.6);
+      ellipse(c, 25, -127, 2.4, 2.8);
+      c.fillStyle = '#1a0c18';
       c.fill();
-      glowAt(c, 22, -114, 6, 4, 0xff7a9a, 0.5);
-      for (const [ax, bend] of [[4, -1], [16, 1]] as const) {
-        c.strokeStyle = '#6a4a20';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(ax, -140);
-        c.quadraticCurveTo(ax + 6 * bend, -166, ax + 18, -176);
-        c.stroke();
-        for (let k = 0; k < 6; k++) {
-          const t = k / 6;
-          const x = ax + 3 * bend * t + 18 * t * t;
-          const y = -140 - 36 * t;
-          c.beginPath();
-          c.moveTo(x, y);
-          c.lineTo(x - 6, y - 3);
-          c.moveTo(x, y);
-          c.lineTo(x + 6, y - 2);
-          c.lineWidth = 1;
-          c.stroke();
-        }
-      }
-      // Front wing (folded down along the side).
+      glowAt(c, 22, -117, 5, 3, 0xff7a9a, 0.45);
+      c.beginPath();
+      c.moveTo(31, -126);
+      c.quadraticCurveTo(35, -121, 31, -119);
+      c.strokeStyle = 'rgba(120,70,40,0.7)';
+      c.lineWidth = 1.4;
+      c.stroke();
+      // Cape fold over the near shoulder with a little sun clasp.
       c.save();
-      c.translate(-6, -84);
-      c.rotate(0.35);
-      ellipse(c, -16, 10, 24, 40);
-      fillInk(c, vgrad(c, -30, 50, 0xd8b8f0, 0.35, 0.35), 2);
-      ellipse(c, -16, 4, 8, 10);
-      c.fillStyle = 'rgba(90,40,120,0.45)';
-      c.fill();
-      drawEmblem(c, -16, 26, 12, 'rgba(255,240,200,0.6)', 'rgba(255,240,200,0.6)');
+      c.translate(-6, -96);
+      c.rotate(0.25);
+      c.beginPath();
+      c.moveTo(-6, -12);
+      c.quadraticCurveTo(-20, 20, -14, 46);
+      c.quadraticCurveTo(-4, 40, 4, 44);
+      c.quadraticCurveTo(4, 10, 6, -12);
+      c.closePath();
+      fillInk(c, vgrad(c, -12, 46, 0x2a3a7a, 0.35, 0.35), 2);
+      drawEmblem(c, 0, -8, 12, '#f2cd72', '#a8741f');
       c.restore();
     }, 2),
   );
 }
 
-/** The throwing arm: a fuzzy arm with a three-fingered hand; origin at the shoulder, pointing up. */
+/** The throwing arm: a shirt sleeve and a hand; origin at the shoulder, pointing up. */
 export function armTexture() {
   return cached('arm', () =>
     paint(30, 70, (c) => {
@@ -402,9 +399,9 @@ export function armTexture() {
       c.lineTo(5, -50);
       c.quadraticCurveTo(7, -30, 5, 0);
       c.closePath();
-      fillInk(c, vgrad(c, -50, 0, 0xe0c498, 0.3, 0.3), 1.8);
-      ellipse(c, 1, -54, 7, 6);
-      fillInk(c, '#e8d0a8', 1.6);
+      fillInk(c, vgrad(c, -50, 0, 0xf4e8cc, 0.3, 0.3), 1.8);
+      ellipse(c, 1, -54, 6, 6);
+      fillInk(c, '#f0d0b0', 1.6);
     }, 2.5),
   );
 }

@@ -1,7 +1,7 @@
 // "Salon-Poker": Jacks-or-Better video poker. Five cards, hold what you like, draw once.
 // Wins pay from a pair of Buben; after a win you may take it or "Doppeln" (beat the bank's card).
 // Twist: real perspective card flips (PerspectiveMesh) and a lit brass paytable that follows
-// your hand; a Royal Flush gets its own moth-and-moon stage.
+// your hand; a Royal Flush gets its own sun-and-moon stage.
 //
 // Report tags: 'poker' (every round), 'pair' (won with Buben-Paar or zwei Paare), 'flush'
 // (flush, straight flush or royal), 'royal' (royal flush), 'gamble' (Doppeln played),

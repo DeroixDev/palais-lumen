@@ -39,7 +39,7 @@ function cached(key: string, make: () => Texture) {
   return t;
 }
 
-const FONT = (px: number) => `${px}px Bungee, Impact, sans-serif`;
+const FONT = (px: number) => `700 ${px}px Cinzel, Georgia, serif`;
 const BODY = (px: number, w = 700) => `${w} ${px}px "Barlow Condensed", "Arial Narrow", sans-serif`;
 
 function ring(c: Ctx, r0: number, r1: number) {

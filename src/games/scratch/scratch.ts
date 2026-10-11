@@ -1,9 +1,9 @@
 // "Kratzglück": a scratch-card vending machine. Pick one of three card designs (each with its
-// own price ladder and prize table), buy a card and scratch the painted moth-wing coating off
+// own price ladder and prize table), buy a card and scratch the painted gold-foil coating off
 // with your finger or the mouse, or press "Alles aufdecken". Three equal symbols win.
 // The prize is drawn when the card is bought (rules.ts); the field is laid out to show it.
 //
-// The coating is one RenderTexture per game, filled from the baked wing painting when a card is
+// The coating is one RenderTexture per game, filled from the baked foil painting when a card is
 // dispensed and then erased stroke by stroke with a pool of brush sprites ('erase' blend), so
 // scratching allocates nothing.
 //

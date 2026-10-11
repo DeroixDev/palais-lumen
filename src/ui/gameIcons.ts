@@ -1,6 +1,6 @@
 // Small painted medallions, one per game id: a brass ring around dark velvet with the game's
 // motif (reels, wheel, dice, cards ...). Used by the day card's "Spielplan", the elevator
-// panel and the foyer's programme board. Unknown ids get a moth.
+// panel and the foyer's programme board. Unknown ids get the house sun.
 
 import { Sprite, type Texture } from 'pixi.js';
 import { INK, ellipse, fillInk, glowAt, gold, paint, rgb, rrect, type Ctx } from '../world/painted/brush';
@@ -67,18 +67,39 @@ function die(c: Ctx, x: number, y: number, s: number, rot: number, n: number) {
   c.restore();
 }
 
-function moth(c: Ctx, x: number, y: number, s: number, col = '#f0c868') {
-  for (const k of [-1, 1]) {
+/** The house sun (unknown ids, blackjack's ace): rays over a half disc. */
+function sun(c: Ctx, x: number, y: number, s: number, col = '#f0c868') {
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI + ((i + 0.5) / 7) * Math.PI;
+    const len = s * (i === 3 ? 0.55 : i % 2 ? 0.44 : 0.5);
     c.beginPath();
-    c.ellipse(x + k * s * 0.32, y - s * 0.08, s * 0.34, s * 0.24, k * -0.5, 0, Math.PI * 2);
-    fillInk(c, col, Math.max(1, s * 0.05));
-    c.beginPath();
-    c.ellipse(x + k * s * 0.24, y + s * 0.22, s * 0.2, s * 0.15, k * 0.6, 0, Math.PI * 2);
-    fillInk(c, col, Math.max(1, s * 0.05));
+    c.moveTo(x + Math.cos(a - 0.12) * s * 0.2, y + s * 0.15 + Math.sin(a - 0.12) * s * 0.2);
+    c.lineTo(x + Math.cos(a) * len, y + s * 0.15 + Math.sin(a) * len);
+    c.lineTo(x + Math.cos(a + 0.12) * s * 0.2, y + s * 0.15 + Math.sin(a + 0.12) * s * 0.2);
+    c.closePath();
+    fillInk(c, col, Math.max(1, s * 0.04));
   }
   c.beginPath();
-  c.ellipse(x, y + s * 0.05, s * 0.08, s * 0.3, 0, 0, Math.PI * 2);
-  fillInk(c, '#5a3010', Math.max(1, s * 0.04));
+  c.arc(x, y + s * 0.15, s * 0.17, Math.PI, Math.PI * 2);
+  c.closePath();
+  fillInk(c, col, Math.max(1, s * 0.05));
+  c.beginPath();
+  c.rect(x - s * 0.5, y + s * 0.15, s, s * 0.06);
+  fillInk(c, '#5a3010', Math.max(1, s * 0.03));
+}
+
+/** A spark: warm halo, white core, four points. */
+function spark(c: Ctx, x: number, y: number, s: number) {
+  glowAt(c, x, y, s * 0.7, s * 0.7, 0xffc870, 0.8, 'lighter');
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? s * 0.1 : s * 0.5;
+    c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath();
+  c.fillStyle = '#fff6e0';
+  c.fill();
 }
 
 /** The motif of a game inside a circle of radius r around (0, 0). */
@@ -148,7 +169,7 @@ function motif(c: Ctx, id: string, r: number) {
       c.strokeStyle = '#ffcf7a';
       c.lineWidth = lw * 1.4;
       c.stroke();
-      moth(c, s * 0.0, s * 0.22, s * 0.34, '#fff1c4');
+      spark(c, s * 0.0, s * 0.22, s * 0.5);
       break;
     }
     case 'blackjack':
@@ -256,7 +277,7 @@ function motif(c: Ctx, id: string, r: number) {
       c.strokeStyle = 'rgba(90,52,12,0.6)';
       c.lineWidth = lw * 0.6;
       c.stroke();
-      moth(c, 0, 0, s * 0.5, '#fff1c4');
+      sun(c, 0, -s * 0.06, s * 0.62, '#fff1c4');
       break;
     }
     case 'derby': {
@@ -379,7 +400,7 @@ function motif(c: Ctx, id: string, r: number) {
       card(c, s * 0.28, s * 0.06, s * 0.54, s * 0.76, 0.32, 'D');
       break;
     default:
-      moth(c, 0, 0, s * 0.9);
+      sun(c, 0, -s * 0.1, s * 1.2);
   }
 }
 

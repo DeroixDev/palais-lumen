@@ -1,9 +1,9 @@
 // Painted pieces of "Selene 21": the half-moon table in plum felt (wide and tall cut),
-// the moth croupier with her faces, and the station on the casino floor.
+// the croupier with her faces, and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
-import { INK, dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rim, rrect, shadow, type Ctx } from '../../world/painted/brush';
+import { dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rrect, shadow, type Ctx } from '../../world/painted/brush';
 import { velvetNap } from '../../core/ui';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 
@@ -129,7 +129,7 @@ export function tableTexture(g: TableGeo) {
       const Rb = g.w * 0.62;
       const ocx = cx;
       const ocy = g.rulesY - Rb;
-      arcText(c, g.rules[0], ocx, ocy, Rb, Math.PI / 2, `${big}px Bungee, Impact, sans-serif`, ink);
+      arcText(c, g.rules[0], ocx, ocy, Rb, Math.PI / 2, `700 ${big}px Cinzel, Georgia, serif`, ink);
       const sfont = `700 ${small}px "Barlow Condensed", "Arial Narrow", sans-serif`;
       const sink = 'rgba(240,220,180,0.72)';
       const Rs = Rb + big * 0.95;
@@ -145,7 +145,7 @@ export function tableTexture(g: TableGeo) {
         c.stroke();
       }
       c.restore();
-      // Betting circle with a moth.
+      // Betting circle.
       const { x: bx, y: by, r: br } = g.circle;
       ellipse(c, bx, by, br, br * 0.8);
       c.strokeStyle = 'rgba(240,206,130,0.85)';
@@ -186,30 +186,28 @@ export function dealerBodyTexture() {
   return cached('bj-dealer-body', () =>
     paint(DEALER_W, DEALER_H, (c) => {
       const cx = DEALER_W / 2;
-      // Moth wings fanned behind her, softly lit.
-      for (const side of [-1, 1]) {
+      // A fan of light rays behind her (the house sunburst), brass and night blue, softly lit.
+      for (let i = 0; i < 15; i++) {
+        const a0 = Math.PI + (i / 15) * Math.PI;
+        const a1 = Math.PI + ((i + 1) / 15) * Math.PI;
+        const R = i % 2 ? 128 : 146;
         c.beginPath();
-        c.moveTo(cx + side * 30, 130);
-        c.bezierCurveTo(cx + side * 70, 20, cx + side * 150, 30, cx + side * 140, 110);
-        c.bezierCurveTo(cx + side * 134, 160, cx + side * 90, 170, cx + side * 40, 160);
+        c.moveTo(cx + Math.cos(a0) * 34, 150 + Math.sin(a0) * 34);
+        c.lineTo(cx + Math.cos(a0) * R, 150 + Math.sin(a0) * R);
+        c.lineTo(cx + Math.cos(a1) * R, 150 + Math.sin(a1) * R);
+        c.lineTo(cx + Math.cos(a1) * 34, 150 + Math.sin(a1) * 34);
         c.closePath();
-        const wg = c.createLinearGradient(cx, 40, cx + side * 140, 160);
-        wg.addColorStop(0, 'rgba(170,140,230,0.95)');
-        wg.addColorStop(1, 'rgba(70,40,120,0.95)');
-        fillInk(c, wg, 2.4);
-        rim(c, 0.4, 2);
-        ellipse(c, cx + side * 100, 82, 16, 13);
-        fillInk(c, '#2a1446', 1.6);
-        ellipse(c, cx + side * 100, 82, 7, 6);
-        c.fillStyle = '#ffcf7a';
-        c.fill();
-        c.strokeStyle = 'rgba(40,20,70,0.45)';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(cx + side * 40, 130);
-        c.quadraticCurveTo(cx + side * 90, 70, cx + side * 132, 60);
-        c.stroke();
+        const g = c.createLinearGradient(cx, 150, cx + Math.cos((a0 + a1) / 2) * R, 150 + Math.sin((a0 + a1) / 2) * R);
+        if (i % 2) {
+          g.addColorStop(0, 'rgba(42,58,122,0.95)');
+          g.addColorStop(1, 'rgba(20,28,64,0.95)');
+        } else {
+          g.addColorStop(0, 'rgba(255,236,170,0.95)');
+          g.addColorStop(1, 'rgba(176,122,42,0.95)');
+        }
+        fillInk(c, g, 2);
       }
+      glowAt(c, cx, 110, 120, 70, 0xffcf7a, 0.25, 'lighter');
       // Torso: white shirt, plum velvet waistcoat, gold bow tie.
       c.beginPath();
       c.moveTo(cx - 82, DEALER_H);
@@ -288,27 +286,6 @@ export function dealerHeadTexture(face: Face) {
   return cached(`bj-head-${face}`, () =>
     paint(HEAD_W, HEAD_H, (c) => {
       const cx = 75, cy = 78;
-      // Feathered antennae.
-      c.strokeStyle = INK;
-      for (const side of [-1, 1]) {
-        c.lineWidth = 3;
-        c.beginPath();
-        c.moveTo(cx + side * 8, cy - 36);
-        c.quadraticCurveTo(cx + side * 20, cy - 66, cx + side * 46, cy - 72);
-        c.stroke();
-        c.lineWidth = 2;
-        for (let i = 1; i < 6; i++) {
-          const t = i / 6;
-          const ax = cx + side * (8 + 34 * t);
-          const ay = cy - 36 - 34 * t + 6 * t * t;
-          c.beginPath();
-          c.moveTo(ax, ay);
-          c.lineTo(ax + side * 6, ay - 6);
-          c.moveTo(ax, ay);
-          c.lineTo(ax - side * 2, ay - 8);
-          c.stroke();
-        }
-      }
       // Bob of dark violet hair behind the face.
       c.beginPath();
       c.moveTo(cx - 40, cy + 26);
@@ -409,7 +386,7 @@ export function dealerHeadTexture(face: Face) {
         c.quadraticCurveTo(cx, my + 5, cx + 7, my);
         c.stroke();
       }
-      // A little gilt moth hair pin.
+      // A little gilt sun hair pin.
       ellipse(c, cx + 26, cy - 30, 7, 5);
       fillInk(c, gold(c, cx + 19, cy - 35, cx + 33, cy - 25), 1.2);
     }, 2),
@@ -436,7 +413,7 @@ export function station(): PaintedStation {
     shadow(x, 0, 24, 82, 28, 0.6);
     // Stools around the curve.
     for (const [sx, sy] of [[-52, 46], [-18, 62], [18, 62], [52, 46]] as const) stool(x, sx, sy);
-    // A pendant lamp with a moth shade hangs over the table.
+    // A pendant lamp with a brass shade hangs over the table.
     x.strokeStyle = gold(x, -1, -110, 1, -80);
     x.lineWidth = 1.5;
     x.beginPath();

@@ -1,7 +1,7 @@
-// The Selene's big life bar across the top of the screen: in the duel and in the throne
-// hall at the end of the boss corridor. Her life is the Lumen still missing to today's goal
+// Selene's big life bar across the top of the screen: in the duel and under the dome
+// at the end of the boss corridor. Her life is the Lumen still missing to today's goal
 // (the quota logic, shown as a fight): it drops when the balance rises and grows back when a
-// stake is lost. A pale chunk trails a hit; a purple shimmer marks healing.
+// stake is lost. A pale chunk trails a hit; a moon-silver shimmer marks healing.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { FONT_BODY, FONT_DISPLAY, glowTexture, reducedMotion } from '../core/fx';
@@ -11,12 +11,12 @@ import { INK, fillInk, gold, paint, rrect } from '../world/painted/brush';
 import { crestEmblem } from '../world/painted/propsCrystal';
 
 import { BOSS_CAPS, CURRENCY_PLURAL } from '../core/brand';
-const PHASE_FILL = [0xb06ad8, 0xb06ad8, 0xe0509a, 0xe8383a];
+const PHASE_FILL = [0x8aa8ff, 0x8aa8ff, 0xffb347, 0xe8483a];
 export const BAR_H = 66;
 
 let frameTex: { w: number; tex: Texture } | null = null;
 
-/** Brass frame with a dark velvet bed and the Queen's moth crest on the left. */
+/** Brass frame with a night-blue velvet bed and Selene's crest on the left. */
 function frameTexture(w: number) {
   if (frameTex?.w === w) return frameTex.tex;
   frameTex?.tex.destroy(true);
@@ -27,8 +27,8 @@ function frameTexture(w: number) {
     c.fill();
     rrect(c, 2, 2, w - 4, h - 8, 14);
     const g = c.createLinearGradient(0, 2, 0, h - 6);
-    g.addColorStop(0, '#2a0f2e');
-    g.addColorStop(1, '#12061a');
+    g.addColorStop(0, '#1a2458');
+    g.addColorStop(1, '#0a0e24');
     fillInk(c, g, 2.4);
     rrect(c, 4, 4, w - 8, h - 12, 12);
     c.strokeStyle = gold(c, 0, 0, w, h);
@@ -36,7 +36,7 @@ function frameTexture(w: number) {
     c.stroke();
     // Bar bed.
     rrect(c, 66, 30, w - 82, 22, 9);
-    c.fillStyle = '#080310';
+    c.fillStyle = '#04060f';
     c.fill();
     c.strokeStyle = 'rgba(224,178,90,0.75)';
     c.lineWidth = 1.6;
@@ -44,7 +44,7 @@ function frameTexture(w: number) {
     // Crest.
     c.save();
     c.translate(34, h / 2 - 3);
-    crestEmblem(c, 28);
+    crestEmblem(c, 30, '#fff1c4');
     c.restore();
     c.strokeStyle = INK;
   }, 2);
@@ -144,7 +144,7 @@ export class QueenBar {
     this.shine.position.set(x0 + fw, y0 + bh / 2);
     this.shine.width = 120;
     this.shine.height = 60;
-    this.shine.tint = this.healFlash > 0 ? 0xc9a0ff : 0xfff1c4;
+    this.shine.tint = this.healFlash > 0 ? 0xbcd0ff : 0xfff1c4;
     this.shine.alpha = Math.max(this.healFlash * 0.8, this.hitFlash * 0.9);
   }
 

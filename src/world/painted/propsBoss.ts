@@ -572,7 +572,7 @@ function falterbeat(c: Ctx, beaten: boolean) {
     c.fillStyle = rgb(col, beaten ? 0.4 : 0.95);
     c.fillRect(-50, y - 1.5, 100, 3);
   }
-  c.font = '700 13px Bungee, Impact, sans-serif';
+  c.font = '700 13px Cinzel, Georgia, serif';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   c.fillStyle = beaten ? 'rgba(255,220,255,0.4)' : '#ffd6ff';

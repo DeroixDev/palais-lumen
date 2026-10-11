@@ -1,4 +1,4 @@
-// "Mondflug": a moth flies towards the full moon while the multiplier climbs.
+// "Mondflug": a sky lantern rises towards the full moon while the multiplier climbs.
 // Collect before the night wind catches it.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
@@ -47,7 +47,7 @@ const CREAM = 0xfff3dc;
 const GOLD = 0xffcf7a;
 const HOT = 0xffa04a;
 const COLD = 0x9fc0ff;
-const FLYER = 76; // moth size in sky units
+const FLYER = 76; // sky lantern size in sky units
 
 type Phase = 'idle' | 'warmup' | 'flying' | 'done';
 
@@ -514,7 +514,7 @@ class CrashGame implements GameInstance {
         if (this.moth.destroyed) return;
         const a = k * Math.PI * 2 - Math.PI / 2;
         this.moth.position.set(cx + Math.cos(a) * 30, cy + Math.sin(a) * 16 - 20 * k);
-        this.mothWings.scale.x = 0.35 + 0.65 * Math.abs(Math.cos(k * 30));
+        this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
       },
       ease.inOutCubic,
     ).then(() => {
@@ -571,7 +571,7 @@ class CrashGame implements GameInstance {
         this.moth.position.set(sx + (mx - sx) * k, sy + (my - sy) * k - Math.sin(k * Math.PI) * 30);
         this.moth.scale.set(1 - 0.6 * k);
         this.moth.alpha = 1 - k * 0.85;
-        this.mothWings.scale.x = 0.35 + 0.65 * Math.abs(Math.cos(this.time * 14));
+        this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
       },
       ease.inOutCubic,
     ).then(() => {
@@ -634,7 +634,7 @@ class CrashGame implements GameInstance {
         this.moth.x = sx + 160 * k + (calm ? 0 : Math.sin(k * 14) * 18);
         this.moth.y = sy + (this.skyH + 60 - sy) * k * k;
         this.moth.rotation = calm ? 0.6 * k : k * 7;
-        this.mothWings.scale.x = 0.3 + 0.2 * Math.abs(Math.sin(k * 20));
+        this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
         this.moth.alpha = 1 - k * 0.6;
       },
       ease.linear,
@@ -789,9 +789,9 @@ class CrashGame implements GameInstance {
     const py = pts[pts.length - 3];
     if (this.phase === 'flying' || !effects) {
       this.moth.position.set(hx, hy);
-      this.moth.rotation = Math.atan2(hy - py, hx - px) + Math.PI / 2;
+      this.moth.rotation = (Math.atan2(hy - py, hx - px) + Math.PI / 2) * 0.3;
     }
-    this.mothWings.scale.x = 0.3 + 0.7 * Math.abs(Math.cos(this.time * 14));
+    this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
     this.emblemGlow.alpha = 0.55 + 0.35 * Math.sin(this.time * 6);
     this.moon.scale.set(Math.min(this.moonMax, 0.8 + Math.log(m) * 0.32));
     // The garden sinks away below as the moth climbs.
@@ -954,7 +954,7 @@ class CrashGame implements GameInstance {
     if (this.phase === 'idle' || this.phase === 'done') {
       // Idle moth hovers by the candle.
       if (this.phase === 'idle') this.moth.position.set(this.candle.x + 26 + Math.sin(this.time * 1.7) * 16, this.candle.y - 110 + Math.sin(this.time * 2.3) * 9);
-      this.mothWings.scale.x = 0.35 + 0.65 * Math.abs(Math.cos(this.time * 9));
+      this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
     }
   }
 

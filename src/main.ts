@@ -216,6 +216,7 @@ async function boot() {
     if (room) room.topInset = TOP || 64;
     const w = app.screen.width;
     const h = app.screen.height;
+    particles.bounds = { w, h, top: TOP };
     vignette.width = w;
     vignette.height = h;
     backdrop.clear().rect(0, 0, w, h).fill(0x0b0609);
@@ -565,8 +566,9 @@ async function boot() {
   /**
    * The shared win celebration, so every game feels like the same casino. It follows the
    * reward ladder of the UI guide: small = coins fly into the purse; medium (10×) = plus a
-   * wave of light at the table; big (20×) = plus the moth swarm (the game itself runs the
-   * stage moment with the title); jackpot (50×) = plus coin rain and the only shake.
+   * wave of light at the table; big (20×) = plus the "Funkenflug", sparks that fly to the
+   * lamps (the game itself runs the stage moment with the title); jackpot (50×) = plus the
+   * chandelier that lights arm by arm, coin rain and the only shake (game view only).
    */
   function celebrate(mult: number, x: number, y: number, orbit?: { x: number; y: number; r: number }) {
     const level = rewardLevel(mult);
@@ -597,6 +599,7 @@ async function boot() {
     }
     setTimeout(() => sfx.bigWin(), 900);
     void shake(gameLayer, 8, 300);
+    particles.chandelier();
     particles.drawSwarm(x, y, 40, orbit ?? null, 0xfff1c4, 4.5);
     particles.coinRain(w, 110);
     particles.coinsToPurse(x, y, 24);
@@ -889,6 +892,10 @@ async function boot() {
       eveningCard: () => eveningCard(),
       feel,
       app,
+      particles,
+      celebrate,
+      /** Slow motion for screenshots (1 = normal). */
+      slow: (k: number) => (timeScale = k),
     };
   }
 

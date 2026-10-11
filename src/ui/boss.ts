@@ -38,7 +38,7 @@ const LAUGH = [
   'Oh, wie schade … für dich!',
 ];
 const OUCH = ['Autsch! Mein Fächer!', 'Unerhört!', 'Das war doch nur Glück!', 'Nein! Mein Mondstaub!', 'Wie kannst du es wagen?'];
-const PHASE_COLOR = [0xc9a0ff, 0xc9a0ff, 0xff6ad0, 0xff4a4a];
+const PHASE_COLOR = [0xbcd0ff, 0xbcd0ff, 0xffb347, 0xff5a4a];
 
 const gameName = (id: string) => {
   try {
@@ -161,7 +161,7 @@ export class BossDirector {
     const room = this.host.room();
     await tween(this.dim, { alpha: 0.6 }, calm ? 150 : 320, ease.outCubic);
     if (room && room.def.floor === 5) room.bossPhase(p);
-    // A swarm of dark moths across the screen.
+    // A drift of lights across the screen.
     const moths: Sprite[] = [];
     if (!calm) {
       for (let i = 0; i < 14; i++) {
@@ -227,7 +227,7 @@ export class BossDirector {
     } else this.host.toast(`${BOSS_NAME} erhebt sich: alle Einsätze sind jetzt doppelt so hoch. Die Gewinnchancen bleiben gleich.`);
   }
 
-  /** A painted speech bubble: over the queen on her floor, else in the top-right corner with a small moth. */
+  /** A painted speech bubble: over the queen on her floor, else in the top-right corner with a small light. */
   private say(text: string, hurt: boolean) {
     this.bubble?.destroy({ children: true });
     const { w, top } = this.host.screen();
@@ -247,7 +247,7 @@ export class BossDirector {
     } else {
       const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
-      m.tint = 0xc9a0ff;
+      m.tint = 0xbcd0ff;
       m.width = m.height = 34;
       m.position.set(bw + 18, bh + 10);
       b.addChild(m);

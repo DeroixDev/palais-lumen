@@ -1,10 +1,11 @@
 // Painted playing cards for Salon-Poker: cream paper, brass hairline, ink and crimson pips,
-// moth-court figures for Bube, Dame and König, and a velvet back with a brass moth medallion.
+// night-light figures for Bube, Dame and König, and a velvet back with a brass sun medallion.
 // Every face is painted once (lazily) into a texture and cached.
 
 import type { Texture } from 'pixi.js';
 import { INK, ellipse, fillInk, glowAt, gold, paint, rim, rrect, rgb, seeded, type Ctx } from '../../world/painted/brush';
 import { paintEmblem } from '../slots/symbols';
+import { fourStar } from '../../core/lumenArt';
 import { rankOf, suitOf } from './rules';
 
 export const CW = 120;
@@ -133,7 +134,7 @@ function corner(c: Ctx, rank: number, suit: number) {
   }
 }
 
-/** Court card vignette: a framed night scene with a moth figure. */
+/** Court card vignette: a framed night scene with one of the house's lights. */
 function court(c: Ctx, rank: number, suit: number) {
   const x0 = 30, y0 = 22, w = CW - 60, h = CH - 44;
   rrect(c, x0, y0, w, h, 6);
@@ -157,12 +158,27 @@ function court(c: Ctx, rank: number, suit: number) {
     c.fillStyle = 'rgba(255,240,210,0.7)';
     c.fill();
   }
-  const wing = red ? { wing: 0xffb0c0, wingDark: 0xc0405a, body: 0x5a1020, eye: 0xfff1c4 } : { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 };
   if (rank === 9) {
-    // Bube: a young moth page, wings open.
-    paintEmblem(c, cx, cy + 4, 50, wing, 1.6);
+    // Bube: a candle, the youngest of the lights, on a brass dish.
+    glowAt(c, cx, cy - 22, 26, 30, 0xffcf7a, 0.6, 'lighter');
+    ellipse(c, cx, cy + 22, 20, 6);
+    fillInk(c, gold(c, cx - 20, cy + 16, cx + 20, cy + 28), 1.4);
+    rrect(c, cx - 8, cy - 14, 16, 36, 3);
+    const wx = c.createLinearGradient(cx - 8, 0, cx + 8, 0);
+    wx.addColorStop(0, '#fffaf0');
+    wx.addColorStop(1, '#c8a880');
+    fillInk(c, wx, 1.4);
+    c.beginPath();
+    c.moveTo(cx, cy - 40);
+    c.bezierCurveTo(cx + 8, cy - 28, cx + 7, cy - 19, cx, cy - 17);
+    c.bezierCurveTo(cx - 7, cy - 19, cx - 8, cy - 28, cx, cy - 40);
+    const fl = c.createRadialGradient(cx, cy - 22, 1, cx, cy - 26, 14);
+    fl.addColorStop(0, '#fffef0');
+    fl.addColorStop(0.5, '#ffd35a');
+    fl.addColorStop(1, '#e8731f');
+    fillInk(c, fl, 1.2);
   } else if (rank === 10) {
-    // Dame: the crescent moon wearing a little crown, a moth at her side.
+    // Dame: the crescent moon with a star at her side.
     c.beginPath();
     c.arc(cx - 2, cy + 6, 26, 0, Math.PI * 2);
     c.arc(cx + 9, cy, 22, 0, Math.PI * 2, true);
@@ -171,7 +187,7 @@ function court(c: Ctx, rank: number, suit: number) {
     mg.addColorStop(1, '#d8b060');
     c.fillStyle = mg;
     c.fill('evenodd');
-    paintEmblem(c, cx + 14, cy + 22, 22, wing, 1.2);
+    fourStar(c, cx + 16, cy - 14, 9, red ? '#ffd0dc' : '#fff1c4');
   } else {
     // König: a brass lantern, the king of the night lights.
     c.fillStyle = gold(c, cx - 3, cy - 40, cx + 3, cy - 30);
@@ -216,10 +232,10 @@ function court(c: Ctx, rank: number, suit: number) {
 function ace(c: Ctx, suit: number) {
   const cx = CW / 2;
   const cy = CH / 2;
-  // Moth wings spread behind a big pip in a brass ring.
+  // The house sun spread behind a big pip in a brass ring.
   c.save();
   c.globalAlpha = 0.85;
-  paintEmblem(c, cx, cy, 92, { wing: 0xf3dfb0, wingDark: 0xc8a060, body: 0x8a5a1a, eye: 0xff5fa2 }, 1.2);
+  paintEmblem(c, cx, cy, 92, { wing: 0xf3dfb0, wingDark: 0xc8a060, body: 0x8a5a1a, eye: 0xfff1c4 }, 1.2);
   c.restore();
   ellipse(c, cx, cy, 26, 26);
   fillInk(c, gold(c, cx - 26, cy - 26, cx + 26, cy + 26), 1.6);
@@ -292,7 +308,7 @@ export function backTexture() {
     ellipse(c, CW / 2, CH / 2, 24, 24);
     c.fillStyle = '#1a0818';
     c.fill();
-    paintEmblem(c, CW / 2, CH / 2 + 2, 38, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.3);
+    paintEmblem(c, CW / 2, CH / 2 + 2, 38, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xfff1c4 }, 1.3);
     c.strokeStyle = INK;
   }, RES);
   return backTex;

@@ -1,5 +1,5 @@
 // "Drachenturm": climb a stone tower floor by floor. On every floor pick one door; behind
-// some of them a moth-dragon sleeps. Every quiet door raises the multiplier, collect
+// some of them a dragon sleeps. Every quiet door raises the multiplier, collect
 // whenever you like. Wake a dragon and the climb is over (it only puffs a little smoke).
 //
 // Report tags: 'tower' (every round), 'tower5' (5+ floors climbed in the round), 'top'
@@ -542,7 +542,7 @@ class TowerGame implements GameInstance {
     }
   }
 
-  /** The moth-dragon wakes: eyes open, a hop, a puff of smoke and a warm fire glow. */
+  /** The dragon wakes: eyes open, a hop, a puff of smoke and a warm fire glow. */
   private async wake(d: Door) {
     await wait(this.calm ? 80 : 260);
     if (d.c.destroyed) return;

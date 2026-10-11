@@ -1,10 +1,11 @@
-// "Funkenfall": a glowing moth drops through lantern pegs into multiplier buckets.
+// "Funkenfall": a glowing spark drops through lantern pegs into multiplier buckets.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
 import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, floatText, glowTexture, rewardLevel } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { paintEmblem } from '../slots/symbols';
+import { fourStar } from '../../core/lumenArt';
 import { lightWave, reducedMotion, winStage } from '../slots/stage';
 import { ellipse, fillInk, glowAt, gold, grain, light, paint, rim, rrect, seeded, shadow, vgrad } from '../../world/painted/brush';
 import { button, label, type Button } from '../../core/ui';
@@ -103,7 +104,7 @@ function paintCabinet() {
     ellipse(c, W / 2, 6, 21, 18);
     c.fillStyle = '#1a0818';
     c.fill();
-    paintEmblem(c, W / 2, 8, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.6);
+    paintEmblem(c, W / 2, 8, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xfff1c4 }, 1.6);
     // Playfield: night glass framed in brass.
     const fx = 28, fy = 150, fw = W - 56, fh = BUCKET_Y + BUCKET_H + 14 - fy;
     rrect(c, fx - 10, fy - 10, fw + 20, fh + 20, 26);
@@ -219,12 +220,28 @@ function bucketTexture(col: number) {
   return t;
 }
 
-/** The glowing moth that falls. */
+/** The spark that falls: a white-hot core in a warm halo, with a four-point twinkle. */
 let ballTex: Texture | null = null;
 function ballTexture() {
   ballTex ??= paint(64, 64, (c) => {
-    glowAt(c, 32, 32, 30, 30, 0xfff1c4, 0.65, 'lighter');
-    paintEmblem(c, 32, 34, 50, { wing: 0xfff1c4, wingDark: 0xe0a848, body: 0x8a5a1a, eye: 0xff5fa2 }, 2);
+    glowAt(c, 32, 32, 31, 31, 0xffb347, 0.7, 'lighter');
+    glowAt(c, 32, 32, 18, 18, 0xffe6a0, 0.9, 'lighter');
+    fourStar(c, 32, 32, 28, 'rgba(255,240,200,0.9)');
+    c.save();
+    c.translate(32, 32);
+    c.rotate(Math.PI / 4);
+    fourStar(c, 0, 0, 15, 'rgba(255,214,140,0.75)');
+    c.restore();
+    const g = c.createRadialGradient(29, 29, 1, 32, 32, 11);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.5, '#fff6d8');
+    g.addColorStop(1, '#ffc870');
+    ellipse(c, 32, 32, 10, 10);
+    c.fillStyle = g;
+    c.fill();
+    c.strokeStyle = 'rgba(200,110,20,0.6)';
+    c.lineWidth = 1.2;
+    c.stroke();
   }, 2);
   return ballTex;
 }
@@ -486,7 +503,7 @@ class PlinkoGame implements GameInstance {
     glow.alpha = 0.8;
     const moth = new Sprite(ballTexture());
     moth.anchor.set(0.5);
-    const MS = 38;
+    const MS = 40;
     moth.width = moth.height = MS;
     ball.addChild(glow, moth);
     this.ballLayer.addChild(ball);
@@ -516,8 +533,8 @@ class PlinkoGame implements GameInstance {
         if (ball.destroyed) return;
         ball.x = sx + (nx - sx) * k;
         ball.y = sy + (ny - sy) * k * k - hop * 4 * k * (1 - k);
-        moth.rotation = (dir ? 1 : -1) * 0.5 * Math.sin(k * Math.PI);
-        moth.scale.x = (MS / moth.texture.width) * (0.45 + 0.55 * Math.abs(Math.cos(k * Math.PI * 2)));
+        moth.rotation += (dir ? 1 : -1) * 0.12;
+        moth.scale.set((MS / moth.texture.width) * (0.88 + 0.12 * Math.abs(Math.cos(k * Math.PI * 2))));
       });
       // The game was torn down mid-fall (a save was loaded): nothing left to land in.
       if (this.view.destroyed) return;
@@ -588,7 +605,7 @@ class PlinkoGame implements GameInstance {
     }
   }
 
-  /** Lichtfächer: a pink wing flash at the second peg, pushing outwards. */
+  /** Lichtfächer: a pink fan of light at the second peg, pushing outwards. */
   private wingBeat(x: number, y: number, dir: number) {
     const flash = new Sprite(glowTexture());
     flash.anchor.set(0.5);

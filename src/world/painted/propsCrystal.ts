@@ -1,6 +1,6 @@
-// Painted pieces for the crystal salon (floor 4: ice, glass, champagne) and the Selene's
-// throne room (floor 5: purple, gold and fire), in the slanted 3/4 view of the foyer.
-// Each piece is painted once; small Pixi overlays animate glints, bubbles, flames and the Queen.
+// Painted pieces for the crystal salon (floor 4: ice, glass, champagne) and Selene's dome
+// (floor 5: night blue, brass and moonlight under the Fresnel lens), in the slanted 3/4 view of
+// the foyer. Each piece is painted once; small Pixi overlays animate glints, bubbles, flames and Selene.
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
@@ -130,171 +130,146 @@ function shard(c: Ctx, w: number, h: number, col: number) {
   c.stroke();
 }
 
-/** A painted gold moth emblem (wings, body) centred at (0,0), roughly s wide. */
+/** Selene's crest: a crescent moon before a small gold sunburst, centred at (0,0), roughly s wide. */
 export function crestEmblem(c: Ctx, s: number, gem = '#ff5fa2') {
   const k = s / 40;
-  for (const sd of [-1, 1]) {
+  // Fan of rays above a base line.
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI + ((i + 0.5) / 9) * Math.PI;
+    const len = (i % 2 ? 15 : 19) * k;
     c.beginPath();
-    c.ellipse(sd * 11 * k, -4 * k, 11 * k, 8 * k, sd * 0.45, 0, Math.PI * 2);
-    fillInk(c, gold(c, -20 * k, -14 * k, 20 * k, 6 * k), 1.3);
-    c.beginPath();
-    c.ellipse(sd * 8 * k, 7 * k, 7 * k, 6 * k, -sd * 0.4, 0, Math.PI * 2);
-    fillInk(c, gold(c, -14 * k, 0, 14 * k, 14 * k), 1.2);
-    ellipse(c, sd * 11 * k, -5 * k, 2.6 * k, 2 * k);
-    c.fillStyle = gem;
-    c.fill();
+    c.moveTo(Math.cos(a - 0.12) * 6 * k, 6 * k + Math.sin(a - 0.12) * 6 * k);
+    c.lineTo(Math.cos(a) * len, 6 * k + Math.sin(a) * len);
+    c.lineTo(Math.cos(a + 0.12) * 6 * k, 6 * k + Math.sin(a + 0.12) * 6 * k);
+    c.closePath();
+    fillInk(c, gold(c, -20 * k, -14 * k, 20 * k, 6 * k), 1.1);
   }
-  rrect(c, -2.4 * k, -12 * k, 4.8 * k, 24 * k, 2.4 * k);
-  fillInk(c, '#7a4e18', 1.1);
+  rrect(c, -18 * k, 6 * k, 36 * k, 3.6 * k, 1.5 * k);
+  fillInk(c, gold(c, -18 * k, 6 * k, 18 * k, 10 * k), 1);
+  // Crescent with a gem in its bow.
   c.beginPath();
-  c.moveTo(-1 * k, -12 * k);
-  c.quadraticCurveTo(-6 * k, -20 * k, -10 * k, -19 * k);
-  c.moveTo(1 * k, -12 * k);
-  c.quadraticCurveTo(6 * k, -20 * k, 10 * k, -19 * k);
-  c.strokeStyle = '#c9963e';
-  c.lineWidth = 1.2;
+  c.arc(-1 * k, -1 * k, 9 * k, 0, Math.PI * 2);
+  c.arc(3 * k, -3.5 * k, 7.6 * k, 0, Math.PI * 2, true);
+  const mg = c.createLinearGradient(-9 * k, -10 * k, 8 * k, 8 * k);
+  mg.addColorStop(0, '#ffffff');
+  mg.addColorStop(1, '#9aa6c8');
+  c.fillStyle = mg;
+  c.fill('evenodd');
+  c.strokeStyle = INK;
+  c.lineWidth = 1.1;
   c.stroke();
+  ellipse(c, -6.2 * k, 1.5 * k, 2 * k, 2 * k);
+  c.fillStyle = gem;
+  c.fill();
 }
 
-function bez(p0: number, p1: number, p2: number, p3: number, t: number) {
-  const u = 1 - t;
-  return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
-}
+// ---- Selene's fan of light ----------------------------------------------------------------------
 
-// ---- The Selene's wings -------------------------------------------------------------------
-
-const FORE = [2, -6, 30, -52, 72, -82, 106, -72, 116, -52, 102, -20, 86, -8] as const;
-
-function wingPath(c: Ctx, part: 'fore' | 'hind') {
+/** One ray of the fan: from the root out along angle a (radians), to length len, half-width w at the tip. */
+function rayPath(c: Ctx, a: number, len: number, w: number) {
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const nx = -sa, ny = ca;
   c.beginPath();
-  if (part === 'fore') {
-    const f = FORE;
-    c.moveTo(f[0], f[1]);
-    c.bezierCurveTo(f[2], f[3], f[4], f[5], f[6], f[7]);
-    c.bezierCurveTo(f[8], f[9], f[10], f[11], f[12], f[13]);
-    c.bezierCurveTo(60, 0, 30, 4, 4, 5);
-  } else {
-    c.moveTo(4, 2);
-    c.bezierCurveTo(32, 2, 68, 10, 76, 32);
-    c.bezierCurveTo(78, 50, 60, 60, 50, 66);
-    c.quadraticCurveTo(50, 92, 38, 100);
-    c.quadraticCurveTo(34, 80, 28, 66);
-    c.bezierCurveTo(16, 54, 6, 32, 2, 10);
-  }
+  c.moveTo(ca * 10 + nx * 2, sa * 10 + ny * 2);
+  c.lineTo(ca * len + nx * w, sa * len + ny * w);
+  c.quadraticCurveTo(ca * (len + w * 0.9), sa * (len + w * 0.9), ca * len - nx * w, sa * len - ny * w);
+  c.lineTo(ca * 10 - nx * 2, sa * 10 - ny * 2);
   c.closePath();
 }
 
-/** The Queen's right wing, root at (0,0). `flash` paints a white silhouette for hits. */
+/** Angles and lengths of the seven rays of one fan half (up-right to down-right). */
+const RAYS: [number, number][] = [
+  [-1.32, 90],
+  [-1.04, 104],
+  [-0.76, 112],
+  [-0.48, 116],
+  [-0.2, 108],
+  [0.1, 96],
+  [0.4, 82],
+];
+
+/**
+ * The right half of Selene's fan of light rays (art-deco sunburst), root at (0,0); mirror it for
+ * the left. Brass and moon-silver rays with stepped arcs and glowing tips. Same footprint as the
+ * old wing (x 0…120, y −96…100). `flash` paints a white silhouette for hits.
+ */
 export function paintWing(c: Ctx, flash: boolean) {
-  for (const part of ['hind', 'fore'] as const) {
-    wingPath(c, part);
+  if (!flash) glowAt(c, 50, -20, 90, 90, 0xffe2a8, 0.28, 'lighter');
+  RAYS.forEach(([a, len], i) => {
+    const w = 8 + (len - 78) * 0.06;
+    rayPath(c, a, len, w);
     if (flash) {
       c.fillStyle = 'rgba(255,255,255,0.95)';
       c.fill();
-      c.strokeStyle = 'rgba(255,240,255,1)';
+      c.strokeStyle = 'rgba(255,248,235,1)';
       c.lineWidth = 3;
       c.stroke();
-      continue;
+      return;
     }
-    const g = c.createRadialGradient(0, 0, 4, 0, 0, part === 'fore' ? 118 : 96);
-    g.addColorStop(0, '#22092e');
-    g.addColorStop(0.3, '#4a1a6e');
-    g.addColorStop(0.62, '#8a4ac0');
-    g.addColorStop(0.84, '#c98ae0');
-    g.addColorStop(0.92, '#e0b25a');
-    g.addColorStop(1, '#fff1c4');
-    fillInk(c, g, 2.6);
-    c.save();
-    wingPath(c, part);
-    c.clip();
-    // Veins fanning out from the root.
-    const ends = part === 'fore' ? [[50, -78], [80, -82], [108, -64], [112, -40], [100, -16], [70, -4]] : [[60, 12], [76, 36], [60, 60], [42, 90], [26, 62]];
-    for (const [ex, ey] of ends) {
-      c.beginPath();
-      c.moveTo(0, 0);
-      c.quadraticCurveTo(ex * 0.5, ey * 0.3, ex, ey);
-      c.strokeStyle = 'rgba(240,200,110,0.4)';
-      c.lineWidth = 1.1;
-      c.stroke();
+    const tipX = Math.cos(a) * len, tipY = Math.sin(a) * len;
+    const g = c.createLinearGradient(0, 0, tipX, tipY);
+    if (i % 2) {
+      g.addColorStop(0, '#5a6aa0');
+      g.addColorStop(0.55, '#c8d2ec');
+      g.addColorStop(1, '#ffffff');
+    } else {
+      g.addColorStop(0, '#7a4e18');
+      g.addColorStop(0.5, '#e0b25a');
+      g.addColorStop(1, '#fff4c2');
     }
-    // Soft sheen.
-    glowAt(c, part === 'fore' ? 46 : 30, part === 'fore' ? -46 : 22, 40, 22, 0xf0d8ff, 0.35, 'lighter');
-    c.restore();
-    // Eye spot.
-    const [ex, ey, er] = part === 'fore' ? [70, -44, 13] : [48, 38, 9];
-    glowAt(c, ex, ey, er * 1.8, er * 1.6, 0xffcf7a, 0.35, 'lighter');
-    ellipse(c, ex, ey, er, er * 0.85);
-    fillInk(c, gold(c, ex - er, ey - er, ex + er, ey + er), 1.4);
-    ellipse(c, ex, ey, er * 0.66, er * 0.56);
-    c.fillStyle = '#1a0820';
-    c.fill();
-    ellipse(c, ex + 0.5, ey + 0.5, er * 0.3, er * 0.28);
-    c.fillStyle = '#ff5fa2';
-    c.fill();
-    ellipse(c, ex - er * 0.25, ey - er * 0.25, er * 0.14, er * 0.12);
+    fillInk(c, g, 2.2);
+    // A bright spine down the ray.
+    c.beginPath();
+    c.moveTo(Math.cos(a) * 16, Math.sin(a) * 16);
+    c.lineTo(tipX * 0.94, tipY * 0.94);
+    c.strokeStyle = 'rgba(255,250,235,0.55)';
+    c.lineWidth = 1.4;
+    c.stroke();
+  });
+  if (flash) return;
+  // Stepped deco arcs across the rays.
+  for (const [r, al] of [[44, 0.85], [70, 0.6]] as const) {
+    c.beginPath();
+    c.arc(0, 0, r, -1.48, 0.52);
+    c.strokeStyle = INK;
+    c.lineWidth = 4.4;
+    c.stroke();
+    c.strokeStyle = `rgba(242,205,114,${al})`;
+    c.lineWidth = 2.4;
+    c.stroke();
+  }
+  // Glowing tips (pearls of light).
+  for (const [a, len] of RAYS) {
+    const x = Math.cos(a) * (len - 4), y = Math.sin(a) * (len - 4);
+    glowAt(c, x, y, 12, 12, 0xfff1c4, 0.7, 'lighter');
+    ellipse(c, x, y, 2.6, 2.6);
     c.fillStyle = '#ffffff';
     c.fill();
-    // Pearl dots along the outer edge.
-    if (part === 'fore') {
-      const f = FORE;
-      for (let i = 1; i < 12; i++) {
-        const tt = i / 12;
-        const px = i < 6 ? bez(f[0], f[2], f[4], f[6], 0.55 + tt * 0.8) : bez(f[6], f[8], f[10], f[12], (i - 6) / 6);
-        const py = i < 6 ? bez(f[1], f[3], f[5], f[7], 0.55 + tt * 0.8) : bez(f[7], f[9], f[11], f[13], (i - 6) / 6);
-        const dx = px * 0.92;
-        const dy = py * 0.92;
-        ellipse(c, dx, dy, 2, 2);
-        c.fillStyle = 'rgba(255,246,220,0.9)';
-        c.fill();
-      }
-    }
   }
-  // Rim light on the leading edge.
-  c.beginPath();
-  c.moveTo(4, -8);
-  c.bezierCurveTo(30, -52, 72, -80, 104, -70);
-  c.strokeStyle = 'rgba(255,244,220,0.55)';
-  c.lineWidth = 2;
-  c.stroke();
 }
 
-/** The Queen's body: gown, ruff, face, crown, antennae and sceptre, thorax at (0,0). */
+/** Selene, Herrin der Lampen: night-blue gown with brass bands, ruff, moon diadem, lamp staff; thorax at (0,0). */
 export function paintBossFigure(c: Ctx) {
-  // Antennae, feathery.
-  for (const s of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(s * 4, -34);
-    c.quadraticCurveTo(s * 10, -58, s * 26, -64);
-    c.strokeStyle = INK;
-    c.lineWidth = 3.6;
-    c.stroke();
-    c.strokeStyle = '#e0b25a';
-    c.lineWidth = 1.8;
-    c.stroke();
-    for (let i = 1; i < 8; i++) {
-      const tt = i / 8;
-      const px = (1 - tt) * (1 - tt) * s * 4 + 2 * (1 - tt) * tt * s * 10 + tt * tt * s * 26;
-      const py = (1 - tt) * (1 - tt) * -34 + 2 * (1 - tt) * tt * -58 + tt * tt * -64;
-      c.beginPath();
-      c.moveTo(px, py);
-      c.lineTo(px - s * 4, py - 4);
-      c.moveTo(px, py);
-      c.lineTo(px + s * 3, py + 3.5);
-      c.strokeStyle = 'rgba(240,200,110,0.9)';
-      c.lineWidth = 1.1;
-      c.stroke();
-    }
-  }
-  // Gown / abdomen.
+  // Silver hair, pinned up (behind the head).
+  ellipse(c, 0, -31, 15.5, 13);
+  fillInk(c, (() => {
+    const g = c.createLinearGradient(-14, -44, 14, -20);
+    g.addColorStop(0, '#f4f6fc');
+    g.addColorStop(1, '#8a96b4');
+    return g;
+  })(), 2.2);
+  ellipse(c, 0, -45, 7.5, 6);
+  fillInk(c, '#c8d0e4', 1.8);
+  // Gown.
   c.beginPath();
   c.moveTo(-13, -4);
   c.bezierCurveTo(-26, 18, -18, 52, 0, 68);
   c.bezierCurveTo(18, 52, 26, 18, 13, -4);
   c.closePath();
   const gg = c.createLinearGradient(-20, 0, 20, 60);
-  gg.addColorStop(0, '#8a3aa8');
-  gg.addColorStop(0.5, '#4a1660');
-  gg.addColorStop(1, '#1a0626');
+  gg.addColorStop(0, '#3a4c96');
+  gg.addColorStop(0.5, '#1a2458');
+  gg.addColorStop(1, '#0a0e24');
   fillInk(c, gg, 2.4);
   c.save();
   c.clip();
@@ -305,12 +280,22 @@ export function paintBossFigure(c: Ctx) {
     c.lineWidth = 2.4;
     c.stroke();
   }
-  c.fillStyle = 'rgba(255,255,255,0.18)';
+  // A small sunburst on the front of the gown.
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI + ((i + 0.5) / 7) * Math.PI;
+    c.beginPath();
+    c.moveTo(0, 12);
+    c.lineTo(Math.cos(a) * 10, 12 + Math.sin(a) * 10);
+    c.strokeStyle = 'rgba(242,205,114,0.8)';
+    c.lineWidth = 1.2;
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(255,255,255,0.16)';
   c.beginPath();
   c.ellipse(-8, 18, 3.5, 16, 0.15, 0, Math.PI * 2);
   c.fill();
   c.restore();
-  // Little arms; the right one holds the sceptre.
+  // Little arms; the right one holds the lamp staff.
   for (const [sx, hx, hy] of [[-11, -16, 16], [11, 18, 12]] as const) {
     c.beginPath();
     c.moveTo(sx, 0);
@@ -318,11 +303,11 @@ export function paintBossFigure(c: Ctx) {
     c.strokeStyle = INK;
     c.lineWidth = 7.5;
     c.stroke();
-    c.strokeStyle = '#6a2a88';
+    c.strokeStyle = '#2a3a7a';
     c.lineWidth = 5;
     c.stroke();
     ellipse(c, hx, hy, 3.4, 3.4);
-    fillInk(c, '#f3e6ff', 1.3);
+    fillInk(c, '#f4ece4', 1.3);
   }
   c.beginPath();
   c.moveTo(12, 34);
@@ -334,15 +319,27 @@ export function paintBossFigure(c: Ctx) {
   c.lineWidth = 2.6;
   c.stroke();
   ellipse(c, 18, 12, 3.4, 3.4);
-  fillInk(c, '#f3e6ff', 1.3);
-  glowAt(c, 26, -20, 16, 16, 0x9fe8ff, 0.7, 'lighter');
-  ellipse(c, 26, -20, 5.5, 5.5);
-  const og = c.createRadialGradient(24, -22, 0.5, 26, -20, 6);
-  og.addColorStop(0, '#ffffff');
-  og.addColorStop(0.5, '#9fe8ff');
-  og.addColorStop(1, '#2a7aa8');
-  fillInk(c, og, 1.4);
-  // Fluffy ruff collar.
+  fillInk(c, '#f4ece4', 1.3);
+  // The little lamp on top of the staff.
+  glowAt(c, 26, -24, 18, 18, 0xffd27a, 0.75, 'lighter');
+  c.beginPath();
+  c.moveTo(21, -20);
+  c.lineTo(31, -20);
+  c.lineTo(30, -30);
+  c.lineTo(22, -30);
+  c.closePath();
+  const lg = c.createRadialGradient(26, -24, 0.5, 26, -25, 7);
+  lg.addColorStop(0, '#ffffff');
+  lg.addColorStop(0.5, '#ffe08a');
+  lg.addColorStop(1, '#e09a3a');
+  fillInk(c, lg, 1.3);
+  c.beginPath();
+  c.moveTo(20, -30);
+  c.lineTo(32, -30);
+  c.lineTo(26, -36);
+  c.closePath();
+  fillInk(c, gold(c, 20, -36, 32, -30), 1.2);
+  // Ruff collar.
   const puffs: [number, number][] = [];
   for (let i = 0; i < 11; i++) {
     const a = Math.PI * (-0.08 + (i / 10) * 1.16);
@@ -358,63 +355,66 @@ export function paintBossFigure(c: Ctx) {
     ellipse(c, px, py, 6.2, 5.6);
     const pg = c.createRadialGradient(px - 2, py - 2, 0.5, px, py, 6.5);
     pg.addColorStop(0, '#ffffff');
-    pg.addColorStop(1, '#e6d6ee');
+    pg.addColorStop(1, '#dfe4f0');
     c.fillStyle = pg;
     c.fill();
   }
-  // Head.
-  ellipse(c, 0, -24, 14, 13);
-  const hg = c.createRadialGradient(-4, -29, 1, 0, -24, 15);
-  hg.addColorStop(0, '#fff6ff');
-  hg.addColorStop(0.7, '#e2cdf2');
-  hg.addColorStop(1, '#b08ad0');
+  // Head: pale moonlit skin.
+  ellipse(c, 0, -24, 12.5, 12.5);
+  const hg = c.createRadialGradient(-4, -29, 1, 0, -24, 14);
+  hg.addColorStop(0, '#fffaf4');
+  hg.addColorStop(0.7, '#f0dccc');
+  hg.addColorStop(1, '#c8a898');
   fillInk(c, hg, 2.2);
-  // Fur tuft.
-  for (const [fx, fr] of [[-7, 5], [0, 6], [7, 5]] as const) {
-    ellipse(c, fx, -35, fr, 4);
-    c.fillStyle = '#fff6ff';
-    c.fill();
-  }
-  glowAt(c, -8, -19, 4, 3, 0xff5fa2, 0.45);
-  glowAt(c, 8, -19, 4, 3, 0xff5fa2, 0.45);
+  // Fringe.
+  c.beginPath();
+  c.moveTo(-12.5, -25);
+  c.quadraticCurveTo(-10, -38, 0, -37);
+  c.quadraticCurveTo(10, -38, 12.5, -25);
+  c.quadraticCurveTo(4, -32, -3, -29);
+  c.quadraticCurveTo(-8, -28, -12.5, -25);
+  c.closePath();
+  fillInk(c, '#dfe4f0', 1.4);
+  glowAt(c, -7, -19, 3.5, 2.5, 0xff8aa0, 0.4);
+  glowAt(c, 7, -19, 3.5, 2.5, 0xff8aa0, 0.4);
   for (const s of [-1, 1]) {
-    ellipse(c, s * 5.2, -24, 3.8, 4.8);
-    c.fillStyle = '#1a0820';
+    ellipse(c, s * 4.6, -23, 2, 2.6);
+    c.fillStyle = '#1a1430';
     c.fill();
-    ellipse(c, s * 5.2 - 1.2, -25.8, 1.4, 1.6);
+    ellipse(c, s * 4.6 - 0.7, -24, 0.7, 0.8);
     c.fillStyle = '#ffffff';
     c.fill();
-    ellipse(c, s * 5.2 + 1.2, -22.4, 0.7, 0.7);
-    c.fillStyle = '#c9a0ff';
-    c.fill();
   }
   c.beginPath();
-  c.arc(0, -18.5, 2.2, 0.2, Math.PI - 0.2);
-  c.strokeStyle = '#5a1a3a';
+  c.arc(0, -18, 2.2, 0.2, Math.PI - 0.2);
+  c.strokeStyle = '#7a2a3a';
   c.lineWidth = 1.2;
   c.stroke();
-  // Crown.
+  // Diadem: a silver crescent on a thin gold band, a pearl of light above.
   c.beginPath();
-  c.moveTo(-11, -36);
-  c.lineTo(-13, -50);
-  c.lineTo(-6, -43);
-  c.lineTo(0, -54);
-  c.lineTo(6, -43);
-  c.lineTo(13, -50);
-  c.lineTo(11, -36);
-  c.quadraticCurveTo(0, -33, -11, -36);
-  c.closePath();
-  fillInk(c, gold(c, -13, -54, 13, -34), 1.6);
-  for (const [gx, gy, col] of [[-13, -50, '#9fe8ff'], [0, -54, '#ff5fa2'], [13, -50, '#9fe8ff']] as const) {
-    ellipse(c, gx, gy, 2.2, 2.2);
-    fillInk(c, col, 1);
-  }
-  ellipse(c, 0, -39, 2.4, 2);
-  c.fillStyle = '#ff5fa2';
+  c.moveTo(-11, -34);
+  c.quadraticCurveTo(0, -38, 11, -34);
+  c.strokeStyle = gold(c, -11, -38, 11, -34);
+  c.lineWidth = 2;
+  c.stroke();
+  c.beginPath();
+  c.arc(0, -42, 7, 0, Math.PI * 2);
+  c.arc(0, -46.5, 6.4, 0, Math.PI * 2, true);
+  const dg = c.createLinearGradient(-7, -48, 7, -36);
+  dg.addColorStop(0, '#ffffff');
+  dg.addColorStop(1, '#9aa6c8');
+  c.fillStyle = dg;
+  c.fill('evenodd');
+  c.strokeStyle = INK;
+  c.lineWidth = 1;
+  c.stroke();
+  glowAt(c, 0, -52, 6, 6, 0xfff1c4, 0.9, 'lighter');
+  ellipse(c, 0, -52, 1.8, 1.8);
+  c.fillStyle = '#ffffff';
   c.fill();
 }
 
-/** The halo behind the Queen's head: a gold ring with rays. */
+/** The halo behind Selene's head: a gold ring with rays. */
 export function paintHalo(c: Ctx) {
   glowAt(c, 0, 0, 44, 44, 0xffe2a8, 0.5, 'lighter');
   for (let i = 0; i < 24; i++) {
@@ -440,9 +440,57 @@ export function paintHalo(c: Ctx) {
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     ellipse(c, Math.cos(a) * 24.5, Math.sin(a) * 24.5, 1.6, 1.6);
-    c.fillStyle = i % 2 ? '#9fe8ff' : '#ff5fa2';
+    c.fillStyle = i % 2 ? '#dfe6f5' : '#fff1c4';
     c.fill();
   }
+}
+
+/**
+ * The great Fresnel lens of the dome, centred at (0,0) with radius r: a brass ring, concentric
+ * prism rings that catch the light, a bright bull's-eye in the middle.
+ */
+export function paintFresnel(c: Ctx, r: number) {
+  glowAt(c, 0, 0, r * 1.6, r * 1.6, 0xdfe8ff, 0.35, 'lighter');
+  ellipse(c, 0, 0, r, r);
+  fillInk(c, gold(c, -r, -r, r, r), 3);
+  ellipse(c, 0, 0, r * 0.92, r * 0.92);
+  const bg = c.createRadialGradient(-r * 0.2, -r * 0.3, 2, 0, 0, r);
+  bg.addColorStop(0, '#ffffff');
+  bg.addColorStop(0.3, '#dfe8ff');
+  bg.addColorStop(0.75, '#7a8cc8');
+  bg.addColorStop(1, '#2a3a7a');
+  c.fillStyle = bg;
+  c.fill();
+  for (let i = 1; i <= 6; i++) {
+    const rr = r * (0.18 + i * 0.12);
+    c.beginPath();
+    c.arc(0, 0, rr, 0, Math.PI * 2);
+    c.strokeStyle = 'rgba(20,28,64,0.45)';
+    c.lineWidth = 2;
+    c.stroke();
+    c.beginPath();
+    c.arc(0, 0, rr - 2, Math.PI * 1.05, Math.PI * 1.65);
+    c.strokeStyle = 'rgba(255,255,255,0.75)';
+    c.lineWidth = 1.4;
+    c.stroke();
+  }
+  // Brass struts between the prism panels.
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3);
+    c.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.92);
+    c.strokeStyle = INK;
+    c.lineWidth = 3.2;
+    c.stroke();
+    c.strokeStyle = gold(c, -r, -r, r, r);
+    c.lineWidth = 1.6;
+    c.stroke();
+  }
+  glowAt(c, 0, 0, r * 0.4, r * 0.4, 0xffffff, 0.9, 'lighter');
+  ellipse(c, 0, 0, r * 0.16, r * 0.16);
+  c.fillStyle = '#ffffff';
+  c.fill();
 }
 
 // ---- The pieces ---------------------------------------------------------------------------------
@@ -1416,8 +1464,8 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
       v.addChild(
         propSprite(x, y, 320, 360, 160, 270, (c) => {
           shadow(c, 0, 56, 132, 24, 0.6);
-          // Purple aura behind the throne.
-          glowAt(c, 0, -150, 140, 120, 0x9a5ad0, 0.35, 'lighter');
+          // Moonlight falling through the great lens.
+          glowAt(c, 0, -150, 150, 130, 0x8aa8ff, 0.32, 'lighter');
           // Three-step dais.
           const tiers: [number, number, number, number][] = [
             [-110, -60, 220, 108],
@@ -1425,7 +1473,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
             [-70, -84, 140, 80],
           ];
           tiers.forEach(([tx, ty, tw, td], i) => {
-            rbox(c, tx, ty, tw, td, 12, light(0x3a1650, i * 0.05), 0x26102e, 6);
+            rbox(c, tx, ty, tw, td, 12, light(0x1e2a5e, i * 0.05), 0x10173a, 6);
             c.fillStyle = gold(c, tx, ty + td - 2, tx + tw, ty + td + 2);
             c.fillRect(tx + 3, ty + td - 1.5, tw - 6, 3);
             c.save();
@@ -1445,7 +1493,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
           for (const s of [-1, 1]) {
             c.save();
             c.translate(s * 76, 54);
-            crestEmblem(c, 16, '#c9a0ff');
+            crestEmblem(c, 16, '#dfe6f5');
             c.restore();
           }
           // Runner down the steps.
@@ -1491,120 +1539,84 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
             rrect(c, cx - 3, -138, 6, 14, 2);
             fillInk(c, '#fff6e6', 1.2);
           }
-          // Carved wing flourishes flanking the back.
-          for (const s of [-1, 1]) {
+          // The Fresnel lens of the dome, held in a brass yoke above the chair.
+          for (const sd of [-1, 1]) {
             c.beginPath();
-            c.moveTo(s * 44, -90);
-            c.bezierCurveTo(s * 70, -110, s * 104, -150, s * 100, -196);
-            c.bezierCurveTo(s * 84, -178, s * 70, -176, s * 58, -184);
-            c.bezierCurveTo(s * 66, -160, s * 60, -132, s * 44, -120);
-            c.closePath();
-            const wg = c.createLinearGradient(s * 44, -90, s * 100, -196);
-            wg.addColorStop(0, '#3a1050');
-            wg.addColorStop(0.6, '#7a3aa0');
-            wg.addColorStop(1, '#c98ae0');
-            fillInk(c, wg, 2.2);
-            c.beginPath();
-            c.moveTo(s * 46, -100);
-            c.bezierCurveTo(s * 70, -118, s * 94, -150, s * 98, -190);
-            c.strokeStyle = gold(c, 0, -190, 0, -100);
-            c.lineWidth = 2.4;
+            c.moveTo(sd * 46, -96);
+            c.quadraticCurveTo(sd * 96, -150, sd * 82, -200);
+            c.strokeStyle = INK;
+            c.lineWidth = 8;
             c.stroke();
-            for (let k = 0; k < 3; k++) {
-              c.beginPath();
-              c.moveTo(s * 50, -112);
-              c.quadraticCurveTo(s * (66 + k * 6), -140 - k * 8, s * (64 + k * 9), -170 - k * 6);
-              c.strokeStyle = 'rgba(240,200,110,0.55)';
-              c.lineWidth = 1.2;
-              c.stroke();
-            }
-            ellipse(c, s * 74, -152, 6, 5);
-            fillInk(c, gold(c, s * 68, -158, s * 80, -146), 1.2);
-            ellipse(c, s * 74, -152, 2.6, 2.2);
-            c.fillStyle = '#ff5fa2';
-            c.fill();
+            c.strokeStyle = gold(c, sd * 46, -200, sd * 96, -96);
+            c.lineWidth = 4.5;
+            c.stroke();
+            ellipse(c, sd * 82, -200, 6, 6);
+            fillInk(c, gold(c, sd * 76, -206, sd * 88, -194), 1.4);
           }
-          // The throne's tall back: gold frame and tufted velvet.
+          c.save();
+          c.translate(0, -200);
+          paintFresnel(c, 80);
+          c.restore();
+          // The armchair's rounded back: gold frame and tufted night-blue velvet.
           const back = (k: number) => {
             c.beginPath();
             c.moveTo(-50 + k, -58);
-            c.lineTo(-52 + k, -168);
-            c.bezierCurveTo(-56 + k, -196 + k, -30 + k, -210 + k, -16 + k * 0.5, -214 + k);
-            c.quadraticCurveTo(0, -246 + k * 1.6, 16 - k * 0.5, -214 + k);
-            c.bezierCurveTo(30 - k, -210 + k, 56 - k, -196 + k, 52 - k, -168);
+            c.lineTo(-52 + k, -126);
+            c.bezierCurveTo(-52 + k, -160 + k * 0.6, 52 - k, -160 + k * 0.6, 52 - k, -126);
             c.lineTo(50 - k, -58);
             c.closePath();
           };
           back(0);
-          fillInk(c, gold(c, -56, -246, 56, -58), 2.6);
-          back(9);
-          const vg = c.createLinearGradient(0, -232, 0, -60);
-          vg.addColorStop(0, '#8a2a6a');
-          vg.addColorStop(0.5, '#5a1046');
-          vg.addColorStop(1, '#2a0624');
+          fillInk(c, gold(c, -56, -160, 56, -58), 2.6);
+          back(8);
+          const vg = c.createLinearGradient(0, -154, 0, -60);
+          vg.addColorStop(0, '#3a4c96');
+          vg.addColorStop(0.5, '#1a2458');
+          vg.addColorStop(1, '#0a0e24');
           c.fillStyle = vg;
           c.fill();
-          c.strokeStyle = 'rgba(60,20,8,0.8)';
+          c.strokeStyle = 'rgba(10,8,30,0.8)';
           c.lineWidth = 1.4;
           c.stroke();
           c.save();
-          back(9);
+          back(8);
           c.clip();
-          // Diamond tufting.
-          for (let k = -6; k <= 6; k++) {
+          // Deco channels fanning up from the seat.
+          for (let k = 0; k < 9; k++) {
+            const a = Math.PI + ((k + 0.5) / 9) * Math.PI;
             c.beginPath();
-            c.moveTo(k * 16 - 60, -240);
-            c.lineTo(k * 16 + 60, -60);
-            c.moveTo(k * 16 + 60, -240);
-            c.lineTo(k * 16 - 60, -60);
-            c.strokeStyle = 'rgba(20,0,16,0.35)';
+            c.moveTo(0, -60);
+            c.lineTo(Math.cos(a) * 120, -60 + Math.sin(a) * 120);
+            c.strokeStyle = 'rgba(242,205,114,0.35)';
             c.lineWidth = 1.4;
             c.stroke();
           }
-          for (let ry = -222; ry < -60; ry += 13.3) {
-            const odd = Math.round((ry + 222) / 13.3) % 2;
-            for (let rx = -48 + (odd ? 8 : 0); rx < 48; rx += 16) {
-              ellipse(c, rx, ry, 1.8, 1.8);
-              c.fillStyle = '#e0b25a';
-              c.fill();
-            }
-          }
-          glowAt(c, -18, -170, 30, 50, 0xffc0f0, 0.18, 'lighter');
+          glowAt(c, -18, -120, 30, 40, 0xdfe8ff, 0.18, 'lighter');
           c.restore();
           // Crest on top of the back.
-          glowAt(c, 0, -244, 30, 24, 0xffcf7a, 0.45, 'lighter');
+          glowAt(c, 0, -150, 26, 20, 0xffcf7a, 0.45, 'lighter');
           c.save();
-          c.translate(0, -246);
-          crestEmblem(c, 34);
+          c.translate(0, -150);
+          crestEmblem(c, 30, '#fff1c4');
           c.restore();
-          for (const s of [-1, 1]) {
-            c.beginPath();
-            c.moveTo(s * 50, -168);
-            c.lineTo(s * 56, -208);
-            c.lineTo(s * 62, -168);
-            c.closePath();
-            fillInk(c, gold(c, s * 50, -208, s * 62, -168), 1.4);
-            ellipse(c, s * 56, -212, 4.5, 4.5);
-            fillInk(c, gold(c, s * 52, -216, s * 60, -208), 1.2);
-          }
           // Seat cushion.
           rrect(c, -42, -72, 84, 30, 12);
-          fillInk(c, vgrad(c, -72, -42, 0x7a1a5a, 0.3, 0.3), 2);
+          fillInk(c, vgrad(c, -72, -42, 0x2a3a7a, 0.3, 0.3), 2);
           rrect(c, -42, -72, 84, 30, 12);
           rim(c, 0.35, 1.6);
           // Front apron: gold frame with a gem.
           rrect(c, -46, -46, 92, 24, 6);
           fillInk(c, gold(c, -46, -46, 46, -22), 2.2);
           rrect(c, -38, -41, 76, 14, 4);
-          c.fillStyle = vgrad(c, -41, -27, 0x4a1050, 0.15, 0.3);
+          c.fillStyle = vgrad(c, -41, -27, 0x1a2458, 0.15, 0.3);
           c.fill();
           ellipse(c, 0, -34, 6, 5);
           const gg = c.createRadialGradient(-2, -36, 0.5, 0, -34, 6);
           gg.addColorStop(0, '#ffffff');
-          gg.addColorStop(0.4, '#ff8ac0');
-          gg.addColorStop(1, '#a01a5a');
+          gg.addColorStop(0.4, '#cfe0ff');
+          gg.addColorStop(1, '#4a5a9a');
           fillInk(c, gg, 1.4);
-          // Clawed feet.
+          // Brass feet.
           for (const s of [-1, 1]) {
             ellipse(c, s * 40, -20, 6, 4);
             fillInk(c, gold(c, s * 40 - 6, -24, s * 40 + 6, -16), 1.4);
@@ -1613,15 +1625,15 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
           for (const s of [-1, 1]) {
             const ax = s < 0 ? -64 : 40;
             rrect(c, ax, -96, 24, 76, 9);
-            fillInk(c, vgrad(c, -96, -20, 0x5a1046, 0.3, 0.4), 2.2);
+            fillInk(c, vgrad(c, -96, -20, 0x1a2458, 0.3, 0.4), 2.2);
             rrect(c, ax + 4, -86, 16, 58, 6);
             c.strokeStyle = gold(c, ax, -86, ax + 24, -28);
             c.lineWidth = 1.8;
             c.stroke();
             ellipse(c, ax + 12, -98, 13, 6);
-            fillInk(c, vgrad(c, -104, -92, 0x8a2a6a, 0.35, 0.3), 2);
+            fillInk(c, vgrad(c, -104, -92, 0x3a4c96, 0.35, 0.3), 2);
             ellipse(c, ax + 12, -60, 3, 3);
-            c.fillStyle = '#c9a0ff';
+            c.fillStyle = '#dfe6f5';
             c.fill();
             ellipse(c, s * 52, -108, 7.5, 7.5);
             const og = c.createRadialGradient(s * 52 - 2.5, -111, 0.5, s * 52, -108, 8);
@@ -1633,7 +1645,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
         }),
       );
       const flames = [flame(v, x - 82, y - 138, 1.1, 0xffb36b), flame(v, x + 82, y - 138, 1.1, 0xffb36b)];
-      // The Queen: halo, wings and body, hovering over the seat.
+      // Selene: halo, fan of light and body, floating over the seat.
       const QY = -196;
       const qShadow = new Graphics().ellipse(0, 0, 36, 8).fill({ color: 0x0a0410, alpha: 0.35 });
       qShadow.position.set(x, y - 58);
@@ -1641,7 +1653,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
       const queen = new Container();
       queen.position.set(x, y + QY);
       queen.scale.set(0.86);
-      const aura = glow(queen, 0, -10, 380, 320, 0xc9a0ff, 0.45);
+      const aura = glow(queen, 0, -10, 380, 320, 0xbcd0ff, 0.45);
       const halo = propSprite(0, -42, 100, 100, 50, 50, paintHalo);
       const wingTex = paint(130, 200, (c) => {
         c.translate(6, 96);
@@ -1669,13 +1681,13 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
       v.addChild(queen);
       const ph = rnd() * 10;
       let hit = 0;
-      // Boss phases (1..3): she grows, flaps faster and her aura turns red. `rise` plays the change.
+      // Boss phases (1..3): she grows, her fan beats faster and her aura warms to red. `rise` plays the change.
       let phase = 1;
       let size = 1;
       let rise = 0;
       let laugh = 0;
       let flapT = 0;
-      const AURA = [0xc9a0ff, 0xc9a0ff, 0xff6ad0, 0xff4a4a];
+      const AURA = [0xbcd0ff, 0xbcd0ff, 0xffb35a, 0xff5a4a];
       // room.ts calls hit() on the view when the player wins on the boss day.
       const api = v as Container & { hit?: () => void; phase?: (n: number) => void; laugh?: () => void };
       api.hit = () => (hit = 1);
@@ -1702,7 +1714,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
             queen.y = y + QY + bob * 6 - rise * 18 + (laugh > 0 ? Math.abs(Math.sin(time * 22)) * -5 * laugh : 0);
             queen.x = x + (hit > 0 ? Math.sin(time * 60) * 6 * hit : 0);
             fR.alpha = fL.alpha = hit > 0.3 ? 0.9 : hit * 2;
-            body.tint = hit > 0.3 ? 0xffd0f0 : 0xffffff;
+            body.tint = hit > 0.3 ? 0xfff0d0 : 0xffffff;
             aura.alpha = 0.4 + Math.sin(time * 2) * 0.08 + hit * 0.4 + rise * 0.5 + (phase - 1) * 0.08;
             halo.rotation = time * 0.25;
             halo.alpha = 0.85 + Math.sin(time * 2 + ph) * 0.15;
@@ -1717,7 +1729,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
               const py = 50 - k * 150 + Math.sin(a) * 10;
               const al = Math.sin(k * Math.PI) * 0.9;
               if (i % 3 === 0) star(dust, px, py, 3.5, al, 0xfff1c4);
-              else dust.circle(px, py, 1.3).fill({ color: i % 2 ? 0xffcf7a : 0xc9a0ff, alpha: al });
+              else dust.circle(px, py, 1.3).fill({ color: i % 2 ? 0xffcf7a : 0xdfe6f5, alpha: al });
             }
           }),
       ];

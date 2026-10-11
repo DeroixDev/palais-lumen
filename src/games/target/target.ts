@@ -1,4 +1,4 @@
-// "Zielscheibe": a moth throws a dart at a slowly turning, moonlit target. The ring is drawn
+// "Zielscheibe": a guest throws a dart at a slowly turning, moonlit target. The ring is drawn
 // before the throw; the ring sizes are the odds (a ring's area is its share of the hits). The
 // throwing style picks the ring table: Sicher, Normal or Riskant – each returns exactly 95 %.
 //
@@ -569,7 +569,7 @@ class TargetGame implements GameInstance {
     const dt = Math.min(dtMs, 60) / 1000;
     this.time += dt;
     this.face.rotation += dt * (this.calm ? SPIN * 0.4 : SPIN);
-    // The moth hovers and breathes; its wings shimmer.
+    // The thrower breathes and shifts his weight a little.
     this.archerBody.y = Math.sin(this.time * 2) * 2;
     this.archerBody.scale.set(1, 1 + Math.sin(this.time * 2) * 0.01);
     if (this.phase === 'idle') this.arm.rotation = 0.6 + Math.sin(this.time * 1.6) * 0.06;

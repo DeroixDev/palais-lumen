@@ -2,6 +2,7 @@
 // card (3×3 or 4×4), the fireflies, the lit-cell glow and the jar cabinet for the room.
 // Painted once with Canvas 2D (no ctx.filter).
 
+import { fourStar } from '../../core/lumenArt';
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
 import { ellipse, fillInk, glowAt, gold, grain, paint, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from '../../world/painted/brush';
@@ -198,13 +199,8 @@ export function cardTexture(size: number) {
           c.lineWidth = 1.5;
           c.stroke();
         }
-      // Tiny moths in the corners.
-      for (const [x, y] of [[22, 22], [CARD - 22, 22], [22, CARD - 22], [CARD - 22, CARD - 22]]) {
-        ellipse(c, x - 3, y, 3, 2);
-        ellipse(c, x + 3, y, 3, 2);
-        c.fillStyle = '#9a6f25';
-        c.fill();
-      }
+      // Tiny stars in the corners.
+      for (const [x, y] of [[22, 22], [CARD - 22, 22], [22, CARD - 22], [CARD - 22, CARD - 22]]) fourStar(c, x, y, 6, '#9a6f25');
     }),
   );
 }

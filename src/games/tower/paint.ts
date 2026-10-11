@@ -1,5 +1,5 @@
 // Painted parts of Drachenturm: the tower's stone floors, arched doors, the treasure and the
-// sleepy moth-dragon behind them, and the tower-shaped cabinet in the casino.
+// sleepy dragon behind them, and the tower-shaped cabinet in the casino.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
@@ -243,29 +243,35 @@ export function treasureTexture() {
   );
 }
 
-/** The moth-dragon: round, sleepy, fuzzy moth wings. `awake` opens its eyes and mouth. */
+/** The little dragon: round, sleepy, small bat-like wings. `awake` opens its eyes and mouth. */
 export function dragonTexture(awake: boolean) {
   return cached(`dragon-${awake}`, () =>
     paint(80, 76, (c) => {
       c.translate(40, 48);
       shadow(c, 0, 20, 30, 7, 0.5);
-      // Wings (moth-like, with eye spots).
-      for (const s of [-1, 1]) {
+      // Little dragon wings: a bony arm and a scalloped membrane between three fingers.
+      for (const sd of [-1, 1]) {
+        const top = awake ? -42 : -30;
         c.beginPath();
-        c.moveTo(s * 6, -10);
-        c.bezierCurveTo(s * 20, awake ? -44 : -30, s * 40, awake ? -40 : -26, s * 36, -8);
-        c.bezierCurveTo(s * 34, 4, s * 18, 6, s * 6, 2);
+        c.moveTo(sd * 6, -10);
+        c.quadraticCurveTo(sd * 18, top + 2, sd * 34, top);
+        c.quadraticCurveTo(sd * 36, top + 14, sd * 38, -6);
+        c.quadraticCurveTo(sd * 31, -4, sd * 28, -1);
+        c.quadraticCurveTo(sd * 21, -2, sd * 18, 3);
+        c.quadraticCurveTo(sd * 11, 0, sd * 6, 2);
         c.closePath();
-        const wg = c.createLinearGradient(0, -36, s * 36, 4);
+        const wg = c.createLinearGradient(0, top, sd * 36, 4);
         wg.addColorStop(0, '#e8d8ff');
         wg.addColorStop(1, '#8a6ac8');
         fillInk(c, wg, 1.8);
-        ellipse(c, s * 24, -18, 5, 4);
-        c.fillStyle = '#4a3a8a';
-        c.fill();
-        ellipse(c, s * 24, -18, 2, 1.6);
-        c.fillStyle = '#ffcf7a';
-        c.fill();
+        c.strokeStyle = 'rgba(74,58,138,0.75)';
+        c.lineWidth = 1.4;
+        c.beginPath();
+        c.moveTo(sd * 34, top);
+        c.lineTo(sd * 28, -1);
+        c.moveTo(sd * 34, top);
+        c.lineTo(sd * 18, 3);
+        c.stroke();
       }
       // Tail curled round.
       c.beginPath();
@@ -287,7 +293,7 @@ export function dragonTexture(awake: boolean) {
       // Head.
       ellipse(c, -6, -6, 15, 13);
       fillInk(c, vgrad(c, -19, 7, light(DRAGON, 0.1), 0.35, 0.3), 2);
-      // Horns and feathery antennae.
+      // Little horns with glowing tips.
       for (const s of [-1, 1]) {
         c.beginPath();
         c.moveTo(-6 + s * 6, -17);
@@ -488,7 +494,7 @@ function station(): PaintedStation {
     x.lineTo(tw / 2 + 4, -148);
     x.closePath();
     fillInk(x, vgrad(x, -182, -148, 0x3a3a6a, 0.3, 0.4), 2);
-    // A tiny moth-dragon curled on the roof, breathing a warm glow.
+    // A tiny dragon curled on the roof, breathing a warm glow.
     ellipse(x, 6, -173, 8, 5);
     fillInk(x, '#6a5ac8', 1.4);
     ellipse(x, 0, -176, 5, 4.5);

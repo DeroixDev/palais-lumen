@@ -1,10 +1,10 @@
 // Painted pieces of the "Kartenleiter": the narrow petrol-felt card table, the brass ladder
-// with its rungs, the climbing moth, and the station on the casino floor.
+// with its rungs, the climbing lantern, and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
 import { velvetNap } from '../../core/ui';
-import { paintEmblem } from '../slots/symbols';
+import { paintMiniLantern } from '../../core/lumenArt';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rim, rrect, shadow, type Ctx } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 
@@ -96,12 +96,11 @@ export function ladderTexture(n: number, step: number) {
   );
 }
 
-/** The climbing moth (glowing, wings open). */
+/** The climbing hand lantern (lit from inside). */
 export function emblemTexture() {
-  return cached('hilo-moth', () =>
+  return cached('hilo-lantern', () =>
     paint(90, 90, (c) => {
-      glowAt(c, 45, 45, 42, 42, 0xfff1c4, 0.5, 'lighter');
-      paintEmblem(c, 45, 48, 72, { wing: 0xf3d58a, wingDark: 0x9a6418, body: 0x5a3010, eye: 0x5fe3ff }, 2);
+      paintMiniLantern(c, 45, 44, 76);
     }, 2),
   );
 }
@@ -160,7 +159,7 @@ export function station(): PaintedStation {
     x.lineTo(-11, -10);
     x.closePath();
     x.fill();
-    // The little brass ladder leaning at the end, a moth on top.
+    // The little brass ladder leaning at the end, a lantern on top.
     x.save();
     x.translate(-62, -20);
     x.rotate(-0.12);
@@ -172,12 +171,7 @@ export function station(): PaintedStation {
       rrect(x, -7, -70 + i * 11, 14, 3, 1.5);
       fillInk(x, gold(x, -7, -70 + i * 11, 7, -67 + i * 11), 0.8);
     }
-    glowAt(x, 0, -84, 18, 14, 0xfff1c4, 0.7, 'lighter');
-    for (const s of [-1, 1]) {
-      ellipse(x, s * 5, -84, 5, 3.5);
-      x.fillStyle = '#f3d58a';
-      x.fill();
-    }
+    paintMiniLantern(x, 0, -88, 20);
     x.restore();
   });
   c.addChild(sp);

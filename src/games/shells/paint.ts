@@ -1,9 +1,9 @@
 // Painted parts of Drei Laternen: the night garden booth, the brass lanterns and their flames,
-// the moth, and the station on the casino floor.
+// the spark, and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
-import { paintEmblem } from '../slots/symbols';
+import { paintEmber } from '../../core/lumenArt';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 
@@ -153,12 +153,11 @@ export function flameTexture() {
   );
 }
 
-/** The moth (wings up; flap it by scaling x). */
+/** The spark that hides under a lantern (white-hot core, warm halo, twinkle). */
 export function emblemTexture() {
-  return cached('smoth', () =>
+  return cached('sspark', () =>
     paint(72, 72, (c) => {
-      glowAt(c, 36, 36, 32, 32, 0xfff1c4, 0.45, 'lighter');
-      paintEmblem(c, 36, 38, 58, { wing: 0xf3e2b8, wingDark: 0xa8783a, body: 0x6a4420, eye: 0xff5fa2 }, 2.2);
+      paintEmber(c, 36, 36, 32);
     }, 2),
   );
 }
@@ -313,7 +312,7 @@ export function boothTexture(L: BoothLayout, res = 2) {
       const pr = Math.max(11, 13 * L.k);
       ellipse(c, s.x, py, pr * 1.3, pr * 0.7);
       fillInk(c, gold(c, s.x - pr, py - pr, s.x + pr, py + pr), 1.6);
-      c.font = `400 ${Math.round(pr * 1.05)}px Bungee, Impact, sans-serif`;
+      c.font = `700 ${Math.round(pr * 1.05)}px Cinzel, Georgia, serif`;
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = '#3a1606';

@@ -373,7 +373,7 @@ function plaqueTexture(i: number, name: string) {
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillStyle = '#ffcf7a';
-      c.font = '15px Bungee, Impact, sans-serif';
+      c.font = '700 15px Cinzel, Georgia, serif';
       c.fillText(`AUTOMAT ${i + 1} VON ${MACHINES}`, 0, -102);
       c.fillStyle = '#f2e6c9';
       c.font = '700 14px "Barlow Condensed", sans-serif';

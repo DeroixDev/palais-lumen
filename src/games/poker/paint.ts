@@ -63,15 +63,15 @@ export function pokerStation(): PaintedStation {
       x.fillStyle = s === 1 || s === 2 ? '#ff6a86' : '#fff1c4';
       x.fill();
     });
-    // Little moth on top.
-    for (const s of [-1, 1]) {
-      ellipse(x, s * 5, -131, 6, 3.5);
-      x.fillStyle = '#f0c868';
-      x.fill();
-      x.strokeStyle = INK;
-      x.lineWidth = 1;
-      x.stroke();
-    }
+    // Little half sun on top.
+    x.beginPath();
+    x.arc(0, -127, 7, Math.PI, Math.PI * 2);
+    x.closePath();
+    x.fillStyle = '#f0c868';
+    x.fill();
+    x.strokeStyle = INK;
+    x.lineWidth = 1;
+    x.stroke();
     // Screen: slanted glass with five cards and a lit paytable stripe.
     rrect(x, -23, -98, 46, 38, 5);
     fillInk(x, gold(x, -23, -98, 23, -60), 1.8);

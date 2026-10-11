@@ -845,7 +845,7 @@ class RouletteGame implements GameInstance {
         const p = toScreen(cell.x + cell.w / 2, cell.y + cell.h / 2);
         this.ctx.particles.sparkle(p.x, p.y, bestMult >= 35 ? 16 : 8);
       }
-      // Moths rise from the winning field and circle the wheel when it is on screen.
+      // Sparks rise from the winning field and circle the wheel when it is on screen.
       const wheelCentre = this.wheelGroup.getGlobalPosition();
       const wheelR = (WHEEL.rim + 10) * this.wheelGroup.scale.x;
       this.ctx.celebrate(mult, pos.x, pos.y, this.wheelHidden ? undefined : { x: wheelCentre.x, y: wheelCentre.y, r: wheelR });

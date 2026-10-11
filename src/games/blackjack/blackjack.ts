@@ -1,5 +1,5 @@
 // "Selene 21": blackjack at a half-moon table in plum felt, dealt from a six-deck shoe by
-// a moth croupier who reacts to every hand. Twist: once per day the "Glückskarte" lets the
+// a croupier who reacts to every hand. Twist: once per day the "Glückskarte" lets the
 // player put back the card they just drew and draw a new one.
 //
 // Report tags: 'blackjack' (every round), 'bj' (player natural), 'bust' (a player hand went
