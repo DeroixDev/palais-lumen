@@ -1,5 +1,6 @@
 // HTML overlay: top bar, toasts and dialogs. Pixi draws the game, the DOM draws the menus.
 
+import { showDevlog } from './devlog';
 import { BOSS_DAY, floorForDay, formatChips, type GameState } from '../core/state';
 import { mainRoomOf } from '../core/registry';
 import { MANUAL_SLOTS, deleteSlot, exportCode, importCode, listSlots, type SlotId } from '../core/save';
@@ -620,6 +621,7 @@ export class Hud {
       </details>`;
     this.modal('So geht’s', body, [
       { label: 'Neues Spiel', onClick: () => this.confirmNewGame() },
+      { label: 'Neuigkeiten', onClick: () => showDevlog(this) },
       { label: 'Los geht’s', primary: true, onClick: () => this.closeModal() },
     ]);
   }

@@ -5,6 +5,7 @@ import { formatChips, type GameState, type SaveData } from '../core/state';
 import { dailyLine, showDailyBoard, type DailyStart } from './dailyBoard';
 import { sfx } from '../core/audio';
 import { dark, ellipse, fillInk, glowAt, light, rgb, rim, rrect, shadow, vgrad } from '../world/painted/brush';
+import { markButton } from './devlog';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -20,6 +21,8 @@ export interface LobbyActions {
   newGame(): void;
   /** Tagesherausforderung: start, practise or continue (src/ui/dailyBoard.ts). */
   daily(kind: DailyStart): void;
+  /** The update log (src/ui/devlog.ts). */
+  news(): void;
 }
 
 export class Lobby {
@@ -44,6 +47,17 @@ export class Lobby {
       sfx.unlock();
       sfx.click();
       this.showDaily();
+    });
+    // Neuigkeiten: the update log, with a dot while there is an unread update.
+    const news = document.createElement('button');
+    news.id = 'm-news';
+    news.textContent = 'Neuigkeiten';
+    daily.after(news);
+    markButton(news);
+    news.addEventListener('click', () => {
+      sfx.unlock();
+      sfx.click();
+      this.actions.news();
     });
     // "Neues Spiel" next to "Spielstände" while a game is running.
     const fresh = document.createElement('button');

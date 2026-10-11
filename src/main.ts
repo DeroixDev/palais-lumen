@@ -1,5 +1,6 @@
 // Works under strict Content-Security-Policy (no eval), e.g. when embedded.
 import 'pixi.js/unsafe-eval';
+import { showDevlog } from './ui/devlog';
 import { Application, Container, Filter, Graphics, Sprite, Texture } from 'pixi.js';
 import './games';
 import './rooms';
@@ -999,6 +1000,7 @@ async function boot() {
     go: lobbyGo,
     newGame: () => hud.confirmNewGame(lobbyGo),
     daily: startDaily,
+    news: () => showDevlog(hud),
   });
   roomLayer.visible = false;
   showStreet();
