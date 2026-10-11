@@ -2,6 +2,33 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v21: Palais Lumen
+
+*Großes Update · 11.10.2026*
+
+Aus dem Casino Nachtfalter wird das Palais Lumen, ein Grandhotel im Art-déco-Stil, dessen fünf Etagen die Geschichte des Lichts erzählen. Spielstände, Spiele und Quoten bleiben, wie sie waren.
+
+**Neu**
+
+- Neuer Name und neues Gesicht: Nachtblau, Messing und Mondsilber, mit neuer Fassade bei Nacht, neuem Foyer und neuen Schriften.
+- Die Währung heißt jetzt Lumen, der Jeton trägt ein Sonnenstrahl-Emblem.
+- Gewinne feiert das Haus mit Funkenflug: Funken fliegen zu den Wandleuchten, ab 50× zündet der Lüster.
+- Das Mottenalbum ist jetzt das Lampenbuch mit 36 Leuchten von der Talgkerze bis zur Mondlampe. Gesammelte Einträge werden automatisch übernommen.
+- Selene, Herrin der Lampen, wartet unter der Kuppel mit einem Fächer aus Licht. Der Gang dorthin führt durch Lichtschleusen, jeder Automat steht unter der Lampe eines Zeitalters.
+- Etage 3 heißt jetzt Laternenwerk, mit Gasleitungen, Gaslaternen und einem Glühstrumpf-Regal in der Räderkammer. Etage 4 heißt Club Neon.
+- In jedem Raum hängt ein Haustechnik-Tablet an der Wand.
+
+**Verbessert**
+
+- Die Auszahlungsquote steht jetzt in den Regeln jedes Spiels statt an jedem Automaten.
+- Hinweise auf Spielgeld sind verschwunden.
+- Aufzug, Kapitelbilder, Spielsymbole und alle Fenster im neuen Look.
+
+**Behoben**
+
+- Klick-Laufen bleibt nicht mehr an Tischkanten im Club hängen und benutzt unterwegs nicht mehr versehentlich andere Automaten.
+- Im Gang zur Kuppel findet die Figur wieder bis ans Ende.
+
 ## v20.5: Techno im Bunker
 
 *Patch · 11.10.2026*

@@ -129,8 +129,8 @@ export class RoomScene {
   private pending: Interactable | null = null;
   /** Waypoints towards `target` found by the route finder (click-to-walk goes round obstacles). */
   private route: Pt[] = [];
-  /** One fresh route search is allowed when the walk gets stuck (a guest stepped in the way). */
-  private replanned = false;
+  /** A few fresh route searches are allowed when the walk gets stuck (a guest stepped in the way). */
+  private replanned = 0;
   /** Brass ring that marks where a click sends the player. */
   private marker: Graphics | null = null;
   private markerT = 0;
@@ -1175,7 +1175,7 @@ export class RoomScene {
       this.target = { x: p.x, y: p.y };
       this.pending = null;
     }
-    this.replanned = false;
+    this.replanned = 0;
     this.planRoute();
     const end = this.route[this.route.length - 1];
     if (end) this.showMarker(best ? this.target.x : end.x, best ? this.target.y : end.y);
@@ -1186,8 +1186,10 @@ export class RoomScene {
     this.route = [];
     if (!this.target) return;
     const pv = this.player.view;
-    const free = (x: number, y: number) => !this.collides(x, y);
-    if (free(this.target.x, this.target.y) && clearLine(pv, this.target, free)) {
+    // Routes keep a hair's breadth off every edge, so a waypoint exactly at a table's corner
+    // can't turn into a wall once the walk lands a fraction of a pixel to one side.
+    const free = (x: number, y: number) => !this.collides(x, y, 1.5);
+    if (!this.collides(this.target.x, this.target.y) && clearLine(pv, this.target, (x, y) => !this.collides(x, y))) {
       this.route = [{ x: this.target.x, y: this.target.y }];
       return;
     }
@@ -1244,8 +1246,9 @@ export class RoomScene {
    * deep), as in a 3/4 view: you can walk right up to a table's front edge, and your head may
    * overlap what stands behind you.
    */
-  private collides(x: number, y: number) {
-    return this.obstacles.some((o) => x + FEET_W > o.x && x - FEET_W < o.x + o.w && y + FEET_DOWN > o.y && y - FEET_UP < o.y + o.h);
+  private collides(x: number, y: number, pad = 0) {
+    const w = FEET_W + pad;
+    return this.obstacles.some((o) => x + w > o.x && x - w < o.x + o.w && y + FEET_DOWN + pad > o.y && y - FEET_UP - pad < o.y + o.h);
   }
 
   update(dtMs: number) {
@@ -1311,7 +1314,8 @@ export class RoomScene {
       // Walking into a machine, table or shop uses it, after a short push.
       const moved = Math.hypot(pv.x - ox, pv.y - oy);
       const near = this.nearest;
-      if (!this.frozen && near && moved < Math.hypot(mx, my) * 0.5) {
+      // Only when steering by hand: a tap route walks round things and replans instead.
+      if (!this.frozen && !this.target && near && moved < Math.hypot(mx, my) * 0.5) {
         const o = this.objectPoint(near);
         const tx = o.x - pv.x;
         const ty = o.y - pv.y;
@@ -1337,8 +1341,8 @@ export class RoomScene {
       }
       // Stuck while walking to a tap target: look for a new way once, then give up, but still
       // use the thing if we're close.
-      if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < Math.min(0.5, step * 0.2) && !this.replanned) {
-        this.replanned = true;
+      if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < Math.min(0.5, step * 0.2) && this.replanned < 4) {
+        this.replanned++;
         this.planRoute();
       } else if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < Math.min(0.5, step * 0.2)) {
         const p = this.pending;
