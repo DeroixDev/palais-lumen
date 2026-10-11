@@ -2,6 +2,23 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v20.5: Techno im Bunker
+
+*Patch · 11.10.2026*
+
+Auf der Tanzfläche im Bunker läuft jetzt echter Warehouse-Techno.
+
+**Neu**
+
+- Ein knapp fünf Minuten langes Techno-Set in f-Moll mit 134 BPM, mit Aufbau, Breaks, Build-ups und Drops.
+- Neue Drum-Machine MFB-512 (gemeinfrei) für Kick, Hi-Hats, Clap, Toms und Becken.
+- Eine echte Acid-Linie mit Slides und Akzenten, die sich alle acht Takte verändert.
+
+**Verbessert**
+
+- Die Kick ist eine nachgebaute 909, darunter rollt ein dunkler Rumble-Bass, der von jeder Kick gedrückt wird.
+- Hi-Hats, Dub-Stabs und Percussion sind neu gemischt; die Lautstärke passt zu den anderen Etagen.
+
 ## v20.4: Von allen Seiten
 
 *Patch · 11.10.2026*

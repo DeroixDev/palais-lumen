@@ -13,6 +13,7 @@ repeat the attributions the CC-BY licences ask for.
 | mutetp, choir, strings, pizz, celesta, musicbox | FluidR3 GM soundfont (Frank Wen), rendered by gleitz/midi-js-soundfonts | CC BY 3.0 |
 | flute, cello, trumpet, trombone, horn, tuba | nbrosowsky/tonejs-instruments (npm tonejs-instrument-*-mp3) | CC BY 3.0 |
 | lm2, tr808 | smpldsnds/drum-machines (LinnDrum LM-2, Roland TR-808) | Public domain |
+| mfb | MFB-512 drum machine, via smpldsnds/drum-machines | Public domain |
 
 All music in the game is composed in code (`src/audio/moods`, `src/core/clubMusic.ts`); the
 effects are designed in `src/audio/sfx`.

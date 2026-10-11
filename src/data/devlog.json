@@ -1,5 +1,29 @@
 [
  {
+  "v": "20.5",
+  "date": "2026-10-11",
+  "kind": "Patch",
+  "title": "Techno im Bunker",
+  "intro": "Auf der Tanzfläche im Bunker läuft jetzt echter Warehouse-Techno.",
+  "sections": [
+   {
+    "h": "Neu",
+    "items": [
+     "Ein knapp fünf Minuten langes Techno-Set in f-Moll mit 134 BPM, mit Aufbau, Breaks, Build-ups und Drops.",
+     "Neue Drum-Machine MFB-512 (gemeinfrei) für Kick, Hi-Hats, Clap, Toms und Becken.",
+     "Eine echte Acid-Linie mit Slides und Akzenten, die sich alle acht Takte verändert."
+    ]
+   },
+   {
+    "h": "Verbessert",
+    "items": [
+     "Die Kick ist eine nachgebaute 909, darunter rollt ein dunkler Rumble-Bass, der von jeder Kick gedrückt wird.",
+     "Hi-Hats, Dub-Stabs und Percussion sind neu gemischt; die Lautstärke passt zu den anderen Etagen."
+    ]
+   }
+  ]
+ },
+ {
   "v": "20.4",
   "date": "2026-10-11",
   "kind": "Patch",

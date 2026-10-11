@@ -136,6 +136,7 @@ K = {
     'vibraslap': {'v': [0]},
     'lm2': None,
     'tr808': None,
+    'mfb': None,
 }
 KMAX = {'gong': 6.0, 'suscym': 3.5, 'clash': 3.5, 'marktree': 3.5, 'belltree': 3.0, 'triangle': 2.5, 'sleigh': 2.0, 'ratchet': 1.6,
         'whistle': 2.4, 'tamb': 1.6, 'shaker': 1.6, 'handbells': 2.6, 'kick': 1.2, 'hihat': 1.4, 'snare': 1.0, 'tom': 1.2, 'cajon': 0.8}

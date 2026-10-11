@@ -267,6 +267,7 @@ SOURCES = {
     # --- drum machines (public domain) ---
     'lm2': lambda: fetch_files('lm2', DM + 'LM-2/', json.loads(get(DM + 'LM-2/dm.json'))['samples']),
     'tr808': lambda: fetch_files('tr808', DM + 'TR-808/', [s for s in json.loads(get(DM + 'TR-808/dm.json'))['samples'] if re.search(r'/(cp|cl|cb|ch|oh00|oh10|bd2550|bd5050|bd7550|bd0050|sd0050|sd2550|sd5050|rs|lt00|mt00|ht00|ma|cy1050|cy2550)$', s)]),
+    'mfb': lambda: fetch_files('mfb', DM + 'MFB-512/', json.loads(get(DM + 'MFB-512/dm.json'))['samples']),
 }
 
 

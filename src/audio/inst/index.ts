@@ -32,6 +32,7 @@ export const INSTRUMENTS = {
   "lm2": () => import('./lm2') as Promise<{ default: InstData }>,
   "marimba": () => import('./marimba') as Promise<{ default: InstData }>,
   "marktree": () => import('./marktree') as Promise<{ default: InstData }>,
+  "mfb": () => import('./mfb') as Promise<{ default: InstData }>,
   "musicbox": () => import('./musicbox') as Promise<{ default: InstData }>,
   "mutetp": () => import('./mutetp') as Promise<{ default: InstData }>,
   "organ": () => import('./organ') as Promise<{ default: InstData }>,

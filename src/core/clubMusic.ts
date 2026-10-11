@@ -1,4 +1,4 @@
-// The club floor's music (floor 4, "Club Nachtfalter"): piano house in the club, hard acid
+// The club floor's music (floor 4, "Club Nachtfalter"): piano house in the club, Berlin warehouse
 // techno in the bunker, dusty boom-bap on the hip-hop floor. Each room has a base groove that
 // always plays (kick, bass, chords: what you hear through the walls, muffled by a lowpass far
 // away) and a "stage layer" (hats, percussion, hooks, leads, effects) whose level follows how
@@ -6,9 +6,9 @@
 //
 // Like the foyer band, every room is written out a whole bar at a time (on beat 0) and follows
 // a long form with build-ups and breakdowns, so the music only repeats after about four minutes.
-// Recorded instruments (tr808/lm2 drum machines, piano, organ, choir, upright bass, vibes, horns,
-// industrial metal) carry the music; synthesis is used where a club would use it too: the sub
-// bass, the acid line, the dub stabs, risers and vinyl noise.
+// Recorded instruments (tr808/lm2/MFB-512 drum machines, piano, organ, choir, upright bass, vibes,
+// horns, industrial metal) carry the music; synthesis is used where a club would use it too: the
+// sub bass, the 909 kick and hats, the rumble, the acid line, the dub stabs, risers and vinyl noise.
 
 import { mtof } from '../audio/sampler';
 import type { InstId, NoteOpts, Voices } from '../audio/voices';
@@ -24,7 +24,7 @@ export const CLUB_BPM: Record<ClubMood, number> = { club: 124, techno: 134, hiph
 /** Recorded instruments per room (loaded lazily on the first beat; synth stand-ins play until then). */
 const NEED: Record<ClubMood, InstId[]> = {
   club: ['tr808', 'lm2', 'claps', 'hihat', 'piano', 'bass', 'organ', 'choir', 'suscym'],
-  techno: ['tr808', 'lm2', 'hihat', 'suscym', 'claps', 'anvil', 'brakedrum', 'ratchet', 'clash'],
+  techno: ['mfb', 'claps', 'suscym', 'clash', 'strings', 'anvil', 'brakedrum', 'ratchet'],
   hiphop: ['lm2', 'tr808', 'snare', 'hihat', 'piano', 'wurli', 'bass', 'vibes', 'trumpet', 'trombone', 'choir'],
 };
 const FX_NEED: InstId[] = ['tr808', 'lm2', 'suscym', 'clash'];
@@ -58,7 +58,7 @@ interface Chain {
  */
 const TRIM: Record<ClubMood, { far: number; near: number; layer: number }> = {
   club: { far: 0.4, near: 1, layer: 1 },
-  techno: { far: 0.62, near: 1.1, layer: 1 },
+  techno: { far: 0.44, near: 0.88, layer: 1 },
   hiphop: { far: 0.4, near: 1, layer: 1 },
 };
 const trimGain = (m: ClubMood, lvl: number) => TRIM[m].far + (TRIM[m].near - TRIM[m].far) * lvl;
@@ -297,7 +297,7 @@ const HOOK_B: Line[] = [
 const lowRoot = (c: Chord, lo = 33) => lo + ((c.root - lo) % 12 + 12) % 12;
 
 /** Kick levels (the drum machine samples are normalised hot). */
-const KG = { house808: 0.15, houseLm: 0.14, techno808: 0.17, technoLm: 0.15 };
+const KG = { house808: 0.15, houseLm: 0.14 };
 
 function houseKick(v: Voices, out: AudioNode, d: number, vel = 0.9) {
   v.hit('tr808', 'bd2550', d, out, { vel, gain: KG.house808 });
@@ -431,185 +431,529 @@ function houseBar(v: Voices, bar: number, d: number, spb: number, c: Chain) {
   if (breakdown && k === 0) wash(v, L, d, spb * 6, 0.05, 8000, 300, 'lowpass', 0.7, 0.05);
 }
 
-// ---- Techno bunker: hard acid techno ----------------------------------------------------
+// ---- Techno bunker: Berlin warehouse techno ---------------------------------------------
 //
-// F minor (phrygian), 134 bpm, 128 bars (~3.8 min). The kick and a rolling rumble are the
-// base, joined by a dark dub stab. Over 64-bar arcs the acid line opens and closes, the ride
-// and industrial metal (brake drum, anvil, ratchet) come and go; one breakdown + build per arc.
+// F minor (phrygian colour), 134 bpm, 160 bars (~4.8 min) in two 80-bar arcs, like two records
+// in a DJ set. Arc one: intro, groove, peak, break + build, drop. Arc two: hypno, deep, peak 2,
+// break 2 + build, drop 2, which thins out into the next intro as if the next record came in.
+//
+// Base (through the walls): a synthesised 909 kick (pitch-swept sine, click, drive) layered
+// with the MFB-512 kick, and the rumble: the kick and a rolling off-beat sub fed into a dark
+// reverb, lowpassed and ducked by every kick. Plus the dub stabs' dry hit and claps.
+// Stage layer: 909-style hats (a metallic square cluster, closed hats choke the open ones),
+// MFB-512 claps, snare rolls and toms, a 303-style acid line whose accents, slides and notes
+// mutate every eight bars while its filter follows long 16-64 bar sweeps, dub chord stabs into
+// the echo, industrial metal, risers and the drop.
 
-type TechSec = 'intro' | 'ride' | 'acid' | 'break' | 'peak' | 'hypno' | 'tool' | 'peak2';
-const TECH_FORM: TechSec[] = ['intro', 'ride', 'acid', 'break', 'peak', 'hypno', 'tool', 'peak2'];
-/** Acid patterns, 16 steps: semitones over F2, '-' rest, '!' accent, '~' slide into the next. */
-const ACID: string[][] = [
-  ['0!', '-', '12', '0', '-', '3', '-', '0~', '7', '-', '0!', '10', '-', '0', '1~', '-'],
-  ['0', '0', '12!', '0', '3~', '5', '-', '0', '0!', '-', '7', '0', '15~', '12', '-', '10'],
-  ['0!', '-', '0', '12~', '10', '-', '7', '-', '0!', '3', '-', '0', '12!', '-', '1', '0'],
-];
+type TechSec = 'intro' | 'groove' | 'peak' | 'break' | 'drop' | 'hypno' | 'deep' | 'peak2' | 'break2' | 'drop2';
+const TECH_FORM: TechSec[] = ['intro', 'groove', 'peak', 'break', 'drop', 'hypno', 'deep', 'peak2', 'break2', 'drop2'];
+const TECH_BARS = TECH_FORM.length * 16;
 const T_ROOT = 41; // F2
 
-/** One 303-style note: saw through a resonant two-pole cascade with an envelope, optional slide. */
-function acidNote(v: Voices, out: AudioNode, midi: number, d: number, len: number, cut: number, envAmt: number, res: number, acc: boolean, slideTo?: number) {
+/** Acid filter openness (0..1) at [bar, value] keyframes: the long sweeps of the set. */
+const ACID_OPEN: [number, number][] = [
+  [0, 0], [24, 0.02], [32, 0.2], [48, 0.66], [50, 0.42], [56, 0.12], [64, 0.62], [64, 0.9], [72, 0.78], [80, 0.5],
+  [96, 0.08], [112, 0.42], [128, 1], [130, 0.45], [136, 0.18], [144, 0.68], [144, 0.92], [160, 0.3],
+];
+function acidOpen(x: number) {
+  for (let j = 1; j < ACID_OPEN.length; j++) {
+    const [b1, v1] = ACID_OPEN[j];
+    if (x < b1) {
+      const [b0, v0] = ACID_OPEN[j - 1];
+      return v0 + ((v1 - v0) * (x - b0)) / (b1 - b0);
+    }
+  }
+  return ACID_OPEN[ACID_OPEN.length - 1][1];
+}
+
+/** Acid patterns, 16 steps: semitones over the root, '-' rest, '!' accent, '~' slide into the next. */
+const ACID_SRC = [
+  '0! - 0 12~ 0 - 3~ 5 0! - 10 0 - 12~ 13 0', // groove / peak: the main riff
+  '0 0! - 0 12~ 10 - 0! 3 - 0 0! 15~ 12 - 7', // drop: busier, the octave pushes
+  '0! - - 0 - - 0! - - 12~ 13 - 0~ 3 - -', // hypno / deep: sparse, three-step feel
+  '0! 12 0 - 0 1~ 0 - 0! 12 - 0 8~ 7 0! -', // peak 2 / drop 2: the phrygian b2 and b6
+];
+type AcidStep = { n: number; acc: boolean; sl: boolean } | null;
+const parseAcid = (s: string): AcidStep[] => s.split(' ').map((t) => (t === '-' ? null : { n: parseInt(t, 10), acc: t.includes('!'), sl: t.includes('~') }));
+const ACID = ACID_SRC.map(parseAcid);
+const ACID_NOTES = [0, 0, 0, 12, 3, 7, 10, 1, 13, 15];
+
+/** Small deterministic random generator, so the acid's mutations are part of the composition. */
+function seeded(seed: number) {
+  let a = seed * 2654435761;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The base pattern of a section, mutated per eight-bar phrase: accents wander, slides flip, a note changes. */
+function acidPattern(base: number, phrase: number, amount: number): AcidStep[] {
+  const r = seeded(phrase * 31 + base * 7 + 3);
+  const p = ACID[base].map((x) => (x ? { ...x } : null));
+  const on = () => p.map((x, j) => (x ? j : -1)).filter((j) => j >= 0);
+  for (let m = 0; m < amount; m++) {
+    const ix = on();
+    const j = ix[Math.floor(r() * ix.length)];
+    const x = p[j]!;
+    const what = r();
+    if (what < 0.35) x.acc = !x.acc;
+    else if (what < 0.6) x.sl = !x.sl && j < 15 && !!p[j + 1];
+    else if (what < 0.85) x.n = ACID_NOTES[Math.floor(r() * ACID_NOTES.length)];
+    else {
+      // A rest becomes a note (or the other way round): the groove of the line shifts.
+      const e = Math.floor(r() * 16);
+      p[e] = p[e] ? null : { n: r() < 0.5 ? 0 : 12, acc: r() < 0.3, sl: false };
+    }
+  }
+  if (!p[0]) p[0] = { n: 0, acc: true, sl: false };
+  return p;
+}
+
+/**
+ * One bar of the 303: a single mono voice (saw or square through two resonant lowpasses).
+ * Notes retrigger the filter envelope, slides glide the pitch and keep the gate open,
+ * accents hit harder and brighter. `openAt(step)` gives the filter openness 0..1.
+ */
+function acidBar(v: Voices, out: AudioNode, d: number, q: number, pat: AcidStep[], root: number, openAt: (s: number) => number, vol: number, wave: OscillatorType, upTo = 16) {
+  const ctx = v.ctx;
+  const t0 = v.at(d);
+  const o = ctx.createOscillator();
+  o.type = wave;
+  const f1 = ctx.createBiquadFilter();
+  f1.type = 'lowpass';
+  const f2 = ctx.createBiquadFilter();
+  f2.type = 'lowpass';
+  f2.Q.value = 0.7;
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  o.connect(f1).connect(f2).connect(g).connect(out);
+  let held = false;
+  for (let s = 0; s < upTo; s++) {
+    const st = pat[s];
+    const t = t0 + s * q;
+    if (!st) {
+      held = false;
+      continue;
+    }
+    const f = mtof(root + st.n);
+    const op = openAt(s);
+    const cut = 150 + 2600 * op * op;
+    const lvl = vol * (st.acc ? 1 : 0.62);
+    if (held) {
+      o.frequency.setTargetAtTime(f, t - q * 0.15, 0.02);
+      if (st.acc) g.gain.setTargetAtTime(lvl, t, 0.01);
+    } else {
+      o.frequency.setValueAtTime(f, t);
+      const top = Math.min(11000, cut * (1 + (st.acc ? 4.5 : 2.4) * (0.5 + op)));
+      const dec = st.acc ? 0.045 : 0.085;
+      f1.frequency.setValueAtTime(top, t);
+      f1.frequency.setTargetAtTime(cut, t + 0.004, dec);
+      f2.frequency.setValueAtTime(top * 1.5, t);
+      f2.frequency.setTargetAtTime(cut * 1.5, t + 0.004, dec);
+      g.gain.setTargetAtTime(lvl, t, 0.0015);
+    }
+    f1.Q.setValueAtTime((8 + 12 * op) * (st.acc ? 1.15 : 1), t);
+    const slide = st.sl && s < upTo - 1 && !!pat[s + 1];
+    if (!slide) g.gain.setTargetAtTime(0, t + q * 0.55, 0.007);
+    held = slide;
+  }
+  o.start(t0);
+  o.stop(t0 + upTo * q + 0.1);
+}
+
+/** Per-chain techno buses: the driven kick, the rumble reverb with its sidechain. */
+interface TechBus {
+  kick: GainNode;
+  /** Highpass on the kick, swept up during the builds so the drop hits twice as hard. */
+  kickHp: BiquadFilterNode;
+  /** Kick into the rumble reverb (level per section). */
+  send: GainNode;
+  /** Rumble reverb input for the rolling sub. */
+  verb: GainNode;
+  /** Sidechain on the rumble: ducks on every kick. */
+  duck: GainNode;
+  /** Splits a stab into the base (dry) and the echo. */
+  stab: GainNode;
+}
+const TECH = new WeakMap<Chain, TechBus>();
+
+/** A dark, mostly low impulse response: two seconds of decaying, smoothed noise. */
+function rumbleIR(ctx: BaseAudioContext) {
+  const len = Math.floor(ctx.sampleRate * 2.2);
+  const b = ctx.createBuffer(1, len, ctx.sampleRate);
+  const x = b.getChannelData(0);
+  let lp = 0;
+  for (let j = 0; j < len; j++) {
+    const t = j / ctx.sampleRate;
+    lp += 0.08 * (Math.random() * 2 - 1 - lp);
+    x[j] = t < 0.012 ? 0 : lp * Math.exp(-t / 0.5);
+  }
+  return b;
+}
+
+function techBus(v: Voices, c: Chain): TechBus {
+  let tb = TECH.get(c);
+  if (tb) return tb;
+  const ctx = v.ctx;
+  const kick = ctx.createGain();
+  const ws = ctx.createWaveShaper();
+  ws.curve = driveCurve(1.8);
+  const kickHp = ctx.createBiquadFilter();
+  kickHp.type = 'highpass';
+  kickHp.frequency.value = 20;
+  kickHp.Q.value = 0.8;
+  const kg = ctx.createGain();
+  kg.gain.value = 0.1;
+  kick.connect(ws).connect(kickHp).connect(kg).connect(c.lp);
+
+  // Rumble: kick + rolling sub, driven, into a dark reverb; only the low end survives, and it
+  // breathes against the kick.
+  const verb = ctx.createGain();
+  const send = ctx.createGain();
+  send.gain.value = 0;
+  ws.connect(send).connect(verb);
+  const pre = ctx.createWaveShaper();
+  pre.curve = driveCurve(3);
+  const conv = ctx.createConvolver();
+  conv.buffer = rumbleIR(ctx);
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 34;
+  const wet = ctx.createGain();
+  wet.gain.value = 0.02;
+  const duck = ctx.createGain();
+  verb.connect(pre).connect(conv).connect(hp).connect(wet).connect(duck).connect(c.rumble);
+
+  const stab = ctx.createGain();
+  const dry = ctx.createGain();
+  dry.gain.value = 0.55;
+  stab.connect(dry).connect(c.lp);
+  stab.connect(c.echo);
+  tb = { kick, kickHp, send, verb, duck, stab };
+  TECH.set(c, tb);
+  return tb;
+}
+
+/** 909-style kick: a sine swept down from a click to ~45 Hz, plus a noise click and the MFB-512 kick. */
+function kick909(v: Voices, tb: TechBus, d: number, vel: number, spb: number) {
   const ctx = v.ctx;
   const t = v.at(d);
   const o = ctx.createOscillator();
-  o.type = 'sawtooth';
-  o.frequency.setValueAtTime(mtof(midi), t);
-  if (slideTo !== undefined) {
-    o.frequency.setValueAtTime(mtof(midi), t + len * 0.55);
-    o.frequency.exponentialRampToValueAtTime(mtof(slideTo), t + len * 0.85);
-  }
-  const top = Math.min(9000, cut * (1 + envAmt * (acc ? 1.7 : 1)));
-  const dec = acc ? 0.11 : 0.2;
-  const f1 = ctx.createBiquadFilter();
-  f1.type = 'lowpass';
-  f1.Q.value = res * (acc ? 1.25 : 1);
-  f1.frequency.setValueAtTime(top, t);
-  f1.frequency.exponentialRampToValueAtTime(cut, t + dec);
-  const f2 = ctx.createBiquadFilter();
-  f2.type = 'lowpass';
-  f2.Q.value = 0.6;
-  f2.frequency.setValueAtTime(top * 1.6, t);
-  f2.frequency.exponentialRampToValueAtTime(cut * 1.6, t + dec);
+  o.frequency.setValueAtTime(320, t);
+  o.frequency.exponentialRampToValueAtTime(120, t + 0.014);
+  o.frequency.exponentialRampToValueAtTime(56, t + 0.07);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.4);
   const g = ctx.createGain();
-  const vol = acc ? 0.34 : 0.22;
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(vol, t + 0.003);
-  g.gain.setValueAtTime(vol * 0.85, t + len - 0.012);
-  g.gain.linearRampToValueAtTime(0, t + len);
-  o.connect(f1).connect(f2).connect(g).connect(out);
+  g.gain.linearRampToValueAtTime(vel, t + 0.0015);
+  g.gain.setTargetAtTime(0, t + 0.05, 0.12);
+  o.connect(g).connect(tb.kick);
   o.start(t);
-  o.stop(t + len + 0.03);
+  o.stop(t + 0.8);
+  const n = ctx.createBufferSource();
+  n.buffer = v.noiseBuffer;
+  const nf = ctx.createBiquadFilter();
+  nf.type = 'highpass';
+  nf.frequency.value = 2200;
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(vel * 0.45, t);
+  ng.gain.setTargetAtTime(0, t, 0.003);
+  n.connect(nf).connect(ng).connect(tb.kick);
+  n.start(t, Math.random() * 1.5);
+  n.stop(t + 0.03);
+  v.hit('mfb', 'kick', d, tb.kick, { vel: vel * 0.9, gain: 0.32 });
+  // The rumble ducks out of the kick's way and swells back before the next one.
+  tb.duck.gain.setTargetAtTime(0.04, t, 0.004);
+  tb.duck.gain.setTargetAtTime(1, t + spb * 0.1, spb * 0.22);
 }
 
-/** A dub chord stab: detuned saws through one lowpass that closes fast, sent into the echo. */
+/** The rolling sub: off-beat sixteenths at F1, one mono voice per bar, into the rumble reverb and dry. */
+function rollingSub(v: Voices, tb: TechBus, d: number, q: number, steps: number[], midi: number, vol: number) {
+  const ctx = v.ctx;
+  const t0 = v.at(d);
+  const o = ctx.createOscillator();
+  o.type = 'triangle';
+  o.frequency.value = mtof(midi);
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  for (const s of steps) {
+    const t = t0 + s * q;
+    const accent = s % 4 === 2 ? 1 : 0.7;
+    g.gain.setTargetAtTime(vol * accent, t, 0.003);
+    g.gain.setTargetAtTime(0, t + q * 0.6, 0.012);
+  }
+  o.connect(g);
+  g.connect(tb.verb);
+  g.connect(tb.duck);
+  o.start(t0);
+  o.stop(t0 + 16 * q + 0.1);
+}
+
+/**
+ * One bar of 909-style hats: six square waves at inharmonic ratios plus a little noise, through
+ * a bandpass and a highpass, one VCA so a closed hat chokes the open one. hits: [step, vel, open].
+ */
+function hats909(v: Voices, out: AudioNode, d: number, q: number, hits: [number, number, boolean][], pan = 0.25) {
+  if (!hits.length) return;
+  const ctx = v.ctx;
+  const t0 = v.at(d);
+  const end = t0 + 16 * q + 0.5;
+  const mix = ctx.createGain();
+  mix.gain.value = 0.2;
+  const srcs: AudioScheduledSourceNode[] = [];
+  for (const f of [205.3, 304.4, 369.6, 522.7, 540, 800]) {
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = f * 1.17;
+    o.connect(mix);
+    srcs.push(o);
+  }
+  const n = ctx.createBufferSource();
+  n.buffer = v.noiseBuffer;
+  n.loop = true;
+  const ng = ctx.createGain();
+  ng.gain.value = 0.22;
+  n.connect(ng);
+  srcs.push(n);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 10000;
+  bp.Q.value = 0.8;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 7000;
+  const vca = ctx.createGain();
+  vca.gain.value = 0;
+  const p = ctx.createStereoPanner();
+  p.pan.value = pan;
+  mix.connect(bp);
+  ng.connect(bp);
+  bp.connect(hp).connect(vca).connect(p).connect(out);
+  for (const [s, vel, open] of hits) {
+    // A touch of 909 shuffle on the off-sixteenths.
+    const t = t0 + (s + (s % 2 ? 0.06 : 0)) * q + hum(1.5);
+    vca.gain.setTargetAtTime(vel, t, 0.0006);
+    vca.gain.setTargetAtTime(0, t + 0.004, open ? 0.1 : 0.017 + vel * 0.012);
+  }
+  for (const x of srcs) {
+    if (x === n) n.start(t0, Math.random());
+    else x.start(t0);
+    x.stop(end);
+  }
+}
+
+/** A dub chord stab: detuned saws through one lowpass that closes fast, dry into the base and into the echo. */
 function dubStab(v: Voices, out: AudioNode, midis: number[], d: number, vol: number, open = 1400) {
   const ctx = v.ctx;
   const t = v.at(d);
   const f = ctx.createBiquadFilter();
   f.type = 'lowpass';
-  f.Q.value = 3;
+  f.Q.value = 4;
   f.frequency.setValueAtTime(open, t);
-  f.frequency.exponentialRampToValueAtTime(260, t + 0.22);
+  f.frequency.exponentialRampToValueAtTime(240, t + 0.25);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(vol, t + 0.004);
-  g.gain.setTargetAtTime(0, t + 0.05, 0.07);
+  g.gain.setTargetAtTime(0, t + 0.06, 0.08);
   f.connect(g).connect(out);
   for (const m of midis)
-    for (const det of [-9, 9]) {
+    for (const det of [-11, 9]) {
       const o = ctx.createOscillator();
       o.type = 'sawtooth';
       o.frequency.value = mtof(m);
       o.detune.value = det;
       o.connect(f);
       o.start(t);
-      o.stop(t + 0.45);
+      o.stop(t + 0.5);
     }
 }
 
-function technoKick(v: Voices, out: AudioNode, d: number, vel = 0.95) {
-  v.hit('tr808', 'bd5050', d, out, { vel, gain: KG.techno808, cents: -40 });
-  v.hit('lm2', 'kick-alt', d, out, { vel: vel * 0.8, gain: KG.technoLm });
+/** Pitch riser for the builds: a saw climbing two octaves through a bandpass, swelling up. */
+function riser(v: Voices, out: AudioNode, d: number, dur: number, vol: number) {
+  const ctx = v.ctx;
+  const t = v.at(d);
+  const o = ctx.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(mtof(T_ROOT + 12), t);
+  o.frequency.exponentialRampToValueAtTime(mtof(T_ROOT + 48), t + dur);
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 3;
+  f.frequency.setValueAtTime(500, t);
+  f.frequency.exponentialRampToValueAtTime(6000, t + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.98);
+  g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(f).connect(g).connect(out);
+  o.start(t);
+  o.stop(t + dur + 0.05);
 }
 
+/** Dub stab voicings (minor 9 without the fifth, and a Db major 7 for the deep section). */
+const STAB_FM9 = [0, 3, 10, 14].map((x) => T_ROOT + 12 + x);
+const STAB_DB = [-4, 0, 3, 7].map((x) => T_ROOT + 12 + x);
+
 function technoBar(v: Voices, bar: number, d: number, spb: number, c: Chain) {
-  const i = bar % 128;
-  const sec = TECH_FORM[i >> 4];
+  const i = bar % TECH_BARS;
+  const si = i >> 4;
+  const sec = TECH_FORM[si];
   const k = i % 16;
   const q = spb / 4;
   const T = (s: number, ms = 2) => d + s * q + hum(ms);
+  const tb = techBus(v, c);
   const B: AudioNode = c.lp;
   const L: AudioNode = c.layer;
-  const breakdown = sec === 'break' && k < 8;
-  const build = sec === 'break' && k >= 8;
-  const peak = sec === 'peak' || sec === 'peak2';
-  // The root steps down to Eb for the last two bars of every eight in the big sections.
-  const shift = (peak || sec === 'hypno') && k % 8 >= 6 ? -2 : 0;
-  const root = T_ROOT + shift;
+  const t0 = v.at(d);
+  const isBreak = sec === 'break' || sec === 'break2';
+  const breakdown = isBreak && k < 8;
+  const build = isBreak && k >= 8;
+  const drop = sec === 'drop' || sec === 'drop2';
+  const peak = sec === 'peak' || sec === 'peak2' || drop;
+  const hyp = sec === 'hypno' || sec === 'deep';
+  const outro = sec === 'drop2' && k >= 12; // thinning out into the next intro
+  const lastBeatOff = build && k === 15; // a breath before the drop
+  // In the peaks the root steps down to Db for the last two bars of every eight.
+  const root = (peak && !drop && k % 8 >= 6) || (sec === 'drop2' && k % 8 === 7) ? T_ROOT - 4 : T_ROOT;
 
-  if (k === 0 && (peak || sec === 'hypno')) v.hit('clash', 'crash', d, L, { vel: 0.7, gain: 0.5, pan: -0.3 });
+  // ---- Crashes, the drop ----
+  if (k === 0 && (peak || sec === 'deep' || sec === 'groove')) {
+    v.hit('clash', 'crash', d, L, { vel: drop ? 0.85 : 0.6, gain: 0.5, pan: -0.3 });
+    v.hit('mfb', 'cymbal', d, L, { vel: 0.7, gain: 0.3, pan: 0.3 });
+  }
+  if (drop && k === 0) {
+    // The drop: the kick opens fully again, a sub falls under it, the air rushes out.
+    tb.kickHp.frequency.cancelScheduledValues(t0);
+    tb.kickHp.frequency.setValueAtTime(20, t0);
+    v.tone(95, 1.6, 'sine', 0.32, d, 34, B, 0.004);
+    wash(v, L, d, spb * 4, 0.05, 7000, 300, 'lowpass', 0.8, 0.02);
+  }
 
-  // ---- Kick and rumble (base) ----
-  if (!breakdown) {
+  // ---- Kick (base) ----
+  const kickOn = !breakdown;
+  if (kickOn)
     for (let b = 0; b < 4; b++) {
-      if (build && k === 15 && b === 3) continue;
-      technoKick(v, B, T(b * 4, 1), b === 0 ? 1 : 0.93);
+      if (lastBeatOff && b === 3) continue;
+      kick909(v, tb, T(b * 4, 1), b === 0 ? 1 : 0.95, spb);
     }
-    // Rolling rumble after every kick: three dark sixteenths at F1.
-    if (!(build && k >= 14))
-      for (let b = 0; b < 4; b++)
-        for (const [s, vel] of [[1, 0.4], [2, 0.8], [3, 0.6]] as const) {
-          if (sec === 'intro' && k < 4 && s === 1) continue;
-          v.tone(mtof(root - 12), q * 0.95, 'triangle', 0.05 * vel, T(b * 4 + s, 1), undefined, c.rumble, 0.006);
-        }
+  if (build && k === 8) {
+    // The kick comes back thin and fills out at the drop.
+    tb.kickHp.frequency.setValueAtTime(20, t0);
+    tb.kickHp.frequency.exponentialRampToValueAtTime(260, t0 + spb * 31);
   }
 
-  // ---- Hats, ride, claps ----
-  const drums = !breakdown && !(build && k >= 14);
-  if (drums) {
+  // ---- Rumble (base): how much kick goes into the reverb, and the rolling sub ----
+  const rum = breakdown ? 0 : sec === 'intro' ? (k < 8 ? 0.25 : 0.5) : hyp ? 1 : build ? 0.4 : outro ? 0.5 : 0.8;
+  tb.send.gain.setTargetAtTime(rum, t0, 0.3);
+  const subOn = kickOn && !(build && k >= 12) && !(sec === 'intro' && k < 8);
+  if (subOn) {
+    const steps = hyp || sec === 'peak2' ? [1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15] : [2, 3, 6, 7, 10, 11, 14, 15];
+    rollingSub(v, tb, d, q, lastBeatOff ? steps.filter((s) => s < 12) : steps, root - 12, hyp ? 0.1 : 0.08);
+  }
+
+  // ---- Hats (stage): closed sixteenths, open on the offbeats ----
+  const hatsOn = !(breakdown && k < 4) && !(build && k >= 14);
+  if (hatsOn) {
+    const hits: [number, number, boolean][] = [];
+    const full = !(sec === 'intro' && k < 8) && !breakdown;
+    const openHats = peak || sec === 'deep' || (sec === 'groove' && k >= 8) || (sec === 'hypno' && k >= 8) || build;
     for (let s = 0; s < 16; s++) {
+      if (lastBeatOff && s >= 12) break;
       const off = s % 4 === 2;
-      if (!off && (sec === 'intro' || sec === 'ride')) continue;
-      v.hit('hihat', 'c', T(s, 2), L, { vel: off ? 0.55 : s % 2 ? 0.22 : 0.32, gain: 0.9, pan: 0.3 });
+      if (off) hits.push([s, openHats ? 0.55 : 0.5, openHats]);
+      else if (full) hits.push([s, s % 2 ? 0.2 + rnd(0, 0.06) : 0.3 + rnd(0, 0.06), false]);
     }
-    if (sec !== 'intro' && sec !== 'tool') for (const s of [2, 6, 10, 14]) v.hit('suscym', 'ride', T(s, 2), L, { vel: 0.45 + rnd(-0.05, 0.05), gain: 0.7, pan: -0.35 });
-    if (peak) for (const s of [2, 6, 10, 14]) v.hit('tr808', 'oh10', T(s, 1), L, { vel: 0.5, gain: 0.4, pan: 0.15 });
-    const claps = peak || sec === 'hypno' || sec === 'tool' ? [4, 12] : sec === 'ride' || sec === 'acid' ? (k % 2 ? [12] : []) : [];
-    for (const s of claps) {
-      v.hit('claps', 'clap', T(s, 2), L, { vel: 0.75, gain: 0.55 });
-      v.hit('tr808', 'cp', T(s, 2), c.echo, { vel: 0.5, gain: 0.25 });
+    hats909(v, L, d, q, hits, 0.22);
+    // In the peaks the sampled MFB hats add grit on the offbeats.
+    if (peak) for (const s of [2, 6, 10, 14]) if (!(lastBeatOff && s > 12)) v.hit('mfb', 'hihat-closed', T(s, 1), L, { vel: 0.5, gain: 0.25, pan: -0.25 });
+  }
+  if (peak && !outro) for (const s of [2, 6, 10, 14]) v.hit('suscym', 'ride', T(s, 2), L, { vel: 0.4 + rnd(-0.05, 0.05), gain: 0.4, pan: -0.4 });
+
+  // ---- Claps (base + stage) ----
+  const clapOn = !breakdown && !lastBeatOff && !outro && ((sec === 'intro' && k >= 12) || sec === 'groove' || peak || sec === 'deep' || (sec === 'hypno' && k >= 8) || (build && k < 12));
+  if (clapOn)
+    for (const s of [4, 12]) {
+      v.hit('mfb', 'clap', T(s, 2), B, { vel: 0.85, gain: 0.5, pan: -0.05 });
+      v.hit('claps', 'clap', T(s, 3) + 0.004, L, { vel: 0.7, gain: 0.35, pan: 0.12 });
+      if (hyp && s === 12 && k % 2) v.hit('mfb', 'clap', T(s, 2), c.echo, { vel: 0.6, gain: 0.3 });
+    }
+
+  // ---- Hypnotic toms: a three-step cycle against the four-to-the-floor, wandering in pitch ----
+  if (hyp || (sec === 'peak2' && k < 8)) {
+    const toms = ['tom-low', 'tom-mid', 'tom-low', 'tom-hi'];
+    for (let s = 0; s < 16; s++) {
+      const g = i * 16 + s;
+      if (g % 3 !== 0) continue;
+      const n = (g / 3) % 4;
+      v.hit('mfb', toms[n], T(s, 2), L, { vel: 0.55 + (n === 0 ? 0.15 : 0), gain: 0.35, pan: Math.sin(g * 0.2) * 0.5, cents: -200 });
+      if (n === 3 && sec === 'deep') v.hit('mfb', 'tom-hi', T(s, 2), c.echo, { vel: 0.5, gain: 0.25, cents: -200 });
     }
   }
 
-  // ---- Industrial metal (stage, through the echo) ----
-  if (drums && (sec === 'acid' || peak || sec === 'tool' || sec === 'hypno')) {
-    if (sec !== 'hypno') for (const s of [3, 11]) v.hit('brakedrum', 'hammer', T(s, 4), L, { vel: 0.45 + rnd(-0.08, 0.08), gain: 0.35, pan: -0.55 });
-    if (k % 2 === 1) v.hit('anvil', pick(['a', 'b']), T(14, 4), L, { vel: 0.5, gain: 0.3, pan: 0.55 });
-    if (k % 2 === 1) v.hit('anvil', 'a', T(14, 4), c.echo, { vel: 0.5, gain: 0.18 });
-    if ((sec === 'tool' || sec === 'hypno') && Math.random() < 0.4) v.hit('brakedrum', 'hammer', T(pick([7, 9, 13]), 4), c.echo, { vel: 0.4, gain: 0.25 });
-    if (k % 8 === 7 && sec !== 'hypno') v.hit('ratchet', 'fast', T(12), L, { vel: 0.6, gain: 0.35, pan: 0.4 });
+  // ---- Industrial metal (stage, partly into the echo) ----
+  if ((peak && !outro) || sec === 'deep') {
+    if (sec !== 'deep') for (const s of [3, 11]) v.hit('brakedrum', 'hammer', T(s, 4), L, { vel: 0.4 + rnd(-0.08, 0.08), gain: 0.25, pan: -0.55 });
+    if (k % 2 === 1) v.hit('anvil', pick(['a', 'b']), T(14, 4), c.echo, { vel: 0.5, gain: 0.18, pan: 0.55 });
+    if (k % 8 === 7) v.hit('ratchet', 'fast', T(12), L, { vel: 0.55, gain: 0.3, pan: 0.4 });
   }
 
   // ---- Acid line (stage, driven) ----
-  const acidOn = sec === 'acid' || sec === 'break' || peak || sec === 'hypno';
-  if (acidOn && !(build && k === 15)) {
-    const pat = ACID[sec === 'peak' ? 1 : sec === 'peak2' ? 2 : 0];
-    // The filter opens and closes over the 64-bar arc, each section adds its own bias.
-    const arc = 0.5 - 0.5 * Math.cos((2 * Math.PI * (i % 64)) / 64);
-    const bias = sec === 'acid' ? -0.25 + (k / 16) * 0.35 : sec === 'hypno' ? -0.15 : sec === 'break' ? (k / 16) * 0.4 : 0.2;
-    const open = Math.max(0, Math.min(1, arc * 0.7 + bias + 0.15));
-    const cut = 180 + 1700 * open * open;
-    const res = 9 + open * 6;
-    // Hypnotic section: the pattern rotates by two steps every four bars.
-    const rot = sec === 'hypno' ? ((k >> 2) * 2) % 16 : 0;
-    for (let s = 0; s < 16; s++) {
-      const prev = pat[(s - 1 + rot + 16) % 16];
-      if (prev.includes('~') && s > 0) continue; // already held by the slide
-      const st = pat[(s + rot) % 16];
-      if (st === '-') continue;
-      const semi = parseInt(st, 10);
-      const slide = st.includes('~');
-      const next = pat[(s + 1 + rot) % 16];
-      const to = slide && next !== '-' ? root + parseInt(next, 10) : undefined;
-      acidNote(v, c.drive, root + semi, T(s, 1), q * (slide ? 1.95 : 0.6), cut, 2.4 + open * 2, res, st.includes('!'), to);
-    }
+  const acidOn =
+    (sec === 'groove' && k >= 8) || sec === 'peak' || isBreak || drop || hyp || sec === 'peak2';
+  if (acidOn && !outro) {
+    const base = sec === 'drop' ? 1 : hyp ? 2 : sec === 'peak2' || sec === 'break2' || sec === 'drop2' ? 3 : 0;
+    const phrase = i >> 3;
+    // Mutations grow through a section, the first phrase of a section plays the riff plainly.
+    const pat = acidPattern(base, phrase, (k >> 3) * 2 + (k % 8 === 7 ? 1 : 0) + (drop ? 1 : 0));
+    // Hypno: the pattern turns by one step every four bars against the kick.
+    const rot = sec === 'hypno' ? (k >> 2) % 16 : 0;
+    const p = rot ? pat.map((_, s) => pat[(s + rot) % 16]) : pat;
+    const wob = hyp ? 0.12 * Math.sin((2 * Math.PI * (i * 16)) / 48) : 0;
+    const openAt = (s: number) => Math.max(0, Math.min(1, acidOpen(i + s / 16) + wob + (breakdown ? -0.05 : 0)));
+    const vol = breakdown ? 0.12 : 0.15;
+    acidBar(v, c.drive, d, q, p, root, openAt, vol, sec === 'hypno' || sec === 'peak2' ? 'square' : 'sawtooth', lastBeatOff ? 12 : 16);
   }
 
-  // ---- Dub stab (base + echo) ----
-  if ((breakdown && k % 2 === 0) || (sec === 'hypno' && k % 4 === 0) || (sec === 'tool' && k % 4 === 2)) {
-    const st = [root + 12, root + 15, root + 19, root + 22];
-    dubStab(v, B, st, T(0), 0.06, breakdown ? 900 + k * 150 : 1400);
-    dubStab(v, c.echo, st, T(0), 0.07, 1800);
-    if (breakdown) dubStab(v, c.echo, st.map((m) => m - 2), T(10), 0.05, 1200);
+  // ---- Dub stabs (base + echo) ----
+  const chordM = sec === 'deep' && k % 8 >= 4 ? STAB_DB : STAB_FM9;
+  const stabAt: number[] = [];
+  if (breakdown) {
+    if (k % 2 === 0) stabAt.push(0);
+    if (k % 4 === 2) stabAt.push(10);
+  } else if (hyp) {
+    // A cycle of ten sixteenths drifting across the bar lines.
+    for (let s = 0; s < 16; s++) if ((i * 16 + s) % 10 === 3) stabAt.push(s);
+  } else if (sec === 'groove' && k % 4 === 3) stabAt.push(14);
+  else if (drop && !outro) stabAt.push(3, 6, 11);
+  else if (peak && k % 2 === 1) stabAt.push(3, 10);
+  for (const s of stabAt) {
+    const open = breakdown ? 700 + k * 160 : hyp ? 900 + 600 * acidOpen(i) : drop ? 2200 : 1500;
+    const m = breakdown && s === 10 ? chordM.map((x) => x - 2) : chordM;
+    dubStab(v, tb.stab, m, T(s, 1), drop ? 0.028 : 0.034, open);
   }
 
-  // ---- Build-up ----
+  // ---- Breakdown pad: dark strings, pumping with the (silent) kick ----
+  if (breakdown || (build && k < 12)) {
+    const pv = (k % 4 < 2 ? [0, 3, 7, 10] : [-4, 0, 3, 7]).map((x) => T_ROOT + 12 + x);
+    v.chord('strings', pv, T(0, 2), c.pump, { vel: 0.45, dur: spb * 4, att: 0.6, rel: 0.8, gain: 0.3, lp: 900 + k * 120, pan: -0.1 });
+  }
+
+  // ---- Builds: snare roll, clap roll, risers ----
   if (build) {
-    roll(v, L, 'lm2', 'snare-l', d, spb, k - 8, 8, 0.35);
-    roll(v, B, 'claps', 'clap', d, spb, k - 8, 8, 0.12);
-    if (k === 8) wash(v, L, d, spb * 32, 0.05, 300, 10000, 'highpass', 1.2, 0.97);
+    roll(v, L, 'mfb', 'snare', d, spb, k - 8, 8, 0.35);
+    if (k >= 12) roll(v, B, 'mfb', 'clap', d, spb, k - 8, 8, 0.15);
+    if (k === 8) {
+      wash(v, L, d, spb * 32, 0.06, 300, 11000, 'highpass', 1.2, 0.97);
+      riser(v, L, d, spb * 31, 0.03);
+    }
+    if (k === 14) v.hit('suscym', 'swell', d, L, { vel: 0.6, gain: 0.45 });
   }
   if (breakdown && k === 0) wash(v, c.echo, d, spb * 8, 0.06, 6000, 200, 'bandpass', 2, 0.05);
+  // Before the next record: a short tom fill on the last bar of the set.
+  if (i === TECH_BARS - 1) for (const [s, a] of [[12, 'tom-hi'], [13, 'tom-mid'], [14, 'tom-low'], [15, 'tom-low']] as const) v.hit('mfb', a, T(s, 2), L, { vel: 0.7, gain: 0.4 });
 }
 
 // ---- Hip-hop floor: boom-bap ------------------------------------------------------------

@@ -617,7 +617,7 @@ export class Hud {
       <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
       <details class="credits"><summary>Musik &amp; Klang</summary>
         <p>Alle Stücke sind für Casino Nachtfalter geschrieben und werden live im Spiel gespielt. Die Instrumente sind freie Aufnahmen:</p>
-        <p>Versilian Community Sample Library (Versilian Studios, CC0) · Splendid Grand Piano (Akai, gemeinfrei) · Kontrabass von D. Smolken (CC0) · Wurlitzer EP200 von Greg Sullivan (CC BY 3.0) · FluidR3 GM von Frank Wen, aufbereitet von gleitz/midi-js-soundfonts (CC BY 3.0) · tonejs-instruments von Nicholaus Brosowsky (CC BY 3.0) · LinnDrum und TR-808 aus smpldsnds/drum-machines (gemeinfrei).</p>
+        <p>Versilian Community Sample Library (Versilian Studios, CC0) · Splendid Grand Piano (Akai, gemeinfrei) · Kontrabass von D. Smolken (CC0) · Wurlitzer EP200 von Greg Sullivan (CC BY 3.0) · FluidR3 GM von Frank Wen, aufbereitet von gleitz/midi-js-soundfonts (CC BY 3.0) · tonejs-instruments von Nicholaus Brosowsky (CC BY 3.0) · LinnDrum, TR-808 und MFB-512 aus smpldsnds/drum-machines (gemeinfrei).</p>
       </details>`;
     this.modal('So geht’s', body, [
       { label: 'Neues Spiel', onClick: () => this.confirmNewGame() },
