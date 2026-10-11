@@ -33,7 +33,7 @@ export const gameAccent = (id: string) => ACCENT[id] ?? 0xffcf7a;
 
 const CREAM = '#fbf1da';
 const RED = '#d0243a';
-const DARK = '#22142a';
+const DARK = '#141a2b';
 
 function card(c: Ctx, x: number, y: number, w: number, h: number, rot: number, pip: string, col = DARK) {
   c.save();
@@ -410,15 +410,15 @@ export function paintGameIcon(c: Ctx, id: string, x: number, y: number, r: numbe
   c.save();
   c.translate(x, y);
   ellipse(c, r * 0.04, r * 0.1, r, r);
-  c.fillStyle = 'rgba(6,2,8,0.4)';
+  c.fillStyle = 'rgba(2,3,8,0.4)';
   c.fill();
   ellipse(c, 0, 0, r, r);
   fillInk(c, gold(c, -r, -r, r * 0.6, r), Math.max(1, r * 0.06));
   ellipse(c, 0, 0, r * 0.84, r * 0.84);
   const g = c.createRadialGradient(-r * 0.3, -r * 0.35, 1, 0, 0, r * 0.84);
   g.addColorStop(0, rgb(acc, 0.55));
-  g.addColorStop(0.45, '#2a1022');
-  g.addColorStop(1, '#0e060c');
+  g.addColorStop(0.45, '#141c40');
+  g.addColorStop(1, '#06080e');
   c.fillStyle = g;
   c.fill();
   c.save();

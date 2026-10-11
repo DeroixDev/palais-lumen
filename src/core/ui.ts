@@ -260,7 +260,7 @@ export function button(o: ButtonOptions): Button {
       // Engraved into brass (light lip below) or embossed on velvet (dark shadow below).
       dropShadow: darkText
         ? { color: 0xfff4d0, alpha: 0.45, blur: 0, distance: 1.2, angle: Math.PI / 2 }
-        : { color: 0x0a0410, alpha: 0.8, blur: 1, distance: 1.6, angle: Math.PI / 2 },
+        : { color: 0x04060f, alpha: 0.8, blur: 1, distance: 1.6, angle: Math.PI / 2 },
     },
   });
   txt.anchor.set(0.5);
@@ -268,11 +268,11 @@ export function button(o: ButtonOptions): Button {
   const iw = o.icon ? (o.iconWidth ?? 22) + 6 : 0;
   const fitText = () => {
     txt.scale.set(1);
-    const lead = lockIc.visible ? 26 : o.icon ? iw : 0;
+    const lead = lockIc.visible ? 34 * lockIc.scale.x + 4 : o.icon ? iw : 0;
     const room = w - Math.max(18, h * 0.5) - lead;
     if (txt.width > room) txt.scale.set(room / txt.width);
     txt.x = lead / 2;
-    lockIc.x = txt.x - txt.width / 2 - 15;
+    lockIc.x = txt.x - txt.width / 2 - 19 * lockIc.scale.x;
     if (o.icon) {
       o.icon.visible = !lockIc.visible;
       o.icon.x = txt.x - txt.width / 2 - iw / 2;

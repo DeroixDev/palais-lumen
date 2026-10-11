@@ -16,7 +16,7 @@ export interface LecternHost {
 }
 
 /** Where it stands in the foyer (world pixels, floor point). */
-const AT = { x: 1112, y: 606 };
+const AT = { x: 1090, y: 662 };
 const WOOD = 0x5a2e1a;
 
 function lecternSprite(x: number, y: number) {

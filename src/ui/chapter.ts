@@ -68,9 +68,9 @@ function floorBand(c: Ctx, y: number, col: string, col2: string) {
 function column(c: Ctx, x: number, top: number, bottom: number) {
   rrect(c, x - 14, top, 28, bottom - top, 4);
   const g = c.createLinearGradient(x - 14, 0, x + 14, 0);
-  g.addColorStop(0, '#2a1838');
-  g.addColorStop(0.4, '#5a3a78');
-  g.addColorStop(1, '#1a0c24');
+  g.addColorStop(0, '#182039');
+  g.addColorStop(0.4, '#3b4a7a');
+  g.addColorStop(1, '#0c1225');
   fillInk(c, g, 2);
   rrect(c, x - 18, top - 6, 36, 10, 3);
   fillInk(c, gold(c, x - 18, top - 6, x + 18, top + 4), 1.6);
@@ -81,17 +81,17 @@ function column(c: Ctx, x: number, top: number, bottom: number) {
 function table(c: Ctx, x: number, y: number, w: number) {
   ellipse(c, x, y, w, w * 0.28);
   const g = c.createLinearGradient(x - w, 0, x + w, 0);
-  g.addColorStop(0, '#3a1e10');
-  g.addColorStop(0.5, '#7a4a28');
-  g.addColorStop(1, '#2a140a');
+  g.addColorStop(0, '#121b39');
+  g.addColorStop(0.5, '#2d3f78');
+  g.addColorStop(1, '#0c1329');
   fillInk(c, g, 2);
   rrect(c, x - 5, y + w * 0.2, 10, 46, 3);
-  fillInk(c, '#2a140a', 1.6);
+  fillInk(c, '#0c1329', 1.6);
 }
 
 /** Throne room: the round moon window, columns, the crown laid on a little table. */
 function sceneThrone(c: Ctx) {
-  sky(c, '#1a0c2a', '#2a1236');
+  sky(c, '#0c132b', '#121b37');
   // Moon window.
   glowAt(c, SW / 2, 96, 150, 120, 0xc9d8ff, 0.35);
   c.beginPath();
@@ -108,13 +108,13 @@ function sceneThrone(c: Ctx) {
     c.beginPath();
     c.moveTo(SW / 2 + Math.cos(a) * 70, 96 + Math.sin(a) * 70);
     c.lineTo(SW / 2 - Math.cos(a) * 70, 96 - Math.sin(a) * 70);
-    c.strokeStyle = 'rgba(60,40,80,0.6)';
+    c.strokeStyle = 'rgba(41,50,82,0.6)';
     c.lineWidth = 3;
     c.stroke();
   }
   column(c, 90, 20, 230);
   column(c, SW - 90, 20, 230);
-  floorBand(c, 222, '#3a1840', '#14081a');
+  floorBand(c, 222, '#182241', '#080c1b');
   // Carpet to the throne.
   c.beginPath();
   c.moveTo(SW / 2 - 60, 222);
@@ -126,11 +126,11 @@ function sceneThrone(c: Ctx) {
   c.fill();
   // Doorway on the left, warm light from the corridor.
   rrect(c, 22, 92, 70, 140, 34);
-  fillInk(c, '#3a1e10', 2.4);
+  fillInk(c, '#121b39', 2.4);
   rrect(c, 30, 100, 54, 132, 28);
   const dl = c.createLinearGradient(0, 100, 0, 232);
   dl.addColorStop(0, '#ffd890');
-  dl.addColorStop(1, '#8a5a28');
+  dl.addColorStop(1, '#2e4388');
   c.fillStyle = dl;
   c.fill();
   glowAt(c, 57, 200, 70, 40, 0xffd890, 0.35);
@@ -155,10 +155,15 @@ function sceneThrone(c: Ctx) {
 
 /** The cashier's office: an open safe, a desk with the ledger under a green lamp. */
 function sceneLedger(c: Ctx) {
-  sky(c, '#24140e', '#160a08');
-  // Wood panelling.
-  c.fillStyle = 'rgba(90,50,24,0.35)';
-  for (let x = 20; x < SW; x += 70) c.fillRect(x, 20, 56, 180);
+  sky(c, '#18213f', '#0b1024');
+  // Lacquered panelling with brass trim.
+  for (let x = 20; x < SW; x += 70) {
+    c.fillStyle = 'rgba(48,66,130,0.45)';
+    c.fillRect(x, 20, 56, 180);
+    c.strokeStyle = 'rgba(224,178,90,0.35)';
+    c.lineWidth = 1.2;
+    c.strokeRect(x + 4, 24, 48, 172);
+  }
   // Safe on the left, door ajar.
   rrect(c, 40, 70, 120, 150, 8);
   fillInk(c, '#3a3a44', 2.4);
@@ -174,14 +179,16 @@ function sceneLedger(c: Ctx) {
   c.arc(46, 61, 16, 0, Math.PI * 2);
   fillInk(c, gold(c, 30, 45, 62, 77), 1.6);
   c.restore();
-  floorBand(c, 222, '#3a2014', '#1a0c08');
+  floorBand(c, 222, '#161e39', '#090d1a');
   // Desk with the ledger and the lamp.
   rrect(c, 300, 182, 250, 22, 4);
-  fillInk(c, '#5a3018', 2);
+  fillInk(c, '#1c2a58', 2);
+  c.fillStyle = gold(c, 300, 182, 550, 186);
+  c.fillRect(302, 183, 246, 3);
   rrect(c, 312, 204, 16, 40, 2);
-  fillInk(c, '#3a1e10', 1.4);
+  fillInk(c, '#121b39', 1.4);
   rrect(c, 522, 204, 16, 40, 2);
-  fillInk(c, '#3a1e10', 1.4);
+  fillInk(c, '#121b39', 1.4);
   glowAt(c, 470, 170, 110, 70, 0xb8f0a0, 0.3);
   // Open ledger.
   c.save();
@@ -194,7 +201,7 @@ function sceneLedger(c: Ctx) {
     c.lineTo(0, 14);
     c.closePath();
     fillInk(c, '#f4e8c8', 1.4);
-    c.strokeStyle = 'rgba(60,40,30,0.5)';
+    c.strokeStyle = 'rgba(32,39,60,0.5)';
     c.lineWidth = 1;
     for (let k = 0; k < 4; k++) {
       c.beginPath();
@@ -221,13 +228,13 @@ function sceneLedger(c: Ctx) {
 
 /** The service stairs to the roof: a locked door with silver light through the keyhole. */
 function sceneStairs(c: Ctx) {
-  sky(c, '#120a1c', '#0a0610');
+  sky(c, '#0a0e1d', '#060810');
   // Stone wall.
   const r = seeded(7);
   for (let y = 0; y < 230; y += 26)
     for (let x = (y / 26) % 2 ? -30 : 0; x < SW; x += 60) {
       rrect(c, x + 2, y + 2, 56, 22, 3);
-      c.fillStyle = `rgba(70,50,90,${0.25 + r() * 0.2})`;
+      c.fillStyle = `rgba(51,61,92,${0.25 + r() * 0.2})`;
       c.fill();
     }
   // Steps rising to the right.
@@ -237,15 +244,15 @@ function sceneStairs(c: Ctx) {
     c.beginPath();
     c.rect(x, y, 60, SH - y);
     const g = c.createLinearGradient(0, y, 0, y + 30);
-    g.addColorStop(0, '#5a4268');
-    g.addColorStop(1, '#2a1a34');
+    g.addColorStop(0, '#434c6a');
+    g.addColorStop(1, '#1b2135');
     fillInk(c, g, 1.6);
   }
   // The door at the top.
   const dx = 540;
   const dy = 40;
   rrect(c, dx - 40, dy, 80, 120, 36);
-  fillInk(c, '#3a2214', 2.6);
+  fillInk(c, '#161e39', 2.6);
   rrect(c, dx - 32, dy + 10, 64, 104, 30);
   c.strokeStyle = 'rgba(224,178,90,0.4)';
   c.lineWidth = 2;
@@ -274,7 +281,7 @@ function sceneStairs(c: Ctx) {
 
 /** The bar: the big mirror, glasses, the letter with its moth seal on the counter. */
 function sceneLetter(c: Ctx) {
-  sky(c, '#2a0e1a', '#140810');
+  sky(c, '#0e152b', '#080b14');
   // Mirror behind the bar.
   rrect(c, 140, 24, 360, 130, 10);
   fillInk(c, gold(c, 140, 24, 500, 154), 3);
@@ -300,12 +307,12 @@ function sceneLetter(c: Ctx) {
     rrect(c, x, 154, 14, 30, 4);
     fillInk(c, cols[i % cols.length], 1.4);
   }
-  floorBand(c, 240, '#2a1018', '#120608');
+  floorBand(c, 240, '#10172b', '#080c1b');
   // Counter.
   rrect(c, 40, 196, SW - 80, 40, 6);
   const g = c.createLinearGradient(0, 196, 0, 236);
-  g.addColorStop(0, '#8a4a28');
-  g.addColorStop(1, '#3a1a0c');
+  g.addColorStop(0, '#2e4388');
+  g.addColorStop(1, '#101937');
   fillInk(c, g, 2.4);
   c.fillStyle = rgb(GOLD, 0.8);
   c.fillRect(40, 196, SW - 80, 3);
@@ -319,7 +326,7 @@ function sceneLetter(c: Ctx) {
   c.moveTo(-34, -20);
   c.lineTo(0, 4);
   c.lineTo(34, -20);
-  c.strokeStyle = 'rgba(90,60,30,0.6)';
+  c.strokeStyle = 'rgba(34,47,89,0.6)';
   c.lineWidth = 1.2;
   c.stroke();
   c.beginPath();
@@ -332,7 +339,7 @@ function sceneLetter(c: Ctx) {
 /** The roof at night: stars, the city below and the great moon lamp. */
 function sceneRoof(c: Ctx, dawn = false) {
   if (dawn) sky(c, '#f0a0a8', '#ffd8a8');
-  else sky(c, '#0c0a24', '#2a1a48');
+  else sky(c, '#0c0a24', '#1b2549');
   stars(c, dawn ? 8 : 60, 11);
   if (dawn) glowAt(c, SW * 0.78, SH * 0.62, 180, 90, 0xfff0c0, 0.7);
   // City skyline.
@@ -340,7 +347,7 @@ function sceneRoof(c: Ctx, dawn = false) {
   for (let x = -10; x < SW; x += 28 + r() * 30) {
     const h = 30 + r() * 70;
     const w = 24 + r() * 26;
-    c.fillStyle = dawn ? '#a0607a' : '#1a1030';
+    c.fillStyle = dawn ? '#6372a2' : '#101831';
     c.fillRect(x, 230 - h, w, h);
     for (let k = 0; k < 4; k++)
       if (r() < 0.5) {
@@ -349,7 +356,7 @@ function sceneRoof(c: Ctx, dawn = false) {
       }
   }
   // Roof edge and tiles.
-  floorBand(c, 222, dawn ? '#7a4a5a' : '#3a2440', dawn ? '#4a2a3a' : '#14081a');
+  floorBand(c, 222, dawn ? '#4b577c' : '#252b41', dawn ? '#2b324b' : '#080c1b');
   // The lamp on its post.
   const lx = 292;
   rrect(c, lx - 5, 120, 10, 104, 3);
@@ -491,7 +498,7 @@ function sceneTexture(n: number) {
       // Painted vignette inside the frame.
       const v = c.createRadialGradient(SW / 2, SH / 2, SH * 0.4, SW / 2, SH / 2, SW * 0.62);
       v.addColorStop(0, 'rgba(0,0,0,0)');
-      v.addColorStop(1, 'rgba(8,2,10,0.55)');
+      v.addColorStop(1, 'rgba(2,4,10,0.55)');
       c.fillStyle = v;
       c.fillRect(0, 0, SW, SH);
     }, 2);
@@ -656,12 +663,12 @@ export class ChapterPanel extends Panel {
     const dots = new Graphics();
     this.ch.pages.forEach((_, i) => {
       const x = W / 2 + (i - (this.ch.pages.length - 1) / 2) * 18;
-      dots.circle(x, bottom, 5).fill({ color: i === this.page ? COLORS.brass : 0x4a2a3a }).stroke({ color: 0x1a0b10, width: 1.5 });
+      dots.circle(x, bottom, 5).fill({ color: i === this.page ? COLORS.brass : 0x2b324b }).stroke({ color: 0x0b0f1b, width: 1.5 });
     });
     this.panel.addChild(dots);
     const nextLabel = last ? (final ? 'ENDE' : 'SCHLIESSEN') : 'WEITER';
     const nb = button({ label: nextLabel, width: n ? 300 : 220, height: 56, color: COLORS.brass, fontSize: 21, onClick: () => this.next() });
-    const sb = button({ label: 'Überspringen', width: n ? 300 : 200, height: 48, color: 0x3a1428, textColor: 0xf2e6c9, fontSize: 18, display: false, onClick: () => this.close() });
+    const sb = button({ label: 'Überspringen', width: n ? 300 : 200, height: 48, color: 0x141d3b, textColor: 0xf2e6c9, fontSize: 18, display: false, onClick: () => this.close() });
     if (n) {
       nb.position.set(W / 2, bottom + 48);
       sb.position.set(W / 2, bottom + 108);

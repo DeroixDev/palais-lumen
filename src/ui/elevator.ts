@@ -44,7 +44,7 @@ function plateTex(W: number, H: number) {
       c.translate(10, 8);
       for (let i = 0; i < 6; i++) {
         rrect(c, -i, 6 + i - i, W + i * 2, H + i, 36 + i);
-        c.fillStyle = `rgba(6,2,8,${0.16 - i * 0.022})`;
+        c.fillStyle = `rgba(2,3,8,${0.16 - i * 0.022})`;
         c.fill();
       }
       rrect(c, 0, 0, W, H, 36);
@@ -104,7 +104,7 @@ function dialTex(r: number) {
       c.save();
       c.translate(2, 5);
       half(r + 18);
-      c.fillStyle = 'rgba(6,2,8,0.4)';
+      c.fillStyle = 'rgba(2,3,8,0.4)';
       c.fill();
       c.restore();
       half(r + 18);
@@ -115,8 +115,8 @@ function dialTex(r: number) {
       c.stroke();
       half(r);
       const g = c.createRadialGradient(cx - r * 0.3, cy - r * 0.6, 4, cx, cy, r);
-      g.addColorStop(0, '#3a2a34');
-      g.addColorStop(1, '#100810');
+      g.addColorStop(0, '#26305e');
+      g.addColorStop(1, '#0a0e24');
       fillInk(c, g, 2);
       c.save();
       half(r);
@@ -187,7 +187,7 @@ function knobTex(r: number, state: 'idle' | 'lit' | 'locked', boss: boolean) {
       const o = r + 8;
       c.beginPath();
       c.arc(o + 1, o + 4, r, 0, Math.PI * 2);
-      c.fillStyle = 'rgba(40,20,6,0.5)';
+      c.fillStyle = 'rgba(11,17,36,0.5)';
       c.fill();
       c.beginPath();
       c.arc(o, o, r, 0, Math.PI * 2);
@@ -202,15 +202,15 @@ function knobTex(r: number, state: 'idle' | 'lit' | 'locked', boss: boolean) {
         g.addColorStop(1, col[2]);
       } else if (state === 'locked') {
         g.addColorStop(0, '#5a4a40');
-        g.addColorStop(1, '#2a1e18');
+        g.addColorStop(1, '#191d2a');
       } else {
-        g.addColorStop(0, '#4a2a34');
-        g.addColorStop(1, '#140a10');
+        g.addColorStop(0, '#2b324b');
+        g.addColorStop(1, '#0a0d14');
       }
       fillInk(c, g, 1.4);
       c.save();
       c.clip();
-      c.strokeStyle = 'rgba(6,2,8,0.5)';
+      c.strokeStyle = 'rgba(2,3,8,0.5)';
       c.lineWidth = 4;
       c.beginPath();
       c.arc(o, o + 2, r - 6, 0, Math.PI * 2);
@@ -249,36 +249,50 @@ function rowTex(w: number, h: number, current: boolean) {
   );
 }
 
-/** Cabin walls: mahogany panels with brass trim and a handrail. */
+/** Cabin walls: night-blue lacquer panels with brass trim, deco fans and a handrail. */
 function cabinTex(w: number, h: number) {
   return (
     paint(w, h, (c: Ctx) => {
       const g = c.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, '#2a1410');
-      g.addColorStop(1, '#120806');
+      g.addColorStop(0, '#12172a');
+      g.addColorStop(1, '#070912');
       c.fillStyle = g;
       c.fillRect(0, 0, w, h);
       const pw = 120;
       for (let x = -((pw - (w % pw)) / 2); x < w; x += pw) {
         rrect(c, x + 10, 24, pw - 20, h * 0.58 - 40, 8);
         const pg = c.createLinearGradient(x, 0, x + pw, 0);
-        pg.addColorStop(0, '#4a2418');
-        pg.addColorStop(0.5, '#5a2c1c');
-        pg.addColorStop(1, '#3a1a10');
+        pg.addColorStop(0, '#1b2649');
+        pg.addColorStop(0.5, '#202d59');
+        pg.addColorStop(1, '#121b39');
         c.fillStyle = pg;
         c.fill();
-        c.strokeStyle = 'rgba(224,178,90,0.35)';
+        c.strokeStyle = 'rgba(224,178,90,0.45)';
         c.lineWidth = 1.5;
         c.stroke();
+        // Gilded fan at the top of each panel.
+        const fx = x + pw / 2;
+        for (let k = 0; k < 9; k++) {
+          const a = (k + 0.5) * (Math.PI / 9);
+          c.beginPath();
+          c.moveTo(fx, 26);
+          c.lineTo(fx + Math.cos(a - 0.08) * 34, 26 + Math.sin(a - 0.08) * 34);
+          c.lineTo(fx + Math.cos(a + 0.08) * 34, 26 + Math.sin(a + 0.08) * 34);
+          c.closePath();
+          c.fillStyle = 'rgba(224,178,90,0.2)';
+          c.fill();
+        }
+        c.fillStyle = 'rgba(224,178,90,0.4)';
+        c.fillRect(x + pw / 2 - 1, 62, 2, h * 0.58 - 96);
         rrect(c, x + 10, h * 0.66, pw - 20, h * 0.34 - 24, 8);
         c.fillStyle = pg;
         c.fill();
         c.stroke();
       }
-      glowAt(c, w / 2, 0, w * 0.6, h * 0.5, 0xffd8a0, 0.18);
+      glowAt(c, w / 2, 0, w * 0.6, h * 0.5, 0xc8d8ff, 0.16);
       // Handrail.
       const y = h * 0.6;
-      c.fillStyle = 'rgba(6,2,8,0.5)';
+      c.fillStyle = 'rgba(2,3,8,0.5)';
       c.fillRect(0, y + 8, w, 8);
       const rg = c.createLinearGradient(0, y - 6, 0, y + 8);
       rg.addColorStop(0, '#fff1c0');
@@ -286,7 +300,7 @@ function cabinTex(w: number, h: number) {
       rg.addColorStop(1, '#6a4410');
       c.fillStyle = rg;
       c.fillRect(0, y - 6, w, 14);
-      c.fillStyle = 'rgba(6,2,8,0.35)';
+      c.fillStyle = 'rgba(2,3,8,0.35)';
       c.fillRect(0, 0, w, h);
     }, 1)
   );
@@ -419,7 +433,7 @@ export class ElevatorPanel {
       const tagY = three ? 0 : 14;
       const status = new Text({
         text: f === current ? 'HIER' : locked ? `ab Tag ${floorOpensOnDay(f)}` : f === 5 ? 'BOSS' : f === top && f > 0 ? 'HEUTE' : '',
-        style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '700', fill: f === current ? 0x14501e : locked ? 0x5a3a14 : 0x5a1a6a },
+        style: { fontFamily: FONT_BODY, fontSize: n ? 16 : 17, fontWeight: '700', fill: f === current ? 0x14501e : locked ? 0x5a3a14 : 0x1e2a5a },
       });
       status.anchor.set(1, 0.5);
       status.position.set(W - rx - 14, nameY);
@@ -495,7 +509,7 @@ export class ElevatorPanel {
       this.rows.push({ floor: f, room, locked, lamp, draw });
     });
 
-    const stay = button({ label: 'AUSSTEIGEN', width: 240, height: 56, color: 0x3a1428, textColor: 0xf2e6c9, fontSize: 20, onClick: () => this.choose(this.current) });
+    const stay = button({ label: 'AUSSTEIGEN', width: 240, height: 56, color: 0x141d3b, textColor: 0xf2e6c9, fontSize: 20, onClick: () => this.choose(this.current) });
     stay.position.set(W / 2, H - (n ? 48 : 52));
     p.addChild(stay);
   }

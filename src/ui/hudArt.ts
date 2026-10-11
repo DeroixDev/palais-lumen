@@ -27,7 +27,7 @@ function brassRing(c: C, x: number, y: number, w: number, h: number, r: number, 
   rrPath(c, x + t, y + t, w - 2 * t, h - 2 * t, Math.max(2, r - t));
   c.fillStyle = gold(c, 0, 0, size, size);
   c.fill('evenodd');
-  c.strokeStyle = 'rgba(22,10,20,0.9)';
+  c.strokeStyle = 'rgba(10,13,22,0.9)';
   c.lineWidth = 1.6;
   c.stroke();
   // Polished top-left glance (2 px) on the outer edge.
@@ -63,7 +63,7 @@ function cornerOrnament(c: C) {
     c.beginPath();
     c.moveTo(0, 0);
     c.lineTo(Math.cos(a) * 24, Math.sin(a) * 24);
-    c.strokeStyle = 'rgba(22,10,20,0.85)';
+    c.strokeStyle = 'rgba(10,13,22,0.85)';
     c.lineWidth = 3.4;
     c.stroke();
     c.strokeStyle = gold(c, 0, 0, 24, 24);
@@ -73,7 +73,7 @@ function cornerOrnament(c: C) {
   // Quarter arc.
   c.beginPath();
   c.arc(0, 0, 25, 0, Math.PI / 2);
-  c.strokeStyle = 'rgba(22,10,20,0.85)';
+  c.strokeStyle = 'rgba(10,13,22,0.85)';
   c.lineWidth = 4;
   c.stroke();
   c.strokeStyle = gold(c, 0, 0, 26, 26);
@@ -98,7 +98,7 @@ function panelFrame() {
     // Thin inner fillet.
     c.beginPath();
     rrPath(c, 13, 13, S - 26, S - 26, 10);
-    c.strokeStyle = 'rgba(22,10,20,0.7)';
+    c.strokeStyle = 'rgba(10,13,22,0.7)';
     c.lineWidth = 2.6;
     c.stroke();
     c.strokeStyle = 'rgba(240,200,104,0.75)';
@@ -125,9 +125,9 @@ function plateFrame() {
     c.beginPath();
     rrPath(c, 1, 1, S - 2, S - 2, 9);
     const lac = c.createLinearGradient(0, 0, 0, S);
-    lac.addColorStop(0, '#3a1428');
-    lac.addColorStop(0.5, '#24091a');
-    lac.addColorStop(1, '#180612');
+    lac.addColorStop(0, '#141d3b');
+    lac.addColorStop(0.5, '#091025');
+    lac.addColorStop(1, '#060a18');
     c.fillStyle = lac;
     c.fill();
     brassRing(c, 1, 1, S - 2, S - 2, 9, 3.2, S);
@@ -152,18 +152,18 @@ function brassBar() {
   });
 }
 
-/** Velvet tile: deep plum with a fine pile, seamless enough to repeat. */
+/** Velvet tile: midnight blue with a fine pile, seamless enough to repeat. */
 function velvet() {
   const S = 128;
   return canvasUrl(S, S, (c) => {
-    c.fillStyle = '#2a0d1e';
+    c.fillStyle = '#0d142b';
     c.fillRect(0, 0, S, S);
     const r = seeded(77);
     for (let i = 0; i < 1400; i++) {
       const x = r() * S;
       const y = r() * S;
       const lightDot = r() < 0.5;
-      c.fillStyle = lightDot ? `rgba(255,190,220,${0.025 + r() * 0.03})` : `rgba(8,2,8,${0.08 + r() * 0.1})`;
+      c.fillStyle = lightDot ? `rgba(190,210,255,${0.025 + r() * 0.03})` : `rgba(2,3,8,${0.08 + r() * 0.1})`;
       c.fillRect(x, y, 1 + r() * 1.2, 1 + r() * 2.2);
     }
   }, 1);
@@ -174,7 +174,7 @@ function stud(kind: 'bronze' | 'silver' | 'gold' | 'diamond') {
   const S = 24;
   return canvasUrl(S, S, (c) => {
     const m = S / 2;
-    glowAt(c, m, m + 1, 11, 11, 0x0a0410, 0.35);
+    glowAt(c, m, m + 1, 11, 11, 0x040710, 0.35);
     if (kind === 'diamond') {
       c.beginPath();
       c.moveTo(m, 2);
@@ -209,7 +209,7 @@ function stud(kind: 'bronze' | 'silver' | 'gold' | 'diamond') {
     ellipse(c, m, m, 9, 9);
     fillInk(c, g, 1.6);
     ellipse(c, m, m, 5.5, 5.5);
-    c.strokeStyle = 'rgba(22,10,20,0.35)';
+    c.strokeStyle = 'rgba(10,13,22,0.35)';
     c.lineWidth = 1;
     c.stroke();
     // Star stamp.
@@ -243,7 +243,7 @@ function queen() {
       c.closePath();
       c.fillStyle = i % 2 ? '#f2cd72' : '#e6ebf5';
       c.fill();
-      c.strokeStyle = 'rgba(22,10,40,0.75)';
+      c.strokeStyle = 'rgba(10,17,41,0.75)';
       c.lineWidth = 0.9;
       c.stroke();
     }
@@ -254,7 +254,7 @@ function queen() {
     c.beginPath();
     c.arc(0, 0, 9, 0, Math.PI * 2);
     c.arc(4, -2.5, 7.6, 0, Math.PI * 2, true);
-    c.fillStyle = 'rgba(22,10,40,0.85)';
+    c.fillStyle = 'rgba(10,17,41,0.85)';
     c.fill('evenodd');
     c.translate(-0.6, -0.6);
     c.beginPath();

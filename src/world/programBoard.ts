@@ -44,14 +44,14 @@ export function programBoardSprite(x: number, y: number, rows: BoardRow[]) {
     fillInk(c, gold(c, x0, y0, x0 + PW, y0 + PH), 2);
     rrect(c, x0 + 4, y0 + 4, PW - 8, PH - 8, 4);
     const g = c.createLinearGradient(0, y0, 0, y0 + PH);
-    g.addColorStop(0, '#1d3a44');
-    g.addColorStop(1, '#0c1a20');
+    g.addColorStop(0, '#1e2a5a');
+    g.addColorStop(1, '#0a0e24');
     c.fillStyle = g;
     c.fill();
-    glowAt(c, 0, y0 + 14, 50, 14, 0x5fe3ff, 0.3, 'lighter');
+    glowAt(c, 0, y0 + 14, 50, 14, 0xa8c8ff, 0.3, 'lighter');
     // Title.
     c.fillStyle = '#ffcf7a';
-    c.font = '700 15px "Barlow Condensed", "Arial Narrow", sans-serif';
+    c.font = '700 13px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.fillText('PROGRAMM', 0, y0 + 14);
