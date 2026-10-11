@@ -229,6 +229,7 @@ async function boot() {
     roomLayer.addChild(room.view);
     room.resize(app.screen.width, app.screen.height);
   }
+  if (import.meta.env.DEV) (window as unknown as { __nfRoom: unknown }).__nfRoom = { enterRoom: (id: string) => (enterRoom(id), layout()), room: () => room };
 
   const roomForFloor = (f: number) => mainRoomOf(f) ?? getRoom('f1');
 

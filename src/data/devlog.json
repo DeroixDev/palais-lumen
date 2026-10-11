@@ -1,5 +1,28 @@
 [
  {
+  "v": "20.3",
+  "date": "2026-10-11",
+  "kind": "Patch",
+  "title": "Wegfindung",
+  "intro": "Klicken oder Tippen zum Laufen findet jetzt selbst einen freien Weg, wie in einem MOBA.",
+  "sections": [
+   {
+    "h": "Neu",
+    "items": [
+     "Die Figur läuft um Tische, Automaten, Möbel und Wände herum, statt davor stehen zu bleiben.",
+     "Ein Messingring markiert, wohin du geschickt hast.",
+     "Ist das Ziel zugestellt, läuft die Figur an die nächste freie Stelle davor."
+    ]
+   },
+   {
+    "h": "Verbessert",
+    "items": [
+     "Die Fußbox der Figur ist flach wie in einer 3/4-Ansicht: Du kommst von vorn und hinten viel näher an Möbel und Tische heran."
+    ]
+   }
+  ]
+ },
+ {
   "v": "20.2",
   "date": "2026-10-11",
   "kind": "Patch",

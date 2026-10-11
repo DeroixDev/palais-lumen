@@ -2,6 +2,22 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v20.3: Wegfindung
+
+*Patch · 11.10.2026*
+
+Klicken oder Tippen zum Laufen findet jetzt selbst einen freien Weg, wie in einem MOBA.
+
+**Neu**
+
+- Die Figur läuft um Tische, Automaten, Möbel und Wände herum, statt davor stehen zu bleiben.
+- Ein Messingring markiert, wohin du geschickt hast.
+- Ist das Ziel zugestellt, läuft die Figur an die nächste freie Stelle davor.
+
+**Verbessert**
+
+- Die Fußbox der Figur ist flach wie in einer 3/4-Ansicht: Du kommst von vorn und hinten viel näher an Möbel und Tische heran.
+
 ## v20.2: Neuigkeiten
 
 *Patch · 11.10.2026*

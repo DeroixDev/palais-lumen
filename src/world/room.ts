@@ -1,6 +1,7 @@
 // A casino floor seen from above: floor, walls, machines, furniture, the elevator,
 // the player and the camera.
 
+import { clearLine, findPath, type Pt } from './pathfind';
 import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import { getGame, getRoom, type DecorKind, type DoorDef, type RoomDefinition, type StationPlacement } from '../core/registry';
@@ -65,6 +66,10 @@ const USE_TITLE: Partial<Record<DecorKind, string>> = {
 
 /** Half the width of the elevator doorway. */
 const DOOR_W = 46;
+/** The player's feet box around the standing point (see `collides`). */
+const FEET_W = 18;
+const FEET_UP = 6;
+const FEET_DOWN = 4;
 
 export class RoomScene {
   readonly view = new Container();
@@ -117,6 +122,13 @@ export class RoomScene {
   private bump = 0;
   private target: { x: number; y: number } | null = null;
   private pending: Interactable | null = null;
+  /** Waypoints towards `target` found by the route finder (click-to-walk goes round obstacles). */
+  private route: Pt[] = [];
+  /** One fresh route search is allowed when the walk gets stuck (a guest stepped in the way). */
+  private replanned = false;
+  /** Brass ring that marks where a click sends the player. */
+  private marker: Graphics | null = null;
+  private markerT = 0;
   private nearest: Interactable | null = null;
   private time = 0;
   private stepAcc = 0;
@@ -1038,13 +1050,77 @@ export class RoomScene {
       this.target = { x: p.x, y: p.y };
       this.pending = null;
     }
+    this.replanned = false;
+    this.planRoute();
+    const end = this.route[this.route.length - 1];
+    if (end) this.showMarker(best ? this.target.x : end.x, best ? this.target.y : end.y);
+  }
+
+  /** Finds a walkable way to `target` round furniture, tables and walls (a straight line if it's clear). */
+  private planRoute() {
+    this.route = [];
+    if (!this.target) return;
+    const pv = this.player.view;
+    const free = (x: number, y: number) => !this.collides(x, y);
+    if (free(this.target.x, this.target.y) && clearLine(pv, this.target, free)) {
+      this.route = [{ x: this.target.x, y: this.target.y }];
+      return;
+    }
+    const path = findPath({ x: pv.x, y: pv.y }, this.target, free, this.def.width, this.def.height);
+    if (path?.length) this.route = path;
+    else {
+      // Nowhere to go: stand still rather than run into a wall.
+      this.target = null;
+      this.pending = null;
+    }
+  }
+
+  private hitboxView: Graphics | null = null;
+
+  /** Draws the collision boxes and the player's feet box (Mod-Menü, and for tuning by eye). */
+  showHitboxes(on: boolean) {
+    this.hitboxView?.destroy();
+    this.hitboxView = null;
+    if (!on) return;
+    const g = new Graphics();
+    for (const o of this.obstacles) g.rect(o.x, o.y, o.w, o.h).fill({ color: 0xff3060, alpha: 0.3 }).stroke({ color: 0xff3060, width: 4, alpha: 1 });
+    const pv = this.player.view;
+    g.rect(pv.x - FEET_W, pv.y - FEET_UP, FEET_W * 2, FEET_UP + FEET_DOWN).fill({ color: 0x40e0ff, alpha: 0.6 });
+    g.zIndex = 1e6;
+    this.entities.addChild(g);
+    this.hitboxView = g;
+  }
+
+  private showMarker(x: number, y: number) {
+    if (!this.marker) {
+      this.marker = new Graphics();
+      this.fxLayer.addChild(this.marker);
+    }
+    this.marker.position.set(x, y);
+    this.markerT = 1;
+  }
+
+  private drawMarker(dt: number) {
+    const m = this.marker;
+    if (!m) return;
+    m.clear();
+    if (this.markerT <= 0) return;
+    this.markerT = Math.max(0, this.markerT - dt * 1.8);
+    const k = 1 - this.markerT;
+    const a = this.markerT;
+    m.ellipse(0, 0, 10 + k * 16, (10 + k * 16) * 0.45).stroke({ color: COLORS.lamp, width: 3, alpha: a });
+    m.ellipse(0, 0, 5, 2.4).fill({ color: COLORS.lamp, alpha: a * 0.8 });
   }
 
   // ---- Simulation -------------------------------------------------------
 
+  /**
+   * Whether the player's feet fit at (x, y). The feet are a flat box (wide, but only a few pixels
+   * deep), as in a 3/4 view: you can walk right up to a table's front edge, and your head may
+   * overlap what stands behind you.
+   */
   private collides(x: number, y: number) {
-    const r = 20;
-    return this.obstacles.some((o) => x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h);
+    return this.obstacles.some((o) => x + FEET_W > o.x && x - FEET_W < o.x + o.w && y + FEET_DOWN > o.y && y - FEET_UP < o.y + o.h);
   }
 
   update(dtMs: number) {
@@ -1052,6 +1128,8 @@ export class RoomScene {
     const dt = Math.min(dtMs, 50) / 1000;
     let dx = 0;
     let dy = 0;
+    /** Distance left to the next waypoint: a step never overshoots it (it might sit right by a table). */
+    let capTo = Infinity;
     if (!this.frozen) {
       if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) dx -= 1;
       if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) dx += 1;
@@ -1068,19 +1146,29 @@ export class RoomScene {
         }
       }
       if (dx === 0 && dy === 0 && this.target) {
-        const tx = this.target.x - this.player.view.x;
-        const ty = this.target.y - this.player.view.y;
-        const d = Math.hypot(tx, ty);
-        if (d < 8) {
+        // Next waypoint of the route; intermediate corners are taken a little early for a smooth line.
+        let wp = this.route[0] ?? this.target;
+        let d = Math.hypot(wp.x - this.player.view.x, wp.y - this.player.view.y);
+        const free = (x: number, y: number) => !this.collides(x, y);
+        while (this.route.length > 1 && (d < 1.5 || (d < 14 && clearLine(this.player.view, this.route[1], free)))) {
+          this.route.shift();
+          wp = this.route[0];
+          d = Math.hypot(wp.x - this.player.view.x, wp.y - this.player.view.y);
+        }
+        const tx = wp.x - this.player.view.x;
+        const ty = wp.y - this.player.view.y;
+        if (d < 8 && this.route.length <= 1) {
+          // End of the route: the goal itself, or the closest free spot to it.
+          const p = this.pending;
+          const close = p && (this.route.length <= 1 || Math.hypot(p.x - this.player.view.x, p.y - this.player.view.y) < 70);
           this.target = null;
-          if (this.pending) {
-            const p = this.pending;
-            this.pending = null;
-            this.onInteract(p);
-          }
+          this.route = [];
+          this.pending = null;
+          if (p && close) this.onInteract(p);
         } else {
           dx = tx / d;
           dy = ty / d;
+          capTo = d;
         }
       }
     }
@@ -1088,8 +1176,9 @@ export class RoomScene {
     const pv = this.player.view;
     if (len > 0) {
       const speed = 280;
-      const mx = (dx / len) * speed * dt;
-      const my = (dy / len) * speed * dt;
+      const step = Math.min(speed * dt, capTo);
+      const mx = (dx / len) * step;
+      const my = (dy / len) * step;
       const ox = pv.x;
       const oy = pv.y;
       if (!this.collides(pv.x + mx, pv.y)) pv.x += mx;
@@ -1121,8 +1210,12 @@ export class RoomScene {
         this.stepAcc = 0;
         sfx.footstep();
       }
-      // Stuck while walking to a tap target: give up, but still use the thing if we're close.
-      if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < 0.5) {
+      // Stuck while walking to a tap target: look for a new way once, then give up, but still
+      // use the thing if we're close.
+      if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < Math.min(0.5, step * 0.2) && !this.replanned) {
+        this.replanned = true;
+        this.planRoute();
+      } else if (this.target && Math.hypot(pv.x - ox, pv.y - oy) < Math.min(0.5, step * 0.2)) {
         const p = this.pending;
         const close = p && Math.hypot(p.x - pv.x, p.y - pv.y) < 70;
         this.target = null;
@@ -1171,6 +1264,7 @@ export class RoomScene {
     this.regulars?.update(dtMs);
     this.updateCompanion(dt);
     this.drawStick();
+    this.drawMarker(dt);
 
     this.updateCamera();
   }
