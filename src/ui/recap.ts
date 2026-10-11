@@ -62,8 +62,8 @@ function tubeTex(w: number, h: number) {
     fillInk(c, brass(c, 0, -6, w * 0.2, h + 12), 2);
     rrect(c, 0, 0, w, h, h / 2);
     const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#0c0610');
-    g.addColorStop(1, '#2a1420');
+    g.addColorStop(0, '#060818');
+    g.addColorStop(1, '#1a2452');
     fillInk(c, g, 1.5);
   }, 2);
   tubeCache.set(k, t);
@@ -598,7 +598,7 @@ export class Recap {
       this.W = this.n ? 404 : 900;
       this.H = this.n ? 820 : 820;
     }
-    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: 0.72 });
+    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x05060f, alpha: 0.72 });
     const top = 26;
     const s = Math.min((w * 0.97) / this.W, (h * 0.97 - top) / this.H, 1.25);
     this.stage.scale.set(s);

@@ -44,7 +44,7 @@ export function eventMedal(e: DayEvent, r = 20) {
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.lineWidth = 3;
-      c.strokeStyle = 'rgba(22,10,20,0.7)';
+      c.strokeStyle = 'rgba(8,10,24,0.7)';
       c.strokeText(e.icon, o, o + 1);
       c.fillStyle = '#fff6e0';
       c.fillText(e.icon, o, o + 1);
@@ -70,12 +70,12 @@ function velvetTexture(w: number, h: number, accent = 0xe0b25a) {
     paint(W + 8, H + 10, (c) => {
       c.translate(4, 3);
       rrect(c, 1, 4, W - 2, H, 12);
-      c.fillStyle = 'rgba(6,2,8,0.45)';
+      c.fillStyle = 'rgba(2,4,12,0.45)';
       c.fill();
       rrect(c, 0, 0, W, H, 12);
       const g = c.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, 'rgba(58,20,40,0.94)');
-      g.addColorStop(1, 'rgba(22,10,18,0.94)');
+      g.addColorStop(0, 'rgba(30,42,90,0.94)');
+      g.addColorStop(1, 'rgba(10,14,36,0.94)');
       fillInk(c, g, 1.6);
       rrect(c, 3, 3, W - 6, H - 6, 10);
       c.strokeStyle = rgb(accent, 0.55);
@@ -217,8 +217,8 @@ export class DayBoard {
         r.y = y;
         const icon = new Graphics();
         const col = q.done ? 0x7bd47b : q.accepted ? 0xe0b25a : 0xff6b5f;
-        icon.circle(11, 10, 9).fill({ color: col, alpha: 0.95 }).stroke({ color: 0x160a14, width: 1.5 });
-        const sign = new Text({ text: q.done ? '✓' : q.accepted ? '…' : '!', style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0x160a14 } });
+        icon.circle(11, 10, 9).fill({ color: col, alpha: 0.95 }).stroke({ color: 0x0a0c1c, width: 1.5 });
+        const sign = new Text({ text: q.done ? '✓' : q.accepted ? '…' : '!', style: { fontFamily: FONT_BODY, fontSize: 14, fontWeight: '700', fill: 0x0a0c1c } });
         sign.anchor.set(0.5);
         sign.position.set(11, q.accepted && !q.done ? 7 : 10);
         const text = q.accepted || q.done ? q.text : `${q.giver} wartet auf dich und hat einen Wunsch.`;
@@ -249,7 +249,7 @@ export class DayBoard {
     arrow.position.set(w - 12, 16);
     c.addChild(bg, head, arrow, ...rows);
     if (folded && open) {
-      const dot = new Graphics().circle(head.x + head.width + 12, 16, 6).fill(0xff6b5f).stroke({ color: 0x160a14, width: 1.2 });
+      const dot = new Graphics().circle(head.x + head.width + 12, 16, 6).fill(0xff6b5f).stroke({ color: 0x0a0c1c, width: 1.2 });
       c.addChild(dot);
     }
     c.eventMode = 'static';
@@ -298,7 +298,7 @@ function bubbleTexture(w: number, h: number) {
       c.save();
       c.translate(3, 6);
       shape();
-      c.fillStyle = 'rgba(6,2,8,0.45)';
+      c.fillStyle = 'rgba(2,4,12,0.45)';
       c.fill();
       c.restore();
       shape();
@@ -411,7 +411,7 @@ export class QuestDialog {
   }
 
   resize(w: number, h: number) {
-    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: 0.35 });
+    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x05060f, alpha: 0.35 });
     const sc = Math.min(1.1, (w - 20) / this.W, (h * 0.9) / (this.H + 120));
     this.stage.scale.set(sc);
     this.stage.pivot.set(this.W / 2, this.H / 2);

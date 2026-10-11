@@ -45,8 +45,8 @@ function frameTextures() {
       c.fillStyle = 'rgba(6,2,8,0.45)';
       c.fill();
       const g = c.createRadialGradient(-8, -10, 4, 0, 0, R);
-      g.addColorStop(0, '#5a1e38');
-      g.addColorStop(1, '#1e0a16');
+      g.addColorStop(0, '#2a3a78');
+      g.addColorStop(1, '#0b1027');
       c.beginPath();
       c.arc(0, 0, R, 0, Math.PI * 2);
       c.fillStyle = g;
@@ -78,7 +78,7 @@ function voiceTexture() {
     voiceTex = paint(R * 2, R * 2, (c) => {
       c.translate(R, R);
       glowAt(c, 0, 0, R * 0.9, R * 0.9, 0xff5fa2, 0.5, 'lighter');
-      drawEmblem(c, 0, 2, 40, '#ff9ac0', '#3a0a1e', '#fff1c4');
+      drawEmblem(c, 0, 2, 40, '#ff9ac0', '#16204a', '#fff1c4');
     }, 2.5);
   return voiceTex;
 }

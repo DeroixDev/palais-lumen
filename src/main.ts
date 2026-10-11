@@ -53,7 +53,7 @@ interface Overlay {
 }
 
 async function loadFonts() {
-  const fonts = Promise.all([document.fonts.load('40px Bungee'), document.fonts.load('600 20px "Barlow Condensed"'), document.fonts.load('700 20px "Barlow Condensed"')]);
+  const fonts = Promise.all([document.fonts.load('40px Limelight'), document.fonts.load('700 40px Cinzel'), document.fonts.load('600 20px "Barlow Condensed"'), document.fonts.load('700 20px "Barlow Condensed"')]);
   await Promise.race([fonts, new Promise((r) => setTimeout(r, 3000))]);
 }
 
@@ -219,9 +219,9 @@ async function boot() {
     particles.bounds = { w, h, top: TOP };
     vignette.width = w;
     vignette.height = h;
-    backdrop.clear().rect(0, 0, w, h).fill(0x0b0609);
+    backdrop.clear().rect(0, 0, w, h).fill(0x07080f);
     // Transitions fade through the velvet dark of the house, not flat black.
-    fade.clear().rect(0, 0, w, h).fill(0x0b0609);
+    fade.clear().rect(0, 0, w, h).fill(0x07080f);
     if (mode !== 'game' && mode !== 'transition') room?.resize(w, h);
     game?.resize(w, h - TOP);
     overlay?.resize(w, h);

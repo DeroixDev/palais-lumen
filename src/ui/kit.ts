@@ -1,18 +1,18 @@
-// The painted menu kit: velvet panels in a brass frame with moth corner ornaments, a
-// brass title plaque, the 48 px close knob, brass price plates and velvet display cases.
+// The painted menu kit: night-glass panels in a stepped brass frame with art-deco sunburst
+// corners, a brass title plaque, the 48 px close key, brass price plates and display cases.
 // Everything is painted once with Canvas 2D (same brushes as the world) and cached.
 
 import { Container, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
-import { COLORS, FONT_BODY, FONT_DISPLAY, drawEmblem, reducedMotion } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, reducedMotion } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
-import { brass, luma, softBack, velvetNap } from '../core/ui';
+import { brass, luma, softBack, themeColor, velvetNap } from '../core/ui';
 import { focusable } from '../core/focus';
 import { INK, dark, fillInk, glowAt, light, paint, rgb, rrect, type Ctx } from '../world/painted/brush';
 
 export const CREAM = 0xf2e6c9;
-export const VELVET = 0x1a0f14;
-export const MUTED = 0xc9b48e;
+export const VELVET = 0x0b1027;
+export const MUTED = 0xb8b2c8;
 
 const cache = new Map<string, Texture>();
 function cached(key: string, make: () => Texture) {
@@ -68,52 +68,50 @@ export function staggerIn(items: Container[], step = 35, ms = 220) {
 
 // ---- Painting pieces ----------------------------------------------------------------------------
 
-/** Brass art-deco fan in a corner, with a little moth on it. `sx`, `sy` point into the panel. */
+/**
+ * Art-deco corner: a stepped brass bracket with a small sunburst fan in the angle.
+ * `sx`, `sy` point into the panel.
+ */
 function cornerOrnament(c: Ctx, x: number, y: number, sx: number, sy: number, size: number, accent: number) {
   c.save();
   c.translate(x, y);
   c.scale(sx, sy);
-  // Stepped deco fan.
-  c.beginPath();
-  c.moveTo(0, 0);
-  c.lineTo(size, 0);
-  c.arc(0, 0, size, 0, Math.PI / 2);
-  c.closePath();
-  fillInk(c, brass(c, 0, 0, size, size), 1.6);
-  c.save();
-  c.clip();
-  c.strokeStyle = 'rgba(90,52,12,0.55)';
-  c.lineWidth = 1;
-  for (let i = 1; i < 6; i++) {
-    const a = (i / 6) * (Math.PI / 2);
+  // Sunburst fan: alternating wide and narrow rays.
+  const n = 7;
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * (Math.PI / 2);
+    const a1 = ((i + 1) / n) * (Math.PI / 2);
     c.beginPath();
-    c.moveTo(0, 0);
-    c.lineTo(Math.cos(a) * size, Math.sin(a) * size);
-    c.stroke();
+    c.moveTo(Math.cos(a0) * size * 0.12, Math.sin(a0) * size * 0.12);
+    c.lineTo(Math.cos(a0) * size * 0.72, Math.sin(a0) * size * 0.72);
+    c.lineTo(Math.cos(a1) * size * 0.72, Math.sin(a1) * size * 0.72);
+    c.lineTo(Math.cos(a1) * size * 0.12, Math.sin(a1) * size * 0.12);
+    c.closePath();
+    c.fillStyle = i % 2 ? rgb(light(accent, 0.1), 0.55) : 'rgba(242,205,114,0.7)';
+    c.fill();
   }
   c.beginPath();
-  c.arc(0, 0, size * 0.62, 0, Math.PI / 2);
+  c.arc(0, 0, size * 0.72, 0, Math.PI / 2);
+  c.strokeStyle = 'rgba(242,205,114,0.85)';
+  c.lineWidth = 1.4;
   c.stroke();
-  c.restore();
-  // Velvet inlay and the moth.
+  // Stepped bracket: two brass bars, the inner one shorter.
+  for (const [o, len, wdt] of [[0, 1, 3], [6, 0.66, 2]] as const) {
+    c.beginPath();
+    c.moveTo(o, size * len + o);
+    c.lineTo(o, o);
+    c.lineTo(size * len + o, o);
+    c.strokeStyle = brass(c, 0, 0, size, size);
+    c.lineWidth = wdt;
+    c.lineCap = 'square';
+    c.stroke();
+  }
+  c.lineCap = 'round';
+  // A brass stud in the angle.
   c.beginPath();
-  c.moveTo(0, 0);
-  c.arc(0, 0, size * 0.56, 0, Math.PI / 2);
-  c.closePath();
-  const vg = c.createRadialGradient(size * 0.15, size * 0.15, 0, 0, 0, size * 0.56);
-  vg.addColorStop(0, rgb(light(accent, 0.05)));
-  vg.addColorStop(1, rgb(dark(accent, 0.55)));
-  fillInk(c, vg, 1.2);
+  c.arc(size * 0.13, size * 0.13, Math.max(2, size * 0.06), 0, Math.PI * 2);
+  fillInk(c, brass(c, 0, 0, size * 0.3, size * 0.3, 0.2), 1);
   c.restore();
-  // The moth stays upright: draw outside the mirrored transform.
-  const mx = x + sx * size * 0.27;
-  const my = y + sy * size * 0.27;
-  drawEmblem(c, mx + 1, my + 1.5, size * 0.42, 'rgba(10,4,16,0.6)', 'rgba(10,4,16,0.7)');
-  const mg = c.createLinearGradient(mx - size * 0.2, my - size * 0.2, mx + size * 0.2, my + size * 0.2);
-  mg.addColorStop(0, '#fff4c2');
-  mg.addColorStop(0.5, '#e6b85a');
-  mg.addColorStop(1, '#9a6a22');
-  drawEmblem(c, mx, my, size * 0.42, mg, '#6a4210', 'rgba(255,240,200,0.8)');
 }
 
 /** Brass screw head. */
@@ -130,27 +128,27 @@ export function screw(c: Ctx, x: number, y: number, r: number) {
 }
 
 export interface PanelLook {
-  /** Velvet colour (default deep plum-wine). */
+  /** Glass colour (default night blue). */
   velvet?: number;
   /** Colour of the corner inlays. */
   accent?: number;
 }
 
-/** The velvet panel with its brass frame, 2 px gloss edge and moth corners. Size W×H plus a margin for the shadow. */
+/** The night-glass panel with its stepped brass frame, gloss edge and sunburst corners. Size W×H plus a margin for the shadow. */
 export const PANEL_PAD = 24;
 export function panelTexture(W: number, H: number, look: PanelLook = {}) {
-  const vel = look.velvet ?? 0x3a1428;
-  const acc = look.accent ?? 0x6b1a2e;
+  const vel = themeColor(look.velvet ?? 0x1c2650);
+  const acc = themeColor(look.accent ?? 0x2f7a76);
   return cached(`panel-${W}x${H}-${vel}-${acc}`, () => {
     const res = Math.min(2, 2600 / Math.max(W, H));
     return paint(W + PANEL_PAD * 2, H + PANEL_PAD * 2, (c) => {
       c.translate(PANEL_PAD, PANEL_PAD);
-      const R = 30;
-      const F = 15;
+      const R = 10;
+      const F = 13;
       // Soft shadow underneath.
       for (let i = 0; i < 8; i++) {
         rrect(c, -i * 1.5, 8 + i * 0.6 - i * 1.5, W + i * 3, H + i * 3, R + i * 2);
-        c.fillStyle = `rgba(6,2,8,${0.12 - i * 0.012})`;
+        c.fillStyle = `rgba(4,6,16,${0.12 - i * 0.012})`;
         c.fill();
       }
       // Brass frame.
@@ -179,10 +177,10 @@ export function panelTexture(W: number, H: number, look: PanelLook = {}) {
       const vy = F;
       const vw = W - F * 2;
       const vh = H - F * 2;
-      rrect(c, vx, vy, vw, vh, R - F * 0.6);
-      const vg = c.createRadialGradient(vx + vw * 0.3, vy + vh * 0.12, 0, vx + vw * 0.45, vy + vh * 0.4, Math.max(vw, vh) * 0.95);
-      vg.addColorStop(0, rgb(light(vel, 0.06)));
-      vg.addColorStop(0.45, rgb(dark(vel, 0.35)));
+      rrect(c, vx, vy, vw, vh, Math.max(0, R - F * 0.6));
+      const vg = c.createLinearGradient(0, vy, 0, vy + vh);
+      vg.addColorStop(0, rgb(light(vel, 0.04)));
+      vg.addColorStop(0.55, rgb(dark(vel, 0.3)));
       vg.addColorStop(1, rgb(VELVET));
       c.fillStyle = vg;
       c.fill();
@@ -190,36 +188,53 @@ export function panelTexture(W: number, H: number, look: PanelLook = {}) {
       c.lineWidth = 2;
       c.stroke();
       c.save();
-      rrect(c, vx, vy, vw, vh, R - F * 0.6);
+      rrect(c, vx, vy, vw, vh, Math.max(0, R - F * 0.6));
       c.clip();
-      velvetNap(c, vx, vy, vw, vh, W * 13 + H, 1, 0.05);
-      // Velvet folds: very soft vertical light bands.
-      for (let i = 0; i < 6; i++) {
-        const x = vx + (i + 0.5) * (vw / 6);
-        const g = c.createLinearGradient(x - vw / 14, 0, x + vw / 14, 0);
-        g.addColorStop(0, 'rgba(255,200,220,0)');
-        g.addColorStop(0.5, `rgba(255,200,220,${0.018 + (i % 2) * 0.012})`);
-        g.addColorStop(1, 'rgba(255,200,220,0)');
-        c.fillStyle = g;
-        c.fillRect(x - vw / 14, vy, vw / 7, vh);
+      // Moonlight from the upper left over the glass, and faint vertical flutes like brushed stone.
+      glowAt(c, vx + vw * 0.2, vy, vw * 0.7, vh * 0.8, 0x6e8ce6, 0.16);
+      for (let x = vx + 6; x < vx + vw; x += 12) {
+        c.fillStyle = 'rgba(255,255,255,0.018)';
+        c.fillRect(x, vy, 2, vh);
       }
+      velvetNap(c, vx, vy, vw, vh, W * 13 + H, 0.5, 0.035);
       // Inner shadow from the frame.
-      c.strokeStyle = 'rgba(6,2,8,0.55)';
+      c.strokeStyle = 'rgba(4,6,16,0.55)';
       c.lineWidth = 14;
-      rrect(c, vx, vy + 3, vw, vh, R - F * 0.6);
+      rrect(c, vx, vy + 3, vw, vh, Math.max(0, R - F * 0.6));
       c.stroke();
       c.restore();
       // Inner deco hairline.
-      rrect(c, vx + 9, vy + 9, vw - 18, vh - 18, R - F * 0.6 - 6);
+      rrect(c, vx + 9, vy + 9, vw - 18, vh - 18, Math.max(0, R - F * 0.6 - 6));
       c.strokeStyle = 'rgba(224,178,90,0.3)';
       c.lineWidth = 1.2;
       c.stroke();
-      // Moth corner ornaments.
-      const s = Math.min(58, Math.min(W, H) * 0.09);
-      cornerOrnament(c, vx + 2, vy + 2, 1, 1, s, acc);
-      cornerOrnament(c, vx + vw - 2, vy + 2, -1, 1, s, acc);
-      cornerOrnament(c, vx + 2, vy + vh - 2, 1, -1, s, acc);
-      cornerOrnament(c, vx + vw - 2, vy + vh - 2, -1, -1, s, acc);
+      // Art-deco corners.
+      const s = Math.min(54, Math.min(W, H) * 0.085);
+      cornerOrnament(c, vx + 7, vy + 7, 1, 1, s, acc);
+      cornerOrnament(c, vx + vw - 7, vy + 7, -1, 1, s, acc);
+      cornerOrnament(c, vx + 7, vy + vh - 7, 1, -1, s, acc);
+      cornerOrnament(c, vx + vw - 7, vy + vh - 7, -1, -1, s, acc);
+      // Sunburst crown in the middle of the top bar.
+      c.save();
+      c.translate(W / 2, F * 0.5);
+      for (let i = 0; i < 11; i++) {
+        const a0 = Math.PI + (i / 11) * Math.PI;
+        const a1 = Math.PI + ((i + 1) / 11) * Math.PI;
+        if (i % 2) continue;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(Math.cos(a0) * 30, Math.sin(a0) * 30);
+        c.lineTo(Math.cos(a1) * 30, Math.sin(a1) * 30);
+        c.closePath();
+        c.fillStyle = brass(c, -30, -30, 30, 0);
+        c.fill();
+      }
+      c.beginPath();
+      c.arc(0, 0, 30, Math.PI, 0);
+      c.strokeStyle = INK;
+      c.lineWidth = 1.2;
+      c.stroke();
+      c.restore();
     }, res);
   });
 }
@@ -303,7 +318,7 @@ export function plaque(text: string, opts: { size?: number; minW?: number; color
   return c;
 }
 
-/** The 48 px brass knob with a cross, top right of every panel. */
+/** The 48 px close key (night glass in a brass rim, with a cross), top right of every panel. */
 export function closeKnob(onClose: () => void, size = 52) {
   const c = new Container();
   const r = size / 2;
@@ -312,26 +327,19 @@ export function closeKnob(onClose: () => void, size = 52) {
       paint(size + 16, size + 16, (cx) => {
         const o = 8 + r;
         if (hov) glowAt(cx, o, o, r + 8, r + 8, 0xffcf7a, 0.45);
-        cx.beginPath();
-        cx.arc(o + 1, o + 3, r - 1, 0, Math.PI * 2);
-        cx.fillStyle = 'rgba(6,2,8,0.5)';
+        rrect(cx, o - r + 2, o - r + 4, r * 2 - 2, r * 2 - 2, 6);
+        cx.fillStyle = 'rgba(4,6,16,0.5)';
         cx.fill();
-        cx.beginPath();
-        cx.arc(o, o, r - 1, 0, Math.PI * 2);
+        rrect(cx, o - r + 1, o - r + 1, r * 2 - 2, r * 2 - 2, 6);
         fillInk(cx, brass(cx, o - r, o - r, o + r * 0.6, o + r, hov ? 0.2 : 0), 2);
-        cx.beginPath();
-        cx.arc(o, o, r - 6, 0, Math.PI * 2);
-        const g = cx.createRadialGradient(o - r * 0.3, o - r * 0.35, 0, o, o, r);
-        g.addColorStop(0, '#4a2034');
-        g.addColorStop(1, '#170910');
+        rrect(cx, o - r + 4.5, o - r + 4.5, r * 2 - 9, r * 2 - 9, 4);
+        const g = cx.createLinearGradient(0, o - r, 0, o + r);
+        g.addColorStop(0, '#26336a');
+        g.addColorStop(1, '#0c1230');
         fillInk(cx, g, 1.2);
         cx.save();
         cx.clip();
-        cx.strokeStyle = 'rgba(6,2,8,0.6)';
-        cx.lineWidth = 4;
-        cx.beginPath();
-        cx.arc(o, o + 2, r - 6, 0, Math.PI * 2);
-        cx.stroke();
+        glowAt(cx, o - r * 0.4, o - r, r * 1.4, r * 1.2, 0x8aa0e6, 0.25);
         cx.restore();
         const k = r * 0.32;
         cx.lineCap = 'round';
@@ -410,13 +418,14 @@ export function plateTexture(w: number, h: number, tone: 'brass' | 'dim' | 'gree
  * A display-case compartment: a dark wood-and-brass box with a velvet cushion, a spotlight
  * from above and glass reflections. `lit` adds a warm glow (selected / owned).
  */
-export function caseTexture(w: number, h: number, velvet = 0x5a1630, lit = false) {
+export function caseTexture(w: number, h: number, velvetIn = 0x1c2650, lit = false) {
+  const velvet = themeColor(velvetIn);
   return cached(`case-${w}x${h}-${velvet}-${lit}`, () =>
     paint(w + 12, h + 14, (c) => {
       c.translate(6, 4);
-      const r = 16;
+      const r = 8;
       rrect(c, 2, 5, w - 4, h, r);
-      c.fillStyle = 'rgba(6,2,8,0.55)';
+      c.fillStyle = 'rgba(4,6,16,0.55)';
       c.fill();
       // Brass bezel.
       rrect(c, 0, 0, w, h, r);
@@ -433,8 +442,8 @@ export function caseTexture(w: number, h: number, velvet = 0x5a1630, lit = false
       const b = 6;
       rrect(c, b, b, w - b * 2, h - b * 2, r - 4);
       const wg = c.createLinearGradient(0, b, 0, h - b);
-      wg.addColorStop(0, '#2a1218');
-      wg.addColorStop(1, '#12070c');
+      wg.addColorStop(0, '#1a2244');
+      wg.addColorStop(1, '#080b1c');
       fillInk(c, wg, 1.2);
       c.save();
       rrect(c, b, b, w - b * 2, h - b * 2, r - 4);
@@ -462,7 +471,7 @@ export function caseTexture(w: number, h: number, velvet = 0x5a1630, lit = false
       // Contact shadow where the object sits.
       glowAt(c, w / 2, cy + 2, w * 0.26, 8, 0x0a0410, 0.45);
       // Inner shadow below the bezel.
-      c.strokeStyle = 'rgba(6,2,8,0.65)';
+      c.strokeStyle = 'rgba(4,6,16,0.65)';
       c.lineWidth = 10;
       rrect(c, b, b + 3, w - b * 2, h - b * 2, r - 4);
       c.stroke();

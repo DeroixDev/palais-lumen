@@ -34,7 +34,7 @@ html #quip-strip {
   width: min(calc(100vw - 16px), 520px); box-sizing: border-box; display: flex; align-items: center; gap: 8px;
   min-height: 42px; padding: 5px 12px 5px 6px; border-radius: 12px;
   background: linear-gradient(180deg, #fbf3df, #ead8b0); color: #2a1406;
-  box-shadow: inset 0 0 0 2px #241016, inset 0 3px 0 rgba(255,255,255,.7), inset 0 0 0 5px rgba(176,128,52,.25), 0 6px 12px rgba(0,0,0,.45);
+  box-shadow: inset 0 0 0 2px #0a0c1c, inset 0 3px 0 rgba(255,255,255,.7), inset 0 0 0 5px rgba(176,128,52,.25), 0 6px 12px rgba(0,0,0,.45);
   font: 600 .95rem/1.12 var(--body); pointer-events: auto;
   transition: opacity .2s ease-out, transform .25s cubic-bezier(.3,1.25,.55,1);
 }
@@ -42,7 +42,7 @@ html #quip-strip.off { opacity: 0; transform: translateX(-50%) translateY(-6px) 
 html #toasts:not(:empty) ~ #quip-strip { opacity: 0; pointer-events: none; }
 html #quip-strip .qs-tag {
   flex: none; align-self: center; padding: 3px 7px 2px; border-radius: 6px; font: 700 .7rem/1 var(--body); letter-spacing: .06em;
-  color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 1.5px #241016; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 1.5px #0a0c1c; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 html #quip-strip .qs-t { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 html body.hud-off #quip-strip, html body.modal-open #quip-strip { display: none; }
@@ -55,12 +55,12 @@ html body.hud-off #quip-strip, html body.modal-open #quip-strip { display: none;
 html .day-chip {
   display: none; position: relative; align-self: center; flex: none; align-items: center; gap: 5px; height: 22px; margin: -4px auto; padding: 0 8px 0 2px;
   border-radius: 11px; font: 700 .85rem/1 var(--body); letter-spacing: .03em; color: var(--cream); white-space: nowrap; cursor: pointer;
-  background: linear-gradient(180deg, #3a1228, #1e0814); box-shadow: inset 0 0 0 1.5px rgba(224,178,90,.8), 0 0 0 1px rgba(22,10,20,.9);
+  background: linear-gradient(180deg, #1e2a5a, #0b1027); box-shadow: inset 0 0 0 1.5px rgba(224,178,90,.8), 0 0 0 1px rgba(8,10,24,.9);
   min-height: 0; text-shadow: 0 1px 0 rgba(0,0,0,.6);
 }
 html .day-chip::before { content: ""; position: absolute; inset: -12px -6px; } /* 46 px touch target */
 html .day-chip .dc-medal { width: 20px; height: 20px; flex: none; background: center / contain no-repeat; }
-html .day-chip .dc-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff6b5f; box-shadow: 0 0 0 1.2px #160a14; flex: none; }
+html .day-chip .dc-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff6b5f; box-shadow: 0 0 0 1.2px #0b1027; flex: none; }
 html .day-chip[aria-expanded="true"] { box-shadow: inset 0 0 0 2px #ffd98a, 0 0 10px rgba(255,207,122,.5); }
 html body.in-game .day-chip.has { display: inline-flex; }
 html .day-chip:active { transform: scale(.94); }
@@ -70,14 +70,14 @@ html .day-chip:active { transform: scale(.94); }
 @media (max-width: 1100px) {
   html #modal { padding-left: 8px; padding-right: 8px; }
   html .card-body { -webkit-overflow-scrolling: touch; }
-  html #modal .dbg-row select { min-height: 44px; max-width: 100%; font: inherit; border-radius: 10px; background: rgba(10,4,12,.55); color: inherit; border: 1px solid rgba(224,178,90,.6); padding: 0 8px; }
+  html #modal .dbg-row select { min-height: 44px; max-width: 100%; font: inherit; border-radius: 10px; background: rgba(6,8,20,.55); color: inherit; border: 1px solid rgba(224,178,90,.6); padding: 0 8px; }
   html #modal .dbg-row button { padding: 0 .9em; }
   html .slot-info span { overflow-wrap: anywhere; }
   html .transfer textarea { width: 100%; box-sizing: border-box; }
 }
 @media (max-height: 500px) {
   html #modal { padding-top: calc(var(--hud-h) + 6px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); }
-  html .card { max-height: calc(100vh - var(--hud-h) - 12px); max-height: calc(100dvh - var(--hud-h) - 12px - env(safe-area-inset-bottom, 0px)); border-width: 12px; border-image-width: 30px; padding: 6px 10px 6px; }
+  html .card { max-height: calc(100vh - var(--hud-h) - 12px); max-height: calc(100dvh - var(--hud-h) - 12px - env(safe-area-inset-bottom, 0px)); padding: 10px 12px 8px; }
   html .card h2 { font-size: 1.1rem; margin-bottom: 8px; padding-bottom: 6px; }
   html .card p { font-size: 1rem; margin-bottom: 6px; }
   html .actions { margin-top: 8px; padding-top: 8px; }

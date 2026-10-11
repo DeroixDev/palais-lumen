@@ -66,7 +66,7 @@ function charmMedal(id: Charm['id']) {
       // Hanging loop.
       c.beginPath();
       c.arc(42, 4, 5, 0, Math.PI * 2);
-      c.strokeStyle = 'rgba(22,10,20,0.85)';
+      c.strokeStyle = 'rgba(8,10,24,0.85)';
       c.lineWidth = 4;
       c.stroke();
       c.strokeStyle = '#e6b85a';

@@ -95,8 +95,8 @@ function shutterTexture(size: number, hot: boolean) {
     c.beginPath();
     c.arc(o, o, r * 0.72, 0, Math.PI * 2);
     const g = c.createRadialGradient(o - r * 0.25, o - r * 0.3, 1, o, o, r * 0.72);
-    g.addColorStop(0, '#5a3a6a');
-    g.addColorStop(1, '#120614');
+    g.addColorStop(0, '#3a4a8a');
+    g.addColorStop(1, '#080c20');
     fillInk(c, g, 1.6);
     // Aperture blades.
     c.save();

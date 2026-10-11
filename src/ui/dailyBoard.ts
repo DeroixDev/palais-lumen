@@ -101,7 +101,7 @@ function paintBoard(cv: HTMLCanvasElement, rows: ReturnType<typeof lastDays>, to
   // Title.
   c.textAlign = 'center';
   c.fillStyle = '#ffdf9a';
-  c.font = `${W < 420 ? 17 : 20}px Bungee, Impact, sans-serif`;
+  c.font = `700 ${W < 420 ? 17 : 20}px Cinzel, Georgia, serif`;
   c.fillText('BESTENLISTE', W / 2, 38);
   // Today's plate.
   const e = rows[0];

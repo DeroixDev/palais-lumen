@@ -85,8 +85,8 @@ function plateTexture(w: number, color: number) {
     c.fill();
     rrect(c, 0, 0, w, h - 2, 14);
     const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#2e1024');
-    g.addColorStop(1, '#14060f');
+    g.addColorStop(0, '#1e2a5a');
+    g.addColorStop(1, '#0a0e24');
     fillInk(c, g, 2.2);
     rrect(c, 2.5, 2.5, w - 5, h - 7, 12);
     c.strokeStyle = gold(c, 0, 0, w, h);

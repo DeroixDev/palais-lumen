@@ -97,15 +97,40 @@ export function velvetNap(c: Ctx, x: number, y: number, w: number, h: number, se
   }
 }
 
-/** Little brass diamond stud. */
-function stud(c: Ctx, x: number, y: number, s: number, dull: boolean) {
+/**
+ * The house moved from plum velvet to night-blue glass. Games still pass their old velvet
+ * shades (0x3a1428 and friends); dark plums and mauves are mapped onto the night palette with
+ * the same brightness, so every button in the house speaks the same material. Reds, greens,
+ * brass and other deliberate colours are kept.
+ */
+export function themeColor(color: number) {
+  const r = (color >> 16) & 255;
+  const g = (color >> 8) & 255;
+  const b = color & 255;
+  const l = luma(color);
+  if (l > 0.32 || r < g + 8 || b < r * 0.45 || r < b * 0.8 || b < g - 4) return color;
+  const k = Math.max(0.55, Math.min(1.9, l / 0.17));
+  const base = 0x1e2a56;
+  return k >= 1 ? light(base, Math.min(0.35, (k - 1) * 0.3)) : dark(base, (1 - k) * 0.7);
+}
+
+/** Corner radius of the painted keys: nearly square, like the brass-framed glass of the house. */
+export const KEY_RADIUS = 5;
+
+/** Art-deco corner brackets (top left, bottom right), as on the HTML keys. */
+function brackets(c: Ctx, x: number, y: number, w: number, h: number, col: string, s: number) {
+  c.strokeStyle = col;
+  c.lineWidth = 2;
+  c.lineCap = 'butt';
   c.beginPath();
-  c.moveTo(x, y - s);
-  c.lineTo(x + s * 0.8, y);
-  c.lineTo(x, y + s);
-  c.lineTo(x - s * 0.8, y);
-  c.closePath();
-  fillInk(c, brass(c, x - s, y - s, x + s, y + s, 0.15, dull), 1);
+  c.moveTo(x, y + s);
+  c.lineTo(x, y);
+  c.lineTo(x + s, y);
+  c.moveTo(x + w, y + h - s);
+  c.lineTo(x + w, y + h);
+  c.lineTo(x + w - s, y + h);
+  c.stroke();
+  c.lineCap = 'round';
 }
 
 function faceTexture(w: number, h: number, color: number, st: FaceState): Texture {
@@ -120,44 +145,37 @@ function faceTexture(w: number, h: number, color: number, st: FaceState): Textur
       c.translate(PAD, PAD);
       const dis = st === 'disabled';
       const hov = st === 'hover';
-      const r = Math.min(h * 0.34, 22);
-      const bw = Math.max(3, Math.min(6, h * 0.1));
-      const face = dis ? mix(color, 0x3e3640, 0.7) : hov ? light(color, 0.08) : color;
+      const r = KEY_RADIUS;
+      const bw = Math.max(2.5, Math.min(4, h * 0.07));
+      const face = dis ? mix(color, 0x343a4c, 0.7) : hov ? light(color, 0.08) : color;
       const lum = luma(face);
+      const glass = lum < 0.35;
       // Warm halo when hovered (baked, no live filter).
       if (hov) glowAt(c, w / 2, h / 2, w / 2 + PAD, h / 2 + PAD * 0.9, 0xffcf7a, 0.42);
-      // Soft drop shadow.
+      // Soft drop shadow and the dark seam around the rim.
       for (let i = 0; i < 4; i++) {
         rrect(c, -i + 1, 3 + i * 0.8, w + i * 2 - 2, h, r + i);
-        c.fillStyle = `rgba(10,4,16,${0.16 - i * 0.03})`;
+        c.fillStyle = `rgba(4,6,16,${0.18 - i * 0.035})`;
         c.fill();
       }
-      // Brass frame.
+      // Brass rim.
       rrect(c, 0, 0, w, h, r);
       fillInk(c, brass(c, 0, 0, w * 0.35, h * 1.4, hov ? 0.22 : 0, dis), 2);
-      if (!dis) {
-        // The 2 px gloss edge at the upper left.
-        c.save();
-        rrect(c, 0, 0, w, h, r);
-        c.clip();
-        c.strokeStyle = `rgba(255,248,226,${hov ? 0.95 : 0.7})`;
-        c.lineWidth = 2;
-        rrect(c, 1.5, 1.5, w + 4, h + 4, r);
-        c.stroke();
-        c.restore();
-      }
-      // Face (velvet or enamel in the button colour).
+      // Face: night glass (dark colours) or enamel/brass (light colours).
       const fx = bw;
       const fy = bw;
       const fw = w - bw * 2;
       const fh = h - bw * 2;
-      const fr = Math.max(2, r - bw * 0.8);
+      const fr = Math.max(1.5, r - bw * 0.6);
       rrect(c, fx, fy, fw, fh, fr);
-      const g = c.createLinearGradient(0, fy, 0, fy + fh);
-      g.addColorStop(0, rgb(light(face, lum < 0.35 ? 0.16 : 0.3)));
-      g.addColorStop(0.5, rgb(face));
-      g.addColorStop(1, rgb(dark(face, 0.32)));
-      c.fillStyle = g;
+      if (!glass && !dis && face === color && luma(color) > 0.55) c.fillStyle = brass(c, fx, fy, fx + fw * 0.3, fy + fh * 1.5, hov ? 0.12 : 0.04);
+      else {
+        const g = c.createLinearGradient(0, fy, 0, fy + fh);
+        g.addColorStop(0, rgb(light(face, glass ? 0.14 : 0.3)));
+        g.addColorStop(0.5, rgb(face));
+        g.addColorStop(1, rgb(dark(face, glass ? 0.45 : 0.3)));
+        c.fillStyle = g;
+      }
       c.fill();
       c.strokeStyle = INK;
       c.lineWidth = 1.2;
@@ -165,36 +183,27 @@ function faceTexture(w: number, h: number, color: number, st: FaceState): Textur
       c.save();
       rrect(c, fx, fy, fw, fh, fr);
       c.clip();
-      if (lum < 0.35) velvetNap(c, fx, fy, fw, fh, (w * 31 + h * 7 + color) >>> 0, 1.4, 0.05);
-      // Light pooling at the upper left (the room's lamps are up there).
-      glowAt(c, fx + fw * 0.28, fy + fh * 0.1, fw * 0.55, fh * 0.9, 0xfff4dc, dis ? 0.04 : lum < 0.35 ? 0.1 : 0.16);
+      // Moonlight pooling at the upper left of the glass.
+      glowAt(c, fx + fw * 0.26, fy, fw * 0.62, fh * 0.95, glass ? 0x8aa0e6 : 0xfff4dc, dis ? 0.04 : glass ? 0.2 : 0.16);
       c.restore();
       rrect(c, fx, fy, fw, fh, fr);
       insetTop(c, dis ? 0.25 : 0.4, 2);
-      // Gloss band on the upper half.
+      // A thin gloss line under the top edge.
       if (!dis) {
         c.save();
         rrect(c, fx, fy, fw, fh, fr);
         c.clip();
         const sg = c.createLinearGradient(0, fy, 0, fy + fh * 0.5);
-        sg.addColorStop(0, `rgba(255,250,235,${lum < 0.35 ? 0.1 : 0.26})`);
+        sg.addColorStop(0, `rgba(255,250,235,${glass ? 0.1 : 0.26})`);
         sg.addColorStop(1, 'rgba(255,250,235,0)');
         c.fillStyle = sg;
-        rrect(c, fx + 4, fy + 2, fw - 8, fh * 0.46, fr * 0.8);
-        c.fill();
+        c.fillRect(fx + 2, fy + 1, fw - 4, fh * 0.46);
         c.restore();
       }
-      // Art-deco hairline inside velvet faces.
-      if (lum < 0.35 && h >= 40 && !dis) {
-        rrect(c, fx + 4, fy + 4, fw - 8, fh - 8, Math.max(2, fr - 4));
-        c.strokeStyle = 'rgba(240,200,104,0.32)';
-        c.lineWidth = 1;
-        c.stroke();
-      }
-      // Studs at the ends of wide buttons.
-      if (w >= h * 2.6 && h >= 38) {
-        stud(c, bw * 0.5 + 0.5, h / 2, Math.max(3, bw * 0.9), dis);
-        stud(c, w - bw * 0.5 - 0.5, h / 2, Math.max(3, bw * 0.9), dis);
+      // Art-deco brackets in two corners.
+      if (h >= 34 && w >= 44 && !dis) {
+        const s = Math.min(9, h * 0.2);
+        brackets(c, fx + 4, fy + 4, fw - 8, fh - 8, glass ? 'rgba(255,220,150,0.72)' : 'rgba(90,52,12,0.55)', s);
       }
     },
     res,
@@ -232,7 +241,7 @@ export function lockTexture() {
 
 export function button(o: ButtonOptions): Button {
   const c = new Container() as Button;
-  const color = o.color ?? COLORS.brass;
+  const color = themeColor(o.color ?? COLORS.brass);
   const w = Math.round(o.width);
   const h = Math.round(o.height);
   const bg = new Sprite(faceTexture(w, h, color, 'normal'));
@@ -245,9 +254,9 @@ export function button(o: ButtonOptions): Button {
     style: {
       fontFamily: o.display === false ? FONT_BODY : FONT_DISPLAY,
       fontSize: o.fontSize ?? Math.round(h * 0.4),
-      fontWeight: o.display === false ? '700' : '400',
+      fontWeight: '700',
       fill: ink,
-      letterSpacing: o.display === false ? 0.5 : 1.5,
+      letterSpacing: o.display === false ? 0.5 : 2,
       // Engraved into brass (light lip below) or embossed on velvet (dark shadow below).
       dropShadow: darkText
         ? { color: 0xfff4d0, alpha: 0.45, blur: 0, distance: 1.2, angle: Math.PI / 2 }
@@ -277,7 +286,7 @@ export function button(o: ButtonOptions): Button {
   const ring = new Graphics();
   const rw = w + 10;
   const rh = h + 10;
-  const rr = Math.min(h * 0.34, 22) + 5;
+  const rr = KEY_RADIUS + 5;
   ring.roundRect(-rw / 2 - 3, -rh / 2 - 3, rw + 6, rh + 6, rr + 3).stroke({ color: COLORS.lamp, width: 6, alpha: 0.22 });
   ring.roundRect(-rw / 2, -rh / 2, rw, rh, rr).stroke({ color: COLORS.lamp, width: 3 });
   ring.visible = false;
@@ -358,7 +367,7 @@ export function button(o: ButtonOptions): Button {
   const a11y = focusable(c, {
     label: () => (typeof o.ariaLabel === 'function' ? o.ariaLabel(txt.text) : (o.ariaLabel ?? txt.text)),
     rect: { w, h },
-    radius: Math.min(h * 0.34, 22),
+    radius: KEY_RADIUS + 2,
     locked: () => locked,
     enabled: () => enabled,
     activate: () => {
@@ -402,9 +411,9 @@ export function label(text: string, size: number, color = COLORS.white, display 
     style: {
       fontFamily: display ? FONT_DISPLAY : FONT_BODY,
       fontSize: size,
-      fontWeight: display ? '400' : '600',
+      fontWeight: display ? '700' : '600',
       fill: color,
-      letterSpacing: display ? 1.5 : 0.5,
+      letterSpacing: display ? 2 : 0.5,
       // A soft dark lip keeps light text readable over painted, busy backgrounds.
       dropShadow: luma(color) > 0.45 ? { color: 0x0a0410, alpha: 0.65, blur: 2, distance: 1.5, angle: Math.PI / 2 } : false,
     },

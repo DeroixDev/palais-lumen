@@ -36,7 +36,8 @@ export class Lobby {
       sfx.click();
       this.actions.go();
     });
-    // Tagesherausforderung: a button under "Spielstände" and one line about today.
+    // Tagesherausforderung: a key in the rail next to "Spielstände" and one line about today
+    // under the rail.
     const daily = document.createElement('button');
     daily.id = 'm-daily';
     daily.textContent = 'Tagesherausforderung';
@@ -161,7 +162,8 @@ export class Lobby {
     $('#skip-hint').hidden = true;
     const d = this.state.data;
     const fresh = d.stats.rounds === 0 && d.evening.number === 1 && d.season.number === 1;
-    $('#m-play').textContent = fresh ? 'Spielen' : 'Weiterspielen';
+    // The main key carries the save line under its label, like a hotel key tag.
+    $('#m-play .cap').textContent = fresh ? 'Spielen' : 'Fortsetzen';
     $('#m-new').hidden = fresh;
     $('#title-info').textContent = fresh
       ? `Du startest mit 1.000 ${CURRENCY_PLURAL}.`

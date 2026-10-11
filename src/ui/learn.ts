@@ -19,7 +19,7 @@ const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '±') + formatChips
 const CSS = `
 #learn { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px); background: rgba(8,4,10,.66); animation: fadein .25s ease-out both; grid-template-columns: minmax(0, 1fr); }
 #learn.closing { animation: fadeout .18s ease-in both; pointer-events: none; }
-.lb-book { position: relative; box-sizing: border-box; width: min(100%, 760px); height: 100%; max-height: 980px; display: flex; flex-direction: column; border: 18px solid transparent; border-radius: 22px; border-image: var(--nf-frame, none) 80 / 40px stretch; background: var(--lb-paper, #ead8ac) center / cover border-box, linear-gradient(180deg, #efdfb6, #d9bf8c) border-box; box-shadow: 0 30px 70px rgba(0,0,0,.65); animation: panelin .3s cubic-bezier(.3,1.25,.55,1) both; color: #33200f; padding-top: 34px; }
+.lb-book { position: relative; box-sizing: border-box; width: min(100%, 760px); height: 100%; max-height: 980px; display: flex; flex-direction: column; border: 12px solid #141c40; border-radius: 8px; background: var(--lb-paper, #ead8ac) center / cover padding-box, linear-gradient(180deg, #efdfb6, #d9bf8c) padding-box; box-shadow: 0 0 0 2px #e0b25a, inset 0 0 0 2px rgba(224,178,90,.75), 0 30px 70px rgba(0,0,0,.65); animation: panelin .3s cubic-bezier(.3,1.25,.55,1) both; color: #33200f; padding-top: 34px; }
 .lb-x { position: absolute; top: -12px; right: -12px; width: 48px; height: 48px; min-height: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; z-index: 2; }
 .lb-x svg { width: 20px; height: 20px; stroke-width: 2.6; }
 .lb-scroll { overflow: auto; overflow-x: hidden; min-height: 0; min-width: 0; padding: 0 clamp(14px, 4vw, 34px) 24px; scrollbar-width: thin; scrollbar-color: #a8741f transparent; overscroll-behavior: contain; }
@@ -46,7 +46,7 @@ const CSS = `
 .lb-table tr:nth-child(even) td { background: rgba(120,80,30,.06); }
 .lb-bar { display: inline-block; height: 9px; border-radius: 4px; background: linear-gradient(90deg, #2f6a3a, #6aa860); vertical-align: middle; margin-right: 6px; box-shadow: 0 0 0 1px rgba(30,50,20,.4); }
 .lb-sim { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 6px; }
-.lb-sim button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px rgba(255,248,220,.6), 0 0 0 2px rgba(22,10,20,.92), 0 0 0 4px #6b1a2e; }
+.lb-sim button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px rgba(255,248,220,.6), 0 0 0 2px rgba(8,10,24,.92), 0 0 0 4px #6b1a2e; }
 .lb-out { font: 600 1.1rem/1.4 var(--body); min-height: 3em; }
 .lb-note { margin-top: 22px; padding: 12px 14px; border-radius: 10px; background: rgba(107,26,46,.09); box-shadow: inset 0 0 0 1px rgba(107,26,46,.3); }
 .lb-note p { margin: 0 0 6px; }

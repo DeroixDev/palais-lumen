@@ -109,13 +109,13 @@ function injectStyle() {
   s.id = 'devlog-style';
   s.textContent = `
   .devlog { display: grid; gap: 10px; }
-  .dl-entry { border-radius: 10px; background: linear-gradient(180deg, rgba(58,20,40,.85), rgba(26,6,18,.85)); box-shadow: inset 0 0 0 1.5px rgba(224,178,90,.55); }
+  .dl-entry { border-radius: 10px; background: linear-gradient(180deg, rgba(30,42,90,.85), rgba(11,16,39,.85)); box-shadow: inset 0 0 0 1.5px rgba(224,178,90,.55); }
   .dl-entry[open] { box-shadow: inset 0 0 0 2px rgba(255,217,138,.9), 0 0 14px rgba(255,207,122,.18); }
   .dl-entry summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; min-height: 44px; box-sizing: border-box; }
   .dl-entry summary::-webkit-details-marker { display: none; }
   .dl-entry summary::after { content: ""; margin-left: auto; flex: none; width: 9px; height: 9px; border: solid var(--lamp); border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-3px); transition: transform .2s; }
   .dl-entry[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
-  .dl-v { flex: none; min-width: 3.4em; text-align: center; padding: 6px 6px 5px; border-radius: 7px; font: 1rem/1 var(--display); color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 1.5px rgba(22,10,20,.9); }
+  .dl-v { flex: none; min-width: 3.4em; text-align: center; padding: 6px 6px 5px; border-radius: 7px; font: 1rem/1 var(--display); color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 1.5px rgba(8,10,24,.9); }
   .dl-head { display: grid; gap: 3px; min-width: 0; }
   .dl-head strong { font: 1.12rem/1.15 var(--display); color: var(--cream, #f5e6c8); letter-spacing: .02em; }
   .dl-meta { display: flex; gap: 8px; align-items: center; font-size: .82rem; color: var(--muted); letter-spacing: .04em; }
@@ -128,7 +128,7 @@ function injectStyle() {
   .dl-body h3 { margin: 10px 0 4px; font: 700 .86rem/1.2 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--lamp); }
   .dl-body ul { margin: 0; padding-left: 1.15em; display: grid; gap: 4px; }
   .dl-body li::marker { color: var(--lamp); }
-  .news-dot { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #ff6b5f; box-shadow: 0 0 0 2px #160a14, 0 0 8px rgba(255,107,95,.8); pointer-events: none; }
+  .news-dot { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: #ff6b5f; box-shadow: 0 0 0 2px #0b1027, 0 0 8px rgba(255,107,95,.8); pointer-events: none; }
   @media (prefers-reduced-motion: reduce) { .dl-entry summary::after { transition: none; } }
   `;
   document.head.appendChild(s);

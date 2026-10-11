@@ -12,7 +12,7 @@ export function dayCard(title: string, sub: string, screenW: number, screenH: nu
   leavePhoto();
   // On narrow screens the goal line breaks in two, so it stays at least 14 px tall.
   const narrow = screenW < 560;
-  const { tex, fullW, visW } = plaqueTexture(title, 0xff5fa2, { size: 60, sub: narrow ? sub.replace(' · ', '\n') : sub, subSize: narrow ? 30 : 26 });
+  const { tex, fullW, visW } = plaqueTexture(title, 0x8fb0ff, { size: 60, sub: narrow ? sub.replace(' · ', '\n') : sub, subSize: narrow ? 30 : 26 });
   const c = new Container();
   const glow = new Sprite(glowTexture());
   glow.anchor.set(0.5);

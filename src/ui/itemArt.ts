@@ -105,7 +105,7 @@ function reel(c: Ctx, face: string, ink: string) {
   g.addColorStop(1, '#c8b898');
   fillInk(c, g, 1.5);
   c.fillStyle = ink;
-  c.font = 'bold 16px Bungee, Impact, sans-serif';
+  c.font = '700 16px Cinzel, Georgia, serif';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   c.fillText(face, 0, 10);
@@ -186,7 +186,7 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     c.fillStyle = '#fff4d0';
     c.strokeStyle = INK;
     c.lineWidth = 3;
-    c.font = '26px Bungee, Impact, sans-serif';
+    c.font = '700 26px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.strokeText('?', 0, 9);
@@ -214,7 +214,7 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     c.stroke();
     c.setLineDash([]);
     c.fillStyle = '#7a3a1a';
-    c.font = 'bold 9px Bungee, Impact, sans-serif';
+    c.font = '700 9px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.fillText('BONUS', -8, -3);
     c.fillText('+1', -8, 10);
@@ -421,7 +421,7 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     c.fillStyle = '#fff4d0';
     c.strokeStyle = INK;
     c.lineWidth = 3;
-    c.font = '13px Bungee, Impact, sans-serif';
+    c.font = '700 13px Cinzel, Georgia, serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.strokeText('×1,5', 0, 24);

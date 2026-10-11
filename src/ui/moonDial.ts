@@ -150,7 +150,7 @@ function needleTex(len: number) {
       fillInk(c, brass(c, 0, -6, len * 0.3, 6, 0.2), 2);
       c.beginPath();
       c.arc(0, 0, 7, 0, Math.PI * 2);
-      fillInk(c, '#3a1428', 1.6);
+      fillInk(c, '#1e2a5a', 1.6);
     }, 2);
     cache.set(k, t);
   }

@@ -57,7 +57,7 @@ function stripTexture(w: number, h: number) {
       rrect(c, 0, 0, w, h, 14);
       const g = c.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, 'rgba(48,18,40,0.95)');
-      g.addColorStop(1, 'rgba(18,8,16,0.95)');
+      g.addColorStop(1, 'rgba(10,12,28,0.95)');
       fillInk(c, g, 1.6);
       rrect(c, 3, 3, w - 6, h - 6, 11);
       c.strokeStyle = 'rgba(224,178,90,0.55)';

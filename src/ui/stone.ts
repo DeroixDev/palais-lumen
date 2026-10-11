@@ -28,7 +28,7 @@ function paintStone(c: CanvasRenderingContext2D, o: number, r: number) {
   bg.addColorStop(1, '#6a4410');
   c.fillStyle = bg;
   c.fill();
-  c.strokeStyle = 'rgba(22,10,20,0.9)';
+  c.strokeStyle = 'rgba(8,10,24,0.9)';
   c.lineWidth = Math.max(1, r * 0.12);
   c.lineJoin = 'round';
   c.stroke();

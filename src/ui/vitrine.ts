@@ -21,8 +21,8 @@ function cabinetTex(w: number, rows: number, cols: number, rowH: number) {
   t = paint(w, h, (c) => {
     rrect(c, 0, 0, w, h, 14);
     const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#2a0c1c');
-    g.addColorStop(1, '#14060e');
+    g.addColorStop(0, '#1e2a5a');
+    g.addColorStop(1, '#0a0e24');
     c.fillStyle = g;
     c.fill();
     c.save();
@@ -242,7 +242,7 @@ export class Vitrine {
       this.narrow = n;
       this.build(n);
     }
-    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: 0.62 });
+    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x05060f, alpha: 0.62 });
     const top = 26;
     const s = Math.min((w * 0.97) / this.W, (h * 0.97 - top) / this.H, 1.1);
     this.stage.scale.set(s);

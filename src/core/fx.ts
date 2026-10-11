@@ -7,7 +7,7 @@ import { formatChips } from './state';
 import { chandelierArm, drawSunEmblem, paintChandelier, paintLightMote, paintLumenCoin, paintSconce, paintSparkStreak } from './lumenArt';
 
 export const COLORS = {
-  ink: 0x120c14,
+  ink: 0x0a0a14,
   plum: 0x2a1630,
   burgundy: 0x6b1a2e,
   brass: 0xe0b25a,
@@ -22,7 +22,7 @@ export const COLORS = {
   white: 0xfff6e6,
 };
 
-export const FONT_DISPLAY = 'Bungee, Impact, sans-serif';
+export const FONT_DISPLAY = 'Cinzel, Georgia, "Times New Roman", serif';
 export const FONT_BODY = '"Barlow Condensed", "Arial Narrow", sans-serif';
 
 const texCache = new Map<string, Texture>();
@@ -1002,7 +1002,7 @@ function hex(n: number, a = 1) {
 export function plaqueTexture(title: string, accent: number, opts: { size?: number; sub?: string; subSize?: number } = {}) {
   const size = opts.size ?? 64;
   const subSize = opts.subSize ?? Math.round(size * 0.42);
-  const font = `${size}px Bungee, Impact, sans-serif`;
+  const font = `700 ${size}px Cinzel, Georgia, serif`;
   const subFont = `600 ${subSize}px "Barlow Condensed", "Arial Narrow", sans-serif`;
   const spacing = size * 0.06;
   const subLines = opts.sub ? opts.sub.split('\n') : [];
@@ -1110,9 +1110,9 @@ export function plaqueTexture(title: string, accent: number, opts: { size?: numb
   const b = Math.max(5, size * 0.1);
   path(x0 + b, y0 + b, pw - b * 2, ph - b * 2, cut - b * 0.5);
   const vel = c.createLinearGradient(0, y0, 0, y0 + ph);
-  vel.addColorStop(0, '#3a1530');
-  vel.addColorStop(0.5, '#24101f');
-  vel.addColorStop(1, '#150812');
+  vel.addColorStop(0, '#1e2a5a');
+  vel.addColorStop(0.5, '#131b40');
+  vel.addColorStop(1, '#0a0e24');
   c.fillStyle = vel;
   c.fill();
   c.strokeStyle = 'rgba(22,10,20,0.9)';

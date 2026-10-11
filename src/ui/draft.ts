@@ -102,7 +102,7 @@ function cardBack(w: number, h: number) {
       rrect(c, b, b, w - b * 2, h - b * 2, r - 6);
       const vg = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
       vg.addColorStop(0, '#5a1a3e');
-      vg.addColorStop(1, '#1a0612');
+      vg.addColorStop(1, '#0b1027');
       fillInk(c, vg, 1.4);
       c.save();
       rrect(c, b, b, w - b * 2, h - b * 2, r - 6);
@@ -204,7 +204,7 @@ export class DraftPanel {
       this.build(!this.built);
       this.built = true;
     }
-    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x0b0609, alpha: 0.8 });
+    this.dim.clear().rect(0, 0, w, h).fill({ color: 0x05060f, alpha: 0.8 });
     const s = Math.min((w * 0.97) / this.W, (h * 0.96) / this.H, 1.15);
     this.stage.scale.set(s);
     this.stage.position.set(w / 2 - (this.W / 2) * s, h / 2 - (this.H / 2) * s);
