@@ -18,9 +18,10 @@ import { CARD_H, CARD_W, CardView, backTexture, dealCard } from '../cards/cardAr
 import { RulesCard, StakeControl, infoButton, pct, presentWin, readable, rtpLine, slide } from '../cards/tableKit';
 import { CALL_LABEL, MAX_MULT, MIRROR_BEST_RTP, RTP, RUNGS, cardRank, cashOut, chance, ladderRank, mirrorBest, mirrorChance, mirrorNext, mirrorRanks, mirrorRtp, nextMult, wins, type Call } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
-import { LADDER_W, ladderTexture, mothTexture, plateTexture, station, stripTexture } from './paint';
+import { LADDER_W, ladderTexture, emblemTexture, plateTexture, station, stripTexture } from './paint';
 import { luckStep } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const DECK = freshDecks(1);
 const randomCard = (): Card => DECK[Math.floor(Math.random() * DECK.length)];
@@ -100,7 +101,7 @@ class HiloGame implements GameInstance {
   private staked = 0;
   private rungs: Rung[] = [];
   private moth!: Sprite;
-  private mothGlow!: Sprite;
+  private emblemGlow!: Sprite;
   private chanceText!: Text;
   private potText!: Text;
   private rtpText!: Text;
@@ -134,7 +135,7 @@ class HiloGame implements GameInstance {
       '• Sag an, ob die nächste Karte höher oder tiefer ist. 2 ist die tiefste, das Ass die höchste Karte. Gleicher Rang verliert „Höher“ und „Tiefer“ – dafür gibt es den Tipp „Gleich“.',
       '• Jeder Treffer bringt dich eine Sprosse höher. Der Multiplikator jeder Sprosse kommt aus der echten Wahrscheinlichkeit deines Tipps (gemischt wird vor jeder Karte, alle 52 Karten).',
       `• Der Hausvorteil wird nur einmal genommen, auf der ersten Sprosse (${pct(RTP, 0)} der fairen Quote). Danach ist jede Sprosse fair – egal wann du auszahlst: Auszahlungsquote genau ${pct(RTP)}.`,
-      `• Auszahlen jederzeit ab Sprosse 1. Oben (Sprosse ${RUNGS} oder ×${formatChips(MAX_MULT)}) wird automatisch ausgezahlt. Ausgezahlt wird auf ganze Falter abgerundet.`,
+      `• Auszahlen jederzeit ab Sprosse 1. Oben (Sprosse ${RUNGS} oder ×${formatChips(MAX_MULT)}) wird automatisch ausgezahlt. Ausgezahlt wird auf ganze ${CURRENCY_PLURAL} abgerundet.`,
       '• „Karte tauschen“ legt die Karte kostenlos weg und deckt eine neue auf.',
       '• Tasten: H höher · T tiefer · G gleich · K tauschen · Leertaste auszahlen.',
     ], 620);
@@ -213,16 +214,16 @@ class HiloGame implements GameInstance {
       this.ladderLayer.addChild(glow, plate, text);
       this.rungs.push({ plate, text, glow, y });
     }
-    this.mothGlow = new Sprite(glowTexture());
-    this.mothGlow.anchor.set(0.5);
-    this.mothGlow.width = this.mothGlow.height = 120;
-    this.mothGlow.tint = COLORS.lamp;
-    this.mothGlow.blendMode = 'add';
-    this.mothGlow.alpha = 0.5;
-    this.moth = new Sprite(mothTexture());
+    this.emblemGlow = new Sprite(glowTexture());
+    this.emblemGlow.anchor.set(0.5);
+    this.emblemGlow.width = this.emblemGlow.height = 120;
+    this.emblemGlow.tint = COLORS.lamp;
+    this.emblemGlow.blendMode = 'add';
+    this.emblemGlow.alpha = 0.5;
+    this.moth = new Sprite(emblemTexture());
     this.moth.anchor.set(0.5);
     this.moth.scale.set(0.8);
-    this.ladderLayer.addChild(this.mothGlow, this.moth);
+    this.ladderLayer.addChild(this.emblemGlow, this.moth);
     this.placeMoth(this.rung, false);
     this.rungs.forEach((r, i) => this.lightRung(r, i + 1 <= this.rung, false));
 
@@ -294,7 +295,7 @@ class HiloGame implements GameInstance {
     const x = L.ladder.x + LADDER_W / 2 + (rung % 2 ? 26 : -26);
     if (!animated || reducedMotion()) {
       this.moth.position.set(x, y);
-      this.mothGlow.position.set(x, y);
+      this.emblemGlow.position.set(x, y);
       return Promise.resolve();
     }
     const x0 = this.moth.x;
@@ -304,7 +305,7 @@ class HiloGame implements GameInstance {
       this.moth.x = x0 + (x - x0) * k;
       this.moth.y = y0 + (y - y0) * k - Math.sin(k * Math.PI) * 18;
       this.moth.scale.x = 0.8 * (0.5 + 0.5 * Math.abs(Math.cos(k * Math.PI * 3)));
-      this.mothGlow.position.set(this.moth.x, this.moth.y);
+      this.emblemGlow.position.set(this.moth.x, this.moth.y);
     }, ease.outCubic).then(() => !this.moth.destroyed && this.moth.scale.set(0.8));
   }
 
@@ -467,7 +468,7 @@ class HiloGame implements GameInstance {
     if (this.phase === 'idle') {
       const bet = this.stake.bet;
       if (!this.ctx.state.placeBet(bet)) {
-        this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+        this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
         return;
       }
       this.staked = bet;
@@ -650,7 +651,7 @@ class HiloGame implements GameInstance {
     if (!reducedMotion() && this.phase !== 'anim' && this.moth) {
       // The moth breathes on its rung.
       this.moth.scale.x = 0.8 * (0.86 + 0.14 * Math.abs(Math.cos(this.time / 260)));
-      this.mothGlow.alpha = 0.4 + 0.15 * Math.sin(this.time / 500) + Math.min(0.4, this.rung * 0.04);
+      this.emblemGlow.alpha = 0.4 + 0.15 * Math.sin(this.time / 500) + Math.min(0.4, this.rung * 0.04);
     }
   }
 

@@ -4,7 +4,7 @@
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
-import { FONT_BODY, drawMoth, glowTexture } from '../../core/fx';
+import { FONT_BODY, drawEmblem, glowTexture } from '../../core/fx';
 import type { BuiltDecor } from '../decor';
 import { P_WALL_H } from './foyerShell';
 import { box, ent, glow, kicker } from './foyerProps';
@@ -600,7 +600,7 @@ export function buildPaintedClockwork(d: DecorPlacement, t: RoomTheme): BuiltDec
           c.beginPath();
           c.rect(mx - 20, my - 30, 20, 40);
           c.clip();
-          drawMoth(c, mx, my - 10, 30, wg, '#3a2008', '#5fe3ff');
+          drawEmblem(c, mx, my - 10, 30, wg, '#3a2008', '#5fe3ff');
           c.restore();
           c.save();
           c.translate(mx, my - 10);

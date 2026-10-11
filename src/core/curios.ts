@@ -1,10 +1,11 @@
 // Little finds in the side rooms: one per room, to be picked up once a day. They only pay
-// economy things (a Mondstein, a stamp, a few Falter that don't count towards the goal),
+// economy things (a Mondstein, a stamp, a few Lumen that don't count towards the goal),
 // never better odds. "Taken today" lives in the counters as the day it was taken.
 
 import type { GameState } from './state';
 import { addStamps } from './stamps';
 
+import { CURRENCY_PLURAL } from './brand';
 export interface Curio {
   room: string;
   /** Where it stands (middle of its footprint). */
@@ -34,7 +35,7 @@ export function curioTaken(s: GameState, room: string) {
   return s.data.counters[key(room)] === dayKey(s);
 }
 
-/** Falter in the brass coin: a few minimum stakes, outside the day's goal. */
+/** Lumen in the brass coin: a few minimum stakes, outside the day's goal. */
 export function coinValue(s: GameState) {
   return s.stakes([30])[0];
 }
@@ -65,10 +66,10 @@ export function takeCurio(s: GameState, room: string, toast: (t: string) => void
     addStamps(s, 'f2', 1, 'Mondblüte gepflückt');
   } else {
     const n = coinValue(s);
-    // Like the wishing coin: the Falter come in without moving today's goal.
+    // Like the wishing coin: the Lumen come in without moving today's goal.
     s.data.balance += n;
     s.data.evening.startBalance += n;
-    toast(`Eine Glücksmünze klemmt im Zahnrad: +${n} Falter (zählen nicht zum Tagesziel).`);
+    toast(`Eine Glücksmünze klemmt im Zahnrad: +${n} ${CURRENCY_PLURAL} (zählen nicht zum Tagesziel).`);
   }
   for (const l of listeners) l(c);
   s.emit();

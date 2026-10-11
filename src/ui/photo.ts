@@ -3,7 +3,7 @@
 // opens in a dialog with "Speichern" (download) and "Nochmal"; Escape or the knob leaves.
 
 import { Container, Graphics, Rectangle, Sprite, Texture, type Application, type FederatedPointerEvent } from 'pixi.js';
-import { FONT_BODY, drawMoth, reducedMotion } from '../core/fx';
+import { FONT_BODY, drawEmblem, reducedMotion } from '../core/fx';
 import { sfx } from '../core/audio';
 import { button, brass, type Button } from '../core/ui';
 import { focusable } from '../core/focus';
@@ -14,6 +14,7 @@ import { INK, fillInk, glowAt, gold, paint, seeded } from '../world/painted/brus
 import { bodyText, closeKnob, enterMotion } from './kit';
 import { animate } from '../core/tween';
 
+import { HOUSE, HOUSE_SLUG } from '../core/brand';
 export interface PhotoHost {
   app: Application;
   state: GameState;
@@ -186,7 +187,7 @@ function lookTexture(look: Look, w: number, h: number, caption: string) {
         c.beginPath();
         c.arc(x, y, m * 0.62, 0, Math.PI * 2);
         fillInk(c, gold(c, x - m, y - m, x + m, y + m), 1.6);
-        drawMoth(c, x, y + 1, m * 1.0, '#7a4a12', '#3a1a08');
+        drawEmblem(c, x, y + 1, m * 1.0, '#7a4a12', '#3a1a08');
       }
       return;
     }
@@ -520,7 +521,7 @@ export class PhotoMode {
     if (this.look === 'none') return;
     const d = this.host.state.data;
     const floor = this.room.def.floor;
-    const caption = `Casino Nachtfalter · Tag ${d.evening.number} · ${floor ? `Etage ${floor}` : 'Foyer'}`;
+    const caption = `${HOUSE} · Tag ${d.evening.number} · ${floor ? `Etage ${floor}` : 'Foyer'}`;
     this.overlay.texture = lookTexture(this.look, Math.ceil(this.w), Math.ceil(this.h), caption);
   }
 
@@ -562,7 +563,7 @@ export class PhotoMode {
     wrap.style.cssText = 'display:grid;gap:10px;justify-items:center';
     const img = document.createElement('img');
     img.src = url;
-    img.alt = `Foto aus dem Casino Nachtfalter, Tag ${d.evening.number}`;
+    img.alt = `Foto aus dem ${HOUSE}, Tag ${d.evening.number}`;
     img.style.cssText = 'display:block;max-width:100%;max-height:min(52vh,52dvh);border-radius:6px;box-shadow:0 0 0 2px rgba(224,178,90,.85),0 8px 22px rgba(0,0,0,.55);-webkit-touch-callout:default;user-select:auto';
     const tip = document.createElement('p');
     tip.textContent = 'Auf dem Handy kannst du das Bild auch lange drücken, um es zu sichern.';
@@ -577,7 +578,7 @@ export class PhotoMode {
         onClick: () => {
           const a = document.createElement('a');
           a.href = url;
-          a.download = `nachtfalter-tag${d.evening.number}-${stamp}.png`;
+          a.download = `${HOUSE_SLUG}-tag${d.evening.number}-${stamp}.png`;
           document.body.appendChild(a);
           a.click();
           a.remove();

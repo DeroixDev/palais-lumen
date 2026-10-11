@@ -1,9 +1,10 @@
-// Nachtfalter slot symbols in the painted style: chunky ink outlines, soft gradients lit
+// Slot symbols in the painted style: chunky ink outlines, soft gradients lit
 // from the upper left, rim light and warm glows. Each one is painted once into a texture.
 
 import type { Texture } from 'pixi.js';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, paint, rgb, rim, type Ctx } from '../../world/painted/brush';
 
+import { SLOT_WILD } from '../../core/brand';
 export type SymbolId = 'firefly' | 'candle' | 'lantern' | 'key' | 'moon' | 'moth';
 export const SYMBOLS: SymbolId[] = ['firefly', 'candle', 'lantern', 'key', 'moon', 'moth'];
 export const SYMBOL_NAMES: Record<SymbolId, string> = {
@@ -12,7 +13,7 @@ export const SYMBOL_NAMES: Record<SymbolId, string> = {
   lantern: 'Laterne',
   key: 'Messingschlüssel',
   moon: 'Vollmond',
-  moth: 'Goldener Nachtfalter',
+  moth: SLOT_WILD,
 };
 
 /** Painting size of one symbol (design units); textures are painted at 1.6× for crisp edges. */
@@ -29,7 +30,7 @@ export interface MothColours {
 }
 
 /** The house moth: four bezier wings with eye spots, a furry body and feathered antennae. Centred on (x, y), s ≈ wingspan. */
-export function paintMoth(c: Ctx, x: number, y: number, s: number, col: MothColours, lw = LW) {
+export function paintEmblem(c: Ctx, x: number, y: number, s: number, col: MothColours, lw = LW) {
   const k = s / 200;
   c.save();
   c.translate(x, y);
@@ -303,7 +304,7 @@ function lantern(c: Ctx) {
   gl.addColorStop(1, '#c86a1a');
   fillInk(c, gl, LW);
   // Tiny moth fluttering at the flame.
-  paintMoth(c, 100, 104, 50, { wing: 0x6a3a14, wingDark: 0x3a1a08, body: 0x3a1a08, eye: 0xffcf7a }, 3);
+  paintEmblem(c, 100, 104, 50, { wing: 0x6a3a14, wingDark: 0x3a1a08, body: 0x3a1a08, eye: 0xffcf7a }, 3);
   // Frame bars.
   c.strokeStyle = INK;
   c.lineWidth = 9;
@@ -381,7 +382,7 @@ function key(c: Ctx) {
   c.rotate(0.62);
   const mx = -44 * Math.cos(-0.62);
   const my = -44 * Math.sin(-0.62);
-  paintMoth(c, mx, my + 1, 34, { wing: 0xf0c868, wingDark: 0xa0701e, body: 0x6e4a10, eye: 0xfff4c2 }, 2);
+  paintEmblem(c, mx, my + 1, 34, { wing: 0xf0c868, wingDark: 0xa0701e, body: 0x6e4a10, eye: 0xfff4c2 }, 2);
   c.restore();
 }
 
@@ -423,7 +424,7 @@ function moon(c: Ctx) {
   ellipse(c, 100, 100, 66, 66);
   rim(c, 0.7, 2.6);
   // A small moth silhouette crossing the moon.
-  paintMoth(c, 146, 52, 42, { wing: 0x3a2050, wingDark: 0x1a0a28, body: 0x1a0a28, eye: 0xffe7a8 }, 2.5);
+  paintEmblem(c, 146, 52, 42, { wing: 0x3a2050, wingDark: 0x1a0a28, body: 0x1a0a28, eye: 0xffe7a8 }, 2.5);
   // Twinkles.
   for (const [x, y, r] of [
     [34, 44, 5],
@@ -462,7 +463,7 @@ function moth(c: Ctx) {
     c.fill();
   }
   c.restore();
-  paintMoth(c, 100, 104, 190, { wing: 0xf0c25a, wingDark: 0x9a6418, body: 0x6e3a10, eye: 0xd8243a });
+  paintEmblem(c, 100, 104, 190, { wing: 0xf0c25a, wingDark: 0x9a6418, body: 0x6e3a10, eye: 0xd8243a });
   glowAt(c, 66, 58, 18, 18, 0xffffff, 0.6, 'lighter');
 }
 

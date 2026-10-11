@@ -14,14 +14,15 @@ import { floorPlan, floorsOf, newBadge } from './schedule';
 import { CREAM, MUTED } from './kit';
 import { Panel } from './panel';
 
+import { SLOT_WILD } from '../core/brand';
 const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
 
 /** Lines for the first four games, which were written before games carried a blurb. */
 const BLURB: Record<string, string> = {
-  slots: 'Drei Walzen, acht Gewinnlinien und die Motte als Joker.',
+  slots: `Drei Walzen, acht Gewinnlinien und der ${SLOT_WILD} als Joker.`,
   roulette: 'Die Kugel läuft: Zahl, Farbe, Dutzend oder Kolonne.',
-  plinko: 'Eine leuchtende Motte fällt durch die Laternen in die Becher.',
-  crash: 'Die Motte fliegt zum Mond – kassier, bevor sie abstürzt.',
+  plinko: 'Ein leuchtender Funke fällt durch die Laternen in die Becher.',
+  crash: 'Die Himmelslaterne steigt zum Mond – kassier, bevor sie abstürzt.',
 };
 
 const texCache = new Map<string, Texture>();

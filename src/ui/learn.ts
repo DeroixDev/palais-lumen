@@ -12,6 +12,7 @@ import { sfx } from '../core/audio';
 import { reducedMotion } from '../core/fx';
 import { glowAt, grain, seeded } from '../world/painted/brush';
 
+import { CURRENCY_PLURAL, LEARN_MOTTO } from '../core/brand';
 const pct = (x: number, digits = 1) => (x * 100).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const signed = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '±') + formatChips(Math.abs(Math.round(n)));
 
@@ -293,7 +294,7 @@ export class LearnPage {
     };
 
     html('h2', 'Wie das Haus gewinnt').id = 'lb-title';
-    html('p', 'Ein Blick hinter die Theke. Hier wird nur mit Spielgeld gespielt, aber die Mathematik dahinter ist dieselbe wie in jedem echten Casino.', 'lb-sub');
+    html('p', `${LEARN_MOTTO}: ein Blick hinter die Theke. Die Mathematik dahinter ist dieselbe wie in jedem echten Casino.`, 'lb-sub');
 
     // ---- 1. The player's own long run ------------------------------------------------------
     html('h3', 'Deine Langzeitkurve');
@@ -305,7 +306,7 @@ export class LearnPage {
       const cv = document.createElement('canvas');
       cv.className = 'lb-chart';
       cv.setAttribute('role', 'img');
-      cv.setAttribute('aria-label', `Deine Kurve über ${lr.rounds} Runden: tatsächlich ${signed(lr.net[lr.net.length - 1])} Falter, erwartet ${signed(lr.exp[lr.exp.length - 1])} Falter.`);
+      cv.setAttribute('aria-label', `Deine Kurve über ${lr.rounds} Runden: tatsächlich ${signed(lr.net[lr.net.length - 1])} ${CURRENCY_PLURAL}, erwartet ${signed(lr.exp[lr.exp.length - 1])} ${CURRENCY_PLURAL}.`);
       sc.appendChild(cv);
       const draw = () => drawChart(cv, [
         { values: lr.exp, color: '#a0302a', width: 2.5, dash: [7, 6] },
@@ -317,8 +318,8 @@ export class LearnPage {
       const net = lr.net[lr.net.length - 1];
       const exp = lr.exp[lr.exp.length - 1];
       html('p', net >= exp
-        ? `Du liegst gerade <strong>${formatChips(net - exp)} Falter über</strong> der erwarteten Linie. Das ist Glück, und Glück schwankt. Je mehr Runden dazukommen, desto näher rückt die blaue Linie an die rote.`
-        : `Du liegst <strong>${formatChips(exp - net)} Falter unter</strong> der erwarteten Linie: eine Pechsträhne. Auf lange Sicht pendelt sich die blaue Linie um die rote ein, in beide Richtungen.`);
+        ? `Du liegst gerade <strong>${formatChips(net - exp)} ${CURRENCY_PLURAL} über</strong> der erwarteten Linie. Das ist Glück, und Glück schwankt. Je mehr Runden dazukommen, desto näher rückt die blaue Linie an die rote.`
+        : `Du liegst <strong>${formatChips(exp - net)} ${CURRENCY_PLURAL} unter</strong> der erwarteten Linie: eine Pechsträhne. Auf lange Sicht pendelt sich die blaue Linie um die rote ein, in beide Richtungen.`);
     }
     const facts = document.createElement('div');
     facts.className = 'lb-facts';
@@ -337,7 +338,7 @@ export class LearnPage {
 
     // ---- 2. House edge and payout share ---------------------------------------------------
     html('h3', 'Hausvorteil und Auszahlungsquote');
-    html('p', 'Jedes Spiel zahlt im Schnitt etwas weniger aus, als eingesetzt wird. Die <strong>Auszahlungsquote</strong> sagt, wie viel: Bei 97 % kommen von 100 eingesetzten Falter auf lange Sicht 97 zurück. Die restlichen 3 % sind der <strong>Hausvorteil</strong>. Er ist klein genug, dass man ihn in einer Runde nicht spürt, und groß genug, dass das Haus über tausende Runden sicher gewinnt.');
+    html('p', `Jedes Spiel zahlt im Schnitt etwas weniger aus, als eingesetzt wird. Die <strong>Auszahlungsquote</strong> sagt, wie viel: Bei 97 % kommen von 100 eingesetzten ${CURRENCY_PLURAL} auf lange Sicht 97 zurück. Die restlichen 3 % sind der <strong>Hausvorteil</strong>. Er ist klein genug, dass man ihn in einer Runde nicht spürt, und groß genug, dass das Haus über tausende Runden sicher gewinnt.`);
     html('p', 'Das ist kein Trick und kein Betrug, sondern einfach eingebaut: Beim Roulette zum Beispiel zahlt ein Treffer auf eine Zahl 36-fach, aber es gibt 37 Fächer. Das eine Fach zu viel, die grüne Null, ist der Hausvorteil.');
 
     // ---- 3. Table of all games -------------------------------------------------------------
@@ -364,7 +365,7 @@ export class LearnPage {
 
     // ---- 4. Simulation ---------------------------------------------------------------------
     html('h3', '1.000 Runden simulieren');
-    html('p', 'Fünf Gäste setzen je 1.000-mal 10 Falter beim Roulette. Die gestrichelte Linie ist das, was die Quote von 97,3 % erwarten lässt: am Ende etwa −270 Falter. Probier beide Wetten aus und drück ruhig öfter.');
+    html('p', `Fünf Gäste setzen je 1.000-mal 10 ${CURRENCY_PLURAL} beim Roulette. Die gestrichelte Linie ist das, was die Quote von 97,3 % erwarten lässt: am Ende etwa −270 ${CURRENCY_PLURAL}. Probier beide Wetten aus und drück ruhig öfter.`);
     const btns = document.createElement('div');
     btns.className = 'lb-sim';
     sc.appendChild(btns);
@@ -394,8 +395,8 @@ export class LearnPage {
       const r = lastRuns[0];
       const finals = lastRuns.map((x) => signed(x.net)).join(', ');
       const ahead = lastRuns.filter((x) => x.net > 0).length;
-      out.innerHTML = `Gast 1 endet bei <strong>${signed(r.net)} Falter</strong> (erwartet −270). Zwischendurch lag er bis zu ${signed(r.peak)} vorn; längste Glückssträhne ${r.bestStreak}, längste Pechsträhne ${r.worstStreak} Runden.<br>Seine Quote nach 10 Runden: ${pct(r.shareAt[10], 0)} %, nach 100: ${pct(r.shareAt[100], 0)} %, nach 1.000: ${pct(r.shareAt[ROUNDS])} %.<br>Alle fünf: ${finals}. ${ahead === 0 ? 'Keiner liegt vorn.' : ahead === 1 ? 'Einer liegt vorn.' : `${ahead} liegen vorn.`}`;
-      simCv.setAttribute('aria-label', `Simulation ${BETS[bet].label}: Gast 1 endet bei ${signed(r.net)} Falter.`);
+      out.innerHTML = `Gast 1 endet bei <strong>${signed(r.net)} ${CURRENCY_PLURAL}</strong> (erwartet −270). Zwischendurch lag er bis zu ${signed(r.peak)} vorn; längste Glückssträhne ${r.bestStreak}, längste Pechsträhne ${r.worstStreak} Runden.<br>Seine Quote nach 10 Runden: ${pct(r.shareAt[10], 0)} %, nach 100: ${pct(r.shareAt[100], 0)} %, nach 1.000: ${pct(r.shareAt[ROUNDS])} %.<br>Alle fünf: ${finals}. ${ahead === 0 ? 'Keiner liegt vorn.' : ahead === 1 ? 'Einer liegt vorn.' : `${ahead} liegen vorn.`}`;
+      simCv.setAttribute('aria-label', `Simulation ${BETS[bet].label}: Gast 1 endet bei ${signed(r.net)} ${CURRENCY_PLURAL}.`);
       // Ink the curves in over half a second (or at once with reduced motion).
       if (reducedMotion()) return drawSim();
       const t0 = performance.now();
@@ -437,14 +438,14 @@ export class LearnPage {
     html('h3', 'Warum Items über 100 % nur kurz und teuer sind');
     const slots = allGames().find((g) => g.id === 'slots');
     const slotTxt = slots ? ` statt ${pct(1 - slots.houseEdge)} %` : '';
-    html('p', `Manche Items heben die echte Quote eines Spiels über 100 %, die Glücksfeder etwa auf 105,3 %${slotTxt} am Automaten. Dann bist du kurz im Vorteil. Aber nur für ein paar Runden, und die Items kosten Mondsteine, die du dir vorher erspielen musst. Bei 10 Runden mit 20 Falter Einsatz bringen 5 % Vorteil im Schnitt rund 10 Falter. Das Haus gibt diesen Vorteil gern her, weil er so kurz ist. In einem echten Casino gibt es so etwas übrigens nicht.`);
+    html('p', `Manche Items heben die echte Quote eines Spiels über 100 %, die Glücksfeder etwa auf 105,3 %${slotTxt} am Automaten. Dann bist du kurz im Vorteil. Aber nur für ein paar Runden, und die Items kosten Mondsteine, die du dir vorher erspielen musst. Bei 10 Runden mit 20 ${CURRENCY_PLURAL} Einsatz bringen 5 % Vorteil im Schnitt rund 10 ${CURRENCY_PLURAL}. Das Haus gibt diesen Vorteil gern her, weil er so kurz ist. In einem echten Casino gibt es so etwas übrigens nicht.`);
     html('h3', 'Das Gesetz der großen Zahlen');
     html('p', 'Nach 10 Runden kann alles passieren: doppelt so viel oder gar nichts. Nach 100 Runden wird es ruhiger, nach 10.000 Runden liegt die Quote fast genau beim angeschriebenen Wert. Das ist das Gesetz der großen Zahlen. Für einen einzelnen Abend bedeutet es: Glück ist möglich. Für das Haus, das jeden Abend Millionen Runden sieht, bedeutet es: Der Gewinn ist sicher.');
     html('ul', '<li><strong>Kurz gespielt:</strong> Das Ergebnis ist vor allem Glück.</li><li><strong>Lang gespielt:</strong> Das Ergebnis ist vor allem der Hausvorteil.</li><li><strong>Für immer gespielt:</strong> Das Haus gewinnt.</li>');
 
-    // ---- 6. Play money note ----------------------------------------------------------------
+    // ---- 6. Help contact -------------------------------------------------------------------
     const note = html('div', '', 'lb-note');
-    note.innerHTML = '<p><strong>Nur Spielgeld.</strong> Im Nachtfalter kannst du nichts einzahlen, nichts auszahlen und nichts mit echtem Geld kaufen. Falter und Mondsteine sind reine Spielwährung.</p><p>Wenn echtes Glücksspiel für dich oder jemanden in deiner Nähe ein Thema ist: Die BZgA berät kostenlos und anonym, auf check-dein-spiel.de oder unter 0800 1 37 27 00.</p>';
+    note.innerHTML = `<p>Wenn echtes Glücksspiel für dich oder jemanden in deiner Nähe ein Thema ist: Die BZgA berät kostenlos und anonym, auf check-dein-spiel.de oder unter 0800 1 37 27 00.</p>`;
 
     const done = document.createElement('div');
     done.style.cssText = 'display:flex;justify-content:flex-end;margin-top:16px';

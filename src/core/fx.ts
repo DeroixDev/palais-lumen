@@ -60,8 +60,8 @@ export function gradientTexture(key: string, w: number, h: number, stops: [numbe
   });
 }
 
-/** Draws the Nachtfalter moth (the brand mark) on a 2D canvas. */
-export function drawMoth(c: CanvasRenderingContext2D, cx: number, cy: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
+/** Draws the house emblem (still the moth until the art pass) on a 2D canvas. */
+export function drawEmblem(c: CanvasRenderingContext2D, cx: number, cy: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
   c.save();
   c.fillStyle = wing;
   for (const side of [-1, 1]) {
@@ -96,7 +96,7 @@ export function drawMoth(c: CanvasRenderingContext2D, cx: number, cy: number, s:
   c.restore();
 }
 
-/** The "Falter" coin: brass with an embossed moth. */
+/** The house coin: brass with an embossed moth. */
 export function coinTexture() {
   return canvasTexture('coin', 64, 64, (c) => paintCoin(c, 64));
 }
@@ -125,13 +125,13 @@ export function paintCoin(c: CanvasRenderingContext2D, size: number) {
     c.stroke();
   }
   // Embossed moth: dark offset, then light face.
-  drawMoth(c, 33 * k, 35 * k, 38 * k, 'rgba(110,70,15,0.75)', 'rgba(110,70,15,0.9)');
-  drawMoth(c, 32 * k, 34 * k, 38 * k, '#ffe7a0', '#c9902e', 'rgba(168,116,31,0.7)');
+  drawEmblem(c, 33 * k, 35 * k, 38 * k, 'rgba(110,70,15,0.75)', 'rgba(110,70,15,0.9)');
+  drawEmblem(c, 32 * k, 34 * k, 38 * k, '#ffe7a0', '#c9902e', 'rgba(168,116,31,0.7)');
 }
 
 /** White moth for particles; tint it. Wings flap by scaling x. */
-export function mothTexture() {
-  return canvasTexture('moth', 64, 64, (c) => drawMoth(c, 32, 34, 56, 'rgba(255,255,255,0.95)', 'rgba(255,255,255,1)', 'rgba(200,200,200,0.9)'));
+export function emblemTexture() {
+  return canvasTexture('moth', 64, 64, (c) => drawEmblem(c, 32, 34, 56, 'rgba(255,255,255,0.95)', 'rgba(255,255,255,1)', 'rgba(200,200,200,0.9)'));
 }
 
 /** Coin as an image URL for the HTML HUD. */
@@ -284,7 +284,7 @@ export class Particles {
    * The brand effect for big wins: glowing moths burst out of a point,
    * optionally circle something (a wheel, a machine), then flutter away.
    */
-  mothSwarm(x: number, y: number, count: number, orbit: { x: number; y: number; r: number } | null = null, tint = 0xffe7a8, lifeS = 3.2) {
+  drawSwarm(x: number, y: number, count: number, orbit: { x: number; y: number; r: number } | null = null, tint = 0xffe7a8, lifeS = 3.2) {
     count = this.budget(count);
     for (let i = 0; i < count; i++) {
       const c = new Container();
@@ -294,7 +294,7 @@ export class Particles {
       glow.tint = tint;
       glow.alpha = 0.5;
       glow.blendMode = 'add';
-      const wings = new Sprite(mothTexture());
+      const wings = new Sprite(emblemTexture());
       wings.anchor.set(0.5);
       wings.tint = tint;
       c.addChild(glow, wings);
@@ -883,8 +883,8 @@ export function plaqueTexture(title: string, accent: number, opts: { size?: numb
   c.strokeStyle = ink;
   c.lineWidth = 2.5;
   c.stroke();
-  drawMoth(c, cx + 1, cy + 2, size * 0.5, 'rgba(90,50,10,0.7)', 'rgba(90,50,10,0.9)');
-  drawMoth(c, cx, cy + 1, size * 0.5, '#fff1c4', '#9a6f25', 'rgba(168,116,31,0.7)');
+  drawEmblem(c, cx + 1, cy + 2, size * 0.5, 'rgba(90,50,10,0.7)', 'rgba(90,50,10,0.9)');
+  drawEmblem(c, cx, cy + 1, size * 0.5, '#fff1c4', '#9a6f25', 'rgba(168,116,31,0.7)');
 
   // Title: ink outline, then polished gold with a light top.
   const tyMid = y0 + (subLines.length ? size * 0.82 : ph / 2) + size * 0.04;

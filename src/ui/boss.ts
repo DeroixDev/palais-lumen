@@ -1,10 +1,10 @@
-// Stages the Moth Queen's boss day: phase changes (the screen dims, she rises and grows, a
+// Stages the Selene's boss day: phase changes (the screen dims, she rises and grows, a
 // painted banner names the phase, a sting plays, the HUD bar changes colour), her reactions
 // to the player's rounds (recoils from big wins, laughs at losses, in a speech bubble), and
 // the rotating closed game of "Letzter Tanz".
 
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
-import { announce, glowTexture, mothTexture, plaqueTexture, reducedMotion } from '../core/fx';
+import { announce, glowTexture, emblemTexture, plaqueTexture, reducedMotion } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { getGame } from '../core/registry';
@@ -15,6 +15,7 @@ import { fillInk, paint } from '../world/painted/brush';
 import { bodyText } from './kit';
 import { leavePhoto } from './photo';
 
+import { BOSS_NAME, GAME_NAMES } from '../core/brand';
 export interface BossHost {
   /** Screen-space layer above rooms and games. */
   layer: Container;
@@ -29,14 +30,14 @@ export interface BossHost {
 
 const LAUGH = [
   'Hihihi! Noch eine Runde, Liebling?',
-  'Flatter nur, kleiner Falter!',
+  'Leuchte nur, kleines Licht!',
   'Das Haus dankt dir!',
   'Ha! Das kitzelt nicht mal.',
-  'Meine Krone glänzt schon heller.',
+  'Meine Lampen brennen schon heller.',
   'Mehr, mehr! Ich liebe dieses Spiel.',
   'Oh, wie schade … für dich!',
 ];
-const OUCH = ['Autsch! Meine Flügel!', 'Unerhört!', 'Das war doch nur Glück!', 'Nein! Mein Mondstaub!', 'Wie kannst du es wagen?'];
+const OUCH = ['Autsch! Mein Fächer!', 'Unerhört!', 'Das war doch nur Glück!', 'Nein! Mein Mondstaub!', 'Wie kannst du es wagen?'];
 const PHASE_COLOR = [0xc9a0ff, 0xc9a0ff, 0xff6ad0, 0xff4a4a];
 
 const gameName = (id: string) => {
@@ -135,7 +136,7 @@ export class BossDirector {
   /** The player sits at a game that just closed: walk them out once the round is done. */
   private escort(tries = 0) {
     if (this.host.mode() !== 'game' || tries > 20) return;
-    if (tries === 0) this.host.toast('Die Königin schließt diesen Tisch. Bitte wechsle das Spiel.');
+    if (tries === 0) this.host.toast(`${BOSS_NAME} schließt diesen Tisch. Bitte wechsle das Spiel.`);
     if (this.host.gameBusy()) {
       setTimeout(() => this.escort(tries + 1), 700);
       return;
@@ -164,7 +165,7 @@ export class BossDirector {
     const moths: Sprite[] = [];
     if (!calm) {
       for (let i = 0; i < 14; i++) {
-        const m = new Sprite(mothTexture());
+        const m = new Sprite(emblemTexture());
         m.anchor.set(0.5);
         m.tint = PHASE_COLOR[p];
         m.alpha = 0.8;
@@ -220,10 +221,10 @@ export class BossDirector {
     if (p >= 3) {
       const g = bossClosedGame(this.state.data);
       this.lastClosed = g;
-      if (g) this.host.toast(`Letzter Tanz: ${gameName(g)} ist geschlossen. Alle ${ROTATE_EVERY} Runden schließt die Königin ein anderes Spiel.`);
+      if (g) this.host.toast(`Letzter Tanz: ${gameName(g)} ist geschlossen. Alle ${ROTATE_EVERY} Runden schließt ${BOSS_NAME} ein anderes Spiel.`);
       if (g && this.host.mode() === 'game' && this.lastGame === g) this.escort();
-      if (!g) this.host.toast('Letzter Tanz: Jeder Treffer im Duell der Königin bringt jetzt einen Mondstein extra. Die Gewinnchancen bleiben gleich.');
-    } else this.host.toast('Die Königin erhebt sich: alle Einsätze sind jetzt doppelt so hoch. Die Gewinnchancen bleiben gleich.');
+      if (!g) this.host.toast(`Letzter Tanz: Jeder Treffer beim ${GAME_NAMES.queen} bringt jetzt einen Mondstein extra. Die Gewinnchancen bleiben gleich.`);
+    } else this.host.toast(`${BOSS_NAME} erhebt sich: alle Einsätze sind jetzt doppelt so hoch. Die Gewinnchancen bleiben gleich.`);
   }
 
   /** A painted speech bubble: over the queen on her floor, else in the top-right corner with a small moth. */
@@ -244,7 +245,7 @@ export class BossDirector {
     if (p) {
       b.position.set(Math.min(w - bw - 10, p.x + 40), Math.max(top + 8, p.y - bh - 70));
     } else {
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.tint = 0xc9a0ff;
       m.width = m.height = 34;

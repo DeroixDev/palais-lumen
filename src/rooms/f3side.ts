@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES } from '../core/brand';
 /**
  * Floor 3 side room: the Räderkammer under the Uhrwerk, down the stairs. The heart of the
  * clockwork turns in the floor; the Uhrwerk-Derby and two Uhrturm machines stay here every
@@ -9,7 +10,7 @@ export const f3side: RoomDefinition = {
   id: 'f3b',
   parent: 'f3',
   name: 'Räderkammer',
-  tagline: 'Das Herz des Uhrwerks',
+  tagline: 'Das Herz des Laternenwerks',
   floor: 3,
   elevatorX: -1000,
   sign: 'KAMMER',
@@ -28,7 +29,7 @@ export const f3side: RoomDefinition = {
     sofa: 0x4a3a2a,
   },
   spawn: { x: 640, y: 240 },
-  doors: [{ x: 640, y: 0, side: 'back', to: 'f3', label: 'Uhrwerk' }],
+  doors: [{ x: 640, y: 0, side: 'back', to: 'f3', label: FLOOR_NAMES.f3 }],
   stations: [
     { game: 'derby', pinned: true, x: 230, y: 330, label: 'Uhrwerk-Derby' },
     { game: 'tower', pinned: true, x: 70, y: 540, label: 'Uhrturm' },

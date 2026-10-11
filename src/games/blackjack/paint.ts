@@ -1,4 +1,4 @@
-// Painted pieces of "Nachtfalter 21": the half-moon table in plum felt (wide and tall cut),
+// Painted pieces of "Selene 21": the half-moon table in plum felt (wide and tall cut),
 // the moth croupier with her faces, and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';

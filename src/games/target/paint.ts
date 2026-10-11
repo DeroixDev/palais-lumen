@@ -3,7 +3,7 @@
 // stuck, the moth archer, and the target stand in the room. Painted once and cached.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { drawMoth, glowTexture } from '../../core/fx';
+import { drawEmblem, glowTexture } from '../../core/fx';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, propSprite, rgb, rrect, seeded, shadow, vgrad } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 import { eyeRadii, ringRadii, type Style } from './rules';
@@ -161,7 +161,7 @@ export function faceTexture(style: Style, eye = false) {
         c.lineWidth = 4;
         c.stroke();
       }
-      drawMoth(c, 0, 1, b * 1.1, 'rgba(90,50,10,0.55)', 'rgba(60,30,8,0.7)');
+      drawEmblem(c, 0, 1, b * 1.1, 'rgba(90,50,10,0.55)', 'rgba(60,30,8,0.7)');
     }, 2),
   );
 }
@@ -385,7 +385,7 @@ export function archerTexture() {
       ellipse(c, -16, 4, 8, 10);
       c.fillStyle = 'rgba(90,40,120,0.45)';
       c.fill();
-      drawMoth(c, -16, 26, 12, 'rgba(255,240,200,0.6)', 'rgba(255,240,200,0.6)');
+      drawEmblem(c, -16, 26, 12, 'rgba(255,240,200,0.6)', 'rgba(255,240,200,0.6)');
       c.restore();
     }, 2),
   );

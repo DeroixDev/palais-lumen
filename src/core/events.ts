@@ -8,6 +8,7 @@ import { BOSS_DAY, floorForDay, type GameState, type RoundReport, type SaveData 
 import { bossClosedGame } from './boss';
 import { isMinibossDay, minibossBlocks, minibossClosed } from './miniboss';
 
+import { EVENT_FESTIVAL, GAME_NAMES } from './brand';
 export interface DayEvent {
   id: string;
   name: string;
@@ -81,7 +82,7 @@ export const EVENTS: DayEvent[] = [
   },
   {
     id: 'mottenschwarm',
-    name: 'Mottenschwarm',
+    name: EVENT_FESTIVAL,
     rule: 'Mondflug-Gewinne ab 2× geben +1 Mondstein (bis 5 am Tag).',
     icon: '✦',
     color: 0xc9a0ff,
@@ -112,7 +113,7 @@ export const EVENTS: DayEvent[] = [
   {
     id: 'randnacht',
     name: 'Randfächer-Nacht',
-    rule: 'Mottenfall: jedes Randfach gibt +1 Mondstein (bis 5 am Tag).',
+    rule: `${GAME_NAMES.plinko}: jedes Randfach gibt +1 Mondstein (bis 5 am Tag).`,
     icon: '▼',
     color: 0x5fe3ff,
     weight: 8,

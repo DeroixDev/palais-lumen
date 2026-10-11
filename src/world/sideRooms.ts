@@ -3,7 +3,7 @@
 // in the Hinterzimmer, moths round the moonflower in the Gewächshaus, steam in the Kammer).
 
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { glowTexture, mothTexture, reducedMotion } from '../core/fx';
+import { glowTexture, emblemTexture, reducedMotion } from '../core/fx';
 import { getGame, type RoomDefinition } from '../core/registry';
 import type { GameState } from '../core/state';
 import { animate, ease } from '../core/tween';
@@ -405,7 +405,7 @@ export class RoomSpecials {
   }
 
   private floater(kind: Floater['kind'], x: number, y: number, r: number, size: number, tint: number, alpha: number) {
-    const s = new Sprite(kind === 'moth' ? mothTexture() : glowTexture());
+    const s = new Sprite(kind === 'moth' ? emblemTexture() : glowTexture());
     s.anchor.set(0.5);
     s.width = s.height = size;
     s.tint = tint;

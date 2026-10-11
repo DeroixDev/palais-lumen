@@ -1,5 +1,5 @@
-// The Moth Queen's big life bar across the top of the screen: in the duel and in the throne
-// hall at the end of the boss corridor. Her life is the Falter still missing to today's goal
+// The Selene's big life bar across the top of the screen: in the duel and in the throne
+// hall at the end of the boss corridor. Her life is the Lumen still missing to today's goal
 // (the quota logic, shown as a fight): it drops when the balance rises and grows back when a
 // stake is lost. A pale chunk trails a hit; a purple shimmer marks healing.
 
@@ -8,8 +8,9 @@ import { FONT_BODY, FONT_DISPLAY, glowTexture, reducedMotion } from '../core/fx'
 import { PHASE_NAME } from '../core/boss';
 import { formatChips, type GameState } from '../core/state';
 import { INK, fillInk, gold, paint, rrect } from '../world/painted/brush';
-import { mothEmblem } from '../world/painted/propsCrystal';
+import { crestEmblem } from '../world/painted/propsCrystal';
 
+import { BOSS_CAPS, CURRENCY_PLURAL } from '../core/brand';
 const PHASE_FILL = [0xb06ad8, 0xb06ad8, 0xe0509a, 0xe8383a];
 export const BAR_H = 66;
 
@@ -43,7 +44,7 @@ function frameTexture(w: number) {
     // Crest.
     c.save();
     c.translate(34, h / 2 - 3);
-    mothEmblem(c, 28);
+    crestEmblem(c, 28);
     c.restore();
     c.strokeStyle = INK;
   }, 2);
@@ -67,7 +68,7 @@ export class QueenBar {
   private hitFlash = 0;
 
   constructor(private state: GameState) {
-    this.name = new Text({ text: 'MOTTENKÖNIGIN', style: { fontFamily: FONT_DISPLAY, fontSize: 17, fill: 0xfff1c4, letterSpacing: 2 } });
+    this.name = new Text({ text: BOSS_CAPS, style: { fontFamily: FONT_DISPLAY, fontSize: 17, fill: 0xfff1c4, letterSpacing: 2 } });
     this.value = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: 18, fontWeight: '700', fill: 0xf2e6c9 } });
     this.value.anchor.set(1, 0);
     this.shine.anchor.set(0.5);
@@ -77,7 +78,7 @@ export class QueenBar {
     this.view.eventMode = 'none';
   }
 
-  /** Life left (Falter missing) and its share of the day's goal. */
+  /** Life left (Lumen missing) and its share of the day's goal. */
   life() {
     const q = Math.max(1, this.state.data.evening.quota);
     const missing = this.state.goalMissing;
@@ -111,10 +112,10 @@ export class QueenBar {
     this.healFlash = Math.max(0, this.healFlash - dtMs / 700);
     const d = this.state.data;
     const phase = Math.max(1, d.bossPhase);
-    const txt = missing > 0 ? `${formatChips(missing)} Falter` : 'BESIEGT';
+    const txt = missing > 0 ? `${formatChips(missing)} ${CURRENCY_PLURAL}` : 'BESIEGT';
     if (this.value.text !== txt) this.value.text = txt;
     const pn = PHASE_NAME[phase]?.toUpperCase() ?? '';
-    const nm = this.w < 420 ? 'KÖNIGIN' : `MOTTENKÖNIGIN · ${pn}`;
+    const nm = this.w < 420 ? BOSS_CAPS : pn.startsWith(BOSS_CAPS) ? pn : `${BOSS_CAPS} · ${pn}`;
     if (this.name.text !== nm) this.name.text = nm;
     const room = this.w - 16 - this.value.width - 66 - 12;
     this.name.scale.set(Math.min(1, room / Math.max(1, this.name.width / this.name.scale.x)));

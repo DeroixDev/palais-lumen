@@ -21,6 +21,7 @@ import { domeTexture, kenoStation, lineTexture, ringTexture, starTexture, tailTe
 import { seeded } from '../../world/painted/brush';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const SW = 720;
 const SH = 600;
 const BETS = [10, 20, 50, 100, 200, 500];
@@ -346,7 +347,7 @@ class KenoGame implements GameInstance {
     }
     const stake = this.bet.bet;
     if (!this.ctx.state.placeBet(stake)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.running = true;

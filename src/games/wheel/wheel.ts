@@ -35,6 +35,7 @@ import {
 } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const CHIPS = [10, 20, 50, 100, 200, 500];
 const SEG = (Math.PI * 2) / SEGMENTS;
 const CREAM = 0xfff3dc;
@@ -373,7 +374,7 @@ class WheelGame implements GameInstance {
   private addBet(f: Field) {
     if (this.spinning || this.shell.rulesOpen) return;
     if (this.total + this.chip > this.ctx.state.balance) {
-      this.ctx.toast('Nicht genug Falter für diesen Chip.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Chip.`);
       return;
     }
     this.bets.set(f, (this.bets.get(f) ?? 0) + this.chip);
@@ -443,7 +444,7 @@ class WheelGame implements GameInstance {
       return;
     }
     if (!this.ctx.state.placeBet(total)) {
-      this.ctx.toast('Nicht genug Falter.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL}.`);
       return;
     }
     this.spinning = true;

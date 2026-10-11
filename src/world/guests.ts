@@ -2,7 +2,7 @@
 // Purely decorative, so the casino never feels empty when you play alone.
 
 import { Container, Sprite } from 'pixi.js';
-import { COLORS, floatText, glowTexture, mothTexture } from '../core/fx';
+import { COLORS, floatText, glowTexture, emblemTexture } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
 import { Player, type Avatar, type PlayerLook, type HairStyle } from './player';
@@ -394,7 +394,7 @@ export class Guests {
       glow.tint = COLORS.lamp;
       glow.alpha = 0.5;
       glow.blendMode = 'add';
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.width = m.height = 16;
       m.tint = 0xfff1c4;

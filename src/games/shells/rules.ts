@@ -13,7 +13,7 @@ export function mothUnder(pick: number, rand = Math.random) {
 }
 
 /**
- * What a hit pays for a stake: stake × 2.85 in whole Falter. A half Falter (odd stakes) is
+ * What a hit pays for a stake: stake × 2.85 in whole Lumen. A half Lumen (odd stakes) is
  * rounded up or down by chance in proportion, so every stake gets exactly 95 % on average.
  */
 export function hitPays(stake: number, rand = Math.random) {

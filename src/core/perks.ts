@@ -1,9 +1,10 @@
 // Glücksbringer-Kette: after every passed day the player drafts one of three perks for the
 // rest of the season (gone when it ends). Perks only touch the economy around the games
-// (start money, goals, bonus Falter and Mondsteine), never the odds of a game.
+// (start money, goals, bonus Lumen and Mondsteine), never the odds of a game.
 
 import { BOSS_DAY, MOONSTONES_FOR, stakeUnitFor, type GameState, type Medal, type RoundReport, type SaveData } from './state';
 
+import { CURRENCY_PLURAL } from './brand';
 export type Rarity = 'common' | 'rare' | 'legendary';
 
 export interface Perk {
@@ -148,7 +149,7 @@ export function installPerks(state: GameState, note: PerkNote) {
     if (bonus > 0) {
       d.balance += bonus;
       d.evening.startBalance += bonus;
-      note(`Glücksbringer-Kette: +${bonus.toLocaleString('de-DE')} Falter zum Start von Tag ${d.evening.number}.`);
+      note(`Glücksbringer-Kette: +${bonus.toLocaleString('de-DE')} ${CURRENCY_PLURAL} zum Start von Tag ${d.evening.number}.`);
     }
   });
 
@@ -156,7 +157,7 @@ export function installPerks(state: GameState, note: PerkNote) {
   const pay = (n: number, why: string) => {
     if (n <= 0) return;
     state.payout(n);
-    note(`${why}: +${n.toLocaleString('de-DE')} Falter`);
+    note(`${why}: +${n.toLocaleString('de-DE')} ${CURRENCY_PLURAL}`);
   };
   state.onRound((r: RoundReport) => {
     const d = state.data;

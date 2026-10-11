@@ -6,7 +6,7 @@ import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { GameState } from '../core/state';
 import { BOSS_DAY } from '../core/state';
 import { QuipEngine, QuipPicker, SPEAKER_NAME, gameSpeaker, type Situation, type Speaker } from '../core/quips';
-import { drawMoth } from '../core/fx';
+import { drawEmblem } from '../core/fx';
 import { brass } from '../core/ui';
 import { Chibi } from '../world/painted/chibi';
 import type { PlayerLook } from '../world/player';
@@ -65,7 +65,7 @@ function frameTextures() {
       c.lineWidth = 1.6;
       c.stroke();
       // Little moth crest at the bottom of the ring.
-      drawMoth(c, 0, R + 1, 16, '#ffd98a', '#3a1a08');
+      drawEmblem(c, 0, R + 1, 16, '#ffd98a', '#3a1a08');
     }, 2.5);
   }
   return { frame: frameTex, back: backTex };
@@ -78,7 +78,7 @@ function voiceTexture() {
     voiceTex = paint(R * 2, R * 2, (c) => {
       c.translate(R, R);
       glowAt(c, 0, 0, R * 0.9, R * 0.9, 0xff5fa2, 0.5, 'lighter');
-      drawMoth(c, 0, 2, 40, '#ff9ac0', '#3a0a1e', '#fff1c4');
+      drawEmblem(c, 0, 2, 40, '#ff9ac0', '#3a0a1e', '#fff1c4');
     }, 2.5);
   return voiceTex;
 }

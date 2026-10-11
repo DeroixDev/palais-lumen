@@ -4,7 +4,7 @@
 // and a fixed light overlay on top keeps the light coming from the upper left.
 
 import type { Texture } from 'pixi.js';
-import { CHIP_COLORS, drawMoth } from '../../core/fx';
+import { CHIP_COLORS, drawEmblem } from '../../core/fx';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rrect, shadow, type Ctx } from '../../world/painted/brush';
 
 export const ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
@@ -528,7 +528,7 @@ export function tableTexture(cells: CellSpec[], gw: number, gh: number, pad: num
     rrect(c, rail - 2, rail - 2, W - rail * 2 + 4, H - rail * 2 + 4, 24);
     c.stroke();
     c.restore();
-    for (const o of ornaments) drawMoth(c, o.x + pad, o.y + pad + top, o.s, 'rgba(240,200,110,0.28)', 'rgba(240,200,110,0.38)');
+    for (const o of ornaments) drawEmblem(c, o.x + pad, o.y + pad + top, o.s, 'rgba(240,200,110,0.28)', 'rgba(240,200,110,0.38)');
 
     // Grid.
     c.save();

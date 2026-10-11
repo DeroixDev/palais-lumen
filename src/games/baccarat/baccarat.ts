@@ -19,6 +19,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { CANDLES, CHANDELIER_W, SIDE_COLOR, bacTableTexture, beadTexture, chandelierTexture, glintTexture, station, type BacGeo } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const SIDES: Side[] = ['player', 'tie', 'banker'];
 
@@ -146,7 +147,7 @@ class BaccaratGame implements GameInstance {
       `• ${r('player')}`,
       `• ${r('banker')}`,
       `• ${r('tie')} Bei Unentschieden bekommen Spieler- und Bank-Einsätze ihr Geld zurück.`,
-      '• 8 Decks, vor jedem Coup frisch gemischt – die Quoten gelten exakt (alle Kartenfolgen durchgerechnet). Ausgezahlt wird auf ganze Falter abgerundet.',
+      `• 8 Decks, vor jedem Coup frisch gemischt – die Quoten gelten exakt (alle Kartenfolgen durchgerechnet). Ausgezahlt wird auf ganze ${CURRENCY_PLURAL} abgerundet.`,
       '• Tippen oder Leertaste beschleunigt das Aufdecken. Tasten 1 / 2 / 3 wählen Spieler, Unentschieden, Bank.',
     ], 620);
     this.sideBtns = this.makeSideButtons(236);
@@ -416,7 +417,7 @@ class BaccaratGame implements GameInstance {
     if (this.phase !== 'idle' || this.dead) return;
     const bet = this.stake.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.phase = 'playing';

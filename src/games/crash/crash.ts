@@ -27,6 +27,7 @@ import { MAX_MULT, RTP, SHIELD_BELOW, SHIELD_RTP, drawWindPoint, shielded } from
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { luckDraw, luckBias } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 // ---- Rules -------------------------------------------------------------
 
 export { drawWindPoint };
@@ -120,7 +121,7 @@ class CrashGame implements GameInstance {
   private flash = new Graphics();
   private moth = new Container();
   private mothWings = new Sprite(flyerTexture());
-  private mothGlow = new Sprite(glowTexture());
+  private emblemGlow = new Sprite(glowTexture());
   private candle = new Container();
   private flame = new Sprite(flameTexture());
   private flameGlow = new Sprite(glowTexture());
@@ -256,15 +257,15 @@ class CrashGame implements GameInstance {
     this.candle.addChild(this.flameGlow, cs, this.flame);
     sky.addChild(this.candle);
 
-    this.mothGlow.anchor.set(0.5);
-    this.mothGlow.width = this.mothGlow.height = 130;
-    this.mothGlow.tint = GOLD;
-    this.mothGlow.blendMode = 'add';
+    this.emblemGlow.anchor.set(0.5);
+    this.emblemGlow.width = this.emblemGlow.height = 130;
+    this.emblemGlow.tint = GOLD;
+    this.emblemGlow.blendMode = 'add';
     this.mothWings.anchor.set(0.5);
     const wingBox = new Container();
     wingBox.scale.set(FLYER / 96);
     wingBox.addChild(this.mothWings);
-    this.moth.addChild(this.mothGlow, wingBox);
+    this.moth.addChild(this.emblemGlow, wingBox);
     sky.addChild(this.moth);
     this.flash.eventMode = 'none';
     sky.addChild(this.flash);
@@ -308,7 +309,7 @@ class CrashGame implements GameInstance {
     b.addChild(this.subText, this.historyLayer, this.controls);
 
     this.resetFlight();
-    this.subText.text = 'Die Motte fliegt zum Mond. Je höher, desto mehr.\nSammle ein, bevor der Nachtwind sie erwischt.';
+    this.subText.text = 'Die Himmelslaterne steigt zum Mond. Je höher, desto mehr.\nSammle ein, bevor der Nachtwind sie erwischt.';
   }
 
   /** (Re)builds the sky, frame and controls for a new size. */
@@ -461,7 +462,7 @@ class CrashGame implements GameInstance {
     this.moth.alpha = 1;
     this.moth.rotation = 0;
     this.moth.scale.set(1);
-    this.mothGlow.alpha = 0.7;
+    this.emblemGlow.alpha = 0.7;
     this.moth.position.set(this.candle.x + 20, this.candle.y - 100);
     this.moon.scale.set(0.8);
     this.skyline.y = this.skylineBase;
@@ -474,7 +475,7 @@ class CrashGame implements GameInstance {
   private launch() {
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.stake = bet;
@@ -492,7 +493,7 @@ class CrashGame implements GameInstance {
     this.setControlsLocked(true);
     this.actionBtn.setEnabled(false);
     this.updateActionLabel();
-    this.subText.text = 'Die Motte wärmt sich an der Kerze …';
+    this.subText.text = 'Die Laterne wird an der Kerze entzündet …';
     this.ctx.sfx.spinStart();
     // Short warm-up: the moth circles the flame once, then takes off.
     const cx = this.candle.x;
@@ -534,7 +535,7 @@ class CrashGame implements GameInstance {
     this.setDisplay(m, GOLD, 'EINGESAMMELT');
     this.setControlsLocked(false);
     this.updateActionLabel();
-    this.subText.text = `Eingesammelt bei ${fmt(m)}×  ·  +${formatChips(win)} Falter`;
+    this.subText.text = `Eingesammelt bei ${fmt(m)}×  ·  +${formatChips(win)} ${CURRENCY_PLURAL}`;
     const calm = reducedMotion();
     if (!calm) void tween(this.digits.scale, { x: 1.22, y: 1.22 }, 140, ease.outCubic).then(() => tween(this.digits.scale, { x: 1, y: 1 }, 380, ease.outBack));
     this.plaqueGlow.alpha = 0.85;
@@ -613,7 +614,7 @@ class CrashGame implements GameInstance {
       void tween(g, { x: this.skyW + 200 }, 520 + Math.random() * 300, ease.inOutCubic, i * 60).then(() => g.destroy());
     }
     void tween(this.trail, { alpha: 0.45 }, 800);
-    this.mothGlow.alpha = 0;
+    this.emblemGlow.alpha = 0;
     const sx = this.moth.x;
     const sy = this.moth.y;
     void animate(
@@ -642,7 +643,7 @@ class CrashGame implements GameInstance {
     this.plaqueTint.tint = 0xbfd8ff;
     this.plaqueTint.alpha = 0.3;
     void tween(this.plaqueTint, { alpha: 0 }, 700);
-    this.subText.text = `Windstoß bei ${fmt(this.windAt)}× – der Mondschirm fängt die Motte: ${formatChips(win)} Falter zurück.`;
+    this.subText.text = `Windstoß bei ${fmt(this.windAt)}× – der Mondschirm fängt die Laterne: ${formatChips(win)} ${CURRENCY_PLURAL} zurück.`;
     this.setControlsLocked(false);
     this.actionBtn.setEnabled(true);
     this.updateActionLabel();
@@ -783,7 +784,7 @@ class CrashGame implements GameInstance {
       this.moth.rotation = Math.atan2(hy - py, hx - px) + Math.PI / 2;
     }
     this.mothWings.scale.x = 0.3 + 0.7 * Math.abs(Math.cos(this.time * 14));
-    this.mothGlow.alpha = 0.55 + 0.35 * Math.sin(this.time * 6);
+    this.emblemGlow.alpha = 0.55 + 0.35 * Math.sin(this.time * 6);
     this.moon.scale.set(Math.min(this.moonMax, 0.8 + Math.log(m) * 0.32));
     // The garden sinks away below as the moth climbs.
     this.skyline.y = this.skylineBase + Math.min(170, Math.log(m) * 110);

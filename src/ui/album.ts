@@ -36,6 +36,7 @@ import { brass } from '../core/ui';
 import { Panel } from './panel';
 import { CREAM, PANEL_PAD, bodyText, closeKnob, plaque } from './kit';
 
+import { ALBUM_ENTRIES, ALBUM_ENTRY, ALBUM_NAME, CURRENCY_PLURAL } from '../core/brand';
 interface Overlay {
   view: Container;
   resize(w: number, h: number): void;
@@ -133,7 +134,7 @@ class MothFlight {
     this.btn.id = 'moth-catch';
     this.btn.type = 'button';
     this.btn.hidden = true;
-    this.btn.textContent = 'Motte fangen (Taste F)';
+    this.btn.textContent = `${ALBUM_ENTRY} fangen (Taste F)`;
     this.btn.addEventListener('click', () => this.catch());
     document.body.appendChild(this.btn);
     window.addEventListener('keydown', (e) => {
@@ -193,8 +194,8 @@ class MothFlight {
     this.place(this.f);
     sfx.flutter();
     this.btn.hidden = false;
-    const who = caught(this.state.data, m.id) ? m.name : 'Eine unbekannte Motte';
-    announce(`${who} flattert vorbei! Taste F fängt sie.`);
+    const who = caught(this.state.data, m.id) ? m.name : `Eine unbekannte ${ALBUM_ENTRY}`;
+    announce(`${who} zeigt sich! Taste F fängt sie.`);
   }
 
   private place(f: Flight) {
@@ -230,7 +231,7 @@ class MothFlight {
     f.t += dtMs / f.dur;
     if (f.t >= 1) {
       this.drop();
-      announce('Die Motte ist weitergeflogen.');
+      announce(`Die ${ALBUM_ENTRY} ist weitergeflogen.`);
       return;
     }
     this.place(f);
@@ -283,7 +284,7 @@ class MothFlight {
     void this.card(news);
     for (const p of news.pages) this.host.toast(`Album-Seite „${p.title}“ voll! +${p.stones} Mondsteine.`);
     if (news.pages.length) setTimeout(() => sfx.medal(), 300);
-    if (news.complete) this.host.toast('Das ganze Motten-Album ist voll! Eine Kristall-Trophäe steht jetzt in deiner Vitrine.');
+    if (news.complete) this.host.toast(`Das ganze ${ALBUM_NAME} ist voll! Eine Kristall-Trophäe steht jetzt in deiner Vitrine.`);
   }
 
   /** "NEU IM ALBUM · Kerzenmotte" card at the bottom of the screen. */
@@ -560,13 +561,13 @@ export class AlbumPanel extends Panel {
     const book = new Sprite(bookTexture(this.W, this.H, pageTop, !n));
     book.position.set(-PANEL_PAD, -PANEL_PAD);
     p.addChild(book);
-    const pl = plaque('MOTTEN-ALBUM', { size: n ? 22 : 28, minW: n ? 220 : 320 });
+    const pl = plaque(ALBUM_NAME.toLocaleUpperCase('de-DE'), { size: n ? 22 : 28, minW: n ? 220 : 320 });
     pl.position.set(this.W / 2, 4);
     p.addChild(pl);
     const x = closeKnob(this.onClose);
     x.position.set(this.W - 40, 40);
     p.addChild(x);
-    const total = bodyText(`${caughtCount(d)} / ${MOTHS.length} Motten`, n ? 16 : 18, CREAM, { bold: true });
+    const total = bodyText(`${caughtCount(d)} / ${MOTHS.length} ${ALBUM_ENTRIES}`, n ? 16 : 18, CREAM, { bold: true });
     total.anchor.set(0, 0.5);
     total.position.set(n ? 26 : 40, n ? 42 : 40);
     p.addChild(total);
@@ -603,7 +604,7 @@ export class AlbumPanel extends Panel {
         this.sel = mothsOnPage(ALBUM_PAGES[i].id)[0].id;
         this.rebuild();
       });
-      focusable(tab, { label: `Seite ${pg.title}: ${have} von ${all} Motten${on ? ' (aufgeschlagen)' : ''}`, rect: { x: 0, y: 0, w: tw, h: tabH } }).setPressed(on);
+      focusable(tab, { label: `Seite ${pg.title}: ${have} von ${all} ${ALBUM_ENTRIES}${on ? ' (aufgeschlagen)' : ''}`, rect: { x: 0, y: 0, w: tw, h: tabH } }).setPressed(on);
       p.addChild(tab);
     });
 
@@ -665,7 +666,7 @@ export class AlbumPanel extends Panel {
       slot.cursor = 'pointer';
       slot.hitArea = new Rectangle(0, 0, sw, sh);
       slot.on('pointertap', () => this.select(m.id));
-      focusable(slot, { label: () => `${has ? m.name : 'Unbekannte Motte'}, ${RARITY_NAME[m.rarity]}${has ? `, ${d.album[m.id]}-mal gefangen` : ''}`, rect: { x: 0, y: 0, w: sw, h: sh } });
+      focusable(slot, { label: () => `${has ? m.name : `Unbekannte ${ALBUM_ENTRY}`}, ${RARITY_NAME[m.rarity]}${has ? `, ${d.album[m.id]}-mal gefangen` : ''}`, rect: { x: 0, y: 0, w: sw, h: sh } });
       p.addChild(slot);
       this.slots.push({ id: m.id, frame: fr, w: sw, h: sh });
       items.push(slot);
@@ -683,7 +684,7 @@ export class AlbumPanel extends Panel {
     p.addChild(this.detail);
     this.fillDetail();
 
-    const foot = bodyText('Motten zählen nur fürs Album: Falter und Gewinnchancen bleiben gleich. Volles Album: eine Trophäe für die Vitrine.', n ? 13 : 14, CREAM, { wrap: this.W - 80 });
+    const foot = bodyText(`${ALBUM_ENTRIES} zählen nur fürs Album: ${CURRENCY_PLURAL} und Gewinnchancen bleiben gleich. Volles Album: eine Trophäe für die Vitrine.`, n ? 13 : 14, CREAM, { wrap: this.W - 80 });
     foot.anchor.set(0.5, 0.5);
     foot.alpha = 0.8;
     foot.position.set(this.W / 2, this.H - 21);
@@ -774,7 +775,7 @@ export class AlbumPanel extends Panel {
     yy += rar.height + (small ? 4 : 10);
     const lines: [string, number, boolean][] = has
       ? [[`„${m.line}“`, PAPER_INK, false], [`Fundort: ${whereText(m.where)}`, PAPER_MUTED, true], [`Gefangen: ${d.album[m.id]}×`, PAPER_MUTED, true]]
-      : [[`Tipp: ${hintText(m)}`, PAPER_INK, false], ['Seltene Motten fliegen nur nach großen Gewinnen.', PAPER_MUTED, false]];
+      : [[`Tipp: ${hintText(m)}`, PAPER_INK, false], [`Seltene ${ALBUM_ENTRIES} fliegen nur nach großen Gewinnen.`, PAPER_MUTED, false]];
     for (const [t, col, bold] of lines) {
       const tx = new Text({ text: t, style: { fontFamily: FONT_BODY, fontSize: small ? 14 : 18, fontWeight: bold ? '700' : '500', fontStyle: !bold && has ? 'italic' : 'normal', fill: col, wordWrap: true, wordWrapWidth: w, align: center ? 'center' : 'left', lineHeight: small ? 17 : 22 } });
       tx.anchor.set(center ? 0.5 : 0, 0);
@@ -812,11 +813,11 @@ export class AlbumFeature {
     albumDebug = {
       spawn: () => {
         const m = debugFlight(state);
-        return `Eine Motte flattert los: ${m.name} (${RARITY_NAME[m.rarity]}).`;
+        return `Eine ${ALBUM_ENTRY} zeigt sich: ${m.name} (${RARITY_NAME[m.rarity]}).`;
       },
       fill: () => {
         const r = fillAlbum(state);
-        return `Album gefüllt: ${MOTHS.length} Motten.${r.stones ? ` +${r.stones} Mondsteine für volle Seiten.` : ''}${r.complete ? ' Trophäe in der Vitrine.' : ''}`;
+        return `Album gefüllt: ${MOTHS.length} ${ALBUM_ENTRIES}.${r.stones ? ` +${r.stones} Mondsteine für volle Seiten.` : ''}${r.complete ? ' Trophäe in der Vitrine.' : ''}`;
       },
     };
   }
@@ -828,7 +829,7 @@ export class AlbumFeature {
     b.type = 'button';
     b.className = 'hud-btn icon';
     b.innerHTML =
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v10M12 9c-1.5-3-5-4.5-7.5-3.5-.8 2.7 1 5.6 4 6-2.4.6-3.6 2.8-2.7 4.8 2.2.4 4.6-1 6.2-3.3M12 9c1.5-3 5-4.5 7.5-3.5.8 2.7-1 5.6-4 6 2.4.6 3.6 2.8 2.7 4.8-2.2.4-4.6-1-6.2-3.3M10.5 5.5 12 8l1.5-2.5"/></svg><span class="lbl">Motten-Album</span>';
+      `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v10M12 9c-1.5-3-5-4.5-7.5-3.5-.8 2.7 1 5.6 4 6-2.4.6-3.6 2.8-2.7 4.8 2.2.4 4.6-1 6.2-3.3M12 9c1.5-3 5-4.5 7.5-3.5.8 2.7-1 5.6-4 6 2.4.6 3.6 2.8 2.7 4.8-2.2.4-4.6-1-6.2-3.3M10.5 5.5 12 8l1.5-2.5"/></svg><span class="lbl">${ALBUM_NAME}</span>`;
     b.addEventListener('click', () => this.open());
     const menu = document.getElementById('hud-menu');
     const photo = document.getElementById('btn-photo');
@@ -846,7 +847,7 @@ export class AlbumFeature {
   open() {
     const mode = this.host.mode();
     if (mode === 'game') {
-      this.host.toast('Das Motten-Album schlägst du auf, wenn du gerade nicht spielst.');
+      this.host.toast(`Das ${ALBUM_NAME} schlägst du auf, wenn du gerade nicht spielst.`);
       return;
     }
     if (mode !== 'room' || this.host.modalOpen() || this.panel) return;

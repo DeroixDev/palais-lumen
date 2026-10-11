@@ -4,7 +4,7 @@
 
 import { Container, Sprite, Text, type Texture } from 'pixi.js';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
-import { COLORS, FONT_BODY, FONT_DISPLAY, coinTexture, floatText, glowTexture, mothTexture, reducedMotion, rewardLevel } from '../../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, coinTexture, floatText, glowTexture, emblemTexture, reducedMotion, rewardLevel } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
 import { button, type Button } from '../../core/ui';
 import { formatChips } from '../../core/state';
@@ -16,6 +16,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DIE_TEX, PUCK, dieTexture, drawCrapsStation, puckTexture, streetLayout, streetTexture, type StreetLayout } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY, CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
 const CREAM = 0xfff3dc;
@@ -27,7 +28,7 @@ const RULES = [
   'Zwei Würfel, eine Wand – geworfen wird gegen den Bordstein.',
   '',
   '• Erster Wurf (Anwurf): 7 oder 11 gewinnt sofort 1:1. 2, 3 oder 12 verliert.',
-  '• Jede andere Zahl wird dein Punkt. Wirf sie noch einmal, bevor eine 7 fällt: der Punkt zahlt 9:10 (ein halber Falter wird per Zufall auf- oder abgerundet). Kommt zuerst die 7, ist der Einsatz weg.',
+  `• Jede andere Zahl wird dein Punkt. Wirf sie noch einmal, bevor eine 7 fällt: der Punkt zahlt 9:10 (ein halbes ${CURRENCY} wird per Zufall auf- oder abgerundet). Kommt zuerst die 7, ist der Einsatz weg.`,
   '• Feld (wahlweise, gleicher Einsatz, nur der Anwurf): 3, 4, 9, 10, 11 zahlen 1:1, 2 und 12 zahlen 2:1. 5, 6, 7 und 8 verlieren.',
   '',
   `Auf der Straße zahlt der Punkt 1:1 (98,6 %). Hier zahlt er 9:10, damit das Haus im Rahmen bleibt: Linie ${pct(LINE_RTP)}\u00a0% Auszahlungsquote, Feld ${pct(FIELD_RTP)}\u00a0%. Die Würfel fallen rein zufällig.`,
@@ -287,7 +288,7 @@ class CrapsGame implements GameInstance {
     S.addChild(this.lanternGlow);
     if (this.moths.length === 0) {
       for (let i = 0; i < 3; i++) {
-        const s = new Sprite(mothTexture());
+        const s = new Sprite(emblemTexture());
         s.anchor.set(0.5);
         s.width = s.height = 16 + i * 3;
         s.tint = 0xfff1c4;
@@ -511,7 +512,7 @@ class CrapsGame implements GameInstance {
     const line = this.bet;
     const field = this.fieldOn ? this.bet : 0;
     if (!this.ctx.state.placeBet(line + field)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.lineStake = line;

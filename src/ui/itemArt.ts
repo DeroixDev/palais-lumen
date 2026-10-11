@@ -4,7 +4,7 @@
 // for the HTML overlay as a data URL.
 
 import type { Texture } from 'pixi.js';
-import { drawMoth } from '../core/fx';
+import { drawEmblem } from '../core/fx';
 import { itemDef } from '../core/modifiers';
 import { itemMedalTexture } from '../games/itemKit';
 import { INK, ellipse, fillInk, glowAt, gold, light, paint, rgb, rim, rrect, type Ctx } from '../world/painted/brush';
@@ -312,7 +312,7 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     c.strokeStyle = 'rgba(110,70,15,0.8)';
     c.lineWidth = 1.5;
     c.stroke();
-    drawMoth(c, 0, 1, 24, '#8a5a12', '#5a3a08');
+    drawEmblem(c, 0, 1, 24, '#8a5a12', '#5a3a08');
   },
   dietrich(c) {
     // A lock pick crossed with a slim key over a padlock.
@@ -396,7 +396,7 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     c.quadraticCurveTo(-20, 7, -19, -17);
     c.quadraticCurveTo(-11, -15, 0, -22);
     c.stroke();
-    drawMoth(c, 0, 1, 26, '#ffe6a0', '#a8741f');
+    drawEmblem(c, 0, 1, 26, '#ffe6a0', '#a8741f');
   },
   verstaerker(c) {
     // A brass gramophone horn blowing sparkles: everything louder.
@@ -437,12 +437,12 @@ const ICONS: Record<string, (c: Ctx) => void> = {
     fillInk(c, g, 2);
     rrect(c, -20, 24, 40, 6, 2);
     fillInk(c, '#c8b8d0', 1.5);
-    drawMoth(c, 0, -4, 40, 'rgba(22,10,20,0.85)', 'rgba(22,10,20,0.9)');
+    drawEmblem(c, 0, -4, 40, 'rgba(22,10,20,0.85)', 'rgba(22,10,20,0.9)');
     const mg = c.createLinearGradient(-16, -18, 16, 10);
     mg.addColorStop(0, '#fff4c2');
     mg.addColorStop(0.5, '#e6b85a');
     mg.addColorStop(1, '#9a6a22');
-    drawMoth(c, 0, -5, 36, mg, '#6a4210', 'rgba(255,240,200,0.8)');
+    drawEmblem(c, 0, -5, 36, mg, '#6a4210', 'rgba(255,240,200,0.8)');
     ellipse(c, 0, -26, 11, 3.5);
     c.strokeStyle = '#ffe08a';
     c.lineWidth = 2.2;
@@ -534,7 +534,7 @@ export function pouchUrl() {
   fillInk(c, '#7a2a52', 1.6);
   rrect(c, 17, 13, 14, 5, 2.5);
   fillInk(c, gold(c, 17, 13, 31, 18), 1.4);
-  drawMoth(c, 24, 30, 16, '#ffe6a0', '#a8741f');
+  drawEmblem(c, 24, 30, 16, '#ffe6a0', '#a8741f');
   pouch = cv.toDataURL();
   return pouch;
 }

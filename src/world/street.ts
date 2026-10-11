@@ -4,13 +4,14 @@
 // you step onto the red carpet, the doorman greets you and the doors open.
 
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { COLORS, FONT_DISPLAY, glowText, glowTexture, mothTexture, reducedMotion } from '../core/fx';
+import { COLORS, FONT_DISPLAY, glowText, glowTexture, emblemTexture, reducedMotion } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { Chibi } from './painted/chibi';
 import type { PlayerLook } from './player';
 import { INK, dark, ellipse, glowAt, gold, grain, light, mix, paint, rgb, rrect, seeded, type Ctx } from './painted/brush';
 
+import { HOUSE_CAPS } from '../core/brand';
 const W = 1600;
 const H = 900;
 /** Where the façade meets the pavement. */
@@ -397,7 +398,7 @@ function paintFacade(c: Ctx) {
     c.lineTo(DOOR_X + 90 - i * 8, top - 56);
     c.stroke();
   }
-  drawMothRelief(c, DOOR_X, top - 132, 52);
+  drawEmblemRelief(c, DOOR_X, top - 132, 52);
   // Porthole windows on the tower.
   for (let i = 0; i < 5; i++) {
     const px = DOOR_X - 180 + i * 90;
@@ -517,7 +518,7 @@ function vg(c: Ctx, y0: number, y1: number, col: number, top = 0.18, bottom = 0.
   return g;
 }
 
-function drawMothRelief(c: Ctx, x: number, y: number, s: number) {
+function drawEmblemRelief(c: Ctx, x: number, y: number, s: number) {
   glowAt(c, x, y, s * 1.4, s, 0xffcf7a, 0.35);
   for (const side of [-1, 1]) {
     for (const [ox, oy, rx, ry, rot] of [[0.3, -0.08, 0.34, 0.22, -0.45], [0.2, 0.2, 0.2, 0.15, 0.6]]) {
@@ -1193,7 +1194,10 @@ export class Street {
       const by = i < 14 ? SIGN.y + 11 : SIGN.y + SIGN.h - 11;
       this.bulbs.push(this.bulb(bx, by, 5));
     }
-    this.sign = glowText('NACHTFALTER', { fontFamily: FONT_DISPLAY, fontSize: 64, fill: 0xfff0f6, letterSpacing: 6 }, { color: COLORS.neon, distance: 22, outerStrength: 3.5, innerStrength: 0.6 });
+    this.sign = glowText(HOUSE_CAPS, { fontFamily: FONT_DISPLAY, fontSize: 64, fill: 0xfff0f6, letterSpacing: 6 }, { color: COLORS.neon, distance: 22, outerStrength: 3.5, innerStrength: 0.6 });
+    // The house name may change (src/core/brand.ts): a longer one shrinks to fit the sign.
+    const signFit = (SIGN.w - 56) / Math.max(1, this.sign.width);
+    if (signFit < 1) this.sign.scale.set(signFit);
     this.sign.position.set(DOOR_X, SIGN.y + SIGN.h / 2 + 2);
     this.world.addChild(this.sign);
     this.signReflection = this.glow(DOOR_X, ROAD + 90, 640, 150, COLORS.neon, 0.16);
@@ -1340,7 +1344,7 @@ export class Street {
       glow.tint = COLORS.lamp;
       glow.alpha = 0.6;
       glow.blendMode = 'add';
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.width = m.height = 16;
       m.tint = 0xfff1c4;
@@ -1371,7 +1375,7 @@ export class Street {
     glow.tint = COLORS.lamp;
     glow.alpha = 0.5;
     glow.blendMode = 'add';
-    const wings = new Sprite(mothTexture());
+    const wings = new Sprite(emblemTexture());
     wings.anchor.set(0.5);
     wings.width = wings.height = 14;
     wings.tint = 0xfff1c4;

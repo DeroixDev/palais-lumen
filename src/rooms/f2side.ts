@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES } from '../core/brand';
 /**
  * Floor 2 side room: a glasshouse off the Mondgarten, warm and damp, full of night-blooming
  * plants. In the middle the Mondblüte opens once a night; picking it stamps the Mondgarten
@@ -29,7 +30,7 @@ export const f2side: RoomDefinition = {
     bare: true,
   },
   spawn: { x: 120, y: 470 },
-  doors: [{ x: 0, y: 470, side: 'left', to: 'f2', label: 'Mondgarten' }],
+  doors: [{ x: 0, y: 470, side: 'left', to: 'f2', label: FLOOR_NAMES.f2 }],
   stations: [
     { game: 'slots', pinned: true, x: 600, y: 230, label: 'Nachtblüte', options: { theme: 'diamond' } },
     { game: 'slots', pinned: true, x: 680, y: 230, options: { theme: 'diamond' } },

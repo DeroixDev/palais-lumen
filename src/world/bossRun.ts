@@ -13,11 +13,12 @@ import { getGame } from '../core/registry';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
 import { type Ctx, ellipse, fillInk, glowAt, gold, paint, rrect, seeded, shadow } from './painted/brush';
-import { mothEmblem, paintWing } from './painted/propsCrystal';
+import { crestEmblem, paintWing } from './painted/propsCrystal';
 import type { Rect } from './decor';
 import type { ExtraInteractable } from './roomExtras';
 import { WALL_H } from './styles';
 
+import { BOSS_NAME } from '../core/brand';
 export interface CorridorHost {
   world: Container;
   entities: Container;
@@ -141,7 +142,7 @@ function paintPost(c: Ctx, P: P3, y: number, h: number) {
   c.save();
   c.translate(mx, my);
   c.globalAlpha = 0.9;
-  mothEmblem(c, 16, '#c98ae0');
+  crestEmblem(c, 16, '#c98ae0');
   c.restore();
   // Finial: a little gold moth on a ball.
   const [tx, ty] = P(0, y, h);
@@ -150,7 +151,7 @@ function paintPost(c: Ctx, P: P3, y: number, h: number) {
   fillInk(c, gold(c, tx - 6, ty - 10, tx + 6, ty), 1.2);
   c.save();
   c.translate(tx, ty - 17);
-  mothEmblem(c, 20);
+  crestEmblem(c, 20);
   c.restore();
 }
 
@@ -333,7 +334,7 @@ function sealHalf(side: -1 | 1) {
       c.lineWidth = 1.6;
       c.stroke();
       c.globalAlpha = 0.85;
-      mothEmblem(c, 20, '#ffcf7a');
+      crestEmblem(c, 20, '#ffcf7a');
       c.globalAlpha = 1;
       glowAt(c, -7, -8, 6, 4, 0xffffff, 0.35, 'lighter');
       c.restore();
@@ -602,7 +603,7 @@ export class CorridorScene {
     this.arrow.anchor.set(0.5, 1);
     host.fx.addChild(this.arrow);
     const t = CORRIDOR.throne;
-    this.queenSpot = { kind: 'extra', id: 'queen', x: t.x, y: t.y + 76, title: 'Die Königin herausfordern' };
+    this.queenSpot = { kind: 'extra', id: 'queen', x: t.x, y: t.y + 76, title: `${BOSS_NAME} herausfordern` };
     host.interactables.push(this.queenSpot);
     this.refresh();
     // A saved spot behind a closed gate or off the floor (an old save of the throne room): back to the start.

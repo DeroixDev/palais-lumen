@@ -3,7 +3,7 @@
 // Everything is painted once with Canvas 2D (same brushes as the world) and cached.
 
 import { Container, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
-import { COLORS, FONT_BODY, FONT_DISPLAY, drawMoth, reducedMotion } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, drawEmblem, reducedMotion } from '../core/fx';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
 import { brass, luma, softBack, velvetNap } from '../core/ui';
@@ -108,12 +108,12 @@ function cornerOrnament(c: Ctx, x: number, y: number, sx: number, sy: number, si
   // The moth stays upright: draw outside the mirrored transform.
   const mx = x + sx * size * 0.27;
   const my = y + sy * size * 0.27;
-  drawMoth(c, mx + 1, my + 1.5, size * 0.42, 'rgba(10,4,16,0.6)', 'rgba(10,4,16,0.7)');
+  drawEmblem(c, mx + 1, my + 1.5, size * 0.42, 'rgba(10,4,16,0.6)', 'rgba(10,4,16,0.7)');
   const mg = c.createLinearGradient(mx - size * 0.2, my - size * 0.2, mx + size * 0.2, my + size * 0.2);
   mg.addColorStop(0, '#fff4c2');
   mg.addColorStop(0.5, '#e6b85a');
   mg.addColorStop(1, '#9a6a22');
-  drawMoth(c, mx, my, size * 0.42, mg, '#6a4210', 'rgba(255,240,200,0.8)');
+  drawEmblem(c, mx, my, size * 0.42, mg, '#6a4210', 'rgba(255,240,200,0.8)');
 }
 
 /** Brass screw head. */

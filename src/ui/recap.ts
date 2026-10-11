@@ -17,6 +17,7 @@ import { paintedMedal, paintedTrophy } from './trophyArt';
 import { curveCard } from './recapCurve';
 import { settlementNote } from '../core/itemsCore';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 const MARKERS: [number, Medal][] = [
   [1, 'bronze'],
   [1.5, 'silver'],
@@ -173,7 +174,7 @@ export class Recap {
     const pl = plaque(`TAG ${r.evening} · ABRECHNUNG`, { size: n ? 21 : 28, minW: n ? 300 : 420 });
     pl.position.set(W / 2, 4);
     p.addChild(pl);
-    announce(`Tag ${r.evening}, Abrechnung. ${r.passed ? 'Ziel geschafft' : 'Ziel verfehlt'}. Ergebnis ${r.profit >= 0 ? 'plus' : 'minus'} ${formatChips(Math.abs(r.profit))} Falter, Kontostand ${formatChips(r.endBalance)}.`);
+    announce(`Tag ${r.evening}, Abrechnung. ${r.passed ? 'Ziel geschafft' : 'Ziel verfehlt'}. Ergebnis ${r.profit >= 0 ? 'plus' : 'minus'} ${formatChips(Math.abs(r.profit))} ${CURRENCY_PLURAL}, Kontostand ${formatChips(r.endBalance)}.`);
     this.skipHint = bodyText(n ? 'Tippen zum Überspringen' : 'Klicken zum Überspringen', 15, MUTED);
     this.skipHint.anchor.set(0.5);
     this.skipHint.position.set(W / 2, H - 30);
@@ -432,7 +433,7 @@ export class Recap {
     const kept = r.wagered - r.won;
     const note = bodyText(
       kept > 0
-        ? `Das Haus hat heute ${formatChips(kept)} Falter behalten. Auf Dauer gewinnt immer das Haus.`
+        ? `Das Haus hat heute ${formatChips(kept)} ${CURRENCY_PLURAL} behalten. Auf Dauer gewinnt immer das Haus.`
         : `Heute hattest du Glück. Auf Dauer gewinnt trotzdem immer das Haus.`,
       n ? 15 : 17,
       MUTED,
@@ -520,7 +521,7 @@ export class Recap {
 
     // Honest numbers: what went in, what came back, and what the house edge takes on average.
     const sy = cy + ch + (n ? 22 : 28);
-    const parts = [`Eingesetzt ${formatChips(r.wagered)}`, `Ausgezahlt ${formatChips(r.won)}`, `Auf Dauer behält das Haus etwa ${formatChips(Math.round(r.houseExpected))} Falter`];
+    const parts = [`Eingesetzt ${formatChips(r.wagered)}`, `Ausgezahlt ${formatChips(r.won)}`, `Auf Dauer behält das Haus etwa ${formatChips(Math.round(r.houseExpected))} ${CURRENCY_PLURAL}`];
     const stats = bodyText(n ? `${parts[0]} · ${parts[1]}\n${parts[2]}` : parts.join(' · '), n ? 17 : 20, CREAM, { bold: true, wrap: W - 2 * (n ? 18 : 40) });
     stats.anchor.set(0.5, 0);
     stats.position.set(W / 2, sy);

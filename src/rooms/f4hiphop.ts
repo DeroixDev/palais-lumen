@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { SLOT_GOLD } from '../core/brand';
 /** Floor 4 side room: the hip-hop floor behind the techno bunker. */
 export const f4hiphop: RoomDefinition = {
   id: 'f4h',
@@ -27,7 +28,7 @@ export const f4hiphop: RoomDefinition = {
   doors: [{ x: 0, y: 520, side: 'left', to: 'f4t', label: 'Techno-Bunker' }],
   stations: [
     { game: 'slots', x: 830, y: 196, options: { theme: 'gold' } },
-    { game: 'slots', x: 910, y: 196, label: 'Goldmotte', options: { theme: 'gold' } },
+    { game: 'slots', x: 910, y: 196, label: SLOT_GOLD, options: { theme: 'gold' } },
     { game: 'slots', x: 990, y: 196, options: { theme: 'gold' } },
     { game: 'shells', x: 880, y: 470, label: 'Hütchenspiel' },
     { game: 'craps', x: 1060, y: 650, label: 'Würfel' },

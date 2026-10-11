@@ -2,7 +2,7 @@
 // on, the clicker, the bet plaques and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { drawMoth, glowTexture } from '../../core/fx';
+import { drawEmblem, glowTexture } from '../../core/fx';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, propSprite, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 import { BONUS_PAY, BONUS_WHEEL, WHEEL, type Field, type Segment } from './rules';
@@ -48,7 +48,7 @@ function segPath(c: Ctx, i: number, n: number, r0: number, r1: number) {
 }
 
 function mothMark(c: Ctx, x: number, y: number, s: number, col: string) {
-  drawMoth(c, x, y, s, col, col);
+  drawEmblem(c, x, y, s, col, col);
 }
 
 export function wheelTexture() {

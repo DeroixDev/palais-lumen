@@ -391,7 +391,7 @@ function brickWall(c: Ctx, W: number, WH: number, r: () => number) {
     }
   }
   // Graffiti pieces: bubble letters with outline, fill gradient and drips.
-  const words = ['FALTER', 'BOOM', 'CREW', 'MOND', 'BAP', 'NACHT'];
+  const words = ['NEON', 'BOOM', 'CREW', 'MOND', 'BAP', 'NACHT'];
   const cols: [string, string][] = [['#ffd23f', '#ff6b2f'], ['#3fe8ff', '#3f6bff'], ['#ff3fb4', '#a03fff'], ['#7bff6a', '#1fa05a']];
   for (let i = 0, x = 60; x < W - 60; i++) {
     const word = words[i % words.length];

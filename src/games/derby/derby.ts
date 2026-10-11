@@ -36,6 +36,7 @@ import {
 } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const RACE_MS = 9000;
 const START_X = 110;
@@ -533,7 +534,7 @@ class DerbyGame implements GameInstance {
   private async start() {
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.stake = bet;
@@ -735,7 +736,7 @@ class DerbyGame implements GameInstance {
     const name = DUCKS[this.pick].name;
     const line =
       win > 0
-        ? `${name} – ${this.kind === 'win' ? 'Sieg' : `Platz ${pos + 1}`}!  +${formatChips(win)} Falter`
+        ? `${name} – ${this.kind === 'win' ? 'Sieg' : `Platz ${pos + 1}`}!  +${formatChips(win)} ${CURRENCY_PLURAL}`
         : `${name} wurde ${pos + 1}. – diesmal nichts.`;
     const res = new Text({ text: line, style: { fontFamily: FONT_BODY, fontSize: 24, fontWeight: '700', fill: win > 0 ? GOLD : 0xd9c6a0, stroke: { color: 0x0a0610, width: 5 } } });
     res.anchor.set(0.5, 0);

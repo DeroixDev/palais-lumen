@@ -35,6 +35,7 @@ import {
 } from './paint';
 import { luckStep, luckOn } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const ROW = 124;
 const CREAM = 0xfff3dc;
@@ -458,7 +459,7 @@ class IceGame implements GameInstance {
   private start() {
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     if (this.phase === 'reset') this.buildRiver();
@@ -662,7 +663,7 @@ class IceGame implements GameInstance {
     this.phase = 'reset';
     this.refreshHud();
     this.refreshButtons();
-    this.subText.text = `Eingesammelt: +${formatChips(win)} Falter`;
+    this.subText.text = `Eingesammelt: +${formatChips(win)} ${CURRENCY_PLURAL}`;
     if (!across) this.talk.text = `Eingesammelt bei ${fmtX(m)}!`;
     // Happy flipper bounce.
     if (!this.calm) {

@@ -1,4 +1,4 @@
-// Falter-Poker rules: a Jacks-or-Better video poker with a reduced 7/5 paytable, kept free of
+// Salon-Poker rules: a Jacks-or-Better video poker with a reduced 7/5 paytable, kept free of
 // Pixi so scripts/rtp-poker.mjs can import exactly this code and compute the optimal-play RTP.
 // Card = rank * 4 + suit; rank 0..12 is 2..Ass, suit 0..3 is ♠ ♥ ♦ ♣.
 

@@ -13,6 +13,7 @@ import { getGame } from './registry';
 import { formatChips, type GameState } from './state';
 import { INK, glowAt, paint, rgb, rrect } from '../world/painted/brush';
 
+import { CURRENCY_PLURAL } from './brand';
 export interface FocusOptions {
   /** What a screen reader says; a function is read again on `refresh()`. */
   label: string | (() => string);
@@ -445,8 +446,8 @@ function announceRounds(state: GameState) {
     const t = r.tags;
     const pocket = t.includes('zero') ? 'Null. ' : t.includes('red') ? 'Rot. ' : t.includes('black') ? 'Schwarz. ' : '';
     const crash = t.includes('bust') ? 'Abgestürzt. ' : '';
-    const res = r.win > 0 ? `Gewinn ${formatChips(r.win)} Falter${r.stake > 0 ? `, ${(r.win / r.stake).toLocaleString('de-DE', { maximumFractionDigits: 2 })}-fach` : ''}.` : 'Kein Gewinn.';
-    announce(`${name}: ${pocket}${crash}${res} Kontostand ${formatChips(state.balance)} Falter.`);
+    const res = r.win > 0 ? `Gewinn ${formatChips(r.win)} ${CURRENCY_PLURAL}${r.stake > 0 ? `, ${(r.win / r.stake).toLocaleString('de-DE', { maximumFractionDigits: 2 })}-fach` : ''}.` : 'Kein Gewinn.';
+    announce(`${name}: ${pocket}${crash}${res} Kontostand ${formatChips(state.balance)} ${CURRENCY_PLURAL}.`);
   });
 }
 

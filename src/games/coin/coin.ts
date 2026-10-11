@@ -1,4 +1,4 @@
-// "Mondmünze": call Mond or Falter, flick the big brass coin. Every right call grows the
+// "Mondmünze": call Mond or Sonne, flick the big brass coin. Every right call grows the
 // win and lights the next moon phase; keep flipping or collect. A wrong call loses it all.
 //
 // Report tags: 'coin' (every round), 'streak3' (3+ right calls in the round), 'streak6'
@@ -16,13 +16,14 @@ import { COIN_RTP, MAX_FLIPS, coinMult, coinPayout, coinPayoutShown, flipCoin, t
 import { COIN_R, MOON, TABLE, bandTexture, capTexture, faceTexture, phaseTexture, sceneTexture } from './paint';
 import { luckStep } from '../../core/debugLuck';
 
+import { COIN_FACE, CURRENCY } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
-  'Tippe auf Mond oder Falter und wirf die Münze – sie fällt genau 50 : 50.\n\n' +
+  `Tippe auf Mond oder ${COIN_FACE} und wirf die Münze – sie fällt genau 50 : 50.\n\n` +
   'Der erste Treffer zahlt 1,9×, jeder weitere verdoppelt den Gewinn (3,8×, 7,6× … bis 243,2× beim Vollmond nach 8 Treffern). ' +
   'Nach jedem Treffer: weiter werfen oder kassieren. Ein Fehlwurf, und der Einsatz ist weg.\n\n' +
   'So zahlt jede Serie auf Dauer genau 95 %.';
-const SIDE_NAME: Record<Side, string> = { mond: 'Mond', falter: 'Falter' };
+const SIDE_NAME: Record<Side, string> = { mond: 'Mond', falter: COIN_FACE };
 /** View tilt: a coin lying flat shows as an ellipse 0.42 as tall as wide. */
 const TILT = Math.acos(0.42);
 const THICK = 11;
@@ -266,7 +267,7 @@ class CoinGame implements GameInstance {
     }
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY} für diesen Einsatz.`);
       return;
     }
     this.deck.closeRules();
@@ -529,7 +530,7 @@ export const coin: GameDefinition = {
   houseEdge: 1 - COIN_RTP,
   footprint: { w: 76, h: 64 },
   size: 'cabinet',
-  blurb: 'Mond oder Falter? Jeder Treffer verdoppelt – kassieren oder weiterwerfen.',
+  blurb: `Mond oder ${COIN_FACE}? Jeder Treffer verdoppelt – kassieren oder weiterwerfen.`,
   drawStation,
   create: (ctx) => new CoinGame(ctx),
 };

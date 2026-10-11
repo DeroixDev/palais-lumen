@@ -13,6 +13,7 @@ import { allGames, floorRooms } from './registry';
 import { BOSS_DAY, DAYS_PER_FLOOR, floorForDay, type GameState, type Medal, type SaveData, type TrophyKind } from './state';
 import { dailyRandom } from './daily';
 
+import { DJ_NAME } from './brand';
 export type MiniBossId = 'samtgraefin' | 'gaertner' | 'uhrmacher' | 'falterbeat';
 
 export interface MiniBoss {
@@ -94,7 +95,7 @@ export const MINIBOSSES: MiniBoss[] = [
   {
     id: 'falterbeat',
     n: 4,
-    name: 'DJ Falterbeat',
+    name: DJ_NAME,
     title: 'König der Tanzfläche',
     ruleName: 'Im Takt',
     rule: `Alle ${BEAT_EVERY} Runden ein neuer Takt: Einsätze ×1 → ×2 → ×1 → ×3. Tagesziel +10 %.`,

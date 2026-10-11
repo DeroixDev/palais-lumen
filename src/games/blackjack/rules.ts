@@ -1,4 +1,4 @@
-// Rules of "Nachtfalter 21" as pure functions: hand values, the dealer, settling and the basic
+// Rules of "Selene 21" as pure functions: hand values, the dealer, settling and the basic
 // strategy the RTP is stated for. No Pixi here: scripts/rtp-blackjack.mjs runs the same code.
 
 import type { Card } from '../cards/cards';
@@ -126,7 +126,7 @@ export function basicStrategy(h: Hand, upRank: number, handsInRound: number, rul
 
 /**
  * One whole round with basic strategy; returns what came back per staked unit and the units
- * staked. With `net` (the Falternetz item) the first card of the round that busts a player hand
+ * staked. With `net` (the Lampennetz item) the first card of the round that busts a player hand
  * is caught and taken away again: that hand stands on what it had.
  */
 export function playRound(draw: () => Card, rules: BjRules = RULES, net = false) {
@@ -183,9 +183,9 @@ export function playRound(draw: () => Card, rules: BjRules = RULES, net = false)
   return { staked, back };
 }
 
-// ---- Falternetz (odds item) ------------------------------------------------------------------
+// ---- Lampennetz (odds item) ------------------------------------------------------------------
 // The net catches the first card of a round that busts one of your hands: the card flies off
 // and that hand stands on what it had. With basic strategy (scripts/rtp-blackjack.mjs, the
-// same seeded rounds as the stated RTP, 20 M): per initial stake and per Falter wagered.
+// same seeded rounds as the stated RTP, 20 M): per initial stake and per Lumen wagered.
 export const NET_RTP_INITIAL = 1.0367;
 export const NET_RTP = 1.0327;

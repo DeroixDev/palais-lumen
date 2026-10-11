@@ -10,6 +10,7 @@ import { dailyMoonName, dateLabel, isDailyRun, isPractice, lastDays, reachedDay,
 import { MOON_LEVELS } from '../core/moon';
 import { INK, glowAt, gold, grain, rrect, seeded } from '../world/painted/brush';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 export type DailyStart = 'new' | 'practice' | 'continue';
 
 const CSS = `
@@ -50,7 +51,7 @@ export function dailyInfo(normal: SaveData) {
 export function dailyLine(normal: SaveData) {
   const i = dailyInfo(normal);
   if (i.entry) return `Heute schon gespielt: ${i.entry.day >= 13 ? 'Saison gewonnen!' : `Tag ${reachedDay(i.entry.day)}`}`;
-  if (i.openToday) return `Läuft: Tag ${i.run!.evening.number} · ${formatChips(i.run!.balance)} Falter`;
+  if (i.openToday) return `Läuft: Tag ${i.run!.evening.number} · ${formatChips(i.run!.balance)} ${CURRENCY_PLURAL}`;
   return `Heute (${dateLabel(i.today, true)}): ${dailyMoonName(i.today)} · für alle gleich`;
 }
 
@@ -115,7 +116,7 @@ function paintBoard(cv: HTMLCanvasElement, rows: ReturnType<typeof lastDays>, to
   c.fillStyle = '#3a2008';
   c.font = `700 ${W < 420 ? 15 : 17}px "Barlow Condensed", sans-serif`;
   const txt = e && e.day >= 0
-    ? `Heute: ${e.day >= 13 ? 'Saison gewonnen' : `Tag ${reachedDay(e.day)}`} · ${formatChips(e.balance)} Falter`
+    ? `Heute: ${e.day >= 13 ? 'Saison gewonnen' : `Tag ${reachedDay(e.day)}`} · ${formatChips(e.balance)} ${CURRENCY_PLURAL}`
     : practice
     ? `Heute: noch kein Versuch · Übung: Tag ${reachedDay(practice.day)}`
     : 'Heute: noch kein Versuch';
@@ -201,7 +202,7 @@ export function showDailyBoard(normal: SaveData, actions: DailyBoardActions, jus
   const heat = MOON_LEVELS.findIndex((m) => m.name === dailyMoonName(i.today));
   const cond = document.createElement('div');
   cond.className = 'daily-cond';
-  for (const t of ['1.000 Falter Start', `Mondstufe: ${dailyMoonName(i.today)}`, 'Gleiche Spiele, Ereignisse, Aufträge']) {
+  for (const t of [`1.000 ${CURRENCY_PLURAL} Start`, `Mondstufe: ${dailyMoonName(i.today)}`, 'Gleiche Spiele, Ereignisse, Aufträge']) {
     const s = document.createElement('span');
     s.className = 'tag';
     s.textContent = t;
@@ -220,13 +221,13 @@ export function showDailyBoard(normal: SaveData, actions: DailyBoardActions, jus
     const day = justEnded.counters.dailyEndDay ?? 0;
     const bal = justEnded.counters.dailyEndBal ?? 0;
     const won = day >= 13;
-    status.textContent = `${isPractice(justEnded) ? 'Übungslauf' : 'Gewerteter Lauf'} vorbei: ${won ? 'Saison gewonnen!' : `Tag ${reachedDay(day)} erreicht`} · ${formatChips(bal)} Falter`;
+    status.textContent = `${isPractice(justEnded) ? 'Übungslauf' : 'Gewerteter Lauf'} vorbei: ${won ? 'Saison gewonnen!' : `Tag ${reachedDay(day)} erreicht`} · ${formatChips(bal)} ${CURRENCY_PLURAL}`;
   }
   if (i.openToday) {
-    if (!justEnded) status.textContent = `Dein Versuch läuft: Tag ${i.run!.evening.number} · ${formatChips(i.run!.balance)} Falter`;
+    if (!justEnded) status.textContent = `Dein Versuch läuft: Tag ${i.run!.evening.number} · ${formatChips(i.run!.balance)} ${CURRENCY_PLURAL}`;
     primary = { label: 'Fortsetzen', kind: 'continue' };
   } else if (i.entry) {
-    if (!justEnded) status.textContent = `Heute schon gespielt: ${i.entry.day >= 13 ? 'Saison gewonnen!' : `Tag ${reachedDay(i.entry.day)}`} · ${formatChips(i.entry.balance)} Falter`;
+    if (!justEnded) status.textContent = `Heute schon gespielt: ${i.entry.day >= 13 ? 'Saison gewonnen!' : `Tag ${reachedDay(i.entry.day)}`} · ${formatChips(i.entry.balance)} ${CURRENCY_PLURAL}`;
     if (i.practiceOpen) {
       primary = { label: 'Übung fortsetzen', kind: 'continue' };
       second = { label: 'Neue Übung', kind: 'practice' };
@@ -247,7 +248,7 @@ export function showDailyBoard(normal: SaveData, actions: DailyBoardActions, jus
   const draw = () => paintBoard(cv, rows, i.today, practice);
   const played = rows.filter((r) => r.day >= 0);
   cv.setAttribute('role', 'img');
-  cv.setAttribute('aria-label', `Bestenliste: ${played.length ? played.map((r) => `${dateLabel(r.key, true)} Tag ${reachedDay(r.day)}, ${formatChips(r.balance)} Falter`).join('; ') : 'noch keine Einträge'}`);
+  cv.setAttribute('aria-label', `Bestenliste: ${played.length ? played.map((r) => `${dateLabel(r.key, true)} Tag ${reachedDay(r.day)}, ${formatChips(r.balance)} ${CURRENCY_PLURAL}`).join('; ') : 'noch keine Einträge'}`);
 
   const acts = document.createElement('div');
   acts.className = 'actions';

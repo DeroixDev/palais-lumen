@@ -4,7 +4,7 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
 import { velvetNap } from '../../core/ui';
-import { paintMoth } from '../slots/symbols';
+import { paintEmblem } from '../slots/symbols';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rim, rrect, shadow, type Ctx } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 
@@ -97,11 +97,11 @@ export function ladderTexture(n: number, step: number) {
 }
 
 /** The climbing moth (glowing, wings open). */
-export function mothTexture() {
+export function emblemTexture() {
   return cached('hilo-moth', () =>
     paint(90, 90, (c) => {
       glowAt(c, 45, 45, 42, 42, 0xfff1c4, 0.5, 'lighter');
-      paintMoth(c, 45, 48, 72, { wing: 0xf3d58a, wingDark: 0x9a6418, body: 0x5a3010, eye: 0x5fe3ff }, 2);
+      paintEmblem(c, 45, 48, 72, { wing: 0xf3d58a, wingDark: 0x9a6418, body: 0x5a3010, eye: 0x5fe3ff }, 2);
     }, 2),
   );
 }

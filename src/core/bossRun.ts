@@ -1,5 +1,5 @@
 // The boss corridor on floor 5: walk right, one machine at a time, exactly one try each, gates
-// in between, the Moth Queen's duel at the far end. Only the order and the one-try rule live
+// in between, the Selene's duel at the far end. Only the order and the one-try rule live
 // here (no Pixi); the room art is src/world/bossRun.ts, the flow src/ui/bossRun.ts.
 //
 // Progress is one save counter: how many machines have had their try ('run:spent'). It goes
@@ -52,13 +52,13 @@ export function installBossRun(state: GameState) {
 
 /**
  * The one try at a corridor machine. Wraps the game's context: the first stake goes through
- * and spends the machine; after that only Nachtfalter 21 may add to the same running hand
+ * and spends the machine; after that only Selene 21 may add to the same running hand
  * (double, split). Once the round is reported every further stake is refused.
  */
 export class OneShot {
   bets = 0;
   reported = false;
-  /** When a stake was last refused (to swallow the game's own "not enough Falter" toast). */
+  /** When a stake was last refused (to swallow the game's own "not enough Lumen" toast). */
   private refusedAt = -1e9;
 
   constructor(

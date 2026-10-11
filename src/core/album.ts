@@ -1,13 +1,14 @@
 // Moth album: after a won round a moth may flutter across the screen; catch it and it is
 // pressed into the album. Bigger wins bring rarer moths, some only live on one floor, in a
 // side room, at one game, on an event night or on a mini boss day. A full page pays
-// Mondsteine once, the whole album a trophy. Catching never touches Falter or any odds.
+// Mondsteine once, the whole album a trophy. Catching never touches Lumen or any odds.
 
 import { ACHIEVEMENTS } from './achievements';
 import { getGame, getRoom } from './registry';
 import { BOSS_DAY, type GameState, type RoundReport, type SaveData } from './state';
 import { eventById } from './events';
 
+import { ALBUM_ENTRY, ALBUM_NAME, DOME, FLOOR_NAMES } from './brand';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 /** Where a moth can be met. */
@@ -66,11 +67,11 @@ export const RARITY_MIN_MULT: Record<Rarity, number> = { common: 1, rare: 4, epi
 const RARITY_WEIGHT: Record<Rarity, number> = { common: 10, rare: 5, epic: 3, legendary: 2 };
 
 export const ALBUM_PAGES: AlbumPage[] = [
-  { id: 'p1', title: 'Kerzensaal', color: 0x7a1d34, stones: 4 },
-  { id: 'p2', title: 'Mondgarten', color: 0x1f5a44, stones: 5 },
-  { id: 'p3', title: 'Uhrwerk', color: 0x7a5420, stones: 6 },
-  { id: 'p4', title: 'Club Nachtfalter', color: 0x26407a, stones: 7 },
-  { id: 'p5', title: 'Thron & Mini-Bosse', color: 0x4a2a6a, stones: 8 },
+  { id: 'p1', title: FLOOR_NAMES.f1, color: 0x7a1d34, stones: 4 },
+  { id: 'p2', title: FLOOR_NAMES.f2, color: 0x1f5a44, stones: 5 },
+  { id: 'p3', title: FLOOR_NAMES.f3, color: 0x7a5420, stones: 6 },
+  { id: 'p4', title: FLOOR_NAMES.f4, color: 0x26407a, stones: 7 },
+  { id: 'p5', title: `${DOME} & Mini-Bosse`, color: 0x4a2a6a, stones: 8 },
   { id: 'p6', title: 'Besondere Nächte', color: 0x1d4a5a, stones: 8 },
 ];
 
@@ -101,7 +102,7 @@ export const MOTHS: MothSpecies[] = [
   { id: 'teichlaeufer', name: 'Teichläufer', line: 'Wettet immer auf die langsamste Ente.', rarity: 'rare', page: 'p3', where: gm('derby'), art: { shape: 'hawk', pattern: 'dots', fore: 0x3a7a8a, tip: 0x1a3a44, hind: 0xf0a040, mark: 0xfff0c0, body: 0x1a3a40 } },
   { id: 'drachenturm', name: 'Drachenturm-Spinner', line: 'Hat jede Stufe des Turms gezählt. Zweimal.', rarity: 'epic', page: 'p3', where: gm('tower'), art: { shape: 'broad', pattern: 'tiger', fore: 0xd85a2a, tip: 0x6a1a0a, hind: 0xffb040, mark: 0x2a0a04, body: 0x3a1408, glow: 0xff9040 } },
   { id: 'unruh', name: 'Ewige Unruh', line: 'Ihr Herz schlägt im Takt der großen Turmuhr.', rarity: 'legendary', page: 'p3', where: fl(3), art: { shape: 'broad', pattern: 'gears', fore: 0xf0d080, tip: 0xa0701a, hind: 0xfff0b8, mark: 0x7a4a10, body: 0x5a3a10, feathered: true, glow: 0xffe090 } },
-  // ---- Club Nachtfalter (floor 4) ----
+  // ---- Club Neon (floor 4) ----
   { id: 'neonbaer', name: 'Neonbär', line: 'Leuchtet im Schwarzlicht wie ein Plakat.', rarity: 'common', page: 'p4', where: fl(4), art: { shape: 'classic', pattern: 'tiger', fore: 0xf0ece0, tip: 0xc8c0b0, hind: 0xff4a9a, mark: 0x1b1b22, body: 0x1b1b22, feathered: true } },
   { id: 'glanzmotte', name: 'Discokugel-Glanzmotte', line: 'Wirft tausend kleine Lichter auf die Tanzfläche.', rarity: 'common', page: 'p4', where: fl(4), art: { shape: 'round', pattern: 'stars', fore: 0x8a9ab0, tip: 0x4a5468, hind: 0xc0cce0, mark: 0xffffff, body: 0x2a3040 } },
   { id: 'bass', name: 'Bass-Schwärmer', line: 'Spürt den Beat schon zwei Etagen tiefer.', rarity: 'rare', page: 'p4', where: rm('f4t'), art: { shape: 'hawk', pattern: 'neon', fore: 0x1a1a2a, tip: 0x0a0a14, hind: 0x2a2a4a, mark: 0x5fe3ff, body: 0x0a0a14 } },
@@ -150,7 +151,7 @@ const roomName = (id: string) => {
     return id;
   }
 };
-const FLOOR_NAME = ['Foyer', 'Kerzensaal', 'Mondgarten', 'Uhrwerk', 'Club Nachtfalter', 'Gang der Mottenkönigin'];
+const FLOOR_NAME = ['Foyer', FLOOR_NAMES.f1, FLOOR_NAMES.f2, FLOOR_NAMES.f3, FLOOR_NAMES.f4, FLOOR_NAMES.f5];
 
 /** "Etage 2 · Mondgarten" etc.: where to look for a moth. */
 export function whereText(w: MothWhere) {
@@ -280,7 +281,7 @@ export function settleRewards(state: GameState) {
   let complete = false;
   if (albumDone(d) && !d.counters.albumTrophy) {
     d.counters.albumTrophy = 1;
-    state.addTrophy('crystal', 'diamond', 'Motten-Album komplett');
+    state.addTrophy('crystal', 'diamond', `${ALBUM_NAME} komplett`);
     complete = true;
   }
   return { pages, stones, complete };
@@ -336,7 +337,7 @@ export function debugFlight(state: GameState, game = '') {
 
 // Achievements for the album (shown with the others at the wall in the foyer).
 ACHIEVEMENTS.push(
-  { id: 'mothFirst', name: 'Mottenfänger', desc: 'Fang deine erste Motte fürs Album.', icon: 'moth', reward: 1, progress: (d) => [Math.min(1, caughtCount(d)), 1] },
-  { id: 'mothPage', name: 'Volle Seite', desc: 'Füll eine ganze Seite im Motten-Album.', icon: 'moth', reward: 3, progress: (d) => [ALBUM_PAGES.some((p) => pageDone(d, p.id)) ? 1 : 0, 1] },
-  { id: 'mothAll', name: 'Mottenkundler', desc: 'Füll das ganze Motten-Album.', icon: 'crown', reward: 10, progress: (d) => [caughtCount(d), MOTHS.length] },
+  { id: 'mothFirst', name: 'Erstes Licht', desc: `Fang deine erste ${ALBUM_ENTRY} fürs Album.`, icon: 'moth', reward: 1, progress: (d) => [Math.min(1, caughtCount(d)), 1] },
+  { id: 'mothPage', name: 'Volle Seite', desc: `Füll eine ganze Seite im ${ALBUM_NAME}.`, icon: 'moth', reward: 3, progress: (d) => [ALBUM_PAGES.some((p) => pageDone(d, p.id)) ? 1 : 0, 1] },
+  { id: 'mothAll', name: 'Lampenkundler', desc: `Füll das ganze ${ALBUM_NAME}.`, icon: 'crown', reward: 10, progress: (d) => [caughtCount(d), MOTHS.length] },
 );

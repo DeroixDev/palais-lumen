@@ -1,6 +1,6 @@
 // Stages the mini bosses (src/core/miniboss.ts): the intro when you first stand on the boss's
 // floor that day (the screen dims, a portrait and a plaque name the boss and the rule, the boss
-// speaks), a small boss plate under the top bar (portrait, name, resistance bar = Falter still
+// speaks), a small boss plate under the top bar (portrait, name, resistance bar = Lumen still
 // missing to the goal, and the rule's live status), the rule's moments (the gardener cuts other
 // games, the clock runs down, the beat drops), the victory when the goal is reached, and the
 // win plaque after the day is settled.
@@ -17,6 +17,7 @@ import { bossPortrait } from '../world/painted/propsBoss';
 import type { RoomScene } from '../world/room';
 import { leavePhoto } from './photo';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 export interface MinibossHost {
   /** Screen-space layer above rooms and games. */
   layer: Container;
@@ -266,7 +267,7 @@ export class MinibossDirector {
       this.barShown = -1;
       this.plate.accessibleTitle = `${name}: ${b.ruleName}. ${ruleStatus(d)}`;
     }
-    // Resistance: the Falter still missing to today's goal.
+    // Resistance: the Lumen still missing to today's goal.
     const q = Math.max(1, d.evening.quota);
     const k = Math.max(0, Math.min(1, missing / q));
     if (Math.abs(k - this.barShown) > 0.002) {
@@ -297,7 +298,7 @@ export class MinibossDirector {
       `${b.title}.`,
       `${b.ruleName}: ${b.rule}`,
       `Jetzt: ${ruleStatus(d)}.`,
-      won ? `Das Tagesziel von ${formatChips(this.state.goalBalance)} Falter ist erreicht. Rechne den Tag ab, um den Sieg zu sichern (+${b.reward} Mondsteine).` : `So gewinnst du: erreiche das Tagesziel von ${formatChips(this.state.goalBalance)} Falter (noch ${formatChips(this.state.goalMissing)}) und rechne ab. Belohnung: +${b.reward} Mondsteine${d.minibosses.includes(b.id) ? '' : ' und eine Trophäe'}.`,
+      won ? `Das Tagesziel von ${formatChips(this.state.goalBalance)} ${CURRENCY_PLURAL} ist erreicht. Rechne den Tag ab, um den Sieg zu sichern (+${b.reward} Mondsteine).` : `So gewinnst du: erreiche das Tagesziel von ${formatChips(this.state.goalBalance)} ${CURRENCY_PLURAL} (noch ${formatChips(this.state.goalMissing)}) und rechne ab. Belohnung: +${b.reward} Mondsteine${d.minibosses.includes(b.id) ? '' : ' und eine Trophäe'}.`,
       'Die Gewinnchancen der Spiele bleiben gleich.',
     ].join('\n\n');
     this.host.modal(b.name, body, [{ label: 'Verstanden', primary: true, onClick: () => this.host.closeModal() }]);
@@ -396,7 +397,7 @@ export class MinibossDirector {
   private askSettle(b: MiniBoss) {
     this.host.modal(
       'Die Uhr steht still',
-      `${b.name} hat die Uhr angehalten: ${CLOCK_ROUNDS} Runden sind gespielt, alle Spiele bleiben heute zu. Das Tagesziel von ${formatChips(this.state.goalBalance)} Falter fehlt noch um ${formatChips(this.state.goalMissing)}. Rechne den Tag ab, wenn du bereit bist.`,
+      `${b.name} hat die Uhr angehalten: ${CLOCK_ROUNDS} Runden sind gespielt, alle Spiele bleiben heute zu. Das Tagesziel von ${formatChips(this.state.goalBalance)} ${CURRENCY_PLURAL} fehlt noch um ${formatChips(this.state.goalMissing)}. Rechne den Tag ab, wenn du bereit bist.`,
       [
         { label: 'Tag abrechnen', primary: true, onClick: () => { this.host.closeModal(); this.host.endEvening(); } },
         { label: 'Noch nicht', onClick: () => this.host.closeModal() },
@@ -507,7 +508,7 @@ export class MinibossDirector {
     this.state.emit();
     sfx.bossSting(1);
     this.host.room()?.miniboss?.bounce();
-    const goal = `Ziel heute: ${formatChips(this.state.goalBalance)} Falter${b.quota !== 1 ? ` (${b.quota > 1 ? '+' : '−'}${Math.round(Math.abs(b.quota - 1) * 100)} %)` : ''}`;
+    const goal = `Ziel heute: ${formatChips(this.state.goalBalance)} ${CURRENCY_PLURAL}${b.quota !== 1 ? ` (${b.quota > 1 ? '+' : '−'}${Math.round(Math.abs(b.quota - 1) * 100)} %)` : ''}`;
     await this.banner(b, b.name.toUpperCase(), `${b.title}\n${b.ruleName}: ${b.rule}\n${goal}`, 4600);
     this.staging = false;
     this.say(b.intro, b);

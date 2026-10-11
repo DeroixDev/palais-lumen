@@ -1,10 +1,10 @@
-// Painted playing cards for Falter-Poker: cream paper, brass hairline, ink and crimson pips,
+// Painted playing cards for Salon-Poker: cream paper, brass hairline, ink and crimson pips,
 // moth-court figures for Bube, Dame and König, and a velvet back with a brass moth medallion.
 // Every face is painted once (lazily) into a texture and cached.
 
 import type { Texture } from 'pixi.js';
 import { INK, ellipse, fillInk, glowAt, gold, paint, rim, rrect, rgb, seeded, type Ctx } from '../../world/painted/brush';
-import { paintMoth } from '../slots/symbols';
+import { paintEmblem } from '../slots/symbols';
 import { rankOf, suitOf } from './rules';
 
 export const CW = 120;
@@ -160,7 +160,7 @@ function court(c: Ctx, rank: number, suit: number) {
   const wing = red ? { wing: 0xffb0c0, wingDark: 0xc0405a, body: 0x5a1020, eye: 0xfff1c4 } : { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 };
   if (rank === 9) {
     // Bube: a young moth page, wings open.
-    paintMoth(c, cx, cy + 4, 50, wing, 1.6);
+    paintEmblem(c, cx, cy + 4, 50, wing, 1.6);
   } else if (rank === 10) {
     // Dame: the crescent moon wearing a little crown, a moth at her side.
     c.beginPath();
@@ -171,7 +171,7 @@ function court(c: Ctx, rank: number, suit: number) {
     mg.addColorStop(1, '#d8b060');
     c.fillStyle = mg;
     c.fill('evenodd');
-    paintMoth(c, cx + 14, cy + 22, 22, wing, 1.2);
+    paintEmblem(c, cx + 14, cy + 22, 22, wing, 1.2);
   } else {
     // König: a brass lantern, the king of the night lights.
     c.fillStyle = gold(c, cx - 3, cy - 40, cx + 3, cy - 30);
@@ -219,7 +219,7 @@ function ace(c: Ctx, suit: number) {
   // Moth wings spread behind a big pip in a brass ring.
   c.save();
   c.globalAlpha = 0.85;
-  paintMoth(c, cx, cy, 92, { wing: 0xf3dfb0, wingDark: 0xc8a060, body: 0x8a5a1a, eye: 0xff5fa2 }, 1.2);
+  paintEmblem(c, cx, cy, 92, { wing: 0xf3dfb0, wingDark: 0xc8a060, body: 0x8a5a1a, eye: 0xff5fa2 }, 1.2);
   c.restore();
   ellipse(c, cx, cy, 26, 26);
   fillInk(c, gold(c, cx - 26, cy - 26, cx + 26, cy + 26), 1.6);
@@ -292,7 +292,7 @@ export function backTexture() {
     ellipse(c, CW / 2, CH / 2, 24, 24);
     c.fillStyle = '#1a0818';
     c.fill();
-    paintMoth(c, CW / 2, CH / 2 + 2, 38, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.3);
+    paintEmblem(c, CW / 2, CH / 2 + 2, 38, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.3);
     c.strokeStyle = INK;
   }, RES);
   return backTex;

@@ -35,6 +35,7 @@ import {
 } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 // ---- Rules -------------------------------------------------------------
 
 const HOUSE_EDGE = 1 / 37;
@@ -472,7 +473,7 @@ class RouletteGame implements GameInstance {
     if (this.spinning) return;
     const next = this.totalBet + this.chipValue;
     if (next > this.ctx.state.balance) {
-      this.ctx.toast('Nicht genug Falter für diesen Chip.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Chip.`);
       return;
     }
     this.bets.set(key, (this.bets.get(key) ?? 0) + this.chipValue);
@@ -491,7 +492,7 @@ class RouletteGame implements GameInstance {
     let sum = 0;
     for (const v of this.lastBets.values()) sum += v;
     if (sum > this.ctx.state.balance) {
-      this.ctx.toast('Nicht genug Falter, um die letzten Einsätze zu wiederholen.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL}, um die letzten Einsätze zu wiederholen.`);
       return;
     }
     this.bets = new Map(this.lastBets);
@@ -597,7 +598,7 @@ class RouletteGame implements GameInstance {
       return;
     }
     if (!this.ctx.state.placeBet(total)) {
-      this.ctx.toast('Nicht genug Falter.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL}.`);
       return;
     }
     this.spinning = true;

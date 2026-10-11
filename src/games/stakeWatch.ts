@@ -4,6 +4,7 @@
 import { formatChips, type GameState } from '../core/state';
 import { stakeEpoch } from '../core/itemsCore';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 export class StakeWatch {
   private unit: number;
   private epoch: number;
@@ -29,6 +30,6 @@ export class StakeWatch {
   /** The line games show when the ladder changed. */
   get note() {
     if (this.why === 'item') return 'Neue Einsatzstufen an diesem Spiel.';
-    return `Neue Einsätze: ab ${formatChips(this.unit)} Falter.`;
+    return `Neue Einsätze: ab ${formatChips(this.unit)} ${CURRENCY_PLURAL}.`;
   }
 }

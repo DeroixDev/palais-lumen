@@ -1,5 +1,5 @@
-// The painted Nachtfalter deck shared by the card tables (Blackjack, Baccarat, Kartenleiter):
-// 52 faces in four night suits (Mond ♥, Laterne ♦, Falter ♠, Schlüssel ♣), a moth-wing back,
+// The painted house deck shared by the card tables (Blackjack, Baccarat, Kartenleiter):
+// 52 faces in four night suits (Mond ♥, Laterne ♦, Stern ♠, Schlüssel ♣), a moth-wing back,
 // the dealing shoe and a card view that flips with real 3/4 perspective. Every texture is
 // painted once with Canvas 2D and cached; the flip only moves the four corners of a mesh.
 
@@ -122,7 +122,7 @@ function suitIcon(s: Suit) {
     rrect(c, -14, 42, 28, 9, 3);
     fillInk(c, fill(-14, 42, 14, 51), 3);
   } else if (s === 2) {
-    // Falter: a moth with feathered antennae.
+    // Stern (still painted as a moth) with feathered antennae.
     for (const side of [-1, 1]) {
       c.beginPath();
       c.moveTo(side * 3, -10);

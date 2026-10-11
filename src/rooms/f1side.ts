@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES, SLOT_GOLD } from '../core/brand';
 /**
  * Floor 1 side room: the Hinterzimmer behind the Kerzensaal. Low green lamps, leather, cigar
  * smoke and high limits: a roulette from 50, Goldmotte machines and a baccarat salon, all on
@@ -30,9 +31,9 @@ export const f1side: RoomDefinition = {
     barLabel: 'SALON · Tonic & Mocktails',
   },
   spawn: { x: 690, y: 220 },
-  doors: [{ x: 690, y: 0, side: 'back', to: 'f1', label: 'Kerzensaal' }],
+  doors: [{ x: 690, y: 0, side: 'back', to: 'f1', label: FLOOR_NAMES.f1 }],
   stations: [
-    { game: 'slots', pinned: true, x: 60, y: 210, label: 'Goldmotte', options: { theme: 'gold' } },
+    { game: 'slots', pinned: true, x: 60, y: 210, label: SLOT_GOLD, options: { theme: 'gold' } },
     { game: 'slots', pinned: true, x: 140, y: 210, options: { theme: 'gold' } },
     { game: 'roulette', pinned: true, x: 300, y: 300, label: 'Hohe Kante · ab 50', options: { minBet: 50 } },
     { game: 'baccarat', pinned: true, x: 380, y: 470, label: 'Salon Privé' },

@@ -1,8 +1,8 @@
-// Painted materials for the HTML overlay: brass frames, velvet, medal studs and the Moth Queen's
+// Painted materials for the HTML overlay: brass frames, velvet, medal studs and the Selene's
 // emblem. Everything is drawn once with Canvas 2D (same brush as the world, no ctx.filter) and
 // handed to CSS as data URLs in custom properties, so the DOM panels wear the same paint as the room.
 
-import { drawMoth } from '../core/fx';
+import { drawEmblem } from '../core/fx';
 import { ellipse, fillInk, glowAt, gold, seeded } from '../world/painted/brush';
 
 type C = CanvasRenderingContext2D;
@@ -82,8 +82,8 @@ function cornerOrnament(c: C) {
   // Disc on the corner with a small embossed moth.
   ellipse(c, 2, 2, 10, 10);
   fillInk(c, gold(c, -8, -8, 12, 12), 1.6);
-  drawMoth(c, 2.6, 3.2, 14, 'rgba(110,70,15,0.8)', 'rgba(110,70,15,0.9)');
-  drawMoth(c, 2, 2.6, 14, '#ffe7a0', '#c9902e');
+  drawEmblem(c, 2.6, 3.2, 14, 'rgba(110,70,15,0.8)', 'rgba(110,70,15,0.9)');
+  drawEmblem(c, 2, 2.6, 14, '#ffe7a0', '#c9902e');
 }
 
 /**
@@ -225,7 +225,7 @@ function stud(kind: 'bronze' | 'silver' | 'gold' | 'diamond') {
   });
 }
 
-/** The Moth Queen's emblem for the boss gauge: a violet moth under a little crown. */
+/** The Selene's emblem for the boss gauge: a violet moth under a little crown. */
 function queen() {
   const S = 40;
   return canvasUrl(S, S, (c) => {
@@ -234,8 +234,8 @@ function queen() {
     w.addColorStop(0, '#e6d0ff');
     w.addColorStop(0.5, '#9a5ad8');
     w.addColorStop(1, '#4a1a6a');
-    drawMoth(c, 20, 24, 34, 'rgba(22,10,20,0.85)', 'rgba(22,10,20,0.9)');
-    drawMoth(c, 20, 23, 30, w, '#2a0c3a', 'rgba(255,220,250,0.7)');
+    drawEmblem(c, 20, 24, 34, 'rgba(22,10,20,0.85)', 'rgba(22,10,20,0.9)');
+    drawEmblem(c, 20, 23, 30, w, '#2a0c3a', 'rgba(255,220,250,0.7)');
     c.beginPath();
     c.moveTo(13, 11);
     c.lineTo(15, 4);

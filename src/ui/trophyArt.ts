@@ -3,7 +3,7 @@
 // kind and medal, then reused.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { drawMoth } from '../core/fx';
+import { drawEmblem } from '../core/fx';
 import type { Medal, TrophyKind } from '../core/state';
 import { MEDAL_COLORS } from '../world/trophies';
 import { bossTrophyArt } from '../world/painted/propsBoss';
@@ -120,7 +120,7 @@ export function paintedTrophy(kind: TrophyKind, medal: Medal, heat = 0): Sprite 
         c.strokeStyle = 'rgba(255,255,255,0.6)';
         c.lineWidth = 3.5;
         c.stroke();
-        drawMoth(c, 4, -84, 24, rgb(dark(k.base, 0.35), 0.7), rgb(dark(k.base, 0.5), 0.8));
+        drawEmblem(c, 4, -84, 24, rgb(dark(k.base, 0.35), 0.7), rgb(dark(k.base, 0.5), 0.8));
       } else if (kind === 'crystal') {
         c.beginPath();
         c.moveTo(-14, -26);
@@ -271,8 +271,8 @@ export function paintedMedal(medal: Medal): Container {
       c.lineWidth = 2;
       c.stroke();
       // Embossed moth.
-      drawMoth(c, 3, 7, 92, rgb(dark(k.dark, 0.2), 0.75), rgb(dark(k.dark, 0.3), 0.85));
-      drawMoth(c, 0, 4, 92, rgb(light(k.light, 0.1)), rgb(k.dark), rgb(k.base, 0.8));
+      drawEmblem(c, 3, 7, 92, rgb(dark(k.dark, 0.2), 0.75), rgb(dark(k.dark, 0.3), 0.85));
+      drawEmblem(c, 0, 4, 92, rgb(light(k.light, 0.1)), rgb(k.dark), rgb(k.base, 0.8));
       // Gloss.
       c.save();
       c.beginPath();

@@ -10,6 +10,7 @@ import { floorRooms } from './registry';
 import { BOSS_DAY, floorForDay, type GameState, type SaveData } from './state';
 import type { PlayerLook } from '../world/player';
 
+import { ALBUM_NAME, BOSS_EVENING, BOSS_GEN, BOSS_NAME, CURRENCY_PLURAL, DOME, FLOOR_NAMES, FOUNDER, GAME_NAMES, HOUSE, HOUSE_FORMER, PROFESSOR, PROFESSOR_ROLE, PROFESSOR_SHORT } from './brand';
 export type RegularId = 'anselm' | 'jonas' | 'mira' | 'ida' | 'theo';
 export type RegularProp = 'rake' | 'chips' | 'watch' | 'tray' | 'magnifier' | 'net';
 
@@ -104,7 +105,7 @@ export const REGULARS: RegularDef[] = [
         id: 'a1',
         lines: [
           'Ah, ein neues Gesicht. Anselm Kranich, Croupier – seit die Kugel noch aus Elfenbein war.',
-          'Ganz oben wohnt die Mottenkönigin. Man sagt, sie war nicht immer eine Königin.',
+          `Ganz oben, unter der ${DOME}, wohnt ${BOSS_NAME}, die Herrin der Lampen. Man sagt, das Haus gehörte nicht immer ihr.`,
           'Komm wieder, wenn du ihr begegnet bist. Dann erzähle ich dir mehr.',
         ],
       },
@@ -112,9 +113,9 @@ export const REGULARS: RegularDef[] = [
         id: 'a2',
         when: (c) => c.bestDay >= BOSS_DAY || c.won > 0,
         lines: [
-          'Du hast sie gesehen, nicht wahr? Die Flügel, das Silberlicht.',
-          'Ich kannte sie, als sie noch Selene hieß. Sie hat hier jeden Abend die Lampen angezündet, mit einer langen Messingstange.',
-          'Gespielt hat sie nie. Sie hat nur zugesehen, wie die Motten ins Licht fliegen.',
+          'Du hast sie gesehen, nicht wahr? Den Fächer aus Licht, das Silber in ihrem Haar.',
+          'Ich kannte sie, als sie noch keine Herrin war. Sie hat hier jeden Abend die Lampen angezündet, mit einer langen Messingstange.',
+          'Gespielt hat sie nie. Sie hat nur zugesehen, wie das Licht über die Tische wandert.',
         ],
       },
       {
@@ -122,7 +123,7 @@ export const REGULARS: RegularDef[] = [
         when: read(1),
         lines: [
           'Weißt du, was sie getan hat, nachdem du gewonnen hattest? Gelächelt. Zum ersten Mal seit Jahren.',
-          'Das Haus hatte einen Gründer, Leopold Nachtfalter. In der Nacht, als er verschwand, trug Selene zum ersten Mal die Krone.',
+          `Das Haus hatte einen Gründer, ${FOUNDER}. Er hat es als „${HOUSE_FORMER}“ eröffnet. In der Nacht, als er verschwand, trug ${BOSS_NAME} zum ersten Mal die Krone. Bald darauf hieß das Haus ${HOUSE}.`,
         ],
       },
       {
@@ -153,16 +154,16 @@ export const REGULARS: RegularDef[] = [
       {
         id: 'a7',
         when: read(6),
-        lines: ['Ich drehe die Kugel jetzt nur noch sonntags. Die übrigen Abende sitze ich hier und schaue den Motten zu. Wie Selene früher.'],
+        lines: ['Ich drehe die Kugel jetzt nur noch sonntags. Die übrigen Abende sitze ich hier und schaue zu, wie die Lampen angehen. Wie Selene früher.'],
       },
     ],
     react: [
       { id: 'rLost', when: (c) => c.lost > 0, lines: ['Eine Saison ist zu Ende gegangen, ich hab’s gehört. Das Haus merkt sich keine Niederlagen. Ich übrigens auch nicht.'] },
       { id: 'rGold', when: (c) => c.golds + c.diamonds > 0, lines: ['Gold! Ich hab’s an der Art gesehen, wie du durchs Foyer gehst. Nicht zu stolz – das gefällt mir.'] },
-      { id: 'rClock', when: (c) => c.bestDay >= 7, lines: ['Im Uhrwerk warst du also auch schon. Dort oben tickt alles ein bisschen lauter, findest du nicht?'] },
+      { id: 'rClock', when: (c) => c.bestDay >= 7, lines: [`Im ${FLOOR_NAMES.f3} warst du also auch schon. Dort oben tickt und zischt alles ein bisschen lauter, findest du nicht?`] },
     ],
     idle: (c) => [
-      ...(c.boss ? ['Heute ist Thronabend. Grüß Selene von mir. Und verbeug dich ein bisschen – sie mag das.'] : []),
+      ...(c.boss ? [`Heute ist ${BOSS_EVENING}. Grüß ${BOSS_NAME} von mir. Und verbeug dich ein bisschen – sie mag das.`] : []),
       ...(c.goal && !c.boss ? ['Dein Ziel hast du heute schon. Alles darüber ist Zugabe – oder Rückgabe. Die Kugel kennt den Unterschied nicht.'] : []),
       'Die Kugel hat kein Gedächtnis. Das ist das Ehrlichste an ihr.',
       'Rien ne va plus – nichts geht mehr. Der schönste Satz des Abends. Danach kann man nur noch zuschauen.',
@@ -199,7 +200,7 @@ export const REGULARS: RegularDef[] = [
         id: 'j3',
         when: (c) => c.day >= 4 || c.season > 1,
         lines: [
-          'Gestern hab ich bis zum letzten Falter gespielt. Ich wollte nur zurückholen, was weg war.',
+          `Gestern hab ich bis zum letzten ${CURRENCY_PLURAL} gespielt. Ich wollte nur zurückholen, was weg war.`,
           'Mira hat mir einen Kakao hingestellt und nichts gesagt. Das war irgendwie lauter als jede Predigt.',
         ],
       },
@@ -249,7 +250,7 @@ export const REGULARS: RegularDef[] = [
     idle: (c) => [
       ...(c.brokeNow ? ['Tasche leer für heute? Das ist ein guter Moment für einen Spaziergang. Glaub mir.'] : []),
       ...(c.goal && !c.brokeNow ? ['Ziel geschafft? Dann mach’s wie ich: Hälfte in die andere Tasche. Die bleibt zu.'] : []),
-      ...(c.boss ? ['Thronabend! Ich drück dir die Daumen. Ich hab heute nur fünfzig Falter dabei. Mehr nicht. Mit Absicht.'] : []),
+      ...(c.boss ? [`${BOSS_EVENING}! Ich drück dir die Daumen. Ich hab heute nur fünfzig ${CURRENCY_PLURAL} dabei. Mehr nicht. Mit Absicht.`] : []),
       'Mein Wecker klingelt um elf. Dann ist Schluss, egal wie es steht. Bis jetzt hat’s geklappt.',
       'Weißt du, was das Beste am Gewinnen ist? Aufhören, solange es sich noch gut anfühlt.',
       'Ich zähl jetzt nicht mehr, was ich verloren hab. Ich zähl, wie viele schöne Abende ich hatte.',
@@ -285,7 +286,7 @@ export const REGULARS: RegularDef[] = [
         id: 'm3',
         when: read(1),
         lines: [
-          'Seit du die Königin besiegt hast, summt sie beim Lampenputzen. Das hab ich noch nie gehört.',
+          `Seit du ${BOSS_NAME} besiegt hast, summt sie beim Lampenputzen. Das hab ich noch nie gehört.`,
           'Ich schreibe übrigens alles auf. Die Chronik des Hauses. Du stehst jetzt auch drin.',
         ],
       },
@@ -293,7 +294,7 @@ export const REGULARS: RegularDef[] = [
         id: 'm4',
         when: read(3),
         lines: [
-          'Beim Putzen hab ich hinter dem Barspiegel was gefunden. Einen vergilbten Umschlag mit einem Mottensiegel.',
+          'Beim Putzen hab ich hinter dem Barspiegel was gefunden. Einen vergilbten Umschlag mit einem alten Wachssiegel.',
           'Adressiert an „die Person, die Selene die Krone abnimmt“. Ich hab ihn nicht geöffnet. Ich glaube, er ist für dich. Nach deinem nächsten Sieg.',
         ],
       },
@@ -310,14 +311,14 @@ export const REGULARS: RegularDef[] = [
     ],
     react: [
       { id: 'rMini', when: (c) => c.minis > 0, lines: ['Einen Etagenwächter besiegt! Darauf einen Holunder-Spritz. Ohne Alkohol, versteht sich.'] },
-      { id: 'rThrone', when: (c) => c.bestDay >= BOSS_DAY, lines: ['Du warst oben am Thron! Wie war sie? Erzähl’s nicht Anselm, er wird sonst sentimental.'] },
+      { id: 'rThrone', when: (c) => c.bestDay >= BOSS_DAY, lines: ['Du warst oben unter der Kuppel! Wie war sie? Erzähl’s nicht Anselm, er wird sonst sentimental.'] },
     ],
     idle: (c) => [
       ...(c.brokeNow ? ['Auf’s Haus: ein Kakao. Der kostet nichts, und er ist das Beste, was man um diese Uhrzeit trinken kann.'] : []),
-      ...(c.boss ? ['Heute ist Thronabend. Ich stell schon mal Gläser kalt – egal, wie es ausgeht.'] : []),
-      'Mondschein-Limo, Falterfizz, Holunder-Spritz. Alles ohne Alkohol. Klare Köpfe spielen schöner.',
+      ...(c.boss ? [`Heute ist ${BOSS_EVENING}. Ich stell schon mal Gläser kalt – egal, wie es ausgeht.`] : []),
+      'Mondschein-Limo, Funkenfizz, Holunder-Spritz. Alles ohne Alkohol. Klare Köpfe spielen schöner.',
       'Weißt du, wer hier die besten Abende hat? Die, die wissen, wann sie ihren Mantel holen.',
-      'Theo hat wieder eine Motte in seinem Glas gefunden. Diesmal ist sie geblieben, bis er ausgetrunken hatte.',
+      'Theo hat wieder sein Photometer an mein Flaschenregal gehalten. Er sagt, das Licht hier sei „messbar gemütlich“.',
     ],
   },
   {
@@ -342,7 +343,7 @@ export const REGULARS: RegularDef[] = [
         id: 'i2',
         when: (c) => c.day >= 5 || c.season > 1,
         lines: [
-          'Seltsam: Im Uhrwerk-Saal steht eine Uhr still. Auf 3:13. Um diese Zeit verschwand Leopold Nachtfalter.',
+          `Seltsam: Im ${FLOOR_NAMES.f3} steht eine Uhr still. Auf 3:13. Um diese Zeit verschwand ${FOUNDER}.`,
           'Am Spieltisch gibt es Zufall. In meinen Akten nicht.',
         ],
       },
@@ -350,7 +351,7 @@ export const REGULARS: RegularDef[] = [
         id: 'i3',
         when: read(1),
         lines: [
-          'Die Mottenkönigin hat mir einen Tee angeboten. Verdächtige bieten mir selten Tee an.',
+          `${BOSS_NAME} hat mir einen Tee angeboten. Verdächtige bieten mir selten Tee an.`,
           'Sie sagt, sie habe Leopold nichts getan. Ich glaube ihr. Aber sie verschweigt etwas.',
         ],
       },
@@ -373,7 +374,7 @@ export const REGULARS: RegularDef[] = [
       {
         id: 'i6',
         when: read(6),
-        lines: ['Ich habe Leopold eine Postkarte geschrieben. An eine Adresse am Meer. Gestern kam eine Antwort: eine gemalte Motte. Sonst nichts. Das genügt.'],
+        lines: ['Ich habe Leopold eine Postkarte geschrieben. An eine Adresse am Meer. Gestern kam eine Antwort: eine gemalte Laterne. Sonst nichts. Das genügt.'],
       },
     ],
     react: [
@@ -381,7 +382,7 @@ export const REGULARS: RegularDef[] = [
       { id: 'rLost', when: (c) => c.lost > 0, lines: ['Ihre Saison ist zu Ende gegangen? Kommt in den besten Akten vor. Wichtig ist, was man sich daraus notiert.'] },
     ],
     idle: (c) => [
-      ...(c.boss ? ['Thronabend. Ich bleibe unten und beobachte. Viel Glück – aber verlassen Sie sich nicht darauf.'] : []),
+      ...(c.boss ? [`${BOSS_EVENING}. Ich bleibe unten und beobachte. Viel Glück – aber verlassen Sie sich nicht darauf.`] : []),
       'Ich notiere alles. Sogar, wie oft die Null kommt. Ergebnis: so oft, wie sie soll. Langweilig, aber ehrlich.',
       'Ein Fall ist wie ein Abend am Tisch: Man muss wissen, wann man ihn schließt.',
       'Haben Sie Herrn Seidenspinner gesehen? Er schuldet mir eine Lupe.',
@@ -389,9 +390,9 @@ export const REGULARS: RegularDef[] = [
   },
   {
     id: 'theo',
-    name: 'Professor Theodor Seidenspinner',
-    tag: 'Prof. Seidenspinner',
-    role: 'ein Mottenforscher',
+    name: PROFESSOR,
+    tag: PROFESSOR_SHORT,
+    role: PROFESSOR_ROLE,
     color: 0xb8e07a,
     look: { skin: 0xf1c9a5, hair: 0xd8d2c4, jacket: 0x5a3a20, hairStyle: 'bald', outfit: 'suit', hat: 'none', accessory: 'bowTie' },
     prop: () => 'net',
@@ -401,15 +402,15 @@ export const REGULARS: RegularDef[] = [
       {
         id: 't1',
         lines: [
-          'Pst! Nicht bewegen. Da – ein Kleines Nachtpfauenauge! … Ach. Weg ist es.',
-          'Professor Theodor Seidenspinner, Mottenforscher. Ich untersuche, warum in diesem Haus so viele Motten wohnen.',
+          'Pst! Nicht bewegen. Da – das Licht da drüben! Zweihundert Lux, mindestens! … Ach. Jemand hat die Tür zugemacht.',
+          `${PROFESSOR}, Lichtforscher. Ich untersuche, warum dieses Haus so viel schöner leuchtet als jedes andere.`,
         ],
       },
       {
         id: 't2',
         when: (c) => c.day >= 4 || c.season > 1,
         lines: [
-          'Bemerkenswert: Die Motten hier fliegen nicht zum Gold und nicht zu den Automaten. Sie fliegen alle … nach oben.',
+          'Bemerkenswert: Das Licht hier sammelt sich nicht am Gold und nicht an den Automaten. Es zieht nach … oben.',
           'Irgendwo über uns muss ein Licht sein, das heller ist als alles im Haus.',
         ],
       },
@@ -417,15 +418,15 @@ export const REGULARS: RegularDef[] = [
         id: 't3',
         when: read(1),
         lines: [
-          'Die Königin hat mir erlaubt, ihre Flügel zu vermessen! Spannweite: beachtlich. Muster: einzigartig.',
-          'Sie sagt, jede Motte im Haus kennt ihren Namen. Wissenschaftlich unhaltbar. Wunderschön trotzdem.',
+          `${BOSS_NAME} hat mir erlaubt, ihren Lichtfächer zu vermessen! Helligkeit: beachtlich. Farbe: einzigartig.`,
+          'Sie sagt, jede Lampe im Haus kennt ihren Namen. Wissenschaftlich unhaltbar. Wunderschön trotzdem.',
         ],
       },
       {
         id: 't4',
         when: read(2),
         lines: [
-          'Ich hab’s! Auf dem Dach steht eine Lampe. Die Mondlampe. Ihretwegen leben die Motten hier, seit hundert Jahren.',
+          'Ich hab’s! Auf dem Dach steht eine Lampe. Die Mondlampe. Ihretwegen leuchtet dieses Haus, seit hundert Jahren.',
           'Aber ihr Licht wird schwächer, jede Saison ein bisschen. Das beunruhigt mich.',
         ],
       },
@@ -437,18 +438,18 @@ export const REGULARS: RegularDef[] = [
       {
         id: 't6',
         when: read(5),
-        lines: ['Seit die Mondlampe wieder brennt, zähle ich doppelt so viele Arten! Ich brauche ein neues Notizbuch. Oder drei.'],
+        lines: ['Seit die Mondlampe wieder brennt, messe ich doppelt so viel Licht! Ich brauche ein neues Notizbuch. Oder drei.'],
       },
     ],
     react: [
-      { id: 'rAlbum', when: (c) => c.moths > 0, lines: ['Sie führen ein Mottenalbum? Herrlich! Wenn Sie eine Art nicht bestimmen können – Sie wissen, wo Sie mich finden.'] },
-      { id: 'rMoon', when: (c) => c.heat > 0, lines: ['Eine höhere Mondstufe! Bei vollem Mond fliegen die Motten unruhiger. Wie manche Gäste, vermutlich.'] },
+      { id: 'rAlbum', when: (c) => c.moths > 0, lines: [`Sie führen ein ${ALBUM_NAME}? Herrlich! Wenn Sie einen Eintrag nicht bestimmen können – Sie wissen, wo Sie mich finden.`] },
+      { id: 'rMoon', when: (c) => c.heat > 0, lines: ['Eine höhere Mondstufe! Bei vollem Mond flackern die Lampen unruhiger. Wie manche Gäste, vermutlich.'] },
     ],
     idle: (c) => [
-      ...(c.boss ? ['Heute Thronabend? Achten Sie auf die Flügel der Königin. Das Muster ist … ach, gehen Sie einfach. Viel Glück!'] : []),
+      ...(c.boss ? [`Heute ${BOSS_EVENING}? Achten Sie auf ${BOSS_GEN} Lichtfächer. Das Muster ist … ach, gehen Sie einfach. Viel Glück!`] : []),
       'Eine Motte fliegt ins Licht, weil sie nicht anders kann. Wir Menschen können anders. Das ist unser Vorteil.',
-      'Haben Sie gewusst, dass manche Falter nur eine einzige Nacht leben? Sie verbringen sie nicht am Spieltisch.',
-      'Die Motte im Mottenfall fällt rein zufällig. Ich habe zweitausend Würfe gezählt. Sehr entspannend.',
+      'Haben Sie gewusst, dass eine Kerze etwa ein Candela hell ist? Mehr braucht ein guter Abend oft nicht.',
+      `Der Funke im ${GAME_NAMES.plinko} fällt rein zufällig. Ich habe zweitausend Würfe gezählt. Sehr entspannend.`,
     ],
   },
 ];

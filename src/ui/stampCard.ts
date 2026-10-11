@@ -3,7 +3,7 @@
 // reception in the foyer); a small single card pops in at the top right when a stamp lands.
 
 import { Container, Sprite, Text, type Texture } from 'pixi.js';
-import { drawMoth, reducedMotion } from '../core/fx';
+import { drawEmblem, reducedMotion } from '../core/fx';
 import { animate, ease, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { getRoom } from '../core/registry';
@@ -77,7 +77,7 @@ function slotTexture(r: number) {
       c.lineWidth = 1.4;
       c.stroke();
       c.setLineDash([]);
-      drawMoth(c, o, o, r * 1.1, 'rgba(122,29,52,0.12)', 'rgba(122,29,52,0.15)');
+      drawEmblem(c, o, o, r * 1.1, 'rgba(122,29,52,0.12)', 'rgba(122,29,52,0.15)');
     }, 3),
   );
 }
@@ -97,7 +97,7 @@ export function stampTexture(r: number, seed: number) {
       c.arc(o, o, r - 4, 0, Math.PI * 2);
       c.lineWidth = 1;
       c.stroke();
-      drawMoth(c, o, o + 1, r * 1.35, INK_RED, INK_RED);
+      drawEmblem(c, o, o + 1, r * 1.35, INK_RED, INK_RED);
       // Missing ink: knock out a few specks.
       c.globalCompositeOperation = 'destination-out';
       for (let i = 0; i < 26; i++) {

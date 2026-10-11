@@ -27,9 +27,9 @@ export function minesPayoutShown(stake: number, traps: number, k: number) {
 }
 
 /**
- * Falter actually paid: the shown amount, plus one more coin with a chance equal to the
+ * Lumen actually paid: the shown amount, plus one more coin with a chance equal to the
  * cut-off fraction. Never less than shown, and on average exactly stake × multiplier, so
- * rounding to whole Falter doesn't move the payout ratio even at the smallest stake.
+ * rounding to whole Lumen doesn't move the payout ratio even at the smallest stake.
  */
 export function minesPayout(stake: number, traps: number, k: number, rand: () => number = Math.random) {
   const x = clean(stake * minesMult(traps, k));

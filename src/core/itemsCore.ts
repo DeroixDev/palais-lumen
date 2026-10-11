@@ -15,6 +15,7 @@ import { activeItems, allItems, bagCount, getItemRtp, itemDef, registerItem, typ
 import { LOSS_SHARE } from './lossShare';
 import { MOONSTONES_FOR, roundNice, type GameState, type Medal, type RoundReport, type SaveData } from './state';
 
+import { CURRENCY_PLURAL } from './brand';
 // ---- Numbers ----------------------------------------------------------------------------------
 
 export const ITEM_K = {
@@ -38,7 +39,7 @@ export const ITEM_K = {
   /** Kamera: share of a big win (≥ kameraMult × stake) paid for a photo right after it. */
   kamera: 0.25,
   kameraMult: 10,
-  /** Heilige Motte: rounds without loss, covered up to this many stake units per round. */
+  /** Ewiges Licht: rounds without loss, covered up to this many stake units per round. */
   statueRounds: 5,
   statueCap: 25,
 };
@@ -82,7 +83,7 @@ export const CORE_ITEMS: ItemDef[] = [
   { id: 'zuversicht', name: 'Spielerzuversicht', tier: 'mittel', price: 80, duration: 'day', desc: 'Den ganzen Tag zahlt jeder Gewinn 10 % mehr Reingewinn.' },
   { id: 'versicherung', name: 'Versicherung', tier: 'gross', price: 130, duration: 'day', desc: 'Den ganzen Tag kosten Verluste 15 % weniger: 15 % jedes Verlusts kommen zurück.' },
   { id: 'verstaerker', name: 'Glücksverstärker', tier: 'gross', price: 150, duration: 'day', desc: 'Heute wirken deine anderen Wirtschafts-Items 1,5-mal so stark (Prozente, Chancen, Grenzen). Teufelsrolle, Zeitmaschine und Dietrich bleiben gleich.' },
-  { id: 'statue', name: 'Heilige Motte', tier: 'gross', price: 220, duration: { rounds: ITEM_K.statueRounds }, desc: '5 Runden lang kein Verlust: was du verlierst, kommt zurück (je Runde bis 25 Mindesteinsätze).' },
+  { id: 'statue', name: 'Ewiges Licht', tier: 'gross', price: 220, duration: { rounds: ITEM_K.statueRounds }, desc: '5 Runden lang kein Verlust: was du verlierst, kommt zurück (je Runde bis 25 Mindesteinsätze).' },
   { id: 'zeitmaschine', name: 'Zeitmaschine', tier: 'legendaer', price: 350, duration: 'once', desc: 'Macht deine letzte verlorene Runde von heute ganz ungeschehen: der volle Verlust kommt zurück.' },
 ];
 for (const def of CORE_ITEMS) registerItem(def);
@@ -163,7 +164,7 @@ function activeIn(d: SaveData, id: string, game: string | null) {
 
 const ampOf = (d: SaveData) => (d.active.some((a) => a.id === 'verstaerker') ? ITEM_K.amp : 1);
 
-/** Whole Falter with the cut fraction paid by chance, so expectations stay exact. */
+/** Whole Lumen with the cut fraction paid by chance, so expectations stay exact. */
 function whole(x: number) {
   const w = Math.floor(x + 1e-9);
   return w + (rand() < x - w ? 1 : 0);
@@ -201,7 +202,7 @@ export interface ItemRtp {
   plain: number;
   /** Names of the items in the number. */
   items: string[];
-  /** Stake up to which the capped items (Goldjeton, Heilige Motte) count fully, in Falter. */
+  /** Stake up to which the capped items (Goldjeton, Ewiges Licht) count fully, in Lumen. */
   cap: number;
 }
 
@@ -233,7 +234,7 @@ export function itemRtp(state: GameState, game: string, base?: number): ItemRtp 
   if (!gold && activeIn(d, 'statue', game)) {
     r += L;
     econ = true;
-    items.push('Heilige Motte');
+    items.push('Ewiges Licht');
     cap = Math.min(cap, ITEM_K.statueCap * amp * unit);
   } else if (!gold && activeIn(d, 'versicherung', game)) {
     r += Math.min(1, ITEM_K.versicherung * amp) * L;
@@ -371,7 +372,7 @@ function react(state: GameState, id: string, forced?: boolean): UseResult {
     setCtr(d, 'it:zeit', ctr(d, 'it:zeit') + 1);
     pay(state, loss);
     if (pending?.kind === 'loss') endOffer();
-    return { ok: true, hit: true, amount: loss, text: `Zeitmaschine: Die Runde ist ungeschehen. +${fmt(loss)} Falter zurück.` };
+    return { ok: true, hit: true, amount: loss, text: `Zeitmaschine: Die Runde ist ungeschehen. +${fmt(loss)} ${CURRENCY_PLURAL} zurück.` };
   }
   const o = pending!;
   endOffer();
@@ -381,7 +382,7 @@ function react(state: GameState, id: string, forced?: boolean): UseResult {
       pay(state, o.amount);
       setCtr(d, 'it:engelWon', ctr(d, 'it:engelWon') + 1);
       if (ctr(d, 'it:lastLoss') === o.amount) setCtr(d, 'it:lastLoss', 0);
-      return { ok: true, hit, amount: o.amount, text: `Engelsrolle: Treffer! +${fmt(o.amount)} Falter zurück.` };
+      return { ok: true, hit, amount: o.amount, text: `Engelsrolle: Treffer! +${fmt(o.amount)} ${CURRENCY_PLURAL} zurück.` };
     }
     return { ok: true, hit, amount: 0, text: 'Engelsrolle: Diesmal kein Engel. Der Verlust bleibt.' };
   }
@@ -393,12 +394,12 @@ function react(state: GameState, id: string, forced?: boolean): UseResult {
   if (hit) {
     pay(state, p * 3);
     setCtr(d, 'it:teufelWon', ctr(d, 'it:teufelWon') + 1);
-    return { ok: true, hit, amount: p * 2, text: `Teufelsrolle: Verdreifacht! +${fmt(p * 2)} Falter.` };
+    return { ok: true, hit, amount: p * 2, text: `Teufelsrolle: Verdreifacht! +${fmt(p * 2)} ${CURRENCY_PLURAL}.` };
   }
   const h = d.history;
   if (h.length) h[h.length - 1] = d.balance;
   state.emit();
-  return { ok: true, hit, amount: -p, text: `Teufelsrolle: Der Teufel nimmt den Gewinn. −${fmt(p)} Falter.` };
+  return { ok: true, hit, amount: -p, text: `Teufelsrolle: Der Teufel nimmt den Gewinn. −${fmt(p)} ${CURRENCY_PLURAL}.` };
 }
 
 function endOffer() {
@@ -464,7 +465,7 @@ export function installItems(state: GameState) {
     const bonus = whole(bigWin.profit * Math.min(1, ITEM_K.kamera * ampOf(d)));
     setCtr(d, 'it:kamera', ctr(d, 'it:kamera') + 1);
     pay(state, bonus);
-    emit({ type: 'note', text: `Kamera: Das Foto vom großen Gewinn bringt +${fmt(bonus)} Falter.` });
+    emit({ type: 'note', text: `Kamera: Das Foto vom großen Gewinn bringt +${fmt(bonus)} ${CURRENCY_PLURAL}.` });
   });
 }
 
@@ -490,7 +491,7 @@ function onRound(state: GameState, r: RoundReport) {
   } else if (loss > 0 && activeIn(d, 'statue', game)) {
     const cover = Math.min(loss, ITEM_K.statueCap * amp * unit);
     back += cover;
-    why.push('Heilige Motte');
+    why.push('Ewiges Licht');
   } else if (loss > 0 && activeIn(d, 'versicherung', game)) {
     back += loss * Math.min(1, ITEM_K.versicherung * amp);
     why.push('Versicherung');
@@ -507,7 +508,7 @@ function onRound(state: GameState, r: RoundReport) {
   const paid = whole(back);
   if (paid > 0) {
     pay(state, paid);
-    emit({ type: 'note', text: `${why.join(' + ')}: +${fmt(paid)} Falter` });
+    emit({ type: 'note', text: `${why.join(' + ')}: +${fmt(paid)} ${CURRENCY_PLURAL}` });
   }
 
   // Rounds of active items are used up (game-bound ones only in their game).

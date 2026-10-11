@@ -4,7 +4,7 @@
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { ellipse, fillInk, glowAt, gold, paint, rrect, seeded } from '../../world/painted/brush';
-import { mothEmblem, paintHalo, paintQueen, paintWing } from '../../world/painted/propsCrystal';
+import { crestEmblem, paintHalo, paintBossFigure, paintWing } from '../../world/painted/propsCrystal';
 import { SCENE_H, SCENE_W } from '../ladderKit';
 
 export const QUEEN = { x: SCENE_W / 2, y: 178, s: 1.1 };
@@ -128,7 +128,7 @@ export function cardBack() {
       c.stroke();
       c.save();
       c.translate(CARD.w / 2, CARD.h / 2);
-      mothEmblem(c, 22);
+      crestEmblem(c, 22);
       c.restore();
     }),
   );
@@ -236,7 +236,7 @@ export function buildQueen() {
   fR.alpha = fL.alpha = 0;
   const body = new Sprite(cached('queen', () => paint(90, 150, (x) => {
     x.translate(45, 76);
-    paintQueen(x);
+    paintBossFigure(x);
   })));
   body.anchor.set(45 / 90, 76 / 150);
   c.addChild(halo, wL, wR, fL, fR, body);

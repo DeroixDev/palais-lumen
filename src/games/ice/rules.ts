@@ -30,8 +30,8 @@ export function drawBreak(level: Level, rand = Math.random) {
 }
 
 /**
- * Falter paid for cashing out on floe k with this stake. Whole Falter: the shown amount is
- * rounded down, and the cut-off fraction is paid as one extra Falter with that probability,
+ * Lumen paid for cashing out on floe k with this stake. Whole Lumen: the shown amount is
+ * rounded down, and the cut-off fraction is paid as one extra Lumen with that probability,
  * so the expected payout is exact (95 %) even at small stakes.
  */
 export function payout(stake: number, level: Level, k: number, rand = Math.random) {

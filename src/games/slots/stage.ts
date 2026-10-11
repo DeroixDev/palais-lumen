@@ -1,4 +1,4 @@
-// Shared presentation pieces for the slot machine and Mottenfall: painted brass plaques,
+// Shared presentation pieces for the slot machine and Funkenfall: painted brass plaques,
 // the light wave for medium wins and the skippable stage moment for big ones.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';

@@ -1,6 +1,6 @@
-// "Duell der Königin": the boss fight at the end of the floor-5 corridor. Pick an attack and a
-// stake; the Moth Queen draws a defence card (1 to 20). A stronger attack breaks fewer cards
-// but pays more. Her life bar across the top is the Falter still missing to today's goal: a
+// "Duell im Lichtkegel": the boss fight at the end of the floor-5 corridor. Pick an attack and a
+// stake; the Selene draws a defence card (1 to 20). A stronger attack breaks fewer cards
+// but pays more. Her life bar across the top is the Lumen still missing to today's goal: a
 // hit knocks it down, a lost stake feeds her. Once it is empty she falls and the day is settled.
 //
 // Report tags: 'queen' (every round), the attack id ('wing', 'blade', 'crown', 'star'),
@@ -19,14 +19,15 @@ import { ATTACKS, DECK, QUEEN_RTP, breaks, drawDefence, hitChance, payout, type 
 import { CARD, PIPS_Y, QUEEN, buildQueen, cardBack, cardFace, pipTexture, sceneTexture } from './paint';
 import { luckStep } from '../../core/debugLuck';
 
+import { BOSS_CAPS, BOSS_NAME, CURRENCY, CURRENCY_PLURAL, GAME_NAMES } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
-  'Wähle einen Angriff und deinen Einsatz. Die Königin zieht eine Abwehrkarte von 1 bis 20, jede gleich wahrscheinlich.\n\n' +
-  'Flügelschlag bricht 1–10 (50 %, zahlt 1,9×), Mondklinge 1–5 (25 %, 3,8×), Kronenstoß 1–2 (10 %, 9,5×), Sternenfeuer nur die 1 (5 %, 19×). ' +
+  `Wähle einen Angriff und deinen Einsatz. ${BOSS_NAME} zieht eine Abwehrkarte von 1 bis 20, jede gleich wahrscheinlich.\n\n` +
+  'Lichtschlag bricht 1–10 (50 %, zahlt 1,9×), Mondklinge 1–5 (25 %, 3,8×), Kronenstoß 1–2 (10 %, 9,5×), Sternenfeuer nur die 1 (5 %, 19×). ' +
   'Jeder Angriff zahlt auf Dauer genau 95 %.\n\n' +
-  'Ihr Lebensbalken sind die Falter, die dir zum Tagesziel fehlen. Ist er leer, ist die Königin besiegt und der Tag wird abgerechnet.';
-const OUCH = ['Autsch! Meine Flügel!', 'Unerhört!', 'Nur Glück!', 'Mein Mondstaub!', 'Wie kannst du es wagen?'];
-const LAUGH = ['Hihihi!', 'Flatter nur!', 'Das kitzelt!', 'Mehr, Liebling!', 'Meine Krone dankt!'];
+  `Ihr Lebensbalken sind die ${CURRENCY_PLURAL}, die dir zum Tagesziel fehlen. Ist er leer, ist ${BOSS_NAME} besiegt und der Tag wird abgerechnet.`;
+const OUCH = ['Autsch! Mein Fächer!', 'Unerhört!', 'Nur Glück!', 'Mein Mondstaub!', 'Wie kannst du es wagen?'];
+const LAUGH = ['Hihihi!', 'Leuchte nur!', 'Das kitzelt!', 'Mehr, Liebling!', 'Meine Krone dankt!'];
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const pct = (a: Attack) => `${Math.round(hitChance(a) * 100)} %`;
 
@@ -99,7 +100,7 @@ class QueenGame implements GameInstance {
     this.view.addChild(this.body, this.bar.view);
     this.board.addChild(this.scene, this.deck.view);
     this.scene.addChild(new Sprite(sceneTexture()));
-    const title = new Text({ text: 'DUELL DER KÖNIGIN', style: { fontFamily: FONT_DISPLAY, fontSize: 17, fill: 0x2a1406, letterSpacing: 1.5 } });
+    const title = new Text({ text: GAME_NAMES.queen.toLocaleUpperCase('de-DE'), style: { fontFamily: FONT_DISPLAY, fontSize: 17, fill: 0x2a1406, letterSpacing: 1.5 } });
     title.anchor.set(0.5);
     title.position.set(SCENE_W / 2, 26);
     if (title.width > 176) title.scale.set(176 / title.width);
@@ -200,7 +201,7 @@ class QueenGame implements GameInstance {
     }
     if (this.phase === 'idle') {
       const poor = this.ctx.state.balance < this.bets[0];
-      if (poor) this.status('KEINE FALTER MEHR', 0xff9a7a, 'Für einen Angriff reicht es nicht.');
+      if (poor) this.status(`KEINE ${CURRENCY.toLocaleUpperCase('de-DE')} MEHR`, 0xff9a7a, 'Für einen Angriff reicht es nicht.');
       else this.status(a.name.toUpperCase(), a.color, `bricht Abwehr 1–${a.beats} · Chance ${pct(a)} · ${fmtMult(a.mult)}`);
     }
     this.pips.forEach((p, i) => {
@@ -256,7 +257,7 @@ class QueenGame implements GameInstance {
     const a = this.attack;
     const stake = this.bet;
     if (!this.ctx.state.placeBet(stake)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.deck.closeRules();
@@ -265,7 +266,7 @@ class QueenGame implements GameInstance {
     const defence = luckStep(() => drawDefence(), (d) => breaks(a, d));
     const hit = breaks(a, defence);
     this.refresh();
-    this.status(a.name.toUpperCase(), a.color, `Einsatz ${formatChips(stake)} · die Königin zieht …`);
+    this.status(a.name.toUpperCase(), a.color, `Einsatz ${formatChips(stake)} · ${BOSS_NAME} zieht …`);
     this.ctx.sfx.whoosh();
     // The card flips while the attack flies.
     const flip = this.flipCard(defence, hit);
@@ -296,7 +297,7 @@ class QueenGame implements GameInstance {
       this.laugh = 1;
       if (Math.random() < 0.6) this.ctx.sfx.queenLaugh();
       this.say(pick(LAUGH));
-      this.status('GEHALTEN', 0xd9a0ff, `Abwehr ${defence} hält · die Königin heilt um ${formatChips(stake)}`);
+      this.status('GEHALTEN', 0xd9a0ff, `Abwehr ${defence} hält · ${BOSS_NAME} heilt um ${formatChips(stake)}`);
       await wait(this.calm ? 200 : 700);
     }
     if (this.view.destroyed) return;
@@ -359,16 +360,16 @@ class QueenGame implements GameInstance {
   private victory(already: boolean) {
     this.phase = 'won';
     this.fall = already ? 1 : 0.001;
-    this.status('DIE KÖNIGIN FÄLLT!', COLORS.lamp, already ? 'Dein Tagesziel steht schon.' : 'Das Tagesziel ist erreicht.');
+    this.status(`${BOSS_CAPS} FÄLLT!`, COLORS.lamp, already ? 'Dein Tagesziel steht schon.' : 'Das Tagesziel ist erreicht.');
     this.refresh();
     if (already) return;
     this.ctx.sfx.bigWin();
     setTimeout(() => !this.view.destroyed && this.ctx.sfx.medal(), 700);
     const g = this.scene.toGlobal({ x: QUEEN.x, y: QUEEN.y });
-    this.ctx.particles.mothSwarm(g.x, g.y, this.calm ? 8 : 36, null, 0xc9a0ff, 3.5);
+    this.ctx.particles.drawSwarm(g.x, g.y, this.calm ? 8 : 36, null, 0xc9a0ff, 3.5);
     this.ctx.particles.lightWave(g.x, g.y, 0xfff1c4, 300);
     const at = this.view.toLocal(g);
-    void banner(this.view, 'SIEG ÜBER DIE KÖNIGIN', COLORS.lamp, at.x, at.y, Math.max(200, this.lastW - 24));
+    void banner(this.view, `SIEG ÜBER ${BOSS_CAPS}`, COLORS.lamp, at.x, at.y, Math.max(200, this.lastW - 24));
   }
 
   // ---- Frame ---------------------------------------------------------------------------
@@ -427,12 +428,12 @@ class QueenGame implements GameInstance {
 
 export const queen: GameDefinition = {
   id: 'queen',
-  name: 'Duell der Königin',
+  name: GAME_NAMES.queen,
   houseEdge: 1 - QUEEN_RTP,
   footprint: { w: 220, h: 120 },
   size: 'table',
   boss: true,
-  blurb: 'Der Bosskampf: brich die Abwehr der Mottenkönigin, bis ihr Lebensbalken leer ist.',
+  blurb: `Der Bosskampf: brich die Abwehr von ${BOSS_NAME}, der Herrin der Lampen, bis ihr Lebensbalken leer ist.`,
   drawStation: () => new Container(),
   create: (ctx) => new QueenGame(ctx),
 };

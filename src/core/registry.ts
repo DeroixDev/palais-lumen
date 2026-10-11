@@ -50,7 +50,7 @@ export interface GameDefinition {
   size: 'cabinet' | 'table';
   /** One line for the elevator panel / day card: what the game is about. */
   blurb?: string;
-  /** The Moth Queen's own duel: never drawn by the daily rotation, not in the program or tasks. */
+  /** The Selene's own duel: never drawn by the daily rotation, not in the program or tasks. */
   boss?: boolean;
   /** Draws the machine/table as seen from above. Origin is the top-left of the footprint. */
   drawStation(options: Record<string, unknown>): Container;

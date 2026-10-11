@@ -32,6 +32,7 @@ import { luckBias, luckLabel, luckOn, luckStats, onLuckChange } from '../core/de
 import { itemUrl, pouchUrl } from './itemArt';
 import { stoneDataUrl } from './stone';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 export interface BagHost {
   toast(text: string): void;
   modal(title: string, body: HTMLElement, buttons: { label: string; primary?: boolean; onClick: () => void }[]): void;
@@ -187,7 +188,7 @@ export class Bag {
   private rtpNote(game: string, r: NonNullable<ReturnType<typeof itemRtp>>) {
     const parts = [`Mit ${r.items.join(', ')}.`];
     if (r.approx && r.how) parts.push(`${r.how}; bei anderer Spielweise ändert sich der Wert etwas.`);
-    if (r.cap) parts.push(`Gilt für Einsätze bis ${formatChips(r.cap)} Falter.`);
+    if (r.cap) parts.push(`Gilt für Einsätze bis ${formatChips(r.cap)} ${CURRENCY_PLURAL}.`);
     if (r.rtp > 1) parts.push('Über 100 %: Mit diesen Items liegt der Vorteil bei dir.');
     void game;
     return parts.join(' ');
@@ -313,7 +314,7 @@ export class Bag {
     el.className = o.kind;
     const head = document.createElement('div');
     head.className = 'of-head';
-    head.textContent = o.kind === 'loss' ? `Verloren: −${formatChips(o.amount)} Falter` : `Gewonnen: +${formatChips(o.amount)} Falter`;
+    head.textContent = o.kind === 'loss' ? `Verloren: −${formatChips(o.amount)} ${CURRENCY_PLURAL}` : `Gewonnen: +${formatChips(o.amount)} ${CURRENCY_PLURAL}`;
     el.appendChild(head);
     const row = document.createElement('div');
     row.className = 'of-row';

@@ -12,9 +12,10 @@ import { sfx } from '../core/audio';
 import { tween } from '../core/tween';
 import type { RoomScene } from '../world/room';
 import { fillInk, glowAt, gold, paint, rrect } from '../world/painted/brush';
-import { mothEmblem } from '../world/painted/propsCrystal';
+import { crestEmblem } from '../world/painted/propsCrystal';
 import { QueenBar } from './queenBar';
 
+import { BOSS_CAPS, BOSS_NAME, CURRENCY_PLURAL, GAME_NAMES } from '../core/brand';
 export interface RunHost {
   room(): RoomScene | null;
   /** 'room', 'game', 'overlay', 'title', 'transition'. */
@@ -63,7 +64,7 @@ function crownTexture(lit: boolean) {
       if (lit) glowAt(c, 20, 20, 20, 20, 0xc9a0ff, 0.6, 'lighter');
       c.translate(20, 21);
       c.globalAlpha = lit ? 1 : 0.6;
-      mothEmblem(c, 26, lit ? '#ff5fa2' : '#6a4a7a');
+      crestEmblem(c, 26, lit ? '#ff5fa2' : '#6a4a7a');
     }),
   );
 }
@@ -153,7 +154,7 @@ export class BossRun {
     markSpent(this.state.data, i);
     this.state.emit();
     this.corridor()?.corridor?.openGate(i);
-    this.host.toast(`Zu wenig Falter für einen Einsatz (ab ${formatChips(this.state.stakeUnit)}). Die Königin winkt dich spöttisch durch.`);
+    this.host.toast(`Zu wenig ${CURRENCY_PLURAL} für einen Einsatz (ab ${formatChips(this.state.stakeUnit)}). ${BOSS_NAME} winkt dich spöttisch durch.`);
     this.lightStrip(i);
   }
 
@@ -192,7 +193,7 @@ export class BossRun {
     if (spentCount(this.state.data) > s.index) {
       room?.corridor?.openGate(s.index);
       this.lightStrip(s.index);
-      this.host.toast(s.index < MACHINES - 1 ? `Tor ${s.index + 1} öffnet sich. Weiter zum nächsten Automaten!` : 'Das letzte Tor öffnet sich. Die Mottenkönigin erwartet dich.');
+      this.host.toast(s.index < MACHINES - 1 ? `Tor ${s.index + 1} öffnet sich. Weiter zum nächsten Automaten!` : `Das letzte Tor öffnet sich. ${BOSS_NAME} erwartet dich unter der Kuppel.`);
     } else {
       this.host.toast('Du hast nicht gespielt – das Tor bleibt zu. Dieser Automat ist Pflicht.');
     }
@@ -215,7 +216,7 @@ export class BossRun {
     if (id === 'queen') {
       const t = CORRIDOR.throne;
       sfx.bossSting(2);
-      this.host.openGame({ game: 'queen', x: t.x - 110, y: t.y - 200, label: 'Duell der Königin', options: { settle: () => this.host.endEvening() } });
+      this.host.openGame({ game: 'queen', x: t.x - 110, y: t.y - 200, label: GAME_NAMES.queen, options: { settle: () => this.host.endEvening() } });
       return true;
     }
     return false;
@@ -276,7 +277,7 @@ export class BossRun {
     const n = spentCount(d);
     this.lanterns.forEach((s, i) => (s.texture = lanternTexture(i < n)));
     this.crown.texture = crownTexture(n >= MACHINES);
-    const txt = n < MACHINES ? `AUTOMAT ${n + 1} VON ${MACHINES}` : 'ZUR KÖNIGIN';
+    const txt = n < MACHINES ? `AUTOMAT ${n + 1} VON ${MACHINES}` : `ZU ${BOSS_CAPS}`;
     if (this.stripText.text !== txt) this.stripText.text = txt;
     const px = cor.player.view.x;
     // The Queen's bar shows once the throne hall is in sight.
@@ -306,10 +307,10 @@ export class BossRun {
     for (let i = 0; i < MACHINES; i++) markSpent(this.state.data, i);
     this.state.emit();
     const room = this.corridor();
-    if (!room) return 'Erst auf Etage 5 gehen (Boss-Tag), dann klappt der Sprung zur Königin.';
+    if (!room) return `Erst auf Etage 5 gehen (Boss-Tag), dann klappt der Sprung zu ${BOSS_NAME}.`;
     room.corridor?.refresh();
     room.player.view.position.set(CORRIDOR.throne.x - 40, CORRIDOR.throne.y + 92);
-    return 'Alle Tore offen. Die Königin wartet.';
+    return `Alle Tore offen. ${BOSS_NAME} wartet.`;
   }
 }
 

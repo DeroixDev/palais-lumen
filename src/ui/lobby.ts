@@ -7,6 +7,7 @@ import { sfx } from '../core/audio';
 import { dark, ellipse, fillInk, glowAt, light, rgb, rim, rrect, shadow, vgrad } from '../world/painted/brush';
 import { markButton } from './devlog';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
 export const PLAYER_COLORS = [0xffcf7a, 0xff5fa2, 0x5fe3ff, 0x7bd47b, 0xc9a0ff, 0xffa94a];
@@ -163,8 +164,8 @@ export class Lobby {
     $('#m-play').textContent = fresh ? 'Spielen' : 'Weiterspielen';
     $('#m-new').hidden = fresh;
     $('#title-info').textContent = fresh
-      ? 'Du startest mit 1.000 Falter.'
-      : `Saison ${d.season.number} · Tag ${d.evening.number} · ${formatChips(d.balance)} Falter · ${d.trophies.length} Trophäen`;
+      ? `Du startest mit 1.000 ${CURRENCY_PLURAL}.`
+      : `Saison ${d.season.number} · Tag ${d.evening.number} · ${formatChips(d.balance)} ${CURRENCY_PLURAL} · ${d.trophies.length} Trophäen`;
     $('#m-play').focus();
   }
 
@@ -187,7 +188,7 @@ export class Lobby {
     this.drawAvatar();
     const d = this.state.data;
     const rec = d.records.bestEvening > 0 ? ` · Rekord: ${d.records.bestEvening} ${d.records.bestEvening === 1 ? 'Tag' : 'Tage'}` : '';
-    $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute ${formatChips(d.evening.startBalance + d.evening.quota)} Falter (+${formatChips(d.evening.quota)})${rec}`;
+    $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute ${formatChips(d.evening.startBalance + d.evening.quota)} ${CURRENCY_PLURAL} (+${formatChips(d.evening.quota)})${rec}`;
   }
 
   /** The host as a little painted figure in a spotlight: ink outlines, light from the upper left. */

@@ -33,6 +33,7 @@ import { bossRunDebug } from './bossRun';
 import { albumDebug } from './album';
 import { chapterTitle } from './chapter';
 
+import { ALBUM_ENTRY, ALBUM_NAME, BOSS_NAME, CURRENCY, CURRENCY_PLURAL } from '../core/brand';
 /** What the Mod-Menü needs from the game loop. */
 export interface DebugActions {
   /** Start the given day fresh with the current money and walk into the foyer. */
@@ -167,7 +168,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   const addSync = (fn: () => void) => target.push(fn);
   const refresh = () => {
     const x = d();
-    info.textContent = `Tag ${x.evening.number} · Etage ${floorForDay(x.evening.number)} · ${formatChips(x.balance)} Falter · Ziel ${formatChips(state.goalBalance)} · ${formatChips(x.moonstones)} Mondsteine · Mindesteinsatz ${formatChips(state.stakeUnit)}`;
+    info.textContent = `Tag ${x.evening.number} · Etage ${floorForDay(x.evening.number)} · ${formatChips(x.balance)} ${CURRENCY_PLURAL} · Ziel ${formatChips(state.goalBalance)} · ${formatChips(x.moonstones)} Mondsteine · Mindesteinsatz ${formatChips(state.stakeUnit)}`;
     const on = activeCheats(state);
     statusText.textContent = on.length ? `Aktiv: ${on.join(' · ')}` : 'Keine Cheats aktiv – alles wie im echten Spiel.';
     status.classList.toggle('on', on.length > 0);
@@ -389,7 +390,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     });
   }
   note(
-    'Wirkt in allen 20 Spielen und im Duell der Königin. Bei +X % wird eine Runde mit X % Wahrscheinlichkeit so lange neu gezogen, bis sie gewinnt (bei −X % bis sie verliert); bei Spielen mit mehreren Zügen (Karten, Münze, Minen, Turm, Eis) gilt das für jeden einzelnen Zug. Auf „normal“ sind die Chancen exakt wie ohne Mod-Menü. Solange der Regler nicht auf normal steht, zeigt jedes Spiel oben ein rotes Schild mit der gemessenen Auszahlungsquote.',
+    'Wirkt in allen 20 Spielen und im Bossduell. Bei +X % wird eine Runde mit X % Wahrscheinlichkeit so lange neu gezogen, bis sie gewinnt (bei −X % bis sie verliert); bei Spielen mit mehreren Zügen (Karten, Münze, Minen, Turm, Eis) gilt das für jeden einzelnen Zug. Auf „normal“ sind die Chancen exakt wie ohne Mod-Menü. Solange der Regler nicht auf normal steht, zeigt jedes Spiel oben ein rotes Schild mit der gemessenen Auszahlungsquote.',
   );
   group('Gemessen seit dem Verstellen', true);
   live(
@@ -404,18 +405,18 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
 
   // =================================================================================================
   // Geld & Wirtschaft
-  cat('money', 'Geld & Wirtschaft', 'Falter, Mondsteine, Ziel');
-  group('Falter', true);
-  numField('Kontostand (Falter)', () => d().balance, (v) => void ((d().balance = v), give(0)), 0, 1e15, 'geld balance');
-  const money = row('Schnell dazu', 'falter geld');
+  cat('money', 'Geld & Wirtschaft', `${CURRENCY_PLURAL}, Mondsteine, Ziel`);
+  group(CURRENCY_PLURAL, true);
+  numField(`Kontostand (${CURRENCY_PLURAL})`, () => d().balance, (v) => void ((d().balance = v), give(0)), 0, 1e15, 'geld balance');
+  const money = row('Schnell dazu', 'lumen geld');
   for (const n of [1_000, 10_000, 100_000, 1_000_000]) btn(money, `+${formatChips(n)}`, () => give(n));
   btn(money, '×10', () => give(d().balance * 9));
-  const money2 = row('Kontostand setzen', 'falter geld ziel pleite');
+  const money2 = row('Kontostand setzen', 'lumen geld ziel pleite');
   btn(money2, 'Ziel genau erreichen', () => {
     d().balance = state.goalBalance;
     return 'Kontostand steht genau auf dem Tagesziel.';
   });
-  btn(money2, 'Ein Falter unter Ziel', () => void (d().balance = Math.max(0, state.goalBalance - 1)));
+  btn(money2, `Ein ${CURRENCY} unter Ziel`, () => void (d().balance = Math.max(0, state.goalBalance - 1)));
   btn(money2, 'Pleite (0)', () => void (d().balance = 0));
   group('Mondsteine', true);
   numField('Mondsteine', () => d().moonstones, (v) => void (d().moonstones = v), 0, 1e9, 'steine');
@@ -423,16 +424,16 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   for (const n of [10, 100, 1_000]) btn(stones, `+${formatChips(n)}`, () => void (d().moonstones += n));
   group('Tagesstart & Tagesziel');
   numField('Startgeld des Tages', () => d().evening.startBalance, (v) => void (d().evening.startBalance = v), 0, 1e15, 'tagesstart einsatz');
-  numField('Tagesziel (Gewinn, Falter)', () => d().evening.quota, (v) => void (d().evening.quota = Math.max(1, v)), 1, 1e15, 'quote quota');
+  numField(`Tagesziel (Gewinn, ${CURRENCY_PLURAL})`, () => d().evening.quota, (v) => void (d().evening.quota = Math.max(1, v)), 1, 1e15, 'quote quota');
   const dayStart = row('', 'tagesstart ziel neu berechnen');
   btn(dayStart, 'Tagesstart = jetzt', () => {
     d().evening.startBalance = d().balance;
     quotaNow();
-    return `Neuer Tagesstart: Einsätze und Ziel richten sich jetzt nach ${formatChips(d().balance)} Falter.`;
+    return `Neuer Tagesstart: Einsätze und Ziel richten sich jetzt nach ${formatChips(d().balance)} ${CURRENCY_PLURAL}.`;
   });
   btn(dayStart, 'Ziel neu berechnen', () => {
     quotaNow();
-    return `Tagesziel: +${formatChips(d().evening.quota)} Falter.`;
+    return `Tagesziel: +${formatChips(d().evening.quota)} ${CURRENCY_PLURAL}.`;
   });
   group('Einsätze & Ziel-Faktor');
   slider('Einsatz-Faktor', STAKE_STEPS, () => cheat(state, STAKE_KEY, 100), (v) => setCheat(state, STAKE_KEY, v, 100), x100, 'mindesteinsatz stake');
@@ -616,15 +617,15 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
 
   // =================================================================================================
   // Boss
-  cat('boss', 'Boss & Mini-Bosse', 'Königin, Boss-Gang, Mini-Bosse');
-  group('Mottenkönigin (Tag 13)', true);
+  cat('boss', 'Boss & Mini-Bosse', `${BOSS_NAME}, Boss-Gang, Mini-Bosse`);
+  group(`${BOSS_NAME} (Tag 13)`, true);
   select('Boss-Phase', [['1', `1 · ${PHASE_NAME[1]}`], ['2', `2 · ${PHASE_NAME[2]}`], ['3', `3 · ${PHASE_NAME[3]}`]], () => String(Math.max(1, d().bossPhase)), (v) => {
     const msg = seasonDebug?.boss.setPhase(Number(v));
     if (msg) return msg;
     a.close();
     return `Phase ${d().bossPhase}: ${PHASE_NAME[d().bossPhase]}`;
   }, 'phase queen');
-  const qn = row('Leben der Königin', 'queen boss leben');
+  const qn = row(`Leben von ${BOSS_NAME}`, 'queen selene boss leben');
   for (const [p, t] of [[0.5, 'Auf 50 %'], [0.8, 'Auf 20 %'], [1, 'Besiegt (Ziel voll)']] as const) {
     btn(qn, t, () => {
       if (d().evening.number < BOSS_DAY) return 'Das geht nur am Boss-Tag.';
@@ -635,7 +636,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   group('Boss-Gang (Etage 5)');
   const run = row('', 'boss gang korridor');
   btn(run, 'Boss-Gang zurücksetzen', () => bossRunDebug?.debugReset());
-  btn(run, 'Zur Königin', () => {
+  btn(run, `Zu ${BOSS_NAME}`, () => {
     a.close();
     return bossRunDebug?.debugToQueen();
   });
@@ -761,9 +762,9 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   );
   group('Medaillen');
   for (const m of MEDALS) numField(`${MEDAL_LABEL[m]}`, () => d().medals[m], (v) => void (d().medals[m] = v), 0, 1e6, 'medaille');
-  group('Motten-Album');
-  const alb = row('Ganzes Album', 'album motten');
-  btn(alb, 'Motte erscheinen lassen', () => {
+  group(ALBUM_NAME);
+  const alb = row('Ganzes Album', 'album sammlung');
+  btn(alb, `${ALBUM_ENTRY} erscheinen lassen`, () => {
     a.close();
     return albumDebug?.spawn();
   });
@@ -773,7 +774,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     numField(`${m.name} (${RARITY_NAME[m.rarity]})`, () => d().album[m.id] ?? 0, (v) => {
       if (v > 0) d().album[m.id] = v;
       else delete d().album[m.id];
-    }, 0, 9999, 'album motte');
+    }, 0, 9999, 'album eintrag');
   }
   group('Geschichte');
   for (let n = 1; n <= CHAPTER_COUNT; n++) {

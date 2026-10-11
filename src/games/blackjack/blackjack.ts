@@ -1,4 +1,4 @@
-// "Nachtfalter 21": blackjack at a half-moon table in plum felt, dealt from a six-deck shoe by
+// "Selene 21": blackjack at a half-moon table in plum felt, dealt from a six-deck shoe by
 // a moth croupier who reacts to every hand. Twist: once per day the "Glückskarte" lets the
 // player put back the card they just drew and draw a new one.
 //
@@ -20,7 +20,8 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { DEALER_H, DEALER_NECK, DEALER_W, HEAD_NECK, dealerBodyTexture, dealerHeadTexture, station, tableTexture, type Face, type TableGeo } from './paint';
 import { luckDraw, luckOn } from '../../core/debugLuck';
 
-/** Basic-strategy return per initial stake and per Falter wagered (scripts/rtp-blackjack.mjs, 20 M rounds). */
+import { CURRENCY_PLURAL, GAME_NAMES } from '../../core/brand';
+/** Basic-strategy return per initial stake and per Lumen wagered (scripts/rtp-blackjack.mjs, 20 M rounds). */
 export const RTP_INITIAL = 0.96;
 export const RTP_WAGERED = 0.9648;
 
@@ -171,7 +172,7 @@ class BlackjackGame implements GameInstance {
   private title!: Sprite;
   private usedLuck = false;
   private odds!: OddsWatch;
-  /** Falternetz on for this round, and whether it has caught its card. */
+  /** Lampennetz on for this round, and whether it has caught its card. */
   private net = false;
   private netUsed = false;
   private keyHandler = (e: KeyboardEvent) => {
@@ -258,7 +259,7 @@ class BlackjackGame implements GameInstance {
     this.dealer.bubble.view.position.set(this.dealer.view.x + this.dealer.bubble.view.x, this.dealer.view.y + 40);
 
     this.title?.destroy();
-    this.title = glowText('NACHTFALTER 21', { fontFamily: FONT_DISPLAY, fontSize: 30, fill: 0xfff6e6, letterSpacing: 3 }, { color: 0xb08ae0, distance: 12, outerStrength: 2 });
+    this.title = glowText(GAME_NAMES.blackjack.toLocaleUpperCase('de-DE'), { fontFamily: FONT_DISPLAY, fontSize: 30, fill: 0xfff6e6, letterSpacing: 3 }, { color: 0xb08ae0, distance: 12, outerStrength: 2 });
     this.title.anchor.set(L.mode === 'tall' ? 0.5 : 0, 0.5);
     this.title.position.set(L.mode === 'tall' ? L.W / 2 : 26, 34);
     this.rtpText?.destroy();
@@ -468,7 +469,7 @@ class BlackjackGame implements GameInstance {
     };
   }
 
-  /** The payout line (with the Falternetz: its share with basic strategy). */
+  /** The payout line (with the Lampennetz: its share with basic strategy). */
   private rtpLabel() {
     const wide = this.L.mode === 'wide';
     if (this.odds.id) {
@@ -478,7 +479,7 @@ class BlackjackGame implements GameInstance {
     return wide ? `Auszahlungsquote ${pct(RTP_INITIAL)}\nHausvorteil ${pct(1 - RTP_INITIAL)}\nmit Grundstrategie` : `${rtpLine(RTP_INITIAL)}\nmit Grundstrategie`;
   }
 
-  /** Falternetz: the card that busted the hand is caught and carried off; the hand stands. */
+  /** Lampennetz: the card that busted the hand is caught and carried off; the hand stands. */
   private async catchCard(seat: Seat) {
     this.netUsed = true;
     const v = seat.views.pop()!;
@@ -588,7 +589,7 @@ class BlackjackGame implements GameInstance {
     if (this.phase !== 'idle' || this.dead) return;
     const bet = this.stake.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.phase = 'dealing';
@@ -683,11 +684,11 @@ class BlackjackGame implements GameInstance {
     else if (what === 'stand') void this.run(() => this.nextHand());
     else if (what === 'double') {
       if (!canDouble(seat.hand)) return;
-      if (!this.ctx.state.placeBet(this.stake.bet)) return this.ctx.toast('Nicht genug Falter zum Verdoppeln.');
+      if (!this.ctx.state.placeBet(this.stake.bet)) return this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} zum Verdoppeln.`);
       void this.run(() => this.double(seat));
     } else if (what === 'split') {
       if (!canSplit(seat.hand, this.seats.length)) return;
-      if (!this.ctx.state.placeBet(this.stake.bet)) return this.ctx.toast('Nicht genug Falter zum Teilen.');
+      if (!this.ctx.state.placeBet(this.stake.bet)) return this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} zum Teilen.`);
       void this.run(() => this.split(seat));
     }
   }
@@ -977,7 +978,7 @@ export const describeHand = (cards: Card[]) => cards.map(cardName).join(', ');
 
 export const blackjack: GameDefinition = {
   id: 'blackjack',
-  name: 'Nachtfalter 21',
+  name: GAME_NAMES.blackjack,
   houseEdge: 1 - RTP_INITIAL,
   footprint: { w: 140, h: 84 },
   size: 'table',

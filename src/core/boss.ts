@@ -1,4 +1,4 @@
-// The Moth Queen's phases on the boss day. Her life is the goal minus today's profit:
+// The Selene's phases on the boss day. Her life is the goal minus today's profit:
 // Phase 1 from 100 %, Phase 2 below 60 % (stakes ×2), Phase 3 below 25 % (every hit in the
 // Queen's duel brings a Mondstein, src/games/queen). Phases only go up within a day. Economy only.
 // Floor 5 is the boss corridor now (src/core/bossRun.ts): its machines are mandatory, so the
@@ -6,10 +6,11 @@
 
 import { BOSS_DAY, type GameState, type SaveData } from './state';
 
-export const PHASE_NAME = ['', 'Die Königin wacht', 'Die Königin erhebt sich', 'Letzter Tanz'];
+import { BOSS_NAME, CURRENCY } from './brand';
+export const PHASE_NAME = ['', `${BOSS_NAME} wacht`, `${BOSS_NAME} erhebt sich`, 'Letzter Tanz'];
 export const PHASE_TEXT = [
   '',
-  'Jeder gewonnene Falter trifft sie.',
+  `Jedes gewonnene ${CURRENCY} trifft sie.`,
   'Alle Einsätze sind jetzt doppelt so hoch.',
   'Jeder Treffer im Duell bringt einen Mondstein.',
 ];

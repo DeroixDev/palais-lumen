@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES, GAME_NAMES, SLOT_GOLD } from '../core/brand';
 /**
  * Floor 3: a deep machine hall. A conveyor belt splits it in two; steel catwalks cross it.
  * Above the belt the gaming gallery, below it the workshop with the big gear table, the
@@ -7,11 +8,11 @@ import type { RoomDefinition } from '../core/registry';
  */
 export const f3: RoomDefinition = {
   id: 'f3',
-  name: 'Uhrwerk',
-  tagline: 'Zahnräder, Dampf und Messing',
+  name: FLOOR_NAMES.f3,
+  tagline: 'Zahnräder, Gaslicht und Messing',
   floor: 3,
   elevatorX: 1260,
-  sign: 'UHRWERK',
+  sign: FLOOR_NAMES.f3.toLocaleUpperCase('de-DE'),
   width: 1500,
   height: 1260,
   theme: {
@@ -33,15 +34,15 @@ export const f3: RoomDefinition = {
     // Gallery above the belt.
     { game: 'slots', x: 70, y: 250, label: 'Zahnrad', options: { theme: 'classic' } },
     { game: 'slots', x: 150, y: 250, label: 'Zahnrad', options: { theme: 'classic' } },
-    { game: 'slots', x: 230, y: 250, label: 'Goldmotte', options: { theme: 'gold' } },
+    { game: 'slots', x: 230, y: 250, label: SLOT_GOLD, options: { theme: 'gold' } },
     { game: 'roulette', x: 675, y: 380, label: 'Räderwerk', options: { minBet: 20 } },
     { game: 'crash', x: 1180, y: 380, label: 'Mondflug' },
     // Workshop below it.
-    { game: 'plinko', x: 110, y: 790, label: 'Mottenfall' },
-    { game: 'plinko', x: 190, y: 790, label: 'Mottenfall' },
+    { game: 'plinko', x: 110, y: 790, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 190, y: 790, label: GAME_NAMES.plinko },
     { game: 'roulette', x: 675, y: 850, label: 'Zahnradtisch', options: { minBet: 20 } },
     { game: 'crash', x: 1150, y: 760, label: 'Mondflug' },
-    { game: 'plinko', x: 400, y: 1040, label: 'Mottenfall' },
+    { game: 'plinko', x: 400, y: 1040, label: GAME_NAMES.plinko },
   ],
   decor: [
     // The belt, cut by two catwalks, and the steel aisles that lead to them.

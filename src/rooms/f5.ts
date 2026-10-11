@@ -1,8 +1,9 @@
 import type { DecorPlacement, RoomDefinition, StationPlacement } from '../core/registry';
 import { CORRIDOR } from '../core/bossRun';
 
+import { BOSS_CORRIDOR, BOSS_NAME, FLOOR_NAMES } from '../core/brand';
 /**
- * Floor 5, the boss: a long, low corridor to the Moth Queen's throne. You walk right; one
+ * Floor 5, the boss: a long, low corridor to the Selene's throne. You walk right; one
  * machine at a time stands in the way and gets exactly one try, a gate opens behind it, and at
  * the far end the Queen waits for the duel (src/core/bossRun.ts, src/world/bossRun.ts).
  * The spots alternate machine and table; the daily rotation puts a different game on each
@@ -47,12 +48,12 @@ decor.push(
 
 export const f5: RoomDefinition = {
   id: 'f5',
-  name: 'Gang der Mottenkönigin',
-  tagline: 'Ein Gang, ein Versuch pro Automat. Am Ende wartet die Königin.',
+  name: BOSS_CORRIDOR,
+  tagline: `Ein Gang, ein Versuch pro Automat. Unter der Kuppel wartet ${BOSS_NAME}.`,
   floor: 5,
   corridor: true,
   elevatorX: 150,
-  sign: 'MOTTENKÖNIGIN',
+  sign: FLOOR_NAMES.f5.toLocaleUpperCase('de-DE'),
   width: W,
   height: H,
   theme: {

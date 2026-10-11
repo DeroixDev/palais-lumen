@@ -3,7 +3,7 @@
 // costs Mondsteine, which are only earned by playing; charms never touch the odds.
 
 import { Container, Sprite, Text } from 'pixi.js';
-import { COLORS, FONT_DISPLAY, mothTexture, glowTexture } from '../core/fx';
+import { COLORS, FONT_DISPLAY, emblemTexture, glowTexture } from '../core/fx';
 import { tween, ease } from '../core/tween';
 import { button } from '../core/ui';
 import { sfx } from '../core/audio';
@@ -18,6 +18,7 @@ import { drawStone } from './stone';
 import { CREAM, MUTED, caseTexture, plateTexture } from './kit';
 import { ITEMS_TAB, ItemShelf } from './shopItems';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 const TABS: { label: string; items: () => (WardrobeOption | Charm)[] }[] = [
   { label: 'Farben', items: () => WARDROBE.filter((o) => o.slot === 'jacket' && o.price > 0) },
   { label: 'Haare', items: () => WARDROBE.filter((o) => (o.slot === 'hair' || o.slot === 'hairStyle') && o.price > 0) },
@@ -140,7 +141,7 @@ export class ShopPanel extends Panel {
           : 'Glücksbringer gelten bis zum Ende der Saison. Sie ändern nie die Gewinnchancen der Spiele.'
         : n
           ? 'Anziehen kannst du es in der Umkleide.'
-          : 'Gekaufte Sachen ziehst du in der Umkleide an. Mondsteine gibt es nur fürs Spielen, nie für Geld.',
+          : 'Gekaufte Sachen ziehst du in der Umkleide an. Mondsteine verdienst du beim Spielen.',
       n ? 15 : 16,
       MUTED,
       false,
@@ -239,7 +240,7 @@ export class ShopPanel extends Panel {
       halo.tint = col;
       halo.alpha = 0.55;
       halo.blendMode = 'add';
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.width = m.height = n ? 38 : 54;
       m.tint = col;
@@ -336,7 +337,7 @@ export class ShopPanel extends Panel {
     const gp = card.toGlobal({ x: card.pivot.x, y: card.pivot.y * 0.7 });
     this.particles.sparkle(gp.x, gp.y, 30, 0x9fe8ff, 200);
     this.toast(isCharm(it) ? `${it.name} ist aktiv, bis die Saison endet.` : `${it.name} gekauft. Zieh es in der Umkleide an.`);
-    if (this.state.data.evening.quota < goalBefore) this.toast(`Tagesziel gesenkt: jetzt ${formatChips(this.state.goalBalance)} Falter.`);
+    if (this.state.data.evening.quota < goalBefore) this.toast(`Tagesziel gesenkt: jetzt ${formatChips(this.state.goalBalance)} ${CURRENCY_PLURAL}.`);
     void tween(card.scale, { x: 1.05, y: 1.05 }, 140, ease.outCubic).then(() => this.rebuild());
   }
 }

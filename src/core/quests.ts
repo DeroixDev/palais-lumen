@@ -8,6 +8,7 @@ import { floorForDay, type GameState, type Quest, type RoundReport, type SaveDat
 import { isClosed, onEventSwitch } from './events';
 import { addStamps, floorOfDay } from './stamps';
 
+import { GAME_NAMES, SLOT_WILD } from './brand';
 interface Template {
   /** RoundReport tag that counts (see the tag list in RoundReport). */
   tag: string;
@@ -28,14 +29,14 @@ const TEMPLATES: Template[] = [
   { tag: 'slots', game: 'slots', need: 15, text: 'Dreh 15-mal an den Automaten.', stones: 1, stamps: 1 },
   { tag: 'lines2', game: 'slots', need: 2, text: 'Lande zweimal 2 Linien gleichzeitig.', stones: 2 },
   { tag: 'lines3', game: 'slots', need: 1, text: 'Lande 3 Linien gleichzeitig.', stones: 2 },
-  { tag: 'moth', game: 'slots', need: 3, text: 'Lass dreimal die Motte auf die Walzen.', stones: 1 },
-  { tag: 'plinko', game: 'plinko', need: 10, text: 'Spiel 10 Runden Mottenfall.', stones: 1, stamps: 1 },
-  { tag: 'edge', game: 'plinko', need: 2, text: 'Triff zweimal ein Randfach im Mottenfall.', stones: 2 },
+  { tag: 'moth', game: 'slots', need: 3, text: `Lass dreimal den ${SLOT_WILD} auf die Walzen.`, stones: 1 },
+  { tag: 'plinko', game: 'plinko', need: 10, text: `Spiel 10 Runden ${GAME_NAMES.plinko}.`, stones: 1, stamps: 1 },
+  { tag: 'edge', game: 'plinko', need: 2, text: `Triff zweimal ein Randfach im ${GAME_NAMES.plinko}.`, stones: 2 },
   { tag: 'crash', game: 'crash', need: 8, text: 'Flieg 8 Runden Mondflug.', stones: 1, stamps: 1 },
   { tag: 'cashout', game: 'crash', need: 5, text: 'Steig fünfmal vor dem Windstoß aus.', stones: 1 },
   { tag: 'cashout2', game: 'crash', need: 3, text: 'Steig dreimal bei 2× oder höher aus.', stones: 1 },
   { tag: 'cashout5', game: 'crash', need: 1, text: 'Steig bei 5× oder höher aus.', stones: 2 },
-  { tag: 'blackjack', game: 'blackjack', need: 6, text: 'Spiel 6 Hände Nachtfalter 21.', stones: 1, stamps: 1 },
+  { tag: 'blackjack', game: 'blackjack', need: 6, text: `Spiel 6 Hände ${GAME_NAMES.blackjack}.`, stones: 1, stamps: 1 },
   { tag: 'bj', game: 'blackjack', need: 1, text: 'Zieh einen Blackjack.', stones: 2 },
   { tag: 'natural', game: 'baccarat', need: 2, text: 'Erlebe zweimal eine Natürliche im Baccarat.', stones: 1 },
   { tag: 'baccarat', game: 'baccarat', need: 6, text: 'Spiel 6 Coups Kristall-Baccarat.', stones: 1, stamps: 1 },
@@ -43,7 +44,7 @@ const TEMPLATES: Template[] = [
   { tag: 'point', game: 'craps', need: 2, text: 'Würfle zweimal deinen Punkt.', stones: 2 },
   { tag: 'craps', game: 'craps', need: 6, text: 'Spiel 6 Runden Straßenwürfel.', stones: 1, stamps: 1 },
   { tag: 'bonus', game: 'wheel', need: 1, text: 'Lande auf dem Bonusfeld am Großen Rad.', stones: 2 },
-  { tag: 'shells', game: 'shells', need: 2, text: 'Finde zweimal die Motte unter den Laternen.', stones: 1 },
+  { tag: 'shells', game: 'shells', need: 2, text: 'Finde zweimal den Funken unter den Laternen.', stones: 1 },
   { tag: 'mines5', game: 'mines', need: 1, text: 'Finde 5 Diamanten in einer Runde.', stones: 2 },
   { tag: 'tower5', game: 'tower', need: 1, text: 'Kletter 5 Etagen im Drachenturm.', stones: 2 },
   { tag: 'streak3', game: 'coin', need: 1, text: 'Rate dreimal in Folge die Mondmünze richtig.', stones: 2 },
@@ -53,7 +54,7 @@ const TEMPLATES: Template[] = [
   { tag: 'keno5', game: 'keno', need: 1, text: 'Triff 5 Sterne in einer Ziehung.', stones: 3 },
   { tag: 'line', game: 'bingo', need: 2, text: 'Schaff zweimal eine Bingo-Linie.', stones: 1 },
   { tag: 'scratch', game: 'scratch', need: 5, text: 'Rubbel 5 Lose frei.', stones: 1, stamps: 1 },
-  { tag: 'pair', game: 'poker', need: 3, text: 'Gewinn dreimal mit Buben-Paar oder zwei Paaren im Falter-Poker.', stones: 1 },
+  { tag: 'pair', game: 'poker', need: 3, text: `Gewinn dreimal mit Buben-Paar oder zwei Paaren im ${GAME_NAMES.poker}.`, stones: 1 },
   { tag: 'win10', game: '', need: 1, text: 'Gewinne einmal das 10-Fache deines Einsatzes.', stones: 2 },
 ];
 

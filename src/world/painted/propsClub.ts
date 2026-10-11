@@ -16,6 +16,7 @@ import { box, ent, glow } from './foyerProps';
 import { Chibi } from './chibi';
 import { INK, dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from './brush';
 
+import { CLUB_SOUND } from '../../core/brand';
 // ---- The show ------------------------------------------------------------------------------------
 
 const MAGENTA = 0xff3fb4;
@@ -488,7 +489,7 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           c.font = `700 9px ${FONT_BODY}`;
           c.textAlign = 'center';
           c.fillStyle = '#3a3a48';
-          c.fillText('NACHTFALTER SOUND', 0, fy + 8);
+          c.fillText(CLUB_SOUND, 0, fy + 8);
           c.fillStyle = rgb(CYAN);
           c.fillRect(-bw / 2 + 4, fy + 11, bw - 8, 2);
         }),
@@ -1467,7 +1468,7 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           c.font = `700 7px ${FONT_BODY}`;
           c.textAlign = 'center';
           c.fillStyle = '#ffd23f';
-          c.fillText('FALTER BLASTER', 0, by - 2);
+          c.fillText('NEON BLASTER', 0, by - 2);
           // Speaker rings.
           for (const s of [-1, 1]) {
             ellipse(c, s * 40, by - 24, 21, 21);

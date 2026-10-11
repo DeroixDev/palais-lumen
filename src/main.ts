@@ -42,6 +42,7 @@ import { installStory } from './core/story';
 import { showChapterIfDue } from './ui/chapter';
 import { installDebugLuck } from './core/debugLuck';
 
+import { CURRENCY, CURRENCY_PLURAL, HOUSE, HOUSE_TAGLINE } from './core/brand';
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
 
 interface Overlay {
@@ -68,7 +69,21 @@ function vignetteTexture() {
   return Texture.from(cv);
 }
 
+/** The static page (title, logo, purse label) carries the brand from src/core/brand.ts. */
+function applyBrand() {
+  document.title = HOUSE;
+  const logo = document.querySelector('#title .logo');
+  if (logo) logo.innerHTML = `${HOUSE}<span>${HOUSE_TAGLINE}</span>`;
+  const eyebrow = document.querySelector('#title .eyebrow');
+  if (eyebrow) eyebrow.textContent = HOUSE_TAGLINE;
+  const purse = document.querySelector('.purse');
+  purse?.setAttribute('title', `Deine ${CURRENCY}`);
+  const unit = purse?.querySelector('small');
+  if (unit) unit.textContent = CURRENCY;
+}
+
 async function boot() {
+  applyBrand();
   await loadFonts();
   // Filters (glows) render at the screen's pixel density, otherwise they look blocky on sharp displays.
   Filter.defaultOptions.resolution = 'inherit';
@@ -129,7 +144,7 @@ async function boot() {
     // The daily challenge saves under its own key, never over the normal run.
     writeSlot(state.data.dailySeed ? 'daily' : 'auto', state.data);
   };
-  // Boss day: every Falter won is a hit on the Moth Queen.
+  // Boss day: every Lumen won is a hit on the Selene.
   let bossProfit = 0;
   let goalShown = state.goalReached;
   state.onChange(() => {
@@ -139,7 +154,7 @@ async function boot() {
     // The goal is a fixed end balance; say so the moment it's in, once per day.
     const reached = state.goalReached;
     if (reached && !goalShown && mode !== 'title' && state.data.evening.number < BOSS_DAY) {
-      hud.toast(`Tagesziel erreicht: ${formatChips(state.goalBalance)} Falter! Jeder weitere Falter bringt eine bessere Medaille.`);
+      hud.toast(`Tagesziel erreicht: ${formatChips(state.goalBalance)} ${CURRENCY_PLURAL}! Jedes weitere ${CURRENCY} bringt eine bessere Medaille.`);
       sfx.medal();
     }
     goalShown = reached;
@@ -160,7 +175,7 @@ async function boot() {
   let brokeOpen = false;
   let brokeTimer = 0;
   /**
-   * Out of Falter: the day can only be settled, and that ends the season. Checked again
+   * Out of Lumen: the day can only be settled, and that ends the season. Checked again
    * when the timer fires, and only once no round is running, so an all-in can still win.
    */
   function checkRescue() {
@@ -175,7 +190,7 @@ async function boot() {
       return;
     }
     brokeOpen = true;
-    hud.modal('Keine Falter mehr', 'Damit ist diese Saison vorbei. Deine Trophäen, Medaillen und Rekorde bleiben. Die nächste Saison startet wieder mit 1.000 Falter.', [
+    hud.modal(`Keine ${CURRENCY_PLURAL} mehr`, `Damit ist diese Saison vorbei. Deine Trophäen, Medaillen und Rekorde bleiben. Die nächste Saison startet wieder mit 1.000 ${CURRENCY_PLURAL}.`, [
       {
         label: 'Abrechnen',
         primary: true,
@@ -324,17 +339,17 @@ async function boot() {
     autosave();
   }
 
-  const WISHES = ['Das Wasser glitzert kurz golden.', 'Eine Motte nickt dir zu.', 'Irgendwo klingelt ein Glöckchen.', 'Du wünschst dir eine ruhige Hand.', 'Der Brunnen gluckst zufrieden.'];
-  const DRINKS = ['Mondschein-Limo', 'Falterfizz mit Minze', 'Holunder-Spritz ohne Alkohol', 'Kirsch-Mocktail', 'Laternen-Eistee'];
+  const WISHES = ['Das Wasser glitzert kurz golden.', 'Eine Laterne flackert dir zu.', 'Irgendwo klingelt ein Glöckchen.', 'Du wünschst dir eine ruhige Hand.', 'Der Brunnen gluckst zufrieden.'];
+  const DRINKS = ['Mondschein-Limo', 'Funkenfizz mit Minze', 'Holunder-Spritz ohne Alkohol', 'Kirsch-Mocktail', 'Laternen-Eistee'];
   const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
   /** Piano, fountain, jukebox and all the other things on the floors. */
   function useProp(i: Extract<Interactable, { kind: 'use' }>) {
     const prop = i.prop;
     if (prop === 'fountain') {
-      if (state.balance < 11) return hud.toast('Für einen Wunsch brauchst du ein paar Falter mehr.');
+      if (state.balance < 11) return hud.toast(`Für einen Wunsch brauchst du ein paar ${CURRENCY_PLURAL} mehr.`);
       if (!room.use(i, false)) return;
-      // The wish costs a Falter, but it doesn't count against today's goal.
+      // The wish costs a Lumen, but it doesn't count against today's goal.
       state.data.balance -= 1;
       state.data.evening.startBalance -= 1;
       void room.tossCoin(i.cx + (Math.random() - 0.5) * 30, i.cy + (Math.random() - 0.5) * 20).then(() => {
@@ -572,14 +587,14 @@ async function boot() {
     sfx.bigWin();
     particles.lightWave(x, y, level === 4 ? 0xfff1c4 : COLORS.lamp, Math.min(w, app.screen.height) * 0.55);
     if (level === 3) {
-      particles.mothSwarm(x, y, 20, orbit ?? null, COLORS.lamp);
+      particles.drawSwarm(x, y, 20, orbit ?? null, COLORS.lamp);
       particles.coinBurst(x, y, 22);
       particles.coinsToPurse(x, y, 16);
       return;
     }
     setTimeout(() => sfx.bigWin(), 900);
     void shake(gameLayer, 8, 300);
-    particles.mothSwarm(x, y, 40, orbit ?? null, 0xfff1c4, 4.5);
+    particles.drawSwarm(x, y, 40, orbit ?? null, 0xfff1c4, 4.5);
     particles.coinRain(w, 110);
     particles.coinsToPurse(x, y, 24);
   }
@@ -667,7 +682,7 @@ async function boot() {
     void tween(fade, { alpha: 0 }, 400);
     await room.exitElevator();
     autosave();
-    if (bonus > 0) hud.toast(`Glücksbringer: +${bonus} Falter zum Start von Tag ${state.data.evening.number}.`);
+    if (bonus > 0) hud.toast(`Glücksbringer: +${bonus} ${CURRENCY_PLURAL} zum Start von Tag ${state.data.evening.number}.`);
     setTimeout(() => {
       const f = state.topFloor;
       hud.toast(newFloor ? `Etage ${newFloor} ist offen! Der Aufzug bringt dich hin.` : `Tag ${state.data.evening.number} wartet auf Etage ${f}. Nimm den Aufzug, wenn du bereit bist.`);
@@ -900,10 +915,10 @@ async function boot() {
     return street;
   }
 
-  /** "Tag 3 · Ziel heute 1.250 Falter" plaque at the start of every evening. */
+  /** "Tag 3 · Ziel heute 1.250 Lumen" plaque at the start of every evening. */
   function eveningCard() {
     const d = state.data;
-    const goal = `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} Falter · Einsätze ab ${formatChips(state.stakeUnit)}`;
+    const goal = `Ziel heute: ${formatChips(d.evening.startBalance + d.evening.quota)} ${CURRENCY_PLURAL} · Einsätze ab ${formatChips(state.stakeUnit)}`;
     const c = dayCard(`TAG ${d.evening.number}`, goal, app.screen.width, app.screen.height, TOP, days.ribbon(app.screen.width), scheduleStrip(state, room.def, app.screen.width));
     particles.view.addChild(c);
     sfx.win();

@@ -3,7 +3,7 @@
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { fillInk, glowAt, grain, paint, rrect, seeded } from '../world/painted/brush';
-import { paintMoth } from '../games/slots/symbols';
+import { paintEmblem } from '../games/slots/symbols';
 import { formatChips } from '../core/state';
 import { bodyText } from './kit';
 
@@ -204,7 +204,7 @@ export function curveCard(history: number[], start: number, goal: number, w: num
   for (let i = 1; i < N; i++) if (pts[i] > pts[peakI]) peakI = i;
   const mothTex = paint(56, 44, (c) => {
     glowAt(c, 28, 22, 26, 20, 0xffd27a, 0.45);
-    paintMoth(c, 28, 24, 46, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: 0xffcf7a }, 1.4);
+    paintEmblem(c, 28, 24, 46, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: 0xffcf7a }, 1.4);
   });
   // Only a day that rose above its start has a peak worth a moth.
   const rose = pts[peakI] > start;

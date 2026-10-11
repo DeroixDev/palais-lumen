@@ -7,6 +7,7 @@ import { currentEvent, stampFactor } from './events';
 import { perkFactor } from './perks';
 import { baseRoom } from './registry';
 
+import { DOME } from './brand';
 export const STAMPS_PER_CARD = 8;
 /** Rounds played on a floor for one stamp. */
 export const ROUNDS_PER_STAMP = 15;
@@ -26,11 +27,11 @@ export interface StampReward {
 
 /** Every full first card also puts a golden regulars' statue on the floor. */
 export const STAMP_REWARDS: Record<string, StampReward> = {
-  f1: { floor: 'f1', name: 'Goldfilz-Roulette', text: 'Goldfilz am Roulette und eine Ehrenmotte aus Gold.', felt: true },
-  f2: { floor: 'f2', name: 'Goldene Automaten', text: 'Goldene Mondschein-Automaten und eine Ehrenmotte.', goldSlots: true },
-  f3: { floor: 'f3', name: 'Goldenes Räderwerk', text: 'Goldene Automaten, Goldfilz und eine Ehrenmotte.', goldSlots: true, felt: true },
-  f4: { floor: 'f4', name: 'Goldener High Roller', text: 'Goldfilz am High-Roller-Tisch und eine Ehrenmotte.', felt: true },
-  f5: { floor: 'f5', name: 'Königlicher Goldfilz', text: 'Goldfilz am Königstisch und eine Ehrenmotte.', felt: true },
+  f1: { floor: 'f1', name: 'Goldfilz-Roulette', text: 'Goldfilz am Roulette und eine goldene Ehrenlampe.', felt: true },
+  f2: { floor: 'f2', name: 'Goldene Automaten', text: 'Goldene Mondschein-Automaten und eine Ehrenlampe.', goldSlots: true },
+  f3: { floor: 'f3', name: 'Goldenes Räderwerk', text: 'Goldene Automaten, Goldfilz und eine Ehrenlampe.', goldSlots: true, felt: true },
+  f4: { floor: 'f4', name: 'Goldener High Roller', text: 'Goldfilz am High-Roller-Tisch und eine Ehrenlampe.', felt: true },
+  f5: { floor: 'f5', name: `Goldfilz unter der ${DOME}`, text: `Goldfilz am Tisch unter der ${DOME} und eine Ehrenlampe.`, felt: true },
 };
 
 export const STAMP_FLOORS = ['f1', 'f2', 'f3', 'f4', 'f5'];

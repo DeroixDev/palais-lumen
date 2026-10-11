@@ -1,6 +1,6 @@
 // The four mini bosses in the painted chibi look (src/core/miniboss.ts): the Samtgräfin in her
 // velvet gown, the Gärtner der Nacht with moonflowers and shears, the Uhrmacher with his giant
-// pocket watch, DJ Falterbeat with moth wings behind his deck. Each is painted once (plus a
+// pocket watch, DJ Stroboskop with moth wings behind his deck. Each is painted once (plus a
 // "beaten" face) and cached; also a round portrait for the HUD plate and the boss trophies.
 
 import { Texture } from 'pixi.js';
@@ -576,8 +576,8 @@ function falterbeat(c: Ctx, beaten: boolean) {
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   c.fillStyle = beaten ? 'rgba(255,220,255,0.4)' : '#ffd6ff';
-  c.fillText('FALTER', 0, -38);
-  c.fillText('BEAT', 0, -24);
+  c.fillText('DJ', 0, -38);
+  c.fillText('STROBO', 0, -24);
   // Head: fluffy hair, antennae, headphones, sunglasses.
   const hy = -HEAD_Y + 2;
   for (const s of [-1, 1]) {

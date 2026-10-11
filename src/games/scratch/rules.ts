@@ -26,7 +26,7 @@ export const TICKETS = 1_000_000;
 export const DESIGNS: ScratchDesign[] = [
   {
     id: 'falter',
-    name: 'Mottenflügel',
+    name: 'Kerzenschein',
     ladder: [10, 20, 50],
     mult: [1, 2, 5, 10, 20, 100],
     weight: [220_000, 130_000, 45_000, 12_000, 4_000, 400],
@@ -107,7 +107,7 @@ export function drawTicket(d: ScratchDesign, rand: () => number = Math.random): 
   return { tier, mult: tier >= 0 ? d.mult[tier] : 0, cells: layoutCard(tier, rand) };
 }
 
-// ---- Mottenstaub (odds item) -----------------------------------------------------------------
+// ---- Funkenstaub (odds item) -----------------------------------------------------------------
 // A losing card that shows both moons and both moths (two of each) is dusted over: the moth
 // trades it for a fresh ticket of the same design, once. A losing field holds 9 of the 12
 // cells (every symbol twice), so that happens with chance C(8,5) / C(12,9) = 14/55, and the

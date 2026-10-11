@@ -8,6 +8,7 @@ import { drawSpecies } from './painted/mothArt';
 import { GOLD, INK, dark, fillInk, glowAt, gold, light, propSprite, rgb, shadow } from './painted/brush';
 import type { Rect } from './decor';
 
+import { ALBUM_NAME } from '../core/brand';
 export interface LecternHost {
   entities: Container;
   obstacles: Rect[];
@@ -131,5 +132,5 @@ export function albumLectern(def: RoomDefinition, host: LecternHost) {
   s.zIndex = AT.y;
   host.entities.addChild(s);
   host.obstacles.push({ x: AT.x - 30, y: AT.y - 12, w: 60, h: 18 });
-  host.interactables.push({ kind: 'extra', id: 'album', x: AT.x, y: AT.y + 40, title: 'Motten-Album' } as { kind: string; x: number; y: number });
+  host.interactables.push({ kind: 'extra', id: 'album', x: AT.x, y: AT.y + 40, title: ALBUM_NAME } as { kind: string; x: number; y: number });
 }

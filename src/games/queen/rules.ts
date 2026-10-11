@@ -1,4 +1,4 @@
-// Duell der Königin rules, kept free of Pixi so scripts/rtp-queen.mjs can import them.
+// Duell im Lichtkegel rules, kept free of Pixi so scripts/rtp-queen.mjs can import them.
 //
 // The Queen draws one defence card from a fresh deck of 20 (1 to 20, all equally likely).
 // Your attack breaks every defence up to its strength: Flügelschlag up to 10 (10 of 20 cards),
@@ -20,7 +20,7 @@ export interface Attack {
 }
 
 export const ATTACKS: Attack[] = [
-  { id: 'wing', name: 'Flügelschlag', beats: 10, mult: 1.9, color: 0xffcf7a },
+  { id: 'wing', name: 'Lichtschlag', beats: 10, mult: 1.9, color: 0xffcf7a },
   { id: 'blade', name: 'Mondklinge', beats: 5, mult: 3.8, color: 0x9fe8ff },
   { id: 'crown', name: 'Kronenstoß', beats: 2, mult: 9.5, color: 0xff8ac0 },
   { id: 'star', name: 'Sternenfeuer', beats: 1, mult: 19, color: 0xfff1c4 },
@@ -42,8 +42,8 @@ export function payoutShown(stake: number, a: Attack) {
 }
 
 /**
- * Falter paid for a hit: the shown amount, plus one more with a chance equal to the cut-off
- * fraction, so whole-Falter payouts keep exactly stake × multiple on average.
+ * Lumen paid for a hit: the shown amount, plus one more with a chance equal to the cut-off
+ * fraction, so whole-Lumen payouts keep exactly stake × multiple on average.
  */
 export function payout(stake: number, a: Attack, rand: () => number = Math.random) {
   const x = clean(stake * a.mult);

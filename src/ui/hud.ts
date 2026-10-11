@@ -13,6 +13,7 @@ import { installHudArt } from './hudArt';
 import { debugPanel } from './debug';
 import './fit.css';
 
+import { BOSS_FULL, BOSS_GEN, BOSS_NAME, CURRENCY_PLURAL, DOME, HOUSE } from '../core/brand';
 const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋', camera: '📷' };
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -199,12 +200,12 @@ export class Hud {
     $('#ev-bar').classList.toggle('boss', boss);
     $('.evening').classList.toggle('boss', boss);
     if (boss) {
-      // On the boss day the goal bar is the Moth Queen's life: every Falter won hurts her.
+      // On the boss day the goal bar is the Selene's life: every Lumen won hurts her.
       const hp = Math.max(0, d.evening.quota - Math.max(0, profit));
-      $('#ev-goal').textContent = hp > 0 ? `Königin: ${formatChips(hp)}` : 'Königin besiegt!';
-      $('#ev-goal').title = 'Lebenskraft der Mottenkönigin';
+      $('#ev-goal').textContent = hp > 0 ? `${BOSS_NAME}: ${formatChips(hp)}` : `${BOSS_NAME} besiegt!`;
+      $('#ev-goal').title = `${BOSS_GEN} Lebenskraft`;
       $('#ev-fill').style.width = `${(hp / d.evening.quota) * 100}%`;
-      $('#ev-bar').setAttribute('aria-label', 'Lebenskraft der Mottenkönigin');
+      $('#ev-bar').setAttribute('aria-label', `${BOSS_GEN} Lebenskraft`);
     } else {
       // The goal is a fixed end balance, known from the start of the day.
       const missing = this.state.goalMissing;
@@ -285,7 +286,7 @@ export class Hud {
       s.style.transitionDelay = calm ? '0ms' : `${(strips.length - 1 - i) * 50}ms`;
       s.style.transform = `translateY(${-Number(digits[i])}em)`;
     });
-    (el.querySelector('.sr') as HTMLElement).textContent = `${text} Falter`;
+    (el.querySelector('.sr') as HTMLElement).textContent = `${text} ${CURRENCY_PLURAL}`;
     if (from < 0) return;
     clearTimeout(this.flashTimer);
     el.classList.remove('up', 'down');
@@ -485,10 +486,10 @@ export class Hud {
     this.modal(
       `Tag ${d.evening.number} beenden?`,
       reached && d.evening.number >= BOSS_DAY
-        ? 'Die Mottenkönigin ist besiegt. Rechne ab und die Saison ist gewonnen!'
+        ? `${BOSS_NAME} ist besiegt. Rechne ab und die Saison ist gewonnen!`
         : reached
-        ? `Ziel geschafft (${Math.floor(ratio * 100)} %). Morgen startest du mit ${formatChips(d.balance)} Falter, die Einsätze wachsen mit, und das Ziel ist +${formatChips(this.state.quotaToday(d.evening.number + 1, d.balance))}.`
-        : `Dir fehlen noch ${formatChips(this.state.goalMissing)} Falter bis ${formatChips(this.state.goalBalance)} (${Math.floor(Math.max(0, ratio) * 100)} % vom Ziel). Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 Falter. Trophäen und Rekorde bleiben.`,
+        ? `Ziel geschafft (${Math.floor(ratio * 100)} %). Morgen startest du mit ${formatChips(d.balance)} ${CURRENCY_PLURAL}, die Einsätze wachsen mit, und das Ziel ist +${formatChips(this.state.quotaToday(d.evening.number + 1, d.balance))}.`
+        : `Dir fehlen noch ${formatChips(this.state.goalMissing)} ${CURRENCY_PLURAL} bis ${formatChips(this.state.goalBalance)} (${Math.floor(Math.max(0, ratio) * 100)} % vom Ziel). Wenn du jetzt abrechnest, ist die Saison vorbei und du startest neu mit 1.000 ${CURRENCY_PLURAL}. Trophäen und Rekorde bleiben.`,
       [
         { label: 'Weiterspielen', onClick: () => this.closeModal() },
         {
@@ -530,7 +531,7 @@ export class Hud {
       name.textContent = names[s.id];
       const meta = document.createElement('span');
       meta.textContent = s.data
-        ? `Tag ${s.data.evening.number} · ${formatChips(s.data.balance)} Falter · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
+        ? `Tag ${s.data.evening.number} · ${formatChips(s.data.balance)} ${CURRENCY_PLURAL} · ${s.data.trophies.length} Trophäen · ${new Date(s.data.savedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}`
         : 'leer';
       info.append(name, meta);
       row.appendChild(info);
@@ -608,15 +609,15 @@ export class Hud {
       <p><strong>Laufen:</strong> WASD oder Pfeiltasten. Am Handy wischen und den Finger halten, dann läufst du in diese Richtung. Kurz tippen läuft zu der Stelle.</p>
       <p><strong>Spielen:</strong> einfach gegen einen Automaten, Tisch oder Stand laufen. Oder davor <kbd>E</kbd> drücken oder auf die Sprechblase tippen. <kbd>Leertaste</kbd> dreht, <kbd>Esc</kbd> geht zurück.</p>
       <p><strong>Saison:</strong> Jeder Tag hat ein Gewinnziel, und es steigt von Tag zu Tag. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
-      <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet die Mottenkönigin ganz oben im Thronsaal. Besiegst du sie, hast du die Saison gewonnen.</p>
-      <p><strong>Foyer:</strong> Hier startest du und hierher kommst du nach jedem Tag zurück. Im Laden gibt es Kleidung, Begleiter, Glücksbringer und Glücksgriffe (Items) für Mondsteine, in der Umkleide ziehst du dich um, am Empfang stellst du deine Gruppe zusammen. Mondsteine gibt es für gewonnene Runden, Medaillen, den Überschuss über dem Tagesziel, Erfolge und die Mottenkönigin, nie für Geld.</p>
+      <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet ${BOSS_FULL}, ganz oben unter der ${DOME}. Besiegst du sie, hast du die Saison gewonnen.</p>
+      <p><strong>Foyer:</strong> Hier startest du und hierher kommst du nach jedem Tag zurück. Im Laden gibt es Kleidung, Begleiter, Glücksbringer und Glücksgriffe (Items) für Mondsteine, in der Umkleide ziehst du dich um, am Empfang stellst du deine Gruppe zusammen. Mondsteine gibt es für gewonnene Runden, Medaillen, den Überschuss über dem Tagesziel, Erfolge und den Sieg über ${BOSS_NAME}.</p>
       <p><strong>Beutel:</strong> Gekaufte Items trägst du im Beutel oben in der Leiste (oder Taste <kbd>I</kbd>), auch am Spieltisch. Ist ein Item aktiv, zeigt das Spiel oben die echte Auszahlungsquote mit Item.</p>
       <p><strong>Ausprobieren:</strong> Klavier, Brunnen, Jukebox und vieles mehr auf den Etagen kannst du benutzen. Einfach hingehen und <kbd>E</kbd> drücken.</p>
-      <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 Falter. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
+      <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 ${CURRENCY_PLURAL}. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
-      <p class="safe">Hier gibt es nur Falter. Man kann nichts einzahlen und nichts kaufen. Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
+      <p class="safe">Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
       <details class="credits"><summary>Musik &amp; Klang</summary>
-        <p>Alle Stücke sind für Casino Nachtfalter geschrieben und werden live im Spiel gespielt. Die Instrumente sind freie Aufnahmen:</p>
+        <p>Alle Stücke sind für ${HOUSE} geschrieben und werden live im Spiel gespielt. Die Instrumente sind freie Aufnahmen:</p>
         <p>Versilian Community Sample Library (Versilian Studios, CC0) · Splendid Grand Piano (Akai, gemeinfrei) · Kontrabass von D. Smolken (CC0) · Wurlitzer EP200 von Greg Sullivan (CC BY 3.0) · FluidR3 GM von Frank Wen, aufbereitet von gleitz/midi-js-soundfonts (CC BY 3.0) · tonejs-instruments von Nicholaus Brosowsky (CC BY 3.0) · LinnDrum, TR-808 und MFB-512 aus smpldsnds/drum-machines (gemeinfrei).</p>
       </details>`;
     this.modal('So geht’s', body, [
@@ -628,7 +629,7 @@ export class Hud {
 
   /** Asks before starting over; `after` runs once the new game is set up (the title screen walks in). */
   confirmNewGame(after?: () => void) {
-    this.modal('Neues Spiel starten?', 'Du beginnst bei Tag 1 mit 1.000 Falter. Der Autosave wird mit dem neuen Spiel überschrieben. Was in Platz 1 bis 3 liegt, bleibt erhalten. Speichere vorher dort, wenn du den aktuellen Stand behalten willst.', [
+    this.modal('Neues Spiel starten?', `Du beginnst bei Tag 1 mit 1.000 ${CURRENCY_PLURAL}. Der Autosave wird mit dem neuen Spiel überschrieben. Was in Platz 1 bis 3 liegt, bleibt erhalten. Speichere vorher dort, wenn du den aktuellen Stand behalten willst.`, [
       { label: 'Abbrechen', onClick: () => this.closeModal() },
       {
         label: 'Neues Spiel',

@@ -403,7 +403,7 @@ class Sfx {
   firefly(hit: boolean) {
     this.bell(hit ? 1568 + Math.random() * 200 : 1175 + Math.random() * 300, hit ? 0.1 : 0.04, 0, hit ? 0.7 : 0.3);
   }
-  /** The Moth Queen enters a new phase: a low drum, a dark minor stab and a wing rush. */
+  /** The Selene enters a new phase: a low drum, a dark minor stab and a wing rush. */
   bossSting(phase = 2) {
     const root = phase >= 3 ? 98 : 110;
     this.tone(root / 2, 1.2, 'sine', 0.4, 0, root / 3);
@@ -1203,7 +1203,7 @@ class Sfx {
     for (let i = 0; i < 5; i++) this.noise(0.05, 0.09 * (1 - i / 6), i * 0.07, 900 + i * 120, 'bandpass', 1.5);
   }
 
-  // ---- Falter-Poker ------------------------------------------------------------------------
+  // ---- Salon-Poker ------------------------------------------------------------------------
 
   /** A card snapping over on the felt; `i` lifts the pitch a little per card. */
   pokerCard(i = 0) {

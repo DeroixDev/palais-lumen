@@ -1,5 +1,5 @@
 // Card model shared by the table games (no Pixi here, so the RTP scripts can import it).
-// Suits of the Nachtfalter deck: Mond (♥), Laterne (♦), Falter (♠), Schlüssel (♣).
+// Suits of the house deck: Mond (♥), Laterne (♦), Stern (♠), Schlüssel (♣).
 
 export type Suit = 0 | 1 | 2 | 3;
 export interface Card {
@@ -8,8 +8,8 @@ export interface Card {
   suit: Suit;
 }
 
-export const SUIT_NAME = ['Mond', 'Laterne', 'Falter', 'Schlüssel'] as const;
-/** Mond and Laterne are the "red" suits (rose ink), Falter and Schlüssel the "black" ones (night ink). */
+export const SUIT_NAME = ['Mond', 'Laterne', 'Stern', 'Schlüssel'] as const;
+/** Mond and Laterne are the "red" suits (rose ink), Stern and Schlüssel the "black" ones (night ink). */
 export const isRedSuit = (s: Suit) => s < 2;
 export const RANK_LABEL = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'B', 'D', 'K'];
 export const RANK_NAME = ['', 'Ass', 'Zwei', 'Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht', 'Neun', 'Zehn', 'Bube', 'Dame', 'König'];

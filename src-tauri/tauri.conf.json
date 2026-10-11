@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Casino Nachtfalter",
+  "productName": "Palais Lumen",
   "version": "0.1.0",
   "identifier": "de.nachtfalter.casino",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Casino Nachtfalter",
+        "title": "Palais Lumen",
         "width": 1280,
         "height": 800,
         "minWidth": 960,

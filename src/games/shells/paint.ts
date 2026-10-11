@@ -3,7 +3,7 @@
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
-import { paintMoth } from '../slots/symbols';
+import { paintEmblem } from '../slots/symbols';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 
@@ -154,11 +154,11 @@ export function flameTexture() {
 }
 
 /** The moth (wings up; flap it by scaling x). */
-export function mothTexture() {
+export function emblemTexture() {
   return cached('smoth', () =>
     paint(72, 72, (c) => {
       glowAt(c, 36, 36, 32, 32, 0xfff1c4, 0.45, 'lighter');
-      paintMoth(c, 36, 38, 58, { wing: 0xf3e2b8, wingDark: 0xa8783a, body: 0x6a4420, eye: 0xff5fa2 }, 2.2);
+      paintEmblem(c, 36, 38, 58, { wing: 0xf3e2b8, wingDark: 0xa8783a, body: 0x6a4420, eye: 0xff5fa2 }, 2.2);
     }, 2),
   );
 }

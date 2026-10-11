@@ -1,8 +1,8 @@
-// Mottenfall rules as pure functions (no Pixi), so scripts/rtp-plinko.mjs can check them.
+// Funkenfall rules as pure functions (no Pixi), so scripts/rtp-plinko.mjs can check them.
 // 12 rows of pegs; at each peg the moth falls left or right with chance 1/2, so cup k
 // (0 … 12, counted from the left) is reached with C(12, k) / 2^12.
 //
-// Mottenflügel (odds item): at the second peg the wing pushes the moth outwards, away from the
+// Lichtfächer (odds item): at the second peg the wing pushes the moth outwards, away from the
 // middle, i.e. the same way it fell at the first peg. Then ten free bounces follow, so cup k
 // is reached with (C(10, k) + C(10, k − 2)) / 2^11.
 
@@ -39,7 +39,7 @@ export function wingPath(path: number[]) {
   return out;
 }
 
-/** Chance of each cup with the Mottenflügel: two steps the same way, then ten free ones. */
+/** Chance of each cup with the Lichtfächer: two steps the same way, then ten free ones. */
 export const WING_PROB = Array.from({ length: ROWS + 1 }, (_, k) => (binom(ROWS - 2, k) + binom(ROWS - 2, k - 2)) / 2 ** (ROWS - 1));
 
 export function wingRtp(risk: Risk) {

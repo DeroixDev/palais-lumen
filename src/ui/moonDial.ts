@@ -14,6 +14,7 @@ import { INK, fillInk, glowAt, paint, type Ctx } from '../world/painted/brush';
 import { Panel } from './panel';
 import { CREAM, MUTED } from './kit';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 /** Lit share of the moon per level; level 5 is the full blood moon. */
 const LIT = [0, 0.25, 0.5, 0.75, 1, 1];
 
@@ -283,7 +284,7 @@ export class MoonDialPanel extends Panel {
       this.panel.addChild(t);
       y += t.height + 2;
     });
-    const note = this.text('Ändert nie die Gewinnchancen. Tag 1 startet immer mit 1.000 Falter.', n ? 14 : 15, MUTED, false, this.W - 70);
+    const note = this.text(`Ändert nie die Gewinnchancen. Tag 1 startet immer mit 1.000 ${CURRENCY_PLURAL}.`, n ? 14 : 15, MUTED, false, this.W - 70);
     note.anchor.set(0.5, 1);
     note.position.set(this.W / 2, this.H - 96);
     this.panel.addChild(note);

@@ -36,6 +36,7 @@ import {
 } from './paint';
 import { luckStep, luckOn } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
   'Wähle vor der Runde, wie viele der 25 Steine eine Rußlaterne verstecken (1 bis 10). ' +
@@ -324,7 +325,7 @@ class MinesGame implements GameInstance {
     if (this.phase === 'play' || this.phase === 'anim') return false;
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return false;
     }
     this.deck.closeRules();

@@ -4,7 +4,7 @@
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
-import { COLORS, FONT_BODY, glowTexture, mothTexture } from '../../core/fx';
+import { COLORS, FONT_BODY, glowTexture, emblemTexture } from '../../core/fx';
 import type { BuiltDecor, Rect } from '../decor';
 import { Chibi } from './chibi';
 import { P_WALL_H } from './foyerShell';
@@ -277,7 +277,7 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
       );
       // A moth in a bell jar on the counter, glowing softly.
       const jar = glow(v, x - 20, y - ch / 2 - 64 + 10, 70, 70, 0x9fe8ff, 0.5);
-      const moth = new Sprite(mothTexture());
+      const moth = new Sprite(emblemTexture());
       moth.anchor.set(0.5);
       moth.width = moth.height = 16;
       moth.tint = 0x9fe8ff;
@@ -1344,8 +1344,8 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.font = `700 12px ${FONT_BODY}`;
           c.fillText('HAUSORDNUNG', 0, T + 20);
           c.font = `600 11px ${FONT_BODY}`;
-          c.fillText('Nur Spielgeld.', 0, T + 35);
-          c.fillText('Kein Echtgeld.', 0, T + 48);
+          c.fillText('Offene Quoten.', 0, T + 35);
+          c.fillText('Jeder Abend darf enden.', 0, T + 48);
         }),
       );
       // Usable: opens "Wie das Haus gewinnt"; the thin strip at the wall foot puts the prompt below it.

@@ -15,6 +15,7 @@ import { enterMotion, leaveMotion, screw } from './kit';
 import { gameIcon } from './gameIcons';
 import { floorPlan } from './schedule';
 
+import { HOUSE_CAPS } from '../core/brand';
 /** First day a floor can be reached. */
 export function floorOpensOnDay(floor: number) {
   return floor >= 5 ? BOSS_DAY : (floor - 1) * DAYS_PER_FLOOR + 1;
@@ -348,7 +349,7 @@ export class ElevatorPanel {
     const current = this.current;
 
     p.addChild(Object.assign(new Sprite(plateTex(W, H)), { x: -10, y: -8 }));
-    const title = new Text({ text: 'AUFZUG · NACHTFALTER', style: { fontFamily: FONT_DISPLAY, fontSize: n ? 17 : 21, fill: 0x4a2a08, letterSpacing: n ? 3 : 4, dropShadow: { color: 0xfff4d0, alpha: 0.6, blur: 0, distance: 1.4, angle: Math.PI / 2 } } });
+    const title = new Text({ text: `AUFZUG · ${HOUSE_CAPS}`, style: { fontFamily: FONT_DISPLAY, fontSize: n ? 17 : 21, fill: 0x4a2a08, letterSpacing: n ? 3 : 4, dropShadow: { color: 0xfff4d0, alpha: 0.6, blur: 0, distance: 1.4, angle: Math.PI / 2 } } });
     title.anchor.set(0.5);
     title.position.set(W / 2, n ? 44 : 50);
     p.addChild(title);

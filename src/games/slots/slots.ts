@@ -10,11 +10,12 @@ import { markModal } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
-import { SYMBOLS, SYMBOL_NAMES, paintMoth, symbolTextures, type SymbolId } from './symbols';
+import { SYMBOLS, SYMBOL_NAMES, paintEmblem, symbolTextures, type SymbolId } from './symbols';
 import { bulbTexture, lightWave, plaqueTexture, reducedMotion, winStage } from './stage';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL, SLOT_CLASSIC, SLOT_GOLD, SLOT_WILD } from '../../core/brand';
 // ---- Rules -------------------------------------------------------------
 
 const WEIGHTS: Record<SymbolId, number> = { firefly: 26, candle: 24, lantern: 18, key: 13, moon: 8, moth: 4 };
@@ -106,9 +107,9 @@ interface SlotTheme {
 }
 
 const THEMES: Record<string, SlotTheme> = {
-  classic: { title: 'NACHTFALTER', bodyTop: '#7a1d34', bodyBottom: '#2a0f1c', trim: COLORS.brass, neon: COLORS.neon, bets: [10, 20, 50, 100], body: 0x7a1d34, metal: 'gold', velvet: 0x2a0a18 },
+  classic: { title: SLOT_CLASSIC.toLocaleUpperCase('de-DE'), bodyTop: '#7a1d34', bodyBottom: '#2a0f1c', trim: COLORS.brass, neon: COLORS.neon, bets: [10, 20, 50, 100], body: 0x7a1d34, metal: 'gold', velvet: 0x2a0a18 },
   diamond: { title: 'MONDSCHEIN', bodyTop: '#16526b', bodyBottom: '#0a1a2a', trim: 0x9fe8ff, neon: COLORS.cyan, bets: [50, 100, 250, 500], body: 0x16526b, metal: 0xcfeaff, velvet: 0x0a1a2a },
-  gold: { title: 'GOLDMOTTE', bodyTop: '#8a6a1f', bodyBottom: '#2a1d08', trim: 0xfff1c4, neon: COLORS.lamp, bets: [100, 250, 500, 1000], body: 0x5a3a12, metal: 'gold', velvet: 0x22140a },
+  gold: { title: SLOT_GOLD.toLocaleUpperCase('de-DE'), bodyTop: '#8a6a1f', bodyBottom: '#2a1d08', trim: 0xfff1c4, neon: COLORS.lamp, bets: [100, 250, 500, 1000], body: 0x5a3a12, metal: 'gold', velvet: 0x22140a },
 };
 
 const themeOf = (o: Record<string, unknown>) => THEMES[(o.theme as string) ?? 'classic'] ?? THEMES.classic;
@@ -231,7 +232,7 @@ function paintCabinet(t: SlotTheme) {
     ellipse(c, W / 2, 12, 21, 18);
     c.fillStyle = rgb(dark(t.velvet, 0.3));
     c.fill();
-    paintMoth(c, W / 2, 14, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: t.neon }, 1.6);
+    paintEmblem(c, W / 2, 14, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: t.neon }, 1.6);
     // Reel window: thick bezel, dark well, ivory reels with a cylinder shade.
     rrect(c, REELS_X - 26, REELS_Y - 26, REELS_W + 52, SYM * 3 + 52, 26);
     fillInk(c, metalFill(c, m, REELS_X - 26, REELS_Y - 26, REELS_X + REELS_W, REELS_Y + SYM * 3 + 26), 5);
@@ -293,7 +294,7 @@ function paintCabinet(t: SlotTheme) {
     rrect(c, 30, H - 10, W - 60, 6, 3);
     c.fill();
     // Corner moths as ornament.
-    for (const x of [36, W - 36]) paintMoth(c, x, H - 34, 26, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: t.neon }, 1.4);
+    for (const x of [36, W - 36]) paintEmblem(c, x, H - 34, 26, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: t.neon }, 1.4);
   });
 }
 
@@ -409,7 +410,7 @@ function paintPaytable(t: SlotTheme, w: number, h: number) {
     fillInk(c, vgrad(c, 10, h - 10, t.velvet, 0.12, 0.4), 2);
     grain(c, 10, 10, w - 20, h - 20, 220, 5, 0.05);
     for (const [x, y] of [[20, 18], [w - 20, 18], [20, h - 16], [w - 20, h - 16]]) {
-      paintMoth(c, x, y, 24, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: t.neon }, 1.3);
+      paintEmblem(c, x, y, 24, { wing: 0xe0b25a, wingDark: 0x7a4e18, body: 0x3a1a08, eye: t.neon }, 1.3);
     }
   });
 }
@@ -703,7 +704,7 @@ class SlotGame implements GameInstance {
     comboRow.position.set(x0 + 20, 628);
     if (comboRow.width > W - 2 * x0 - 40) comboRow.scale.set((W - 2 * x0 - 40) / comboRow.width);
     p.addChild(comboRow);
-    const wild = label('Der goldene Nachtfalter ist Joker und ersetzt jedes Symbol.', 18, 0xe6d6b4);
+    const wild = label(`Der ${SLOT_WILD} ist Joker und ersetzt jedes Symbol.`, 18, 0xe6d6b4);
     wild.position.set(x0 + 20, 668);
     if (wild.width > W - 2 * x0 - 40) wild.scale.set((W - 2 * x0 - 40) / wild.width);
     p.addChild(wild);
@@ -732,7 +733,7 @@ class SlotGame implements GameInstance {
   async spin() {
     if (this.spinning) return;
     if (!this.ctx.state.placeBet(this.bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.spinning = true;
@@ -1002,7 +1003,7 @@ class SlotGame implements GameInstance {
     const machine = toScreen(W / 2, H / 2);
     this.ctx.celebrate(mult, centre.x, centre.y, { x: machine.x, y: machine.y, r: (W / 2) * g.scale.x });
     if (level === 4 || wins.some((w) => w.symbol === 'moth')) {
-      this.ctx.state.addTrophy('jackpot', 'gold', `Nachtfalter-Jackpot: ${formatChips(win)} an ${t.title}`);
+      this.ctx.state.addTrophy('jackpot', 'gold', `Lüster-Jackpot: ${formatChips(win)} an ${t.title}`);
       this.ctx.toast('Neue Trophäe für deine Vitrine!');
     }
     if (level >= 3) {

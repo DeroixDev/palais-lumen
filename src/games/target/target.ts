@@ -18,6 +18,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { RING_COLORS, RING_INK, RT, archerTexture, armTexture, boardTexture, dartTexture, faceTexture, gladeTexture, stuckTexture } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const CREAM = 0xfff3dc;
 const GOLD = 0xffcf7a;
@@ -88,7 +89,7 @@ class TargetGame implements GameInstance {
       title: 'ZIELSCHEIBE',
       accent: MOON,
       rules:
-        'Die Motte wirft einen Pfeil auf die Mondscheibe. Der getroffene Ring bestimmt die Auszahlung (Einsatz × Ring).\n' +
+        'Du wirfst einen Pfeil auf die Mondscheibe. Der getroffene Ring bestimmt die Auszahlung (Einsatz × Ring).\n' +
         'Die Ringgrößen sind die Chancen: Die Fläche eines Rings entspricht genau seinem Anteil an den Treffern. Daneben zahlt nichts.\n' +
         '• Sicher: viele kleine Treffer, Mitte ×5.\n• Normal: Mitte ×20.\n• Riskant: oft daneben, aber die Mitte zahlt ×100.\n' +
         'Jeder Wurfstil zahlt im Schnitt genau 95 % zurück. Der Treffer steht fest, bevor der Pfeil die Hand verlässt.\n' +
@@ -374,7 +375,7 @@ class TargetGame implements GameInstance {
   private async throwDart() {
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     const style = this.style;

@@ -39,7 +39,7 @@ export function nextMult(mult: number, rung: number, rank: number, call: Call) {
   return (rung === 0 ? RTP : 1) * (mult / p);
 }
 
-/** Whole Falter paid for a cash-out (rounded down). */
+/** Whole Lumen paid for a cash-out (rounded down). */
 export const cashOut = (stake: number, mult: number) => Math.floor(stake * mult);
 
 // ---- Mondspiegel (odds item) -----------------------------------------------------------------

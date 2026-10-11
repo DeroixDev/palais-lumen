@@ -34,9 +34,10 @@ import {
 } from './paint';
 import { luckStep, luckOn } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const RULES =
-  'Klettere Etage für Etage nach oben. Auf jeder Etage wählst du eine Tür – hinter manchen schläft ein Mottendrache. ' +
+  'Klettere Etage für Etage nach oben. Auf jeder Etage wählst du eine Tür – hinter manchen schläft ein Drache. ' +
   'Leicht: 1 von 4 Türen, Mittel: 1 von 3, Schwer: 2 von 3.\n\n' +
   'Jede ruhige Tür erhöht den Multiplikator; kassiere, wann du willst. Weckst du einen Drachen, ist der Einsatz weg. ' +
   'Multiplikator = 0,95 ÷ Chance, so weit zu kommen – jede Strategie zahlt auf Dauer genau 95 %.';
@@ -400,7 +401,7 @@ class TowerGame implements GameInstance {
     if (this.phase === 'play' || this.phase === 'anim') return false;
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return false;
     }
     this.deck.closeRules();
@@ -722,7 +723,7 @@ export const tower: GameDefinition = {
   houseEdge: 1 - TOWER_RTP,
   footprint: { w: 76, h: 64 },
   size: 'cabinet',
-  blurb: 'Tür für Tür den Turm hinauf – nur keinen schlafenden Mottendrachen wecken.',
+  blurb: 'Tür für Tür den Turm hinauf – nur keinen schlafenden Drachen wecken.',
   drawStation,
   create: (ctx) => new TowerGame(ctx),
 };

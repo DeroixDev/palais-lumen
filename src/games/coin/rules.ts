@@ -1,6 +1,6 @@
 // Mondmünze rules, kept free of Pixi so scripts/rtp-coin.mjs can import them.
 //
-// A fair brass coin: Mond or Falter, 50 : 50. The first right call pays 1.9× (95 % for one
+// A fair brass coin: Mond or Sonne, 50 : 50. The first right call pays 1.9× (95 % for one
 // flip); every further right call doubles it, so after k calls the multiplier is 0.95 · 2^k
 // and its chance is 2^-k. Whatever the player does, the return is exactly 95 %. (Multiplying
 // by 1.9 on every flip would drop to 90 % after two flips, 86 % after three.)
@@ -21,9 +21,9 @@ export function coinPayoutShown(stake: number, k: number) {
 }
 
 /**
- * Falter actually paid: the shown amount, plus one more coin with a chance equal to the
+ * Lumen actually paid: the shown amount, plus one more coin with a chance equal to the
  * cut-off fraction. Never less than shown, and on average exactly stake × multiplier, so
- * rounding to whole Falter doesn't move the payout ratio even at the smallest stake.
+ * rounding to whole Lumen doesn't move the payout ratio even at the smallest stake.
  */
 export function coinPayout(stake: number, k: number, rand: () => number = Math.random) {
   const x = clean(stake * coinMult(k));

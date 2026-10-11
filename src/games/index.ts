@@ -45,5 +45,5 @@ registerGame(coin);
 registerGame(mines);
 registerGame(tower);
 registerGame(poker);
-// The Moth Queen's duel at the end of the boss corridor (never in the daily rotation).
+// The Selene's duel at the end of the boss corridor (never in the daily rotation).
 registerGame(queen);

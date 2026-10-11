@@ -4,7 +4,7 @@
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../core/registry';
-import { COLORS, FONT_BODY, glowTexture, mothTexture } from '../core/fx';
+import { COLORS, FONT_BODY, glowTexture, emblemTexture } from '../core/fx';
 import { WALL_H, seeded, shade } from './styles';
 import { Player } from './player';
 
@@ -152,7 +152,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         const a = (i / 24) * Math.PI * 2;
         g.circle(x + Math.cos(a) * (r - 6), y + Math.sin(a) * (r - 6), 2.5).fill(t.carpetAccent);
       }
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.position.set(x, y);
       m.width = m.height = r * 1.2;
@@ -510,7 +510,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       shadow(g, x, y, 30, 18);
       g.rect(x - 26, y - 26, 52, 52).fill(shade(0x8a8aa0, -0.3)).stroke({ color: t.wallTrim, width: 2 });
       g.rect(x - 20, y - 20, 40, 40).fill(0x8a8aa0);
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.position.set(x, y - 4);
       m.width = m.height = 52;
@@ -528,7 +528,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.circle(x, y, r * 0.38).fill(0x8a8aa0).stroke({ color: 0x5a5a70, width: 2 });
       g.circle(x, y, r * 0.3).fill(0x2a6a8a);
       g.circle(x, y, 9).fill(0xcfd6e0);
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.position.set(x, y - 6);
       m.width = m.height = 34;
@@ -613,7 +613,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       const gl = glow(c, x, y - 18, 200, COLORS.lamp, 0.45);
       const moths: Sprite[] = [];
       for (let i = 0; i < 3; i++) {
-        const m = new Sprite(mothTexture());
+        const m = new Sprite(emblemTexture());
         m.anchor.set(0.5);
         m.width = m.height = 12;
         m.tint = 0xfff1c4;
@@ -794,7 +794,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       });
     }
     case 'throne': {
-      // Dais with steps, the throne and the Moth Queen hovering above it.
+      // Dais with steps, the throne and the Selene hovering above it.
       const W2 = 220;
       for (let s = 0; s < 3; s++) {
         const ww = W2 - s * 40;
@@ -807,7 +807,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.circle(x + 30, y - 38, 7).fill(COLORS.brass);
       const queen = new Container();
       const halo = glow(queen, 0, 0, 360, 0xc9a0ff, 0.45);
-      const wingsL = new Sprite(mothTexture());
+      const wingsL = new Sprite(emblemTexture());
       wingsL.anchor.set(0.5);
       wingsL.width = wingsL.height = 170;
       wingsL.tint = 0xe0b25a;
@@ -1030,7 +1030,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.rect(x - bw / 2 - 6, T, bw + 12, 6).fill(COLORS.brass);
       g.poly([x - bw / 2, T + 6, x + bw / 2, T + 6, x + bw / 2, T + H, x, T + H - 16, x - bw / 2, T + H]).fill(col);
       g.poly([x - bw / 2 + 5, T + 10, x + bw / 2 - 5, T + 10, x + bw / 2 - 5, T + H - 8, x, T + H - 22, x - bw / 2 + 5, T + H - 8]).stroke({ color: COLORS.brass, width: 2 });
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.position.set(x, T + H * 0.42);
       m.width = m.height = bw * 0.8;
@@ -1046,7 +1046,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         const a = Math.PI + (i / 17) * Math.PI;
         g.moveTo(x, cy + 10).lineTo(x + Math.cos(a) * rw * 0.48, cy + 10 + Math.sin(a) * 48).stroke({ color: COLORS.brass, width: 1.5, alpha: 0.4 });
       }
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.position.set(x, cy);
       m.width = m.height = 110;
@@ -1341,7 +1341,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       const t1 = new Text({ text: 'HAUSORDNUNG', style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0x3a2008, letterSpacing: 2 } });
       t1.anchor.set(0.5);
       t1.position.set(x, T + 15);
-      const t2 = new Text({ text: 'Nur Spielgeld.\nKein Echtgeld.', style: { fontFamily: FONT_BODY, fontSize: 12, fontWeight: '600', fill: 0x3a2008, align: 'center', lineHeight: 14 } });
+      const t2 = new Text({ text: 'Offene Quoten.\nJeder Abend darf enden.', style: { fontFamily: FONT_BODY, fontSize: 12, fontWeight: '600', fill: 0x3a2008, align: 'center', lineHeight: 14 } });
       t2.anchor.set(0.5);
       t2.position.set(x, T + 40);
       c.addChild(t1, t2);

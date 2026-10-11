@@ -3,7 +3,7 @@
 // flies onto the Glücksbringer-Kette hanging at the bottom. The choice is saved at once.
 
 import { Container, Graphics, Rectangle, Sprite, Text, type Texture } from 'pixi.js';
-import { FONT_DISPLAY, announce, drawMoth, reducedMotion, type Particles } from '../core/fx';
+import { FONT_DISPLAY, announce, drawEmblem, reducedMotion, type Particles } from '../core/fx';
 import { animate, ease, tween, wait } from '../core/tween';
 import { sfx } from '../core/audio';
 import { brass, velvetNap } from '../core/ui';
@@ -130,8 +130,8 @@ function cardBack(w: number, h: number) {
       mg.addColorStop(0, '#fff4c2');
       mg.addColorStop(0.5, '#e6b85a');
       mg.addColorStop(1, '#9a6a22');
-      drawMoth(c, w / 2 + 1, h / 2 + 2, s, 'rgba(10,4,16,0.6)', 'rgba(10,4,16,0.7)');
-      drawMoth(c, w / 2, h / 2, s, mg, '#6a4210', 'rgba(255,240,200,0.8)');
+      drawEmblem(c, w / 2 + 1, h / 2 + 2, s, 'rgba(10,4,16,0.6)', 'rgba(10,4,16,0.7)');
+      drawEmblem(c, w / 2, h / 2, s, mg, '#6a4210', 'rgba(255,240,200,0.8)');
     }, 2),
   );
 }

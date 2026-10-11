@@ -1,4 +1,4 @@
-// The club floor's music (floor 4, "Club Nachtfalter"): piano house in the club, Berlin warehouse
+// The club floor's music (floor 4, "Club Neon"): piano house in the club, Berlin warehouse
 // techno in the bunker, dusty boom-bap on the hip-hop floor. Each room has a base groove that
 // always plays (kick, bass, chords: what you hear through the walls, muffled by a lowpass far
 // away) and a "stage layer" (hats, percussion, hooks, leads, effects) whose level follows how

@@ -65,7 +65,7 @@ export function playCoup(draw: () => Card): Coup {
   return { player, banker, winner: p > b ? 'player' : b > p ? 'banker' : 'tie', natural };
 }
 
-/** What a bet returns (stake included) for a result, before rounding down to whole Falter. */
+/** What a bet returns (stake included) for a result, before rounding down to whole Lumen. */
 export function returnFor(side: Side, winner: Side) {
   if (side === winner) return 1 + PAYS[side];
   if (winner === 'tie') return 1;

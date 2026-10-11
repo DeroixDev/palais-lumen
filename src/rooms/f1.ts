@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES, GAME_NAMES, SLOT_CLASSIC } from '../core/brand';
 /**
  * Floor 1: a tall, mirror-symmetric candle hall. A velvet runner leads down the nave between
  * two rows of pillars, tables stand on it, machine banks line both sides, and at the far end
@@ -8,11 +9,11 @@ import type { RoomDefinition } from '../core/registry';
  */
 export const f1: RoomDefinition = {
   id: 'f1',
-  name: 'Kerzensaal',
+  name: FLOOR_NAMES.f1,
   tagline: 'Samt, Kerzenlicht und Klavierjazz',
   floor: 1,
   elevatorX: 200,
-  sign: 'KERZENSAAL',
+  sign: FLOOR_NAMES.f1.toLocaleUpperCase('de-DE'),
   width: 1160,
   height: 1400,
   theme: {
@@ -32,18 +33,18 @@ export const f1: RoomDefinition = {
   doors: [{ x: 960, y: 0, side: 'back', to: 'f1b', label: 'Hinterzimmer' }],
   stations: [
     // Upper gallery: a bank on each side, a table on the runner.
-    { game: 'slots', x: 70, y: 330, label: 'Nachtfalter', options: { theme: 'classic' } },
-    { game: 'slots', x: 150, y: 330, label: 'Nachtfalter', options: { theme: 'classic' } },
-    { game: 'slots', x: 230, y: 330, label: 'Nachtfalter', options: { theme: 'classic' } },
+    { game: 'slots', x: 70, y: 330, label: SLOT_CLASSIC, options: { theme: 'classic' } },
+    { game: 'slots', x: 150, y: 330, label: SLOT_CLASSIC, options: { theme: 'classic' } },
+    { game: 'slots', x: 230, y: 330, label: SLOT_CLASSIC, options: { theme: 'classic' } },
     { game: 'slots', x: 868, y: 330, label: 'Mondschein', options: { theme: 'diamond' } },
     { game: 'slots', x: 948, y: 330, label: 'Mondschein', options: { theme: 'diamond' } },
     { game: 'slots', x: 1028, y: 330, label: 'Mondschein', options: { theme: 'diamond' } },
     { game: 'roulette', x: 505, y: 420, label: 'Roulette', options: { minBet: 10 } },
     // Middle: pairs along the walls, the second table further down the nave.
-    { game: 'plinko', x: 80, y: 640, label: 'Mottenfall' },
-    { game: 'plinko', x: 160, y: 640, label: 'Mottenfall' },
-    { game: 'plinko', x: 924, y: 640, label: 'Mottenfall' },
-    { game: 'plinko', x: 1004, y: 640, label: 'Mottenfall' },
+    { game: 'plinko', x: 80, y: 640, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 160, y: 640, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 924, y: 640, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 1004, y: 640, label: GAME_NAMES.plinko },
     { game: 'roulette', x: 505, y: 760, label: 'Saaltisch', options: { minBet: 10 } },
   ],
   decor: [

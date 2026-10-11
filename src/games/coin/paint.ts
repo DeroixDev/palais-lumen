@@ -5,7 +5,7 @@ import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture } from '../../core/fx';
 import { INK, ellipse, fillInk, glowAt, gold, paint, propSprite, rim, rrect, seeded, shadow, vgrad, type Ctx } from '../../world/painted/brush';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
-import { paintMoth } from '../slots/symbols';
+import { paintEmblem } from '../slots/symbols';
 import { SCENE_H, SCENE_W } from '../ladderKit';
 import type { Side } from './rules';
 
@@ -172,8 +172,8 @@ export function faceTexture(side: Side) {
           c.stroke();
         }
       } else {
-        paintMoth(c, 2, 5, 96, { wing: 0xa8741f, wingDark: 0x6e4a10, body: 0x5a3a0a, eye: 0x6e4a10 }, 0.01);
-        paintMoth(c, 0, 2, 96, { wing: 0xffe7a0, wingDark: 0xc9902e, body: 0x9a6418, eye: 0xd8a040 }, 1.6);
+        paintEmblem(c, 2, 5, 96, { wing: 0xa8741f, wingDark: 0x6e4a10, body: 0x5a3a0a, eye: 0x6e4a10 }, 0.01);
+        paintEmblem(c, 0, 2, 96, { wing: 0xffe7a0, wingDark: 0xc9902e, body: 0x9a6418, eye: 0xd8a040 }, 1.6);
       }
       // Sheen.
       c.save();

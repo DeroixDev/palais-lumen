@@ -24,6 +24,7 @@ import { setItemRtp } from '../../core/modifiers';
 import { CARD_H, CARD_W, FIELD, brushTexture, cardTexture, coatingTexture, machineTexture, marqueeTexture, scratchCoinTexture, scratchStation, winRingTexture } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL } from '../../core/brand';
 const SW = 720;
 const SH = 600;
 const CARD_X = 60;
@@ -35,9 +36,9 @@ const BRUSH = 46;
 /** Share of a field that must be scratched before it pops open by itself. */
 const OPEN_AT = 0.45;
 const RULES =
-  'Wähle eine Karte: Mottenflügel (günstig, oft kleine Gewinne), Mondschein (ausgewogen) oder Goldstaub (teuer, seltene große Gewinne). ' +
+  'Wähle eine Karte: Kerzenschein (günstig, oft kleine Gewinne), Mondschein (ausgewogen) oder Goldstaub (teuer, seltene große Gewinne). ' +
   'Jede Karte hat ihre eigene Preisleiter.\n\n' +
-  'Nach dem Kauf kratzt du den Flügel mit dem Finger oder der Maus frei – oder tippst auf „Alles aufdecken“ (Leertaste). ' +
+  'Nach dem Kauf kratzt du die Goldschicht mit dem Finger oder der Maus frei – oder tippst auf „Alles aufdecken“ (Leertaste). ' +
   'Drei gleiche Symbole gewinnen den Betrag aus der Liste links auf der Karte. Der Gewinn steht beim Kauf schon fest; Kratzen ändert nichts daran.';
 
 function cellCentre(i: number) {
@@ -99,7 +100,7 @@ class ScratchGame implements GameInstance {
   private rtp!: ReturnType<typeof rtpText>;
   private deckW = 480;
   private odds: OddsWatch;
-  /** Mottenstaub was on when this ticket was bought; `redrawn`: the fresh ticket came already. */
+  /** Funkenstaub was on when this ticket was bought; `redrawn`: the fresh ticket came already. */
   private dust = false;
   private redrawn = false;
 
@@ -309,7 +310,7 @@ class ScratchGame implements GameInstance {
     if (!force) this.ctx.sfx.chip();
   }
 
-  /** The payout line: the design's own, or with Mottenstaub the exact share with the dust. */
+  /** The payout line: the design's own, or with Funkenstaub the exact share with the dust. */
   private refreshRtp() {
     const d = this.design;
     if (this.odds.id) {
@@ -368,7 +369,7 @@ class ScratchGame implements GameInstance {
   private async buy() {
     const price = this.bet.bet;
     if (!this.ctx.state.placeBet(price)) {
-      this.ctx.toast('Nicht genug Falter für diese Karte.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diese Karte.`);
       return;
     }
     this.stake = price;
@@ -395,7 +396,7 @@ class ScratchGame implements GameInstance {
     this.settling = false;
     this.active = true;
     this.refreshMain();
-    this.setHeader('Kratz den Flügel frei!');
+    this.setHeader('Kratz die Goldschicht frei!');
   }
 
   // ---- Scratching -----------------------------------------------------------------------------
@@ -588,7 +589,7 @@ class ScratchGame implements GameInstance {
     this.refreshMain();
   }
 
-  /** Mottenstaub: the losing card shows two moons and two moths – dust, and a fresh ticket. */
+  /** Funkenstaub: the losing card shows two moons and two moths – dust, and a fresh ticket. */
   private async dustOver(t: Ticket) {
     this.wipe();
     for (let i = 0; i < 9; i++) {
@@ -597,7 +598,7 @@ class ScratchGame implements GameInstance {
       this.pairGlow[i].alpha = hit ? 0.9 : 0;
       this.pairGlow[i].tint = hit ? 0xe8c8ff : 0xffcf7a;
     }
-    this.setHeader('Zwei Monde, zwei Motten – Mottenstaub!');
+    this.setHeader('Zwei Monde, zwei Lüster – Funkenstaub!');
     this.ctx.sfx.shimmer();
     const fx = CARD_X + FIELD.x + FIELD.size / 2;
     const fy = CARD_Y + FIELD.y + FIELD.size / 2;
@@ -671,7 +672,7 @@ export const scratch: GameDefinition = {
   houseEdge: 1 - returnToPlayer(DESIGNS[0]),
   footprint: { w: 76, h: 64 },
   size: 'cabinet',
-  blurb: 'Kauf ein Los am Automaten und kratz den Mottenflügel frei – drei gleiche gewinnen.',
+  blurb: 'Kauf ein Los am Automaten und kratz die Goldschicht frei – drei gleiche gewinnen.',
   drawStation: () => scratchStation(),
   create: (ctx) => new ScratchGame(ctx),
 };

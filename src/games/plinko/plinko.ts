@@ -1,10 +1,10 @@
-// "Mottenfall": a glowing moth drops through lantern pegs into multiplier buckets.
+// "Funkenfall": a glowing moth drops through lantern pegs into multiplier buckets.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import type { GameContext, GameDefinition, GameInstance } from '../../core/registry';
 import { COLORS, FONT_BODY, FONT_DISPLAY, glowText, floatText, glowTexture, rewardLevel } from '../../core/fx';
 import { animate, ease, tween, wait } from '../../core/tween';
-import { paintMoth } from '../slots/symbols';
+import { paintEmblem } from '../slots/symbols';
 import { lightWave, reducedMotion, winStage } from '../slots/stage';
 import { ellipse, fillInk, glowAt, gold, grain, light, paint, rim, rrect, seeded, shadow, vgrad } from '../../world/painted/brush';
 import { button, label, type Button } from '../../core/ui';
@@ -18,6 +18,7 @@ import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import { luckDraw } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL, GAME_NAMES } from '../../core/brand';
 export { returnToPlayer };
 
 const fmtMult = (m: number) => (m >= 10 ? String(m) : String(m).replace('.', ','));
@@ -101,7 +102,7 @@ function paintCabinet() {
     ellipse(c, W / 2, 6, 21, 18);
     c.fillStyle = '#1a0818';
     c.fill();
-    paintMoth(c, W / 2, 8, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.6);
+    paintEmblem(c, W / 2, 8, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xff5fa2 }, 1.6);
     // Playfield: night glass framed in brass.
     const fx = 28, fy = 150, fw = W - 56, fh = BUCKET_Y + BUCKET_H + 14 - fy;
     rrect(c, fx - 10, fy - 10, fw + 20, fh + 20, 26);
@@ -222,7 +223,7 @@ let ballTex: Texture | null = null;
 function ballTexture() {
   ballTex ??= paint(64, 64, (c) => {
     glowAt(c, 32, 32, 30, 30, 0xfff1c4, 0.65, 'lighter');
-    paintMoth(c, 32, 34, 50, { wing: 0xfff1c4, wingDark: 0xe0a848, body: 0x8a5a1a, eye: 0xff5fa2 }, 2);
+    paintEmblem(c, 32, 34, 50, { wing: 0xfff1c4, wingDark: 0xe0a848, body: 0x8a5a1a, eye: 0xff5fa2 }, 2);
   }, 2);
   return ballTex;
 }
@@ -263,7 +264,7 @@ class PlinkoGame implements GameInstance {
   private bets: number[];
 
   private stakeWatch: StakeWatch;
-  /** Odds item: the Mottenflügel pushes the moth outwards at the second peg. */
+  /** Odds item: the Lichtfächer pushes the moth outwards at the second peg. */
   private odds: OddsWatch;
 
   constructor(private ctx: GameContext) {
@@ -296,7 +297,7 @@ class PlinkoGame implements GameInstance {
     body.position.set(-PAD, -PAD);
     b.addChild(body);
 
-    const title = glowText('MOTTENFALL', { fontFamily: FONT_DISPLAY, fontSize: 46, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.lamp, distance: 16, outerStrength: 2.4 });
+    const title = glowText(GAME_NAMES.plinko.toLocaleUpperCase('de-DE'), { fontFamily: FONT_DISPLAY, fontSize: 46, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.lamp, distance: 16, outerStrength: 2.4 });
     title.position.set(CX, 92);
     b.addChild(title);
     // History: a column of chips in the empty top-left corner of the playfield, newest on top.
@@ -397,7 +398,7 @@ class PlinkoGame implements GameInstance {
 
   private setRisk(r: Risk) {
     if (this.inFlight > 0) {
-      this.ctx.toast('Warte, bis alle Motten gelandet sind.');
+      this.ctx.toast('Warte, bis alle Funken gelandet sind.');
       return;
     }
     this.risk = r;
@@ -452,7 +453,7 @@ class PlinkoGame implements GameInstance {
     if (this.inFlight >= 8) return;
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.ctx.sfx.whoosh();
@@ -582,7 +583,7 @@ class PlinkoGame implements GameInstance {
     }
   }
 
-  /** Mottenflügel: a pink wing flash at the second peg, pushing outwards. */
+  /** Lichtfächer: a pink wing flash at the second peg, pushing outwards. */
   private wingBeat(x: number, y: number, dir: number) {
     const flash = new Sprite(glowTexture());
     flash.anchor.set(0.5);
@@ -592,7 +593,7 @@ class PlinkoGame implements GameInstance {
     flash.blendMode = 'add';
     this.ballLayer.addChildAt(flash, 0);
     void tween(flash, { alpha: 0, x: x + (dir ? 40 : -40) }, 600, ease.outCubic).then(() => flash.destroy());
-    if (this.inFlight <= 1) void itemMoment(this.stageLayer, x + (dir ? 120 : -120), y + 10, 'mottenfluegel', dir ? 'FLÜGEL →' : '← FLÜGEL', 0.7);
+    if (this.inFlight <= 1) void itemMoment(this.stageLayer, x + (dir ? 120 : -120), y + 10, 'mottenfluegel', dir ? 'FÄCHER →' : '← FÄCHER', 0.7);
     this.ctx.sfx.whoosh();
   }
 
@@ -760,7 +761,7 @@ function drawStation() {
 
 export const plinko: GameDefinition = {
   id: 'plinko',
-  name: 'Mottenfall',
+  name: GAME_NAMES.plinko,
   houseEdge: 1 - returnToPlayer('mid'),
   footprint: { w: 76, h: 64 },
   size: 'cabinet',

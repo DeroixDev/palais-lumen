@@ -1,4 +1,4 @@
-// "Falter-Poker": Jacks-or-Better video poker. Five cards, hold what you like, draw once.
+// "Salon-Poker": Jacks-or-Better video poker. Five cards, hold what you like, draw once.
 // Wins pay from a pair of Buben; after a win you may take it or "Doppeln" (beat the bank's card).
 // Twist: real perspective card flips (PerspectiveMesh) and a lit brass paytable that follows
 // your hand; a Royal Flush gets its own moth-and-moon stage.
@@ -23,6 +23,7 @@ import { PANEL_PAD, closeKnob, panelTexture } from '../../ui/kit';
 import { STATION_H, STATION_W, pokerStation } from './paint';
 import { luckDraw, luckOn } from '../../core/debugLuck';
 
+import { CURRENCY_PLURAL, GAME_NAMES } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const MAX_GAMBLES = 5;
 const PAY_ROWS = HANDS.filter((h) => h !== 'none');
@@ -447,7 +448,7 @@ class PokerGame implements GameInstance {
     halo.blendMode = 'add';
     halo.label = 'halo';
     this.root.addChild(halo, this.bg, this.payLayer);
-    this.title = glowText('FALTER-POKER', { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.cyan, distance: 14, outerStrength: 2 });
+    this.title = glowText(GAME_NAMES.poker.toLocaleUpperCase('de-DE'), { fontFamily: FONT_DISPLAY, fontSize: 40, fill: 0xfff6e6, letterSpacing: 4 }, { color: COLORS.cyan, distance: 14, outerStrength: 2 });
     this.root.addChild(this.title);
 
     for (const hand of PAY_ROWS) {
@@ -496,7 +497,7 @@ class PokerGame implements GameInstance {
     this.gambleBtn.visible = false;
 
     this.changeBet(0);
-    this.setMessage('FALTER-POKER', 'Gewinn ab einem Paar Buben · tippe GEBEN');
+    this.setMessage(GAME_NAMES.poker.toLocaleUpperCase('de-DE'), 'Gewinn ab einem Paar Buben · tippe GEBEN');
     window.addEventListener('keydown', this.keyHandler);
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
   }
@@ -636,7 +637,7 @@ class PokerGame implements GameInstance {
   private async deal() {
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     // The whole round is decided here: one shuffled deck, the first five dealt, the draws next.
@@ -738,7 +739,7 @@ class PokerGame implements GameInstance {
       c.setGlow(scoring.includes(i));
       c.dim(!scoring.includes(i));
     });
-    this.setMessage(HAND_NAME[hand].toUpperCase(), `Gewinn ${formatChips(this.amount)} Falter · NEHMEN oder DOPPELN`);
+    this.setMessage(HAND_NAME[hand].toUpperCase(), `Gewinn ${formatChips(this.amount)} ${CURRENCY_PLURAL} · NEHMEN oder DOPPELN`);
     const mid = this.root.toGlobal({ x: this.spec.msgX, y: this.spec.cardY });
     if (mult > 1) this.ctx.celebrate(mult, mid.x, mid.y, { x: mid.x, y: mid.y, r: 260 * this.root.scale.x });
     else this.ctx.sfx.partial();
@@ -804,7 +805,7 @@ class PokerGame implements GameInstance {
     else for (let i = 0; i < Math.min(6, 2 + Math.round(mult)); i++) this.ctx.sfx.coin(i * 0.06);
     const local = this.view.toLocal(mid);
     floatText(this.view, local.x, local.y - 70 * this.root.scale.x, `+${formatChips(win)}`, COLORS.lamp, Math.round(34 * Math.max(0.7, this.root.scale.x)));
-    this.setMessage(this.gambleWon ? 'GEDOPPELT!' : HAND_NAME[this.finalHand].toUpperCase(), `${formatChips(win)} Falter eingestrichen`);
+    this.setMessage(this.gambleWon ? 'GEDOPPELT!' : HAND_NAME[this.finalHand].toUpperCase(), `${formatChips(win)} ${CURRENCY_PLURAL} eingestrichen`);
     this.settle(win);
   }
 
@@ -880,10 +881,10 @@ class PokerGame implements GameInstance {
       this.cards[i].setGlow(true);
       this.ctx.sfx.win();
       this.ctx.particles.sparkle(mid.x, mid.y, 14, COLORS.lamp, 160);
-      this.setMessage('HÖHER – GEWONNEN!', `Jetzt ${formatChips(this.amount)} Falter · NEHMEN oder nochmal DOPPELN`);
+      this.setMessage('HÖHER – GEWONNEN!', `Jetzt ${formatChips(this.amount)} ${CURRENCY_PLURAL} · NEHMEN oder nochmal DOPPELN`);
     } else if (result === 0) {
       this.ctx.sfx.partial();
-      this.setMessage('GLEICH – UNENTSCHIEDEN', `Es bleiben ${formatChips(this.amount)} Falter`);
+      this.setMessage('GLEICH – UNENTSCHIEDEN', `Es bleiben ${formatChips(this.amount)} ${CURRENCY_PLURAL}`);
     } else {
       this.ctx.sfx.lose();
       this.ctx.particles.sparkle(mid.x, mid.y, 6, 0xb69a6a, 60);
@@ -901,7 +902,7 @@ class PokerGame implements GameInstance {
     this.cards[i].setHeld(false);
     this.phase = 'won';
     this.setControls();
-    if (this.gambles >= MAX_GAMBLES) this.sub.text = `${formatChips(this.amount)} Falter · genug gedoppelt – NEHMEN`;
+    if (this.gambles >= MAX_GAMBLES) this.sub.text = `${formatChips(this.amount)} ${CURRENCY_PLURAL} · genug gedoppelt – NEHMEN`;
   }
 
   // ---- Rules panel -----------------------------------------------------------------------
@@ -999,7 +1000,7 @@ class PokerGame implements GameInstance {
 
 export const poker: GameDefinition = {
   id: 'poker',
-  name: 'Falter-Poker',
+  name: GAME_NAMES.poker,
   houseEdge: 1 - RTP,
   footprint: { w: STATION_W, h: STATION_H },
   size: 'cabinet',

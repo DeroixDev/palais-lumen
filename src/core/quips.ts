@@ -2,6 +2,7 @@
 // the slot machine's voice, the moon-flight pilot, the plinko announcer and the guests.
 // Driven by round reports; at most one line every ~20 s, never during a big-win stage.
 // Losing streaks only ever get a kind word and the offer of a break — never "keep going".
+import { GAME_NAMES } from './brand';
 
 export type Speaker = 'bar' | 'guest' | 'roulette' | 'slots' | 'crash' | 'plinko';
 export type Situation = 'winStreak' | 'loseStreak' | 'big10' | 'big50' | 'goal' | 'day' | 'idle' | 'bust';
@@ -12,7 +13,7 @@ export const SPEAKER_NAME: Record<Speaker, string> = {
   roulette: 'Croupier',
   slots: 'Automat',
   crash: 'Mondflug-Pilot',
-  plinko: 'Plinko-Ansager',
+  plinko: `${GAME_NAMES.plinko}-Ansager`,
 };
 
 const LINES: Record<Speaker, Record<Situation, string[]>> = {
@@ -20,7 +21,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     winStreak: [
       'Drei in Folge? Ich poliere schon mal ein Glas für den Ruhm.',
       'Du hast heute ein Händchen. Ich eins für Limonade.',
-      'Glückssträhne! Die Motten tuscheln schon über dich.',
+      'Glückssträhne! Die Lampen tuscheln schon über dich.',
     ],
     loseStreak: [
       'Pause an der Bar? Geht aufs Haus: Wasser mit Zitrone.',
@@ -29,15 +30,15 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
       'Kurz durchatmen? Der Hocker hier ist noch frei.',
     ],
     big10: ['Das hab ich bis hinter die Theke gehört! Bravo.', 'Zehnfach! Dafür gibt’s ein Schirmchen extra.'],
-    big50: ['Fünfzigfach?! Ich muss mich kurz setzen.', 'Davon erzählen wir noch, wenn die Motten längst schlafen.'],
+    big50: ['Fünfzigfach?! Ich muss mich kurz setzen.', 'Davon erzählen wir noch, wenn die Lampen längst aus sind.'],
     goal: ['Tagesziel geschafft! Alles Weitere ist Kür, mit Sahne obendrauf.', 'Ziel erreicht. Jetzt darfst du ganz entspannt genießen.'],
-    day: ['Guten Abend! Die Limo ist kalt, die Lampen sind warm.', 'Neuer Tag, frische Zitronen. Was darf’s sein?', 'Schön, dich zu sehen. Die Motten haben schon gefragt.'],
-    bust: ['Die Motte ist heute windscheu. Einen Tee für die Nerven?'],
+    day: ['Guten Abend! Die Limo ist kalt, die Lampen sind warm.', 'Neuer Tag, frische Zitronen. Was darf’s sein?', 'Schön, dich zu sehen. Die Lampen haben schon nach dir gefragt.'],
+    bust: ['Die Laterne am Mondflug ist heute windscheu. Einen Tee für die Nerven?'],
     idle: [
       'Ich poliere dieses Glas seit zwanzig Minuten. Es glänzt.',
-      'Mocktail des Abends: Falterfizz mit Minze.',
+      'Mocktail des Abends: Funkenfizz mit Minze.',
       'Hier wird nur Saft geschüttelt. Und ab und zu eine Hand.',
-      'Motten lieben Licht. Ich liebe ein ordentliches Flaschenregal.',
+      'Andere lieben das Licht. Ich liebe ein ordentliches Flaschenregal.',
     ],
   },
   guest: {
@@ -49,7 +50,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     day: ['Was für ein schöner Abend!', 'Hast du die Bar schon gesehen? Herrlich.', 'Ich liebe es, wenn die Lampen angehen.'],
     bust: ['Da draußen weht es heute ordentlich, was?'],
     idle: [
-      'Ob die Motten auch Trinkgeld bekommen?',
+      'Ob der Lampenanzünder auch Trinkgeld bekommt?',
       'Mein Großvater hat hier schon getanzt.',
       'Schicke Garderobe heute, alle miteinander.',
       'Ich bin nur wegen der Musik hier. Und der Brezeln.',
@@ -81,7 +82,7 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     goal: ['Tagesziel erreicht! Ich würde zwinkern, hätte ich ein Auge.'],
     day: ['Guten Abend! Walzen geölt, Lämpchen poliert.', 'Hallo! Ich bin ganz Ohr. Also, ganz Walze.'],
     bust: ['Windstoß drüben am Mondflug? Hier drin ist es windstill.'],
-    idle: ['Ich summe ein bisschen vor mich hin. Bsss.', 'Glocken, Kirschen, Motten und ich. Wir warten.', 'Jeden Abend zähle ich meine Kirschen. Alle noch da.'],
+    idle: ['Ich summe ein bisschen vor mich hin. Bsss.', 'Glocken, Kirschen, Lüster und ich. Wir warten.', 'Jeden Abend zähle ich meine Kirschen. Alle noch da.'],
   },
   crash: {
     winStreak: ['Drei sichere Landungen! Du fliegst wie ein Profi.', 'Copilot, notieren: perfekte Serie.'],
@@ -93,27 +94,27 @@ const LINES: Record<Speaker, Record<Situation, string[]>> = {
     big10: ['Hui, das war hoch! Sauber ausgestiegen.', 'Schöner Flug! Der Tower ist beeindruckt.'],
     big50: ['Ich sehe den Mond von hinten! Was für ein Flug!'],
     goal: ['Tagesziel erreicht! Der Tower winkt.'],
-    day: ['Kabine bereit, Mond in Sicht. Guten Flug!', 'Wetter heute: klar, mit Aussicht auf Motten.'],
+    day: ['Kabine bereit, Mond in Sicht. Guten Flug!', 'Wetter heute: klar, mit Aussicht auf Sterne.'],
     bust: [
       'Zweimal Gegenwind. Das ist Wetter, kein Urteil über dich.',
       'Der Wind hat kein Gedächtnis. Lande ruhig mal kurz.',
       'Böen gemeldet. Früher aussteigen ist auch eine Flugkunst.',
     ],
-    idle: ['Der Motor schnurrt. Ich auch, ein bisschen.', 'Motten navigieren nach dem Mond. Ich übrigens auch.'],
+    idle: ['Der Motor schnurrt. Ich auch, ein bisschen.', 'Seefahrer navigieren nach dem Mond. Ich übrigens auch.'],
   },
   plinko: {
     winStreak: ['Sie hüpft und hüpft … und trifft! Schon wieder!', 'Meine Damen und Herren: eine Serie!'],
     loseStreak: [
       'Die Stifte sind heute launisch. Wie wär’s mit einer Pause?',
-      'Zeit für eine Limo? Die Motten fallen später auch noch.',
-      'Kurze Verschnaufpause? Ich halte so lange die Motten fest.',
+      'Zeit für eine Limo? Die Funken fallen später auch noch.',
+      'Kurze Verschnaufpause? Ich halte so lange die Funken fest.',
     ],
-    big10: ['Was für ein Fall! Applaus für die Motte!'],
+    big10: ['Was für ein Fall! Applaus für den Funken!'],
     big50: ['UNGLAUBLICH! Ganz außen gelandet! Mir bleibt die Stimme weg!'],
-    goal: ['Tagesziel erreicht! Konfetti, bitte! … Gut, dann eben Motten.'],
-    day: ['Willkommen zum großen Fall des Abends!', 'Die Stifte sind gestimmt, die Motten aufgewärmt!'],
+    goal: ['Tagesziel erreicht! Konfetti, bitte! … Gut, dann eben Funken.'],
+    day: ['Willkommen zum großen Fall des Abends!', 'Die Stifte sind gestimmt, die Funken aufgewärmt!'],
     bust: ['Drüben am Mondflug pustet es heute ganz schön!'],
-    idle: ['Ping, ping, ping. Ich übe schon mal die Geräusche.', 'Die Motten stehen bereit. Sie warten nur auf dich.'],
+    idle: ['Ping, ping, ping. Ich übe schon mal die Geräusche.', 'Die Funken stehen bereit. Sie warten nur auf dich.'],
   },
 };
 

@@ -1,5 +1,6 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES, GAME_NAMES } from '../core/brand';
 /**
  * Floor 2: a wide night garden you stroll through from left to right. Flagstone paths lead
  * from the elevator past a hedged rose court with the wishing fountain, over the wooden bridge
@@ -7,11 +8,11 @@ import type { RoomDefinition } from '../core/registry';
  */
 export const f2: RoomDefinition = {
   id: 'f2',
-  name: 'Mondgarten',
+  name: FLOOR_NAMES.f2,
   tagline: 'Ein Nachtgarten unter dem Mond',
   floor: 2,
   elevatorX: 170,
-  sign: 'MONDGARTEN',
+  sign: FLOOR_NAMES.f2.toLocaleUpperCase('de-DE'),
   width: 2000,
   height: 900,
   theme: {
@@ -37,12 +38,12 @@ export const f2: RoomDefinition = {
     { game: 'roulette', x: 120, y: 560, label: 'Gartentisch', options: { minBet: 20 } },
     // By the pond (middle).
     { game: 'crash', x: 640, y: 690, label: 'Mondflug' },
-    { game: 'plinko', x: 1270, y: 260, label: 'Mottenfall' },
-    { game: 'plinko', x: 1350, y: 260, label: 'Mottenfall' },
+    { game: 'plinko', x: 1270, y: 260, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 1350, y: 260, label: GAME_NAMES.plinko },
     // Pavilion (east).
     { game: 'roulette', x: 1575, y: 470, label: 'Pavillon', options: { minBet: 20 } },
-    { game: 'plinko', x: 1700, y: 760, label: 'Mottenfall' },
-    { game: 'plinko', x: 1780, y: 760, label: 'Mottenfall' },
+    { game: 'plinko', x: 1700, y: 760, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 1780, y: 760, label: GAME_NAMES.plinko },
   ],
   decor: [
     // Paths: elevator → rose court → bridge → pavilion → glasshouse.

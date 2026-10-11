@@ -4,6 +4,7 @@
 import { ACHIEVEMENTS, type Achievement } from './achievements';
 import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
 
+import { BOSS_NAME } from './brand';
 export const SAVE_VERSION = 8;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
@@ -164,7 +165,7 @@ export interface EveningResult {
   moonstones: number;
   /** The goal was missed but "Zweite Chance" kept the season going. */
   rescued: boolean;
-  /** Bonus Falter from charms at the start of the next day. */
+  /** Bonus Lumen from charms at the start of the next day. */
   bonus: number;
   /** Balance after each round of the day (first = day start), for the recap curve. */
   history: number[];
@@ -496,7 +497,7 @@ export class GameState {
     return this.data.balance >= this.goalBalance;
   }
 
-  /** Falter still missing for today's goal. */
+  /** Lumen still missing for today's goal. */
   get goalMissing() {
     return Math.max(0, this.goalBalance - this.data.balance);
   }
@@ -558,7 +559,7 @@ export class GameState {
       trophy = this.addTrophy(kind, medal, `Saison ${this.data.season.number}, Tag ${ev.number}: ${MEDAL_LABEL[medal]}`);
     }
     const seasonWon = passed && ev.number >= BOSS_DAY;
-    if (seasonWon) trophy = this.addTrophy('crown', 'diamond', `Saison ${this.data.season.number}: Mottenkönigin besiegt`);
+    if (seasonWon) trophy = this.addTrophy('crown', 'diamond', `Saison ${this.data.season.number}: ${BOSS_NAME} besiegt`);
     const goesOn = (passed || rescued) && !seasonWon;
     const newFloor = goesOn && floorForDay(ev.number + 1) > floorForDay(ev.number) ? floorForDay(ev.number + 1) : 0;
     const cleared = passed ? ev.number : ev.number - 1;

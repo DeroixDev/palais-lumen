@@ -52,7 +52,7 @@ export const LINE_RTP = lineRtp();
 export const FIELD_RTP = fieldRtp();
 
 /**
- * Whole Falter paid back for a point win: stake × 1.9. A fraction (odd stakes) is rounded up
+ * Whole Lumen paid back for a point win: stake × 1.9. A fraction (odd stakes) is rounded up
  * or down by chance in proportion, so the average stays exactly at 1.9 × stake.
  */
 export function pointPays(stake: number, rand = Math.random) {

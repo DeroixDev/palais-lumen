@@ -16,6 +16,7 @@ import { DraftPanel } from './draft';
 import { MoonDialPanel } from './moonDial';
 import { SeasonHud } from './seasonHud';
 
+import { CURRENCY_PLURAL } from '../core/brand';
 interface Overlay {
   view: Container;
   resize(w: number, h: number): void;
@@ -105,7 +106,7 @@ export class Season {
       new DraftPanel(this.state, this.host.particles, (perk, bonus) => {
         this.busy = false;
         this.host.closeOverlay();
-        this.host.toast(`${perk.name}: ${perk.desc}${bonus > 0 ? ` Heute schon +${bonus.toLocaleString('de-DE')} Falter.` : ''}`);
+        this.host.toast(`${perk.name}: ${perk.desc}${bonus > 0 ? ` Heute schon +${bonus.toLocaleString('de-DE')} ${CURRENCY_PLURAL}.` : ''}`);
         next();
       }),
     );

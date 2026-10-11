@@ -4,6 +4,7 @@
 
 import type { Accessory, HairStyle, Hat, Outfit } from '../world/player';
 
+import { CHARM_BOSS, CURRENCY_PLURAL } from './brand';
 export type Companion = 'none' | 'lantern' | 'moon' | 'gold';
 export type CharmId = 'startgeld' | 'zinsen' | 'rabatt' | 'zweiteChance' | 'bossbann';
 
@@ -91,9 +92,9 @@ export const WARDROBE: WardrobeOption[] = [
   { id: 'acc-none', slot: 'accessory', name: 'Nichts', set: { accessory: 'none' }, price: 0 },
 
   { id: 'pet-none', slot: 'companion', name: 'Kein Begleiter', set: { companion: 'none' }, price: 0 },
-  { id: 'pet-lantern', slot: 'companion', name: 'Laternenmotte', set: { companion: 'lantern' }, price: 8 },
-  { id: 'pet-moon', slot: 'companion', name: 'Mondmotte', set: { companion: 'moon' }, price: 8 },
-  { id: 'pet-gold', slot: 'companion', name: 'Goldmotte', set: { companion: 'gold' }, price: 15 },
+  { id: 'pet-lantern', slot: 'companion', name: 'Laternchen', set: { companion: 'lantern' }, price: 8 },
+  { id: 'pet-moon', slot: 'companion', name: 'Mondglas', set: { companion: 'moon' }, price: 8 },
+  { id: 'pet-gold', slot: 'companion', name: 'Goldfunke', set: { companion: 'gold' }, price: 15 },
 ];
 
 /**
@@ -123,11 +124,11 @@ export interface Charm {
 
 /** Charms last for the current season and are gone when it ends. */
 export const CHARMS: Charm[] = [
-  { id: 'startgeld', name: 'Startgeld', desc: 'Zu Beginn jedes Tages +15 Mindesteinsätze (am ersten Tag 150 Falter).', price: 6 },
+  { id: 'startgeld', name: 'Startgeld', desc: `Zu Beginn jedes Tages +15 Mindesteinsätze (am ersten Tag 150 ${CURRENCY_PLURAL}).`, price: 6 },
   { id: 'zinsen', name: 'Sparschwein', desc: 'Zu Beginn jedes Tages +5 % von deinem Guthaben, höchstens 30 Mindesteinsätze.', price: 8 },
   { id: 'rabatt', name: 'Rabattmarke', desc: 'Die Tagesziele sind 10 % kleiner, schon ab heute.', price: 10 },
   { id: 'zweiteChance', name: 'Zweite Chance', desc: 'Einmal pro Saison: ein verfehlter Tag beendet die Saison nicht.', price: 12 },
-  { id: 'bossbann', name: 'Königinnen-Bann', desc: 'Das Ziel am Boss-Tag ist 20 % kleiner.', price: 10 },
+  { id: 'bossbann', name: CHARM_BOSS, desc: 'Das Ziel am Boss-Tag ist 20 % kleiner.', price: 10 },
 ];
 
 for (const ch of CHARMS) ch.price *= PRICE_SCALE;

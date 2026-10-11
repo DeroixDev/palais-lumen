@@ -8,7 +8,7 @@ import { getGame, getRoom, type DecorKind, type DoorDef, type RoomDefinition, ty
 import { doorStand, paintedDoorway } from './painted/doorway';
 import { ACHIEVEMENTS } from '../core/achievements';
 import { COMPANION_COLOR } from '../core/items';
-import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, mothTexture } from '../core/fx';
+import { COLORS, FONT_BODY, FONT_DISPLAY, bake, glowTexture, emblemTexture } from '../core/fx';
 import type { GameState } from '../core/state';
 import { animate, ease, wait } from '../core/tween';
 import { drawTrophy } from './trophies';
@@ -32,6 +32,7 @@ import { sfx } from '../core/audio';
 import { CLUB_USE_TITLE } from './clubUse';
 import { clubLightSpots, clubSign } from './painted/propsClub';
 
+import { CURRENCY } from '../core/brand';
 export { WALL_H };
 
 export type Interactable =
@@ -49,14 +50,14 @@ const USE_TITLE: Partial<Record<DecorKind, string>> = {
   wardrobe: 'Umkleide',
   reception: 'Empfang · Gruppe',
   piano: 'Klavier spielen',
-  fountain: '1 Falter wünschen',
+  fountain: `Ein ${CURRENCY} wünschen`,
   jukebox: 'Platte wechseln',
   bar: 'Mocktail bestellen',
   champagne: 'Anstoßen',
   clockTower: 'Glocke läuten',
   boiler: 'Dampf ablassen',
   moonPool: 'Mondlicht berühren',
-  lanternPost: 'Motten aufscheuchen',
+  lanternPost: 'Glühwürmchen aufscheuchen',
   crystal: 'Kristall anschlagen',
   iceSwan: 'Eisschwan bestaunen',
   brazier: 'Glut anfachen',
@@ -657,7 +658,7 @@ export class RoomScene {
     gl.tint = col;
     gl.alpha = 0.55;
     gl.blendMode = 'add';
-    const wings = new Sprite(mothTexture());
+    const wings = new Sprite(emblemTexture());
     wings.anchor.set(0.5);
     wings.width = wings.height = 22;
     wings.tint = col;
@@ -796,7 +797,7 @@ export class RoomScene {
           glow.tint = 0xffe2a8;
           glow.alpha = 0.35;
           glow.blendMode = 'add';
-          const wings = new Sprite(mothTexture());
+          const wings = new Sprite(emblemTexture());
           wings.anchor.set(0.5);
           wings.width = wings.height = 12;
           wings.tint = 0xfff1c4;
@@ -849,7 +850,7 @@ export class RoomScene {
           glow.tint = th.light;
           glow.alpha = 0.35;
           glow.blendMode = 'add';
-          const wings = new Sprite(mothTexture());
+          const wings = new Sprite(emblemTexture());
           wings.anchor.set(0.5);
           wings.width = wings.height = 14;
           wings.tint = 0xfff1c4;
@@ -949,12 +950,12 @@ export class RoomScene {
     this.frozen = false;
   }
 
-  /** The Moth Queen flinches (boss floor only). */
+  /** The Selene flinches (boss floor only). */
   bossHit() {
     this.throne?.hit?.();
   }
 
-  /** The Moth Queen's boss phase (1..3): she grows and her aura changes (src/ui/boss.ts). */
+  /** The Selene's boss phase (1..3): she grows and her aura changes (src/ui/boss.ts). */
   bossPhase(n: number) {
     this.throne?.phase?.(n);
   }
@@ -963,7 +964,7 @@ export class RoomScene {
     this.throne?.laugh?.();
   }
 
-  /** Where the Moth Queen floats, for effects aimed at her. */
+  /** Where the Selene floats, for effects aimed at her. */
   bossPoint() {
     const d = this.def.decor.find((x) => x.kind === 'throne');
     return d ? this.toScreen(d.x, d.y - (this.painted ? 196 : 90)) : null;

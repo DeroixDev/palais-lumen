@@ -51,7 +51,7 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   {
     id: 'mondschirm',
     name: 'Mondschirm',
-    desc: 'Reißt ein Windstoß die Motte vor 1,10× vom Himmel (auch gleich beim Start), fängt der Schirm sie auf: Einsatz zurück. Wer ab 1,10× einsammelt, bekommt 108,7 % statt 96 %.',
+    desc: 'Reißt ein Windstoß die Himmelslaterne vor 1,10× vom Himmel (auch gleich beim Start), fängt der Schirm sie auf: Einsatz zurück. Wer ab 1,10× einsammelt, bekommt 108,7 % statt 96 %.',
     price: 70,
     tier: 'mittel',
     duration: { rounds: 5 },
@@ -72,8 +72,8 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   },
   {
     id: 'mottenfluegel',
-    name: 'Mottenflügel',
-    desc: 'Am zweiten Stift schlägt der Flügel die Motte nach außen, in dieselbe Richtung wie am ersten. Außenbecher werden doppelt so wahrscheinlich: Ruhig 98,1 %, Mittel 107,8 %, Wild 123,7 %.',
+    name: 'Lichtfächer',
+    desc: 'Am zweiten Stift schlägt der Fächer den Funken nach außen, in dieselbe Richtung wie am ersten. Außenbecher werden doppelt so wahrscheinlich: Ruhig 98,1 %, Mittel 107,8 %, Wild 123,7 %.',
     price: 80,
     tier: 'mittel',
     duration: { rounds: 5 },
@@ -128,7 +128,7 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   // The seven games that had none (wheel, shells, derby, target, scratch, hilo, blackjack).
   {
     id: 'falternetz',
-    name: 'Falternetz',
+    name: 'Lampennetz',
     desc: 'Die erste Karte einer Runde, mit der du dich überkaufst, fängt das Netz weg – die Hand bleibt stehen. Mit Grundstrategie 103,7 % statt 96 %.',
     price: 60,
     tier: 'mittel',
@@ -151,7 +151,7 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   {
     id: 'leuchtkaefer',
     name: 'Leuchtkäfer',
-    desc: 'Nach dem Tanz setzt sich ein Leuchtkäfer auf eine Laterne. Er mag es dunkel: Nur jedes fünfte Mal sitzt die Motte darunter, unter jeder anderen 2 zu 5. Dort 114,0 % statt 95 %.',
+    desc: 'Nach dem Tanz setzt sich ein Leuchtkäfer auf eine Laterne. Er mag es dunkel: Nur jedes fünfte Mal glimmt der Funke darunter, unter jeder anderen 2 zu 5. Dort 114,0 % statt 95 %.',
     price: 70,
     tier: 'mittel',
     duration: { rounds: 5 },
@@ -183,8 +183,8 @@ const ODDS: (ItemDef & { rtp: Record<string, number> })[] = [
   },
   {
     id: 'mottenstaub',
-    name: 'Mottenstaub',
-    desc: 'Zeigt ein Verlierlos zwei Monde und zwei Motten, pustet die Motte Staub darüber und tauscht es einmal gegen ein frisches Los. Mottenflügel 108,7 %, Mondschein 114,4 %, Goldstaub 115,3 %.',
+    name: 'Funkenstaub',
+    desc: 'Zeigt ein Verlierlos zwei Monde und zwei Lüster, pustet der Lüster Funkenstaub darüber und tauscht es einmal gegen ein frisches Los. Kerzenschein 108,7 %, Mondschein 114,4 %, Goldstaub 115,3 %.',
     price: 110,
     tier: 'gross',
     duration: { rounds: 3 },

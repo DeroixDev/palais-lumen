@@ -5,7 +5,7 @@
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
-import { COLORS, drawMoth, mothTexture } from '../../core/fx';
+import { COLORS, drawEmblem, emblemTexture } from '../../core/fx';
 import type { BuiltDecor } from '../decor';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, mix, propSprite, rgb, rim, rrect, seeded, shadow, vgrad, type Ctx } from './brush';
 import { box, ent, glow, kicker, leaf } from './foyerProps';
@@ -68,12 +68,12 @@ function blossom(c: Ctx, x: number, y: number, s: number, col: number) {
 
 /** A painted moth with ink outline (for emblems and statues). */
 function paintedMoth(c: Ctx, x: number, y: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
-  drawMoth(c, x + 1.2, y + 1.6, s * 1.04, INK, INK);
-  drawMoth(c, x, y, s, wing, body, spots);
+  drawEmblem(c, x + 1.2, y + 1.6, s * 1.04, INK, INK);
+  drawEmblem(c, x, y, s, wing, body, spots);
 }
 
 function mothSprite(c: Container, size: number, tint: number) {
-  const m = new Sprite(mothTexture());
+  const m = new Sprite(emblemTexture());
   m.anchor.set(0.5);
   m.width = m.height = size;
   m.tint = tint;

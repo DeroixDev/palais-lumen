@@ -1,4 +1,4 @@
-// Painted pieces for the crystal salon (floor 4: ice, glass, champagne) and the Moth Queen's
+// Painted pieces for the crystal salon (floor 4: ice, glass, champagne) and the Selene's
 // throne room (floor 5: purple, gold and fire), in the slanted 3/4 view of the foyer.
 // Each piece is painted once; small Pixi overlays animate glints, bubbles, flames and the Queen.
 
@@ -131,7 +131,7 @@ function shard(c: Ctx, w: number, h: number, col: number) {
 }
 
 /** A painted gold moth emblem (wings, body) centred at (0,0), roughly s wide. */
-export function mothEmblem(c: Ctx, s: number, gem = '#ff5fa2') {
+export function crestEmblem(c: Ctx, s: number, gem = '#ff5fa2') {
   const k = s / 40;
   for (const sd of [-1, 1]) {
     c.beginPath();
@@ -161,7 +161,7 @@ function bez(p0: number, p1: number, p2: number, p3: number, t: number) {
   return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
 }
 
-// ---- The Moth Queen's wings -------------------------------------------------------------------
+// ---- The Selene's wings -------------------------------------------------------------------
 
 const FORE = [2, -6, 30, -52, 72, -82, 106, -72, 116, -52, 102, -20, 86, -8] as const;
 
@@ -259,7 +259,7 @@ export function paintWing(c: Ctx, flash: boolean) {
 }
 
 /** The Queen's body: gown, ruff, face, crown, antennae and sceptre, thorax at (0,0). */
-export function paintQueen(c: Ctx) {
+export function paintBossFigure(c: Ctx) {
   // Antennae, feathery.
   for (const s of [-1, 1]) {
     c.beginPath();
@@ -1161,7 +1161,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
         glowAt(c, 0, my, bw * 0.45, bw * 0.45, 0xffcf7a, 0.25, 'lighter');
         c.save();
         c.translate(0, my);
-        mothEmblem(c, bw * 0.8);
+        crestEmblem(c, bw * 0.8);
         c.restore();
         c.beginPath();
         const cs = bw / 50;
@@ -1360,7 +1360,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
           // Gold moth on the bowl's front.
           c.save();
           c.translate(0, BY + 8);
-          mothEmblem(c, 14, '#ff8a3a');
+          crestEmblem(c, 14, '#ff8a3a');
           c.restore();
         }),
       );
@@ -1445,7 +1445,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
           for (const s of [-1, 1]) {
             c.save();
             c.translate(s * 76, 54);
-            mothEmblem(c, 16, '#c9a0ff');
+            crestEmblem(c, 16, '#c9a0ff');
             c.restore();
           }
           // Runner down the steps.
@@ -1575,7 +1575,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
           glowAt(c, 0, -244, 30, 24, 0xffcf7a, 0.45, 'lighter');
           c.save();
           c.translate(0, -246);
-          mothEmblem(c, 34);
+          crestEmblem(c, 34);
           c.restore();
           for (const s of [-1, 1]) {
             c.beginPath();
@@ -1663,7 +1663,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
       const fR = mkWing(flashTex, 1);
       const fL = mkWing(flashTex, -1);
       fR.alpha = fL.alpha = 0;
-      const body = propSprite(0, 0, 90, 150, 45, 76, paintQueen);
+      const body = propSprite(0, 0, 90, 150, 45, 76, paintBossFigure);
       const dust = new Graphics();
       queen.addChild(aura, halo, wL, wR, fL, fR, body, dust);
       v.addChild(queen);

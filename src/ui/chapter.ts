@@ -4,7 +4,7 @@
 // (still under reduced motion). Screen readers hear each page.
 
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
-import { COLORS, announce, mothTexture, reducedMotion } from '../core/fx';
+import { COLORS, announce, emblemTexture, reducedMotion } from '../core/fx';
 import { button } from '../core/ui';
 import { sfx } from '../core/audio';
 import { CHAPTER_COUNT, REGULARS, chapterDue, markChapter, type RegularId } from '../core/story';
@@ -15,6 +15,7 @@ import { GOLD, INK, ellipse, fillInk, glowAt, gold, paint, rgb, rrect, seeded, t
 import { CREAM } from './kit';
 import { Panel } from './panel';
 
+import { BOSS_NAME, DOME, FOUNDER } from '../core/brand';
 /** Scene size in its own units; scaled to the frame. */
 const SW = 640;
 const SH = 300;
@@ -381,9 +382,9 @@ const CHAPTERS: Chapter[] = [
   {
     title: 'Die Lampenanzünderin',
     pages: [
-      'Die Flügel der Mottenkönigin sinken. Für einen Moment ist es still im Thronsaal – nur die Motten summen um den Mond im Fenster.',
+      `Der Lichtfächer der Herrin der Lampen sinkt. Für einen Moment ist es still unter der ${DOME} – nur die Lampen flackern leise um den Mond im Fenster.`,
       'Sie nimmt die Krone ab und legt sie auf den kleinen Tisch. „Gut gespielt“, sagt sie leise. „Und gut aufgehört, als der Abend vorbei war.“',
-      'In der Tür steht Anselm, der alte Croupier. „Selene“, sagt er nur. Die Königin lächelt. „Du hast es ihnen also nie erzählt.“ – „Noch nicht“, sagt er. „Aber bald.“',
+      `In der Tür steht Anselm, der alte Croupier. „${BOSS_NAME}“, sagt er nur. Sie lächelt. „Du hast es ihnen also nie erzählt.“ – „Noch nicht“, sagt er. „Aber bald.“`,
     ],
     scene: sceneThrone,
     cast: [
@@ -397,7 +398,7 @@ const CHAPTERS: Chapter[] = [
     title: 'Das Kassenbuch',
     pages: [
       'Kommissarin Brandt hat den alten Tresor im Kassenraum geöffnet. Darin: kein Gold. Nur ein abgegriffenes Kassenbuch.',
-      'Die letzte Zeile, vierzig Jahre alt, in Leopold Nachtfalters Handschrift: „Einsatz: alles. Ich höre auf.“',
+      `Die letzte Zeile, vierzig Jahre alt, in ${FOUNDER}s Handschrift: „Einsatz: alles. Ich höre auf.“`,
       'Selene liest über Brandts Schulter mit. „Er hat aufgehört“, sagt sie. „Das war das Mutigste, was er je getan hat.“ Die Kommissarin klappt ihr Notizbuch zu – und gleich wieder auf.',
     ],
     scene: sceneLedger,
@@ -409,9 +410,9 @@ const CHAPTERS: Chapter[] = [
     moths: 0xffe0a0,
   },
   {
-    title: 'Wohin die Motten fliegen',
+    title: 'Wohin das Licht zieht',
     pages: [
-      'Professor Seidenspinner ist sich sicher: Die Motten fliegen nicht zum Gold. Sie fliegen nach oben. Also steigt ihr die alte Dienstbotentreppe hinauf, Stufe um Stufe.',
+      'Professor Seidenspinner ist sich sicher: Das Licht im Haus zieht nicht zum Gold. Es zieht nach oben. Also steigt ihr die alte Dienstbotentreppe hinauf, Stufe um Stufe.',
       'Ganz oben wartet eine verschlossene Tür. Durch das Schlüsselloch fällt silbernes Licht, schwach und flackernd, als wäre es müde.',
       '„Die Mondlampe“, flüstert der Professor. Hinter euch legt Anselm die Hand auf seine Westentasche. Etwas Kleines, Schweres klimpert darin.',
     ],
@@ -426,7 +427,7 @@ const CHAPTERS: Chapter[] = [
   {
     title: 'Der Brief hinter dem Spiegel',
     pages: [
-      'Mira reicht dir den vergilbten Umschlag mit dem Mottensiegel. „Für die Person, die Selene die Krone abnimmt“, steht darauf. Jonas schaut neugierig über deine Schulter.',
+      'Mira reicht dir den vergilbten Umschlag mit dem alten Wachssiegel. „Für die Person, die Selene die Krone abnimmt“, steht darauf. Jonas schaut neugierig über deine Schulter.',
       '„Ich konnte nie aufhören, wenn der Abend vorbei war“, schreibt Leopold. „Also bin ich gegangen, bevor das Haus mit mir untergeht. Selene weiß, wann die Lampen ausgehen. Darum gehört ihr das Haus.“',
       '„Pass gut auf sie auf. Und geh nach Hause, wenn es Zeit ist. – L.“ Jonas sagt lange nichts. Dann stellt er seinen Wecker eine Stunde früher.',
     ],
@@ -443,7 +444,7 @@ const CHAPTERS: Chapter[] = [
     pages: [
       'Anselm dreht den alten Schlüssel im Schloss. Die Tür zum Dach geht auf, die Nachtluft riecht nach Regen und Lindenblüten. Alle sind da: Mira, Jonas, die Kommissarin, der Professor.',
       'In der Mitte steht die Mondlampe, kaum heller als eine Kerze. Selene reicht dir die lange Messingstange, die sie früher jeden Abend getragen hat. „Zusammen“, sagt sie.',
-      'Die Lampe flammt auf. Tausend Motten steigen aus allen Fenstern des Hauses und tanzen über der Stadt. Unten auf der Straße bleiben Leute stehen und schauen nach oben.',
+      'Die Lampe flammt auf. Tausend Lichter gehen in allen Fenstern des Hauses an und leuchten über die Stadt. Unten auf der Straße bleiben Leute stehen und schauen nach oben.',
     ],
     scene: sceneRoof,
     cast: [
@@ -596,7 +597,7 @@ export class ChapterPanel extends Panel {
     const moths: { s: Sprite; x: number; y: number; ph: number; sp: number }[] = [];
     const r = seeded(this.n * 17);
     for (let i = 0; i < 7; i++) {
-      const s = new Sprite(mothTexture());
+      const s = new Sprite(emblemTexture());
       s.anchor.set(0.5);
       s.tint = this.ch.moths;
       s.alpha = 0.75;

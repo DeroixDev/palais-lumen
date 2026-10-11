@@ -1,7 +1,8 @@
 import type { RoomDefinition } from '../core/registry';
 
+import { FLOOR_NAMES, GAME_NAMES } from '../core/brand';
 /**
- * Floor 4: Club Nachtfalter. A wide room built round a dance stage instead of a grid of
+ * Floor 4: Club Neon. A wide room built round a dance stage instead of a grid of
  * machines: DJ, truss and moving heads at the back, the LED dance floor in the middle, the
  * light desk in front of it, machines and tables in the two wings, the neon bar and VIP
  * booths. The music gets louder and fuller the closer you get to the floor (clubLife.ts).
@@ -9,11 +10,11 @@ import type { RoomDefinition } from '../core/registry';
  */
 export const f4: RoomDefinition = {
   id: 'f4',
-  name: 'Club Nachtfalter',
+  name: FLOOR_NAMES.f4,
   tagline: 'Bühne, Bass und Lichtshow',
   floor: 4,
   elevatorX: 160,
-  sign: 'NACHTCLUB',
+  sign: FLOOR_NAMES.f4.toLocaleUpperCase('de-DE'),
   width: 2000,
   height: 1150,
   theme: {
@@ -41,7 +42,7 @@ export const f4: RoomDefinition = {
     { game: 'crash', x: 290, y: 470, label: 'Mondflug' },
     // Right wing: a bank under the bar and two tables by the bunker door.
     { game: 'plinko', x: 1560, y: 500 },
-    { game: 'plinko', x: 1640, y: 500, label: 'Mottenfall' },
+    { game: 'plinko', x: 1640, y: 500, label: GAME_NAMES.plinko },
     { game: 'plinko', x: 1720, y: 500 },
     { game: 'plinko', x: 1800, y: 500 },
     { game: 'blackjack', x: 1520, y: 720, label: 'Blackjack' },

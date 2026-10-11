@@ -3,7 +3,7 @@
 // on a brass plate; they are sold in the shop next door.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { COLORS, glowTexture, mothTexture } from '../core/fx';
+import { COLORS, glowTexture, emblemTexture } from '../core/fx';
 import { button, brass } from '../core/ui';
 import { focusable } from '../core/focus';
 import { sfx } from '../core/audio';
@@ -256,7 +256,7 @@ export class WardrobePanel extends Panel {
       p.update(dt, null);
     });
     if (this.draft.companion !== 'none') {
-      const m = new Sprite(mothTexture());
+      const m = new Sprite(emblemTexture());
       m.anchor.set(0.5);
       m.width = m.height = n ? 28 : 40;
       m.tint = COMPANION_COLOR[this.draft.companion];
@@ -347,7 +347,7 @@ export class WardrobePanel extends Panel {
         gl.alpha = 0.5;
         gl.blendMode = 'add';
         gl.position.set(cx, floor - 26);
-        const m = new Sprite(mothTexture());
+        const m = new Sprite(emblemTexture());
         m.anchor.set(0.5);
         m.width = m.height = n ? 34 : 40;
         m.tint = col;

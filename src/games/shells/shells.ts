@@ -14,13 +14,14 @@ import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
 import { FLY_RTP, FLY_SELF_RTP, PAY, RTP, flyRound, hitPays, mothUnder } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
-import { FLAME_Y, LANTERN, boothLayout, boothTexture, drawShellsStation, flameTexture, lanternTexture, mothTexture, type BoothLayout } from './paint';
+import { FLAME_Y, LANTERN, boothLayout, boothTexture, drawShellsStation, flameTexture, lanternTexture, emblemTexture, type BoothLayout } from './paint';
 import { luckStep, luckOn } from '../../core/debugLuck';
 
+import { CURRENCY, CURRENCY_PLURAL } from '../../core/brand';
 const BETS = [10, 20, 50, 100, 200, 500];
 const CREAM = 0xfff3dc;
 const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
-const LUCK = 'Die Motte entscheidet der Zufall, nicht dein Auge.';
+const LUCK = 'Wo der Funke glimmt, entscheidet der Zufall, nicht dein Auge.';
 
 type Tempo = 'slow' | 'mid' | 'fast';
 const TEMPO: Record<Tempo, { label: string; moves: number; ms: number }> = {
@@ -31,11 +32,11 @@ const TEMPO: Record<Tempo, { label: string; moves: number; ms: number }> = {
 const TEMPOS: Tempo[] = ['slow', 'mid', 'fast'];
 
 const RULES = [
-  'Unter einer der drei Laternen sitzt eine Motte. Die Laternen tanzen umeinander, dann tippst du auf eine.',
+  'Unter einer der drei Laternen glimmt ein Funke. Die Laternen tanzen umeinander, dann tippst du auf eine.',
   '',
-  `Sitzt die Motte darunter, bekommst du das ${String(PAY).replace('.', ',')}-Fache deines Einsatzes zurück (ein halber Falter wird per Zufall auf- oder abgerundet).`,
+  `Glimmt der Funke darunter, bekommst du das ${String(PAY).replace('.', ',')}-Fache deines Einsatzes zurück (ein halbes ${CURRENCY} wird per Zufall auf- oder abgerundet).`,
   '',
-  `${LUCK} Motten flattern, wohin sie wollen: Ob sie unter deiner Laterne sitzt, wird erst bei deiner Wahl ausgelost – mit einer Chance von 1 zu 3, egal wie gut du hinsiehst. Das Tempo ändert nur den Tanz, nicht die Chance.`,
+  `${LUCK} Funken springen, wohin sie wollen: Ob er unter deiner Laterne glimmt, wird erst bei deiner Wahl ausgelost – mit einer Chance von 1 zu 3, egal wie gut du hinsiehst. Das Tempo ändert nur den Tanz, nicht die Chance.`,
   '',
   `Auszahlungsquote ${pct(RTP)}\u00a0% · Hausvorteil ${pct(1 - RTP)}\u00a0%.`,
 ].join('\n');
@@ -67,8 +68,8 @@ class ShellsGame implements GameInstance {
   private trail = new Container();
   private lanterns: Lantern[] = [];
   private moth = new Container();
-  private mothSprite = new Sprite(mothTexture());
-  private mothGlow = new Sprite(glowTexture());
+  private mothSprite = new Sprite(emblemTexture());
+  private emblemGlow = new Sprite(glowTexture());
   private luck!: Text;
   private prompt!: Text;
   private phase: Phase = 'idle';
@@ -121,12 +122,12 @@ class ShellsGame implements GameInstance {
     this.view.addChild(this.shell.board);
     this.shell.scene.addChild(this.layer);
     for (let i = 0; i < 3; i++) this.lanterns.push(this.makeLantern(i));
-    this.mothGlow.anchor.set(0.5);
-    this.mothGlow.tint = 0xfff1c4;
-    this.mothGlow.blendMode = 'add';
-    this.mothGlow.alpha = 0.5;
+    this.emblemGlow.anchor.set(0.5);
+    this.emblemGlow.tint = 0xfff1c4;
+    this.emblemGlow.blendMode = 'add';
+    this.emblemGlow.alpha = 0.5;
     this.mothSprite.anchor.set(0.5);
-    this.moth.addChild(this.mothGlow, this.mothSprite);
+    this.moth.addChild(this.emblemGlow, this.mothSprite);
     this.buildFirefly();
     window.addEventListener('keydown', this.keyHandler);
     if (import.meta.env.DEV) (window as unknown as { __nfGame?: unknown }).__nfGame = this;
@@ -211,7 +212,7 @@ class ShellsGame implements GameInstance {
       this.table.addChild(l.root);
     }
     this.mothSprite.width = this.mothSprite.height = 70 * L.k;
-    this.mothGlow.width = this.mothGlow.height = 150 * L.k;
+    this.emblemGlow.width = this.emblemGlow.height = 150 * L.k;
     this.table.addChild(this.moth, this.firefly);
     this.firefly.scale.set(L.k);
     if (this.fly) this.placeFirefly(this.lanterns.find((x) => x.slot === this.fly!.fly)!);
@@ -330,7 +331,7 @@ class ShellsGame implements GameInstance {
     core.y = 8;
     core.tint = 0xf0ffb0;
     core.blendMode = 'add';
-    const bug = new Sprite(mothTexture());
+    const bug = new Sprite(emblemTexture());
     bug.anchor.set(0.5);
     bug.width = bug.height = 38;
     bug.tint = 0x8a7a3a;
@@ -380,7 +381,7 @@ class ShellsGame implements GameInstance {
 
   private async startRound() {
     if (!this.ctx.state.placeBet(this.bet)) {
-      this.ctx.toast('Nicht genug Falter für diesen Einsatz.');
+      this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
       return;
     }
     this.stake = this.bet;
@@ -391,7 +392,7 @@ class ShellsGame implements GameInstance {
     const mid = this.lanterns.find((l) => l.slot === 1)!;
     await this.lift(mid, true);
     this.mothIdle = false;
-    await this.flyMoth(this.moth.x, this.moth.y, mid.root.x, mid.root.y - 18 * this.L.k, 600, true);
+    await this.flyEmblem(this.moth.x, this.moth.y, mid.root.x, mid.root.y - 18 * this.L.k, 600, true);
     this.moth.visible = false;
     await this.lift(mid, false);
     await wait(this.calm ? 100 : 250);
@@ -513,7 +514,7 @@ class ShellsGame implements GameInstance {
   /** A little moth shadow darts from one lantern's glass to another's. */
   private async flit() {
     if (this.calm) return;
-    const ghost = new Sprite(mothTexture());
+    const ghost = new Sprite(emblemTexture());
     ghost.anchor.set(0.5);
     ghost.tint = 0x2a1a10;
     ghost.alpha = 0;
@@ -545,7 +546,7 @@ class ShellsGame implements GameInstance {
     if (!up) this.ctx.sfx.thud();
   }
 
-  private async flyMoth(x0: number, y0: number, x1: number, y1: number, ms: number, inward: boolean) {
+  private async flyEmblem(x0: number, y0: number, x1: number, y1: number, ms: number, inward: boolean) {
     this.moth.visible = true;
     this.moth.zIndex = 20000;
     this.ctx.sfx.flutter();
@@ -567,14 +568,14 @@ class ShellsGame implements GameInstance {
     // The pick is made: now chance decides where the moth is (with the firefly: drawn with it).
     const fly = this.fly;
     // Mod-Menü Gewinnchance: with the firefly the moth is drawn again for its lantern (same odds).
-    const flyMoth = (f: number) => {
+    const flyEmblem = (f: number) => {
       let r = flyRound();
       while (r.fly !== f) r = flyRound();
       return r.moth;
     };
     const under = fly
       ? luckOn()
-        ? luckStep(() => flyMoth(fly.fly), (m) => m === l.slot)
+        ? luckStep(() => flyEmblem(fly.fly), (m) => m === l.slot)
         : fly.moth
       : luckStep(() => mothUnder(l.slot), (m) => m === l.slot);
     const rtp = fly ? (l.slot === fly.fly ? FLY_SELF_RTP : FLY_RTP) : RTP;
@@ -588,7 +589,7 @@ class ShellsGame implements GameInstance {
       // The moth flutters up out of the light and circles the lantern.
       this.moth.position.set(spot.x, spot.y);
       this.moth.scale.set(0.6);
-      await this.flyMoth(spot.x, spot.y, spot.x, spot.y - 120 * this.L.k, 520, false);
+      await this.flyEmblem(spot.x, spot.y, spot.x, spot.y - 120 * this.L.k, 520, false);
       this.ctx.state.payout(win);
       const g = this.shell.scene.toGlobal({ x: spot.x, y: spot.y - 80 * this.L.k });
       this.ctx.celebrate(PAY, g.x, g.y, { x: g.x, y: g.y, r: 70 * this.L.k * this.shell.s });
@@ -605,7 +606,7 @@ class ShellsGame implements GameInstance {
       const os = { x: other.root.x, y: other.root.y - 18 * this.L.k };
       this.moth.position.set(os.x, os.y);
       this.moth.scale.set(0.6);
-      await this.flyMoth(os.x, os.y, this.L.moon.x, this.L.moon.y, 900, true);
+      await this.flyEmblem(os.x, os.y, this.L.moon.x, this.L.moon.y, 900, true);
       this.moth.visible = false;
       this.shell.addHistory(`${l.slot + 1} ✗`, 0x6a4a5a, 0xf2e6c9);
     }
@@ -622,7 +623,7 @@ class ShellsGame implements GameInstance {
     // The moth comes back and rests in front of the middle lantern for the next round.
     const home = this.idleSpot();
     if (!won) this.moth.position.set(this.L.moon.x, this.L.moon.y);
-    await this.flyMoth(this.moth.x, this.moth.y, home.x, home.y, 700, false);
+    await this.flyEmblem(this.moth.x, this.moth.y, home.x, home.y, 700, false);
     this.mothIdle = true;
     this.phase = 'idle';
     this.refreshButtons();
@@ -704,7 +705,7 @@ export const shells: GameDefinition = {
   houseEdge: 1 - RTP,
   footprint: { w: 110, h: 72 },
   size: 'table',
-  blurb: 'Unter welcher Laterne sitzt die Motte? Reines Glück, 1 zu 3.',
+  blurb: 'Unter welcher Laterne glimmt der Funke? Reines Glück, 1 zu 3.',
   drawStation: () => drawShellsStation(),
   create: (ctx) => new ShellsGame(ctx),
 };

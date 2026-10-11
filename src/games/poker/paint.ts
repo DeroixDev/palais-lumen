@@ -1,4 +1,4 @@
-// The Falter-Poker machine on the floor: a slant-top bar cabinet in midnight teal and brass,
+// The Salon-Poker machine on the floor: a slant-top bar cabinet in midnight teal and brass,
 // suit pips glowing in the marquee, five little cards on the screen and the hold buttons.
 
 import { Container, Sprite } from 'pixi.js';

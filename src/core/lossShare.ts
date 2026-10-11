@@ -2,7 +2,7 @@
 //
 // For a stake s and a payout w, X = w / s. Every game knows its RTP = E[X]. Items that soften
 // losses or add to wins need one more number per game: the expected loss share
-//   L = E[max(0, 1 − X)]   (per Falter staked).
+//   L = E[max(0, 1 − X)]   (per Lumen staked).
 // With it the payout share including an item is exact and linear:
 //   insurance k:          RTP + k·L
 //   profit bonus p:       RTP + p·E[max(0, X − 1)] = RTP + p·(RTP − 1 + L)
@@ -37,7 +37,7 @@ export const LOSS_SHARE: Record<string, LossShare> = {
   craps: { rtp: 0.9587879, L: 0.5070707, exact: false, how: 'Annahme: nur Linie' },
   wheel: { rtp: 0.95, L: 0.7166667, exact: false, how: 'Annahme: Feld 2' },
   keno: { rtp: 0.949229, L: 0.633056, exact: false, how: 'Annahme: 5 Sterne' },
-  scratch: { rtp: 0.945, L: 0.5886, exact: false, how: 'Annahme: Mottenflügel-Los' },
+  scratch: { rtp: 0.945, L: 0.5886, exact: false, how: 'Annahme: Kerzenschein-Los' },
   derby: { rtp: 0.958181, L: 0.75, exact: false, how: 'Annahme: beliebige Ente, Sieg oder Platz' },
   ice: { rtp: 0.95, L: 0.2944, exact: false, how: 'Annahme: Mittel, nach 2 Schollen auszahlen' },
   target: { rtp: 0.95, L: 0.56, exact: false, how: 'Annahme: Wurf Normal' },
@@ -45,7 +45,7 @@ export const LOSS_SHARE: Record<string, LossShare> = {
   mines: { rtp: 0.95, L: 0.3304348, exact: false, how: 'Annahme: 3 Laternen, 3 Diamanten' },
   tower: { rtp: 0.95, L: 5 / 9, exact: false, how: 'Annahme: Mittel, 2 Stockwerke' },
   poker: { rtp: 0.961472, L: 0.5450323, exact: false, how: 'Annahme: beste Haltestrategie' },
-  queen: { rtp: 0.95, L: 0.5, exact: false, how: 'Annahme: Flügelschlag' },
+  queen: { rtp: 0.95, L: 0.5, exact: false, how: 'Annahme: Lichtschlag' },
 };
 
 export function lossShare(game: string): LossShare | undefined {
