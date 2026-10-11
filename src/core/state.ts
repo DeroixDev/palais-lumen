@@ -5,7 +5,7 @@ import { ACHIEVEMENTS, type Achievement } from './achievements';
 import { CHARMS, DEFAULT_OUTFITTING, WARDROBE, type CharmId, type Outfitting } from './items';
 
 import { BOSS_NAME } from './brand';
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 const MAX_CHIPS = Number.MAX_SAFE_INTEGER; // chips are whole numbers, never floats
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold' | 'diamond';
@@ -88,10 +88,10 @@ export interface SaveData {
   bag: Record<string, number>;
   /** Items working right now (used from the bag). Day items end with the day. */
   active: ActiveItem[];
-  // ---- v8: mini bosses, moth album, regulars, daily challenge --------------
+  // ---- v8: mini bosses, album, regulars, daily challenge (v9: album IDs became lamps) ----
   /** Mini bosses beaten, as `s<season>:<id>` (this season) plus plain ids ever beaten. */
   minibosses: string[];
-  /** Moth album: moth id -> how many caught (kept forever). */
+  /** Lampenbuch: lamp id -> how many caught (kept forever). */
   album: Record<string, number>;
   /** Story beats and regulars' lines already seen (kept forever). */
   storySeen: string[];

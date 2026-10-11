@@ -1,6 +1,6 @@
-// The moth album, in play: a moth that flutters across the screen after a won round (tap it,
-// press F, or use the hidden "Motte fangen" button with a screen reader), the little card that
-// says what you caught, and the album itself, a painted leather book with one page per floor.
+// The Lampenbuch, in play: a little lamp that drifts across the screen after a won round (tap
+// it, press F, or use the hidden "Leuchte fangen" button with a screen reader), the little card
+// that says what you caught, and the book itself, painted leather with one page per floor.
 // main.ts creates one AlbumFeature, adds its view between the game and the overlays, and
 // forwards 'extra' interactables ('album' = the lectern in the foyer) and update calls to it.
 
@@ -12,31 +12,31 @@ import { focusable } from '../core/focus';
 import type { GameState } from '../core/state';
 import {
   ALBUM_PAGES,
-  MOTHS,
+  LAMPS,
   RARITY_COLOR,
   RARITY_NAME,
-  catchMoth,
+  catchLamp,
   caught,
   caughtCount,
   debugFlight,
   fillAlbum,
   hintText,
   installAlbum,
-  mothsOnPage,
-  onMothFlight,
+  lampsOnPage,
+  onLampFlight,
   pageDone,
   pageRewarded,
   whereText,
   type CatchNews,
-  type MothSpecies,
+  type LampSpecies,
 } from '../core/album';
-import { speciesAnchorY, speciesTexture } from '../world/painted/mothArt';
+import { speciesAnchorY, speciesTexture } from '../world/painted/lampArt';
 import { dark, fillInk, glowAt, light, paint, rgb, rrect, seeded } from '../world/painted/brush';
 import { brass } from '../core/ui';
 import { Panel } from './panel';
 import { CREAM, PANEL_PAD, bodyText, closeKnob, plaque } from './kit';
 
-import { ALBUM_ENTRIES, ALBUM_ENTRY, ALBUM_NAME, CURRENCY_PLURAL } from '../core/brand';
+import { ALBUM_ENTRIES, ALBUM_ENTRY, ALBUM_NAME, ALBUM_TITLE, CURRENCY_PLURAL } from '../core/brand';
 interface Overlay {
   view: Container;
   resize(w: number, h: number): void;
@@ -92,12 +92,12 @@ function cardTexture(w: number, h: number) {
   );
 }
 
-// ---- The flying moth ------------------------------------------------------------------------------
+// ---- The drifting lamp ------------------------------------------------------------------------------
 
 interface Flight {
-  m: MothSpecies;
+  m: LampSpecies;
   c: Container;
-  moth: Sprite;
+  lamp: Sprite;
   t: number;
   dur: number;
   x0: number;
@@ -109,7 +109,7 @@ interface Flight {
   done: boolean;
 }
 
-class MothFlight {
+class LampFlight {
   readonly view = new Container();
   private f: Flight | null = null;
   private time = 0;
@@ -125,13 +125,13 @@ class MothFlight {
     // Keyboard and screen readers: a real button, only visible while it has the focus.
     const css = document.createElement('style');
     css.textContent =
-      '#moth-catch{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);z-index:40;' +
+      '#lamp-catch{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);z-index:40;' +
       'clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap;padding:0;border:0}' +
-      '#moth-catch:focus-visible{clip-path:none;width:auto;height:auto;padding:12px 22px;min-height:48px;font:700 1.15rem/1 "Barlow Condensed",sans-serif;' +
+      '#lamp-catch:focus-visible{clip-path:none;width:auto;height:auto;padding:12px 22px;min-height:48px;font:700 1.15rem/1 "Barlow Condensed",sans-serif;' +
       'color:#2a1406;background:linear-gradient(#fff1c0,#e0b25a 55%,#a8741f);border:2px solid rgba(22,10,20,.9);border-radius:14px;box-shadow:0 0 0 3px #ffd98a,0 6px 18px rgba(0,0,0,.5)}';
     document.head.appendChild(css);
     this.btn = document.createElement('button');
-    this.btn.id = 'moth-catch';
+    this.btn.id = 'lamp-catch';
     this.btn.type = 'button';
     this.btn.hidden = true;
     this.btn.textContent = `${ALBUM_ENTRY} fangen (Taste F)`;
@@ -151,7 +151,7 @@ class MothFlight {
     return (m === 'room' || m === 'game') && !this.host.modalOpen();
   }
 
-  /** A dialog only pauses the moth; a menu or a transition lets it go. */
+  /** A dialog only pauses the lamp; a menu or a transition lets it go. */
   private paused() {
     const m = this.host.mode();
     return (m === 'room' || m === 'game') && this.host.modalOpen();
@@ -161,8 +161,8 @@ class MothFlight {
     return !!this.f;
   }
 
-  /** Sends a moth across the screen, above the game or the room. */
-  launch(m: MothSpecies) {
+  /** Sends a lamp across the screen, above the game or the room. */
+  launch(m: LampSpecies) {
     if (this.f) return;
     const { w, h, top } = this.host.screen();
     const calm = reducedMotion();
@@ -174,13 +174,13 @@ class MothFlight {
     glow.tint = m.art.glow ?? 0xffe7a8;
     glow.alpha = m.art.glow ? 0.55 : 0.32;
     glow.blendMode = 'add';
-    const moth = new Sprite(speciesTexture(m, 120));
-    moth.anchor.set(0.5, speciesAnchorY(120));
-    moth.scale.set(size / 120);
-    c.addChild(glow, moth);
+    const lamp = new Sprite(speciesTexture(m, 120));
+    lamp.anchor.set(0.5, speciesAnchorY(120));
+    lamp.scale.set(size / 120);
+    c.addChild(glow, lamp);
     c.eventMode = 'static';
     c.cursor = 'pointer';
-    // Generous target: a moving moth is hard to hit with a thumb.
+    // Generous target: a moving lamp is hard to hit with a thumb.
     c.hitArea = new Circle(0, 0, Math.max(48, size * 0.75));
     c.on('pointerdown', (e) => {
       e.stopPropagation();
@@ -188,11 +188,11 @@ class MothFlight {
     });
     const fromLeft = Math.random() < 0.5;
     const yb = top + 70 + Math.random() * Math.max(40, h * 0.62 - top - 70);
-    this.f = { m, c, moth, t: 0, dur: calm ? 9000 : 5600, x0: fromLeft ? -size : w + size, x1: fromLeft ? w + size : -size, yb, size, ph: Math.random() * 6, away: 0, done: false };
+    this.f = { m, c, lamp, t: 0, dur: calm ? 9000 : 5600, x0: fromLeft ? -size : w + size, x1: fromLeft ? w + size : -size, yb, size, ph: Math.random() * 6, away: 0, done: false };
     c.alpha = 0;
     this.view.addChildAt(c, 0);
     this.place(this.f);
-    sfx.flutter();
+    sfx.shimmer();
     this.btn.hidden = false;
     const who = caught(this.state.data, m.id) ? m.name : `Eine unbekannte ${ALBUM_ENTRY}`;
     announce(`${who} zeigt sich! Taste F fängt sie.`);
@@ -207,10 +207,11 @@ class MothFlight {
     const s = this.time;
     const y = calm ? f.yb + Math.sin(t * Math.PI * 2) * 10 : f.yb + Math.sin(s * 2.1 + f.ph) * 42 + Math.sin(s * 5.3 + f.ph) * 12;
     f.c.position.set(x, y);
-    const k = calm ? 0.88 + 0.12 * Math.sin(s * 5) : 0.3 + 0.7 * Math.abs(Math.sin(s * 13 + f.ph));
-    const base = f.size / 120;
-    f.moth.scale.set(base * k, base);
-    f.c.rotation = calm ? 0 : Math.sin(s * 3 + f.ph) * 0.14 + (f.x1 > f.x0 ? 0.12 : -0.12);
+    // A lamp does not flap: it bobs, sways on the draught and its light breathes.
+    f.lamp.scale.set(f.size / 120);
+    f.c.rotation = calm ? 0 : Math.sin(s * 2.3 + f.ph) * 0.1;
+    const glow = f.c.children[0];
+    if (glow) glow.alpha = (f.m.art.glow ? 0.55 : 0.32) * (calm ? 1 : 0.85 + 0.15 * Math.sin(s * 7 + f.ph) * Math.sin(s * 3.1));
     f.c.alpha = Math.min(1, t * 14, (1 - t) * 14);
   }
 
@@ -222,7 +223,7 @@ class MothFlight {
     if (!f || f.done) return;
     if (this.paused()) return;
     if (!ok) {
-      // A menu or a transition took over: the moth slips away quietly.
+      // A menu or a transition took over: the lamp slips away quietly.
       f.away += dtMs;
       if (f.away > 600) this.drop();
       return;
@@ -231,7 +232,7 @@ class MothFlight {
     f.t += dtMs / f.dur;
     if (f.t >= 1) {
       this.drop();
-      announce(`Die ${ALBUM_ENTRY} ist weitergeflogen.`);
+      announce(`Die ${ALBUM_ENTRY} ist weitergezogen.`);
       return;
     }
     this.place(f);
@@ -251,7 +252,7 @@ class MothFlight {
     f.done = true;
     this.btn.hidden = true;
     if (document.activeElement === this.btn) this.btn.blur();
-    const news = catchMoth(this.state, f.m.id);
+    const news = catchLamp(this.state, f.m.id);
     if (!news) return this.drop();
     const calm = reducedMotion();
     sfx.chime();
@@ -265,7 +266,7 @@ class MothFlight {
     // Off towards the menu key, where the album lives.
     const tx = w - 60;
     const ty = 30;
-    const sc = f.moth.scale.y;
+    const sc = f.lamp.scale.y;
     void animate(calm ? 300 : 650, (k) => {
       if (c.destroyed) return;
       if (calm) {
@@ -275,7 +276,7 @@ class MothFlight {
       const q = ease.inCubic(k);
       c.position.set(x0 + (tx - x0) * q, y0 + (ty - y0) * q - Math.sin(k * Math.PI) * 40);
       const s = k < 0.2 ? 1 + k * 1.5 : 1.3 * (1 - q);
-      f.moth.scale.set(sc * s);
+      f.lamp.scale.set(sc * s);
       c.rotation *= 0.9;
       c.alpha = 1 - q * 0.6;
     }).then(() => {
@@ -287,9 +288,9 @@ class MothFlight {
     if (news.complete) this.host.toast(`Das ganze ${ALBUM_NAME} ist voll! Eine Kristall-Trophäe steht jetzt in deiner Vitrine.`);
   }
 
-  /** "NEU IM ALBUM · Kerzenmotte" card at the bottom of the screen. */
+  /** "NEU IM ALBUM · Talglicht" card at the bottom of the screen. */
   private async card(n: CatchNews) {
-    const m = n.moth;
+    const m = n.lamp;
     const W = 320;
     const H = 96;
     const c = new Container();
@@ -307,7 +308,7 @@ class MothFlight {
     name.position.set(104, 30);
     if (name.width > W - 116) name.scale.set((W - 116) / name.width);
     const count = this.state.data.album[m.id] ?? 1;
-    const sub = bodyText(`${RARITY_NAME[m.rarity]} · ${n.fresh ? `${caughtCount(this.state.data)} von ${MOTHS.length}` : `${count}× gefangen`}`, 16, dark(RARITY_COLOR[m.rarity], 0.25), { bold: true });
+    const sub = bodyText(`${RARITY_NAME[m.rarity]} · ${n.fresh ? `${caughtCount(this.state.data)} von ${LAMPS.length}` : `${count}× gefangen`}`, 16, dark(RARITY_COLOR[m.rarity], 0.25), { bold: true });
     sub.position.set(104, 60);
     c.addChild(head, name, sub);
     const { w, h } = this.host.screen();
@@ -536,7 +537,7 @@ export class AlbumPanel extends Panel {
   private sel: string;
   private detail = new Container();
   private slots: { id: string; frame: Sprite; w: number; h: number }[] = [];
-  private bigMoth: Sprite | null = null;
+  private bigLamp: Sprite | null = null;
 
   constructor(
     private state: GameState,
@@ -545,7 +546,7 @@ export class AlbumPanel extends Panel {
   ) {
     super();
     this.pageIdx = page;
-    this.sel = mothsOnPage(ALBUM_PAGES[page].id)[0].id;
+    this.sel = lampsOnPage(ALBUM_PAGES[page].id)[0].id;
   }
 
   protected build() {
@@ -561,13 +562,13 @@ export class AlbumPanel extends Panel {
     const book = new Sprite(bookTexture(this.W, this.H, pageTop, !n));
     book.position.set(-PANEL_PAD, -PANEL_PAD);
     p.addChild(book);
-    const pl = plaque(ALBUM_NAME.toLocaleUpperCase('de-DE'), { size: n ? 22 : 28, minW: n ? 220 : 320 });
+    const pl = plaque(ALBUM_TITLE.toLocaleUpperCase('de-DE'), { size: n ? 22 : 28, minW: n ? 220 : 320 });
     pl.position.set(this.W / 2, 4);
     p.addChild(pl);
     const x = closeKnob(this.onClose);
     x.position.set(this.W - 40, 40);
     p.addChild(x);
-    const total = bodyText(`${caughtCount(d)} / ${MOTHS.length} ${ALBUM_ENTRIES}`, n ? 16 : 18, CREAM, { bold: true });
+    const total = bodyText(`${caughtCount(d)} / ${LAMPS.length} ${ALBUM_ENTRIES}`, n ? 16 : 18, CREAM, { bold: true });
     total.anchor.set(0, 0.5);
     total.position.set(n ? 26 : 40, n ? 42 : 40);
     p.addChild(total);
@@ -583,8 +584,8 @@ export class AlbumPanel extends Panel {
       const s = new Sprite(tabTexture(tw, tabH + 6, pg.color, on));
       s.position.set(-3, -3);
       tab.addChild(s);
-      const have = mothsOnPage(pg.id).filter((m) => caught(d, m.id)).length;
-      const all = mothsOnPage(pg.id).length;
+      const have = lampsOnPage(pg.id).filter((m) => caught(d, m.id)).length;
+      const all = lampsOnPage(pg.id).length;
       const t = bodyText(pg.title, n ? 15 : 16, on ? 0xfff6e0 : 0xe8d4b0, { bold: true });
       t.anchor.set(0.5, 0);
       t.position.set(tw / 2, 4);
@@ -601,7 +602,7 @@ export class AlbumPanel extends Panel {
         if (i === this.pageIdx) return;
         sfx.rustle();
         this.pageIdx = i;
-        this.sel = mothsOnPage(ALBUM_PAGES[i].id)[0].id;
+        this.sel = lampsOnPage(ALBUM_PAGES[i].id)[0].id;
         this.rebuild();
       });
       focusable(tab, { label: `Seite ${pg.title}: ${have} von ${all} ${ALBUM_ENTRIES}${on ? ' (aufgeschlagen)' : ''}`, rect: { x: 0, y: 0, w: tw, h: tabH } }).setPressed(on);
@@ -609,7 +610,7 @@ export class AlbumPanel extends Panel {
     });
 
     const page = ALBUM_PAGES[this.pageIdx];
-    const moths = mothsOnPage(page.id);
+    const lamps = lampsOnPage(page.id);
     // Left page (or the top of the single page): title and the specimen grid.
     const lx = n ? 34 : 46;
     const lw = n ? this.W - 68 : this.W / 2 - 4 - 30 - 32;
@@ -619,14 +620,14 @@ export class AlbumPanel extends Panel {
     const rule = new Graphics().moveTo(lx, pageTop + 46).lineTo(lx + lw, pageTop + 46).stroke({ color: 0xb07a2a, width: 1.5, alpha: 0.7 });
     p.addChild(rule);
     const cols = n ? 3 : 2;
-    const rows = Math.ceil(moths.length / cols);
+    const rows = Math.ceil(lamps.length / cols);
     const gy = pageTop + 58;
     const gap = n ? 8 : 12;
     const sw = Math.floor((lw - (cols - 1) * gap) / cols);
     const sh = n ? 116 : Math.floor((this.H - 40 - gy - 60 - (rows - 1) * gap) / rows);
     this.slots = [];
     const items: Container[] = [];
-    moths.forEach((m, i) => {
+    lamps.forEach((m, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const has = caught(d, m.id);
@@ -679,7 +680,7 @@ export class AlbumPanel extends Panel {
     rw.position.set(lx, rewardY);
     p.addChild(rw);
 
-    // Detail of the chosen moth: right page, or below the grid on a phone.
+    // Detail of the chosen lamp: right page, or below the grid on a phone.
     this.detail = new Container();
     p.addChild(this.detail);
     this.fillDetail();
@@ -689,7 +690,7 @@ export class AlbumPanel extends Panel {
     foot.alpha = 0.8;
     foot.position.set(this.W / 2, this.H - 21);
     p.addChild(foot);
-    this.tickers.push((_t, dt) => this.flutter(dt));
+    this.tickers.push((_t, dt) => this.flicker(dt));
     if (!this.shown) {
       this.shown = true;
       this.popIn(items);
@@ -699,14 +700,13 @@ export class AlbumPanel extends Panel {
   private shown = false;
   private ft = 0;
 
-  /** The big moth on the detail side opens and closes its wings now and then. */
-  private flutter(dt: number) {
-    const s = this.bigMoth;
+  /** The big lamp on the detail side sways a little now and then, as if someone walked past. */
+  private flicker(dt: number) {
+    const s = this.bigLamp;
     if (!s || s.destroyed || reducedMotion()) return;
     this.ft += dt / 1000;
-    const k = this.ft % 4;
-    const base = s.scale.y;
-    s.scale.x = k < 0.6 ? base * (0.75 + 0.25 * Math.cos(k * Math.PI * 2 / 0.6 * 2)) : base;
+    const k = this.ft % 5;
+    s.rotation = k < 1.6 ? Math.sin(k * Math.PI * 2.5) * 0.05 * (1 - k / 1.6) : 0;
   }
 
   private select(id: string) {
@@ -720,7 +720,7 @@ export class AlbumPanel extends Panel {
   private fillDetail() {
     const c = this.detail;
     c.removeChildren().forEach((x) => x.destroy({ children: true }));
-    const m = MOTHS.find((x) => x.id === this.sel);
+    const m = LAMPS.find((x) => x.id === this.sel);
     if (!m) return;
     const d = this.state.data;
     const has = caught(d, m.id);
@@ -737,7 +737,7 @@ export class AlbumPanel extends Panel {
       ms.scale.set(span / 160);
       ms.position.set(34 + 66, y0 + 62);
       c.addChild(ms);
-      this.bigMoth = ms;
+      this.bigLamp = ms;
       this.words(c, m, has, 34 + 140, y0, this.W - 34 - 140 - 34, true);
       return;
     }
@@ -748,19 +748,14 @@ export class AlbumPanel extends Panel {
     const ms = new Sprite(speciesTexture(m, 240, has ? 'color' : 'dark'));
     ms.anchor.set(0.5, speciesAnchorY(240));
     ms.scale.set(span / 240);
-    ms.position.set(cx, pageTop + 30 + span * 0.42);
+    ms.position.set(cx, pageTop + 30 + span * 0.5);
     c.addChild(ms);
-    this.bigMoth = ms;
-    // A brass pin through the body, like a real collection.
-    if (has) {
-      const pin = new Graphics().circle(cx, pageTop + 30 + span * 0.42 - span * 0.03, 4).fill(0xe0b25a).stroke({ color: 0x3a2414, width: 1.2 });
-      c.addChild(pin);
-    }
+    this.bigLamp = ms;
     this.words(c, m, has, rx, pageTop + 30 + span * 0.95, rw, false);
   }
 
   /** Name, rarity, line, where and how many: the text of the detail side. */
-  private words(c: Container, m: MothSpecies, has: boolean, x: number, y: number, w: number, small: boolean) {
+  private words(c: Container, m: LampSpecies, has: boolean, x: number, y: number, w: number, small: boolean) {
     const d = this.state.data;
     const name = new Text({ text: has ? m.name : 'Noch nicht gefangen', style: { fontFamily: FONT_DISPLAY, fontSize: small ? 17 : 24, fill: PAPER_INK, letterSpacing: 0.5, wordWrap: true, wordWrapWidth: w, align: small ? 'left' : 'center' } });
     const center = !small;
@@ -775,7 +770,7 @@ export class AlbumPanel extends Panel {
     yy += rar.height + (small ? 4 : 10);
     const lines: [string, number, boolean][] = has
       ? [[`„${m.line}“`, PAPER_INK, false], [`Fundort: ${whereText(m.where)}`, PAPER_MUTED, true], [`Gefangen: ${d.album[m.id]}×`, PAPER_MUTED, true]]
-      : [[`Tipp: ${hintText(m)}`, PAPER_INK, false], [`Seltene ${ALBUM_ENTRIES} fliegen nur nach großen Gewinnen.`, PAPER_MUTED, false]];
+      : [[`Tipp: ${hintText(m)}`, PAPER_INK, false], [`Seltene ${ALBUM_ENTRIES} zeigen sich nur nach großen Gewinnen.`, PAPER_MUTED, false]];
     for (const [t, col, bold] of lines) {
       const tx = new Text({ text: t, style: { fontFamily: FONT_BODY, fontSize: small ? 14 : 18, fontWeight: bold ? '700' : '500', fontStyle: !bold && has ? 'italic' : 'normal', fill: col, wordWrap: true, wordWrapWidth: w, align: center ? 'center' : 'left', lineHeight: small ? 17 : 22 } });
       tx.anchor.set(center ? 0.5 : 0, 0);
@@ -793,18 +788,18 @@ export let albumDebug: { spawn(): string; fill(): string } | null = null;
 
 export class AlbumFeature {
   readonly view = new Container();
-  private flight: MothFlight;
+  private flight: LampFlight;
   private panel: AlbumPanel | null = null;
 
   constructor(
     private state: GameState,
     private host: AlbumHost,
   ) {
-    this.flight = new MothFlight(state, host);
+    this.flight = new LampFlight(state, host);
     this.view.addChild(this.flight.view);
     installAlbum(state, () => this.flight.flying);
-    // A moth after a win: a beat later, once the game's own celebration has started.
-    onMothFlight((m, mult) => setTimeout(() => this.flight.launch(m), mult >= 10 ? 1400 : 700));
+    // A lamp after a win: a beat later, once the game's own celebration has started.
+    onLampFlight((m, mult) => setTimeout(() => this.flight.launch(m), mult >= 10 ? 1400 : 700));
     this.hudKey();
     if (import.meta.env.DEV) (window as unknown as { __album: AlbumFeature }).__album = this;
     window.addEventListener('keydown', (e) => {
@@ -817,7 +812,7 @@ export class AlbumFeature {
       },
       fill: () => {
         const r = fillAlbum(state);
-        return `Album gefüllt: ${MOTHS.length} ${ALBUM_ENTRIES}.${r.stones ? ` +${r.stones} Mondsteine für volle Seiten.` : ''}${r.complete ? ' Trophäe in der Vitrine.' : ''}`;
+        return `Album gefüllt: ${LAMPS.length} ${ALBUM_ENTRIES}.${r.stones ? ` +${r.stones} Mondsteine für volle Seiten.` : ''}${r.complete ? ' Trophäe in der Vitrine.' : ''}`;
       },
     };
   }
@@ -829,7 +824,7 @@ export class AlbumFeature {
     b.type = 'button';
     b.className = 'hud-btn icon';
     b.innerHTML =
-      `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v10M12 9c-1.5-3-5-4.5-7.5-3.5-.8 2.7 1 5.6 4 6-2.4.6-3.6 2.8-2.7 4.8 2.2.4 4.6-1 6.2-3.3M12 9c1.5-3 5-4.5 7.5-3.5.8 2.7-1 5.6-4 6 2.4.6 3.6 2.8 2.7 4.8-2.2.4-4.6-1-6.2-3.3M10.5 5.5 12 8l1.5-2.5"/></svg><span class="lbl">${ALBUM_NAME}</span>`;
+      `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v2M9.5 4.5h5M8 7.5h8l-1 9H9zM9 16.5h6v2.5H9zM10.5 19v2h3v-2M12 10c-1.2 1.4-1.2 2.8 0 4 1.2-1.2 1.2-2.6 0-4z"/></svg><span class="lbl">${ALBUM_TITLE}</span>`;
     b.addEventListener('click', () => this.open());
     const menu = document.getElementById('hud-menu');
     const photo = document.getElementById('btn-photo');

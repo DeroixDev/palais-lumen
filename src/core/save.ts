@@ -2,6 +2,7 @@
 // can swap `storage` for real files without touching the rest of the game.
 
 import { BOSS_DAY, SAVE_VERSION, newSave, quotaFor, type SaveData } from './state';
+import { renameAlbum } from './albumRename';
 
 export type SlotId = 'auto' | 'slot1' | 'slot2' | 'slot3';
 export const MANUAL_SLOTS: SlotId[] = ['slot1', 'slot2', 'slot3'];
@@ -79,7 +80,9 @@ export function migrate(raw: unknown): SaveData | null {
     bag: d.bag && typeof d.bag === 'object' ? { ...d.bag } : {},
     active: Array.isArray(d.active) ? d.active : [],
     minibosses: Array.isArray(d.minibosses) ? d.minibosses : [],
-    album: d.album && typeof d.album === 'object' ? { ...d.album } : {},
+    // Version 9: the moth album became the Lampenbuch, with new IDs (see albumRename.ts).
+    // Renaming is safe on any save, so it also fixes codes and daily runs from before.
+    album: d.album && typeof d.album === 'object' ? renameAlbum(d.album) : {},
     storySeen: Array.isArray(d.storySeen) ? d.storySeen : [],
     dailySeed: typeof d.dailySeed === 'string' ? d.dailySeed : '',
     dailyBest: d.dailyBest && typeof d.dailyBest === 'object' ? { ...d.dailyBest } : {},

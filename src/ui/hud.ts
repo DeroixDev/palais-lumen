@@ -14,7 +14,7 @@ import { TABLET_TITLE, openTablet } from './tablet';
 import './fit.css';
 
 import { BOSS_FULL, BOSS_GEN, BOSS_NAME, CURRENCY_PLURAL, DOME, HOUSE } from '../core/brand';
-const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '🦋', camera: '📷' };
+const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '💡', camera: '📷' };
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 

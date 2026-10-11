@@ -1,18 +1,21 @@
-// Moth album: after a won round a moth may flutter across the screen; catch it and it is
-// pressed into the album. Bigger wins bring rarer moths, some only live on one floor, in a
-// side room, at one game, on an event night or on a mini boss day. A full page pays
-// Mondsteine once, the whole album a trophy. Catching never touches Lumen or any odds.
+// Das Lampenbuch: after a won round a little light may drift across the screen; catch it and
+// it goes into the book. Bigger wins bring rarer lamps, some only burn on one floor, in a side
+// room, at one game, on an event night or on a mini boss day. A full page pays Mondsteine
+// once, the whole book a trophy. Catching never touches Lumen or any odds.
+// Until save version 8 this was the moth album; ALBUM_RENAME (albumRename.ts) maps each old
+// entry to the lamp that took its place, same page, rarity and place.
 
 import { ACHIEVEMENTS } from './achievements';
 import { getGame, getRoom } from './registry';
 import { BOSS_DAY, type GameState, type RoundReport, type SaveData } from './state';
 import { eventById } from './events';
 
-import { ALBUM_ENTRY, ALBUM_NAME, DOME, FLOOR_NAMES } from './brand';
+import { ALBUM_ENTRY, ALBUM_NAME, BOSS_GEN, DOME, FLOOR_NAMES } from './brand';
+export { ALBUM_RENAME } from './albumRename';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
-/** Where a moth can be met. */
-export type MothWhere =
+/** Where a lamp can be met. */
+export type LampWhere =
   | { kind: 'floor'; floor: number }
   | { kind: 'room'; room: string }
   | { kind: 'game'; game: string }
@@ -20,35 +23,38 @@ export type MothWhere =
   | { kind: 'miniboss' }
   | { kind: 'anywhere' };
 
-/** Wing outline families (src/world/painted/mothArt.ts). */
-export type WingShape = 'classic' | 'round' | 'hawk' | 'tailed' | 'swallow' | 'broad';
-/** Pattern painted on the wings. */
-export type WingPattern = 'eyes' | 'bands' | 'veins' | 'dots' | 'tiger' | 'marble' | 'gears' | 'stars' | 'neon' | 'crown' | 'cards' | 'flame' | 'drops' | 'zigzag';
+/** Base bodies of the lamp kit (src/world/painted/lampArt.ts); `form` picks a variant. */
+export type LampBody = 'candle' | 'candelabra' | 'oil' | 'chimney' | 'lantern' | 'paper' | 'torch' | 'jar' | 'bulb' | 'globe' | 'tube' | 'lens' | 'shard' | 'pole' | 'chandelier' | 'star';
+/** Pattern on the wax, glass or paper (some bodies use it for what burns inside). */
+export type LampPattern = 'plain' | 'drips' | 'cells' | 'bands' | 'dots' | 'stars' | 'zigzag' | 'mesh' | 'gears' | 'rings' | 'rays' | 'crescent' | 'coins' | 'zero' | 'facets' | 'filament' | 'arc' | 'neon';
 
-export interface MothArt {
-  shape: WingShape;
-  pattern: WingPattern;
-  /** Forewing base and tip colours, hindwing colour, pattern colour, body colour. */
-  fore: number;
-  tip: number;
-  hind: number;
+export interface LampArt {
+  body: LampBody;
+  /** Variant of the body, e.g. lantern 'street' | 'storm' | 'davy' | 'bike'. */
+  form?: string;
+  pattern: LampPattern;
+  /** Frame or holder, glass (or wax, paper, clay), the light itself, the pattern. */
+  metal: number;
+  glass: number;
+  flame: number;
   mark: number;
-  body: number;
-  /** Feathered antennae (moths) or thin ones. */
-  feathered?: boolean;
   /** Soft light around it (rare ones). */
   glow?: number;
+  /** Candle count for candelabras. */
+  n?: number;
+  /** Candle height, 1 = tall. */
+  size?: number;
 }
 
-export interface MothSpecies {
+export interface LampSpecies {
   id: string;
   name: string;
-  /** One short line for the album page. */
+  /** One sentence of real lamp history for the book page. */
   line: string;
   rarity: Rarity;
   page: string;
-  where: MothWhere;
-  art: MothArt;
+  where: LampWhere;
+  art: LampArt;
 }
 
 export interface AlbumPage {
@@ -62,7 +68,7 @@ export interface AlbumPage {
 
 export const RARITY_NAME: Record<Rarity, string> = { common: 'Häufig', rare: 'Selten', epic: 'Episch', legendary: 'Legendär' };
 export const RARITY_COLOR: Record<Rarity, number> = { common: 0x9a8a6a, rare: 0x3f86c8, epic: 0x9a4ad0, legendary: 0xe0a830 };
-/** Smallest win multiple that can bring a moth of this rarity. */
+/** Smallest win multiple that can bring a lamp of this rarity. */
 export const RARITY_MIN_MULT: Record<Rarity, number> = { common: 1, rare: 4, epic: 10, legendary: 30 };
 const RARITY_WEIGHT: Record<Rarity, number> = { common: 10, rare: 5, epic: 3, legendary: 2 };
 
@@ -71,68 +77,72 @@ export const ALBUM_PAGES: AlbumPage[] = [
   { id: 'p2', title: FLOOR_NAMES.f2, color: 0x1f5a44, stones: 5 },
   { id: 'p3', title: FLOOR_NAMES.f3, color: 0x7a5420, stones: 6 },
   { id: 'p4', title: FLOOR_NAMES.f4, color: 0x26407a, stones: 7 },
-  { id: 'p5', title: `${DOME} & Mini-Bosse`, color: 0x4a2a6a, stones: 8 },
+  { id: 'p5', title: `${DOME} & Mini-Bosse`, color: 0x26305a, stones: 8 },
   { id: 'p6', title: 'Besondere Nächte', color: 0x1d4a5a, stones: 8 },
 ];
 
-const fl = (floor: number): MothWhere => ({ kind: 'floor', floor });
-const rm = (room: string): MothWhere => ({ kind: 'room', room });
-const gm = (game: string): MothWhere => ({ kind: 'game', game });
-const ev = (event: string): MothWhere => ({ kind: 'event', event });
+const fl = (floor: number): LampWhere => ({ kind: 'floor', floor });
+const rm = (room: string): LampWhere => ({ kind: 'room', room });
+const gm = (game: string): LampWhere => ({ kind: 'game', game });
+const ev = (event: string): LampWhere => ({ kind: 'event', event });
 
-export const MOTHS: MothSpecies[] = [
-  // ---- Kerzensaal (floor 1) ----
-  { id: 'kerzenmotte', name: 'Kerzenmotte', line: 'Tanzt um jede Flamme und versengt sich nie.', rarity: 'common', page: 'p1', where: fl(1), art: { shape: 'classic', pattern: 'flame', fore: 0xc89a5a, tip: 0x7a4a22, hind: 0xe8c47a, mark: 0xff9a3a, body: 0x5a3a1a, feathered: true } },
-  { id: 'samtfluegel', name: 'Samtflügel', line: 'Weich wie der Vorhang, hinter dem sie schläft.', rarity: 'common', page: 'p1', where: fl(1), art: { shape: 'round', pattern: 'veins', fore: 0x8a2a3e, tip: 0x4a0e1e, hind: 0xb8485a, mark: 0x2a0810, body: 0x3a1018, feathered: true } },
-  { id: 'dochtfalter', name: 'Dochtfalter', line: 'Riecht nach ausgeblasener Kerze und Bienenwachs.', rarity: 'common', page: 'p1', where: fl(1), art: { shape: 'classic', pattern: 'bands', fore: 0xd8cbb0, tip: 0x8a7a5a, hind: 0xeee2c8, mark: 0x3a2a1a, body: 0x4a3a2a } },
-  { id: 'rotrock', name: 'Roulette-Rotrock', line: 'Setzt immer auf Rot. Meistens zu Recht, sagt sie.', rarity: 'rare', page: 'p1', where: gm('roulette'), art: { shape: 'swallow', pattern: 'dots', fore: 0xc8243a, tip: 0x1b1b22, hind: 0xe84a5a, mark: 0x1b1b22, body: 0x1b1b22 } },
-  { id: 'hinterzimmer', name: 'Hinterzimmer-Schwärmer', line: 'Flüstert Zahlen, die niemand hören soll.', rarity: 'rare', page: 'p1', where: rm('f1b'), art: { shape: 'hawk', pattern: 'bands', fore: 0x4a3a30, tip: 0x1a1210, hind: 0xd8a040, mark: 0xe0b25a, body: 0x2a1e18 } },
-  { id: 'wachsgold', name: 'Goldene Wachsmotte', line: 'Ein Tropfen Kerzenwachs, der fliegen gelernt hat.', rarity: 'epic', page: 'p1', where: fl(1), art: { shape: 'broad', pattern: 'drops', fore: 0xf0c860, tip: 0xb07a20, hind: 0xffe49a, mark: 0xfff6d0, body: 0x8a5a14, feathered: true, glow: 0xffd070 } },
-  // ---- Mondgarten (floor 2) ----
-  { id: 'tauperle', name: 'Tauperlchen', line: 'Trägt jeden Morgen eine Perle Tau nach Hause.', rarity: 'common', page: 'p2', where: fl(2), art: { shape: 'round', pattern: 'drops', fore: 0x9ac8b8, tip: 0x4a8a7a, hind: 0xc8e8da, mark: 0xeafff8, body: 0x2a4a40 } },
-  { id: 'mondblatt', name: 'Mondblattspanner', line: 'Sieht aus wie ein Blatt, bis das Blatt wegfliegt.', rarity: 'common', page: 'p2', where: fl(2), art: { shape: 'swallow', pattern: 'veins', fore: 0x6a9a4a, tip: 0x3a5a22, hind: 0x8ab85a, mark: 0x2a4014, body: 0x3a4a22 } },
-  { id: 'nachtkerze', name: 'Nachtkerzen-Schwärmer', line: 'Wohnt im Gewächshaus und gießt heimlich die Blüten.', rarity: 'rare', page: 'p2', where: rm('f2b'), art: { shape: 'hawk', pattern: 'bands', fore: 0x6a8a3a, tip: 0x2a4a1a, hind: 0xf090b0, mark: 0xf8d0e0, body: 0x4a6a2a } },
-  { id: 'radschlaeger', name: 'Radschläger', line: 'Dreht sich so lange, bis das Rad stehen bleibt.', rarity: 'rare', page: 'p2', where: gm('wheel'), art: { shape: 'round', pattern: 'eyes', fore: 0x3a6ad0, tip: 0x1a2a6a, hind: 0x7aa8f0, mark: 0xffd25a, body: 0x1a2040 } },
-  { id: 'mondspiegel', name: 'Silberner Mondspiegel', line: 'In ihren Flügeln spiegelt sich der volle Mond.', rarity: 'epic', page: 'p2', where: fl(2), art: { shape: 'broad', pattern: 'eyes', fore: 0xc8d4e0, tip: 0x7a8aa0, hind: 0xe8eef4, mark: 0xffffff, body: 0x4a5060, feathered: true, glow: 0xcfe6ff } },
-  { id: 'brautschleier', name: 'Lunas Brautschleier', line: 'Die Gärtner sagen, sie blüht nur alle hundert Nächte.', rarity: 'legendary', page: 'p2', where: fl(2), art: { shape: 'tailed', pattern: 'eyes', fore: 0xa8e8b8, tip: 0x5aa86a, hind: 0xc8f4d0, mark: 0xffe08a, body: 0xf4f0e0, feathered: true, glow: 0xb8ffd0 } },
-  // ---- Uhrwerk (floor 3) ----
-  { id: 'zahnradeule', name: 'Zahnradeule', line: 'Tickt leise, wenn sie sich ausruht.', rarity: 'common', page: 'p3', where: fl(3), art: { shape: 'classic', pattern: 'gears', fore: 0x8a6a3a, tip: 0x4a3418, hind: 0xb8925a, mark: 0xe0b25a, body: 0x3a2a14, feathered: true } },
-  { id: 'messing', name: 'Messingspanner', line: 'Glänzt nur, wenn jemand sie poliert.', rarity: 'common', page: 'p3', where: fl(3), art: { shape: 'swallow', pattern: 'bands', fore: 0xd8a84a, tip: 0x8a5a14, hind: 0xe8c878, mark: 0x6a4210, body: 0x5a3a10 } },
-  { id: 'pendel', name: 'Pendelfalter', line: 'Fliegt nur hin und her, nie geradeaus.', rarity: 'rare', page: 'p3', where: rm('f3b'), art: { shape: 'tailed', pattern: 'zigzag', fore: 0x5a4a6a, tip: 0x2a1e3a, hind: 0x8a7a9a, mark: 0xe0b25a, body: 0x2a2030 } },
-  { id: 'teichlaeufer', name: 'Teichläufer', line: 'Wettet immer auf die langsamste Ente.', rarity: 'rare', page: 'p3', where: gm('derby'), art: { shape: 'hawk', pattern: 'dots', fore: 0x3a7a8a, tip: 0x1a3a44, hind: 0xf0a040, mark: 0xfff0c0, body: 0x1a3a40 } },
-  { id: 'drachenturm', name: 'Drachenturm-Spinner', line: 'Hat jede Stufe des Turms gezählt. Zweimal.', rarity: 'epic', page: 'p3', where: gm('tower'), art: { shape: 'broad', pattern: 'tiger', fore: 0xd85a2a, tip: 0x6a1a0a, hind: 0xffb040, mark: 0x2a0a04, body: 0x3a1408, glow: 0xff9040 } },
-  { id: 'unruh', name: 'Ewige Unruh', line: 'Ihr Herz schlägt im Takt der großen Turmuhr.', rarity: 'legendary', page: 'p3', where: fl(3), art: { shape: 'broad', pattern: 'gears', fore: 0xf0d080, tip: 0xa0701a, hind: 0xfff0b8, mark: 0x7a4a10, body: 0x5a3a10, feathered: true, glow: 0xffe090 } },
-  // ---- Club Neon (floor 4) ----
-  { id: 'neonbaer', name: 'Neonbär', line: 'Leuchtet im Schwarzlicht wie ein Plakat.', rarity: 'common', page: 'p4', where: fl(4), art: { shape: 'classic', pattern: 'tiger', fore: 0xf0ece0, tip: 0xc8c0b0, hind: 0xff4a9a, mark: 0x1b1b22, body: 0x1b1b22, feathered: true } },
-  { id: 'glanzmotte', name: 'Discokugel-Glanzmotte', line: 'Wirft tausend kleine Lichter auf die Tanzfläche.', rarity: 'common', page: 'p4', where: fl(4), art: { shape: 'round', pattern: 'stars', fore: 0x8a9ab0, tip: 0x4a5468, hind: 0xc0cce0, mark: 0xffffff, body: 0x2a3040 } },
-  { id: 'bass', name: 'Bass-Schwärmer', line: 'Spürt den Beat schon zwei Etagen tiefer.', rarity: 'rare', page: 'p4', where: rm('f4t'), art: { shape: 'hawk', pattern: 'neon', fore: 0x1a1a2a, tip: 0x0a0a14, hind: 0x2a2a4a, mark: 0x5fe3ff, body: 0x0a0a14 } },
-  { id: 'goldkette', name: 'Goldkettchen', line: 'Trägt mehr Schmuck als der DJ.', rarity: 'rare', page: 'p4', where: rm('f4h'), art: { shape: 'swallow', pattern: 'dots', fore: 0x2a1a3a, tip: 0x120a1a, hind: 0x6a2a8a, mark: 0xffd25a, body: 0x120a1a } },
-  { id: 'kartenzaehler', name: 'Kartenzähler', line: 'Merkt sich jede Karte. Sagt aber nichts.', rarity: 'epic', page: 'p4', where: gm('blackjack'), art: { shape: 'broad', pattern: 'cards', fore: 0x1f5a44, tip: 0x0b2a20, hind: 0x2f7a5a, mark: 0xfff6e6, body: 0x0b2a20, glow: 0x7bd4a0 } },
-  { id: 'lichtorgel', name: 'Lichtorgel-Atlas', line: 'Die größte Motte des Clubs, und die eitelste.', rarity: 'legendary', page: 'p4', where: fl(4), art: { shape: 'broad', pattern: 'neon', fore: 0xff5fa2, tip: 0x6a1a8a, hind: 0x5fe3ff, mark: 0xfff6ff, body: 0x2a0a3a, feathered: true, glow: 0xff8ad0 } },
-  // ---- Thron & Mini-Bosse (floor 5, mini boss days) ----
-  { id: 'thronwache', name: 'Thronwächter', line: 'Steht stramm vor dem Thron, auch im Schlaf.', rarity: 'common', page: 'p5', where: fl(5), art: { shape: 'classic', pattern: 'bands', fore: 0x5a2a6a, tip: 0x2a0e3a, hind: 0x8a4a9a, mark: 0xe0b25a, body: 0x1a0a22, feathered: true } },
-  { id: 'kronentraeger', name: 'Kronenträger', line: 'Trägt die Schleppe der Königin. Ganz allein.', rarity: 'rare', page: 'p5', where: fl(5), art: { shape: 'swallow', pattern: 'crown', fore: 0x7a3a8a, tip: 0x3a1048, hind: 0xb07ac0, mark: 0xffd25a, body: 0x2a0a30 } },
-  { id: 'uhrmacher', name: 'Liebling des Uhrmachers', line: 'Kommt nur, wenn ein Mini-Boss am Ende der Etage wartet.', rarity: 'rare', page: 'p5', where: { kind: 'miniboss' }, art: { shape: 'tailed', pattern: 'gears', fore: 0x4a5a6a, tip: 0x1a2430, hind: 0x7a8a9a, mark: 0xe0b25a, body: 0x1a2430 } },
-  { id: 'schatten', name: 'Schatten der Königin', line: 'Wo sie fliegt, wird es einen Moment lang still.', rarity: 'epic', page: 'p5', where: { kind: 'miniboss' }, art: { shape: 'broad', pattern: 'marble', fore: 0x2a1a30, tip: 0x0a040e, hind: 0x4a2a50, mark: 0x9a6ab0, body: 0x0a040e, feathered: true, glow: 0x9a6ad0 } },
-  { id: 'purpurmantel', name: 'Purpurmantel', line: 'Hat das Duell der Königin schon oft gesehen.', rarity: 'epic', page: 'p5', where: gm('queen'), art: { shape: 'tailed', pattern: 'eyes', fore: 0x8a1a5a, tip: 0x3a0828, hind: 0xc04a8a, mark: 0xffd25a, body: 0x2a0418, glow: 0xff70b0 } },
-  { id: 'prinzessin', name: 'Kleine Königin', line: 'Eines Tages wird sie den Thron erben.', rarity: 'legendary', page: 'p5', where: fl(5), art: { shape: 'broad', pattern: 'crown', fore: 0xe8d0f0, tip: 0x8a5aa8, hind: 0xfff0ff, mark: 0xffc840, body: 0x5a2a6a, feathered: true, glow: 0xf0c0ff } },
-  // ---- Besondere Nächte (events, anywhere) ----
-  { id: 'groschen', name: 'Groschenmotte', line: 'Sammelt jede kleine Münze, die jemand fallen lässt.', rarity: 'common', page: 'p6', where: ev('groschen'), art: { shape: 'round', pattern: 'dots', fore: 0xa87a3a, tip: 0x5a3a14, hind: 0xd0a860, mark: 0xffe49a, body: 0x4a2a10 } },
-  { id: 'kerzenschein', name: 'Kerzenschein-Eule', line: 'Liebt den Stromausfall. Endlich sieht man die Kerzen.', rarity: 'rare', page: 'p6', where: ev('stromausfall'), art: { shape: 'broad', pattern: 'eyes', fore: 0x6a4a2a, tip: 0x2a1a0a, hind: 0x9a7a4a, mark: 0xffb040, body: 0x2a1a0a, feathered: true } },
-  { id: 'schwarmfuehrerin', name: 'Schwarmführerin', line: 'Führt den großen Mottenschwarm durchs Haus.', rarity: 'rare', page: 'p6', where: ev('mottenschwarm'), art: { shape: 'swallow', pattern: 'zigzag', fore: 0xe0d8c0, tip: 0x8a7a5a, hind: 0xf4ecd8, mark: 0x5a3a2a, body: 0x3a2a1a } },
-  { id: 'galaschleppe', name: 'Galaschleppe', line: 'Kommt nur zum Galaabend, und nie ohne Schleppe.', rarity: 'epic', page: 'p6', where: ev('gala'), art: { shape: 'tailed', pattern: 'stars', fore: 0x1a1a3a, tip: 0x0a0a1a, hind: 0x2a2a5a, mark: 0xe0b25a, body: 0x0a0a1a, glow: 0xffe0a0 } },
-  { id: 'nullpunkt', name: 'Nullpunkt-Motte', line: 'Landet nur in der Null-Nacht, genau auf der Null.', rarity: 'epic', page: 'p6', where: ev('nullnacht'), art: { shape: 'round', pattern: 'eyes', fore: 0x1d8a5c, tip: 0x0b3a26, hind: 0x3aaa7a, mark: 0xfff6e6, body: 0x0b3a26, glow: 0x7bffb0 } },
-  { id: 'sternenstaub', name: 'Sternenstaub-Komet', line: 'Ein Wunsch mit Flügeln. Wer ihn fängt, darf staunen.', rarity: 'legendary', page: 'p6', where: { kind: 'anywhere' }, art: { shape: 'tailed', pattern: 'stars', fore: 0x2a3a8a, tip: 0x0a1040, hind: 0x5a7ad0, mark: 0xfff6c0, body: 0x0a1040, feathered: true, glow: 0xa0c0ff } },
+/** The 36 lamps, page by page, in the same slots as the moths they replaced. */
+export const LAMPS: LampSpecies[] = [
+  // ---- Page 1: candle and oil (floor 1) ----
+  { id: 'talglicht', name: 'Talglicht', line: 'Talglichter aus Rinderfett rußten und rochen streng; ihr Docht musste ständig mit der Lichtputzschere gekürzt werden.', rarity: 'common', page: 'p1', where: fl(1), art: { body: 'candle', size: 0.55, pattern: 'drips', metal: 0x8a8c94, glass: 0xeee2c0, flame: 0xffa84a, mark: 0xfff6e0 } },
+  { id: 'bienenwachs', name: 'Bienenwachskerze', line: 'Bienenwachs brennt heller und sauberer als Talg und war darum lange Kirchen und reichen Häusern vorbehalten.', rarity: 'common', page: 'p1', where: fl(1), art: { body: 'candle', size: 1.15, pattern: 'cells', metal: 0xc89a4a, glass: 0xe8b04a, flame: 0xffc45a, mark: 0x9a6410 } },
+  { id: 'oellaempchen', name: 'Öllämpchen', line: 'Schon in der Antike brannten kleine Tonlämpchen mit Olivenöl und einem Docht aus Leinen.', rarity: 'common', page: 'p1', where: fl(1), art: { body: 'oil', pattern: 'dots', metal: 0x8a4424, glass: 0xc0683a, flame: 0xffa040, mark: 0xf4d8a8 } },
+  { id: 'kandelaber', name: 'Kandelaber', line: 'Der Name kommt vom lateinischen „candela“, Kerze: Ein Kandelaber trägt mehrere Kerzen auf verzweigten Armen.', rarity: 'rare', page: 'p1', where: gm('roulette'), art: { body: 'candelabra', n: 3, pattern: 'bands', metal: 0xb8bcc8, glass: 0xc8243a, flame: 0xffb84a, mark: 0x5a5e6a } },
+  { id: 'argand', name: 'Argand-Lampe', line: 'Aimé Argand erfand um 1780 den hohlen Runddocht mit Glaszylinder, der die Flamme auch von innen mit Luft versorgt und viel heller brennen lässt.', rarity: 'rare', page: 'p1', where: rm('f1b'), art: { body: 'chimney', form: 'argand', pattern: 'bands', metal: 0xd8a848, glass: 0xdfe8e8, flame: 0xffd070, mark: 0x7a5418 } },
+  { id: 'kerzenleuchter', name: 'Goldener Kerzenleuchter', line: 'Prunkleuchter wurden früher feuervergoldet, mit Gold in Quecksilber, dessen Dämpfe viele Vergolder krank machten.', rarity: 'epic', page: 'p1', where: fl(1), art: { body: 'candelabra', n: 5, pattern: 'rays', metal: 0xf0c860, glass: 0xfff2d8, flame: 0xffc050, mark: 0xfff0b0, glow: 0xffd070 } },
+  // ---- Page 2: moon and garden (floor 2) ----
+  { id: 'gluehwuermchen', name: 'Glühwürmchenglas', line: 'Glühwürmchen leuchten kalt: In ihrem Hinterleib bringt das Enzym Luciferase den Stoff Luciferin mit Sauerstoff zum Leuchten.', rarity: 'common', page: 'p2', where: fl(2), art: { body: 'jar', pattern: 'dots', metal: 0x6a8a5a, glass: 0x9ad0b8, flame: 0xd8ff6a, mark: 0xeaff9a } },
+  { id: 'papierlaterne', name: 'Papierlaterne', line: 'Papierlaternen stammen aus China, wo zum Laternenfest am Ende der Neujahrszeit unzählige von ihnen leuchten.', rarity: 'common', page: 'p2', where: fl(2), art: { body: 'paper', pattern: 'plain', metal: 0x2a2226, glass: 0xd8483a, flame: 0xffc060, mark: 0xf0c040 } },
+  { id: 'gartenfackel', name: 'Gartenfackel', line: 'Eine klassische Fackel ist ein Holzstab, dessen umwickelter Kopf mit Pech, Harz oder Wachs getränkt wurde.', rarity: 'rare', page: 'p2', where: rm('f2b'), art: { body: 'torch', pattern: 'bands', metal: 0x8a5a30, glass: 0x5a4430, flame: 0xff9a3a, mark: 0x3a2412 } },
+  { id: 'radlaterne', name: 'Laterne am Rad', line: 'Fahrradlampen brannten zuerst mit Kerzen oder Öl, dann mit Karbidgas, bevor ein Dynamo am Rad den Strom lieferte.', rarity: 'rare', page: 'p2', where: gm('wheel'), art: { body: 'lantern', form: 'bike', pattern: 'rays', metal: 0x3a6ad0, glass: 0xfff0c0, flame: 0xffd25a, mark: 0xffffff } },
+  { id: 'mondglas', name: 'Mondglas', line: 'Mondglas wurde als Glasblase zu einer flachen Scheibe geschleudert; in der Mitte blieb der dicke Butzen zurück.', rarity: 'epic', page: 'p2', where: fl(2), art: { body: 'lens', form: 'disc', pattern: 'rings', metal: 0x9aa4b4, glass: 0xc8d8ec, flame: 0xe8f4ff, mark: 0xffffff, glow: 0xcfe6ff } },
+  { id: 'lunalampion', name: 'Lunas Lampion', line: 'Das Wort Lampion kam über das Französische aus dem italienischen „lampione“, einer großen Laterne.', rarity: 'legendary', page: 'p2', where: fl(2), art: { body: 'paper', form: 'long', pattern: 'crescent', metal: 0xd8b048, glass: 0x9ae0b0, flame: 0xfff0b0, mark: 0xfff4c0, glow: 0xb8ffd0 } },
+  // ---- Page 3: gas and works (floor 3) ----
+  { id: 'gaslaterne', name: 'Gaslaterne', line: 'Schon 1807 leuchteten in der Londoner Pall Mall die ersten Gaslaternen an einer Straße.', rarity: 'common', page: 'p3', where: fl(3), art: { body: 'lantern', form: 'street', pattern: 'plain', metal: 0x2f4a3a, glass: 0xfff0c8, flame: 0xffe6a0, mark: 0x1a2a20 } },
+  { id: 'petroleum', name: 'Petroleumlampe', line: 'Ab den 1850er-Jahren wurde Petroleum aus Erdöl gewonnen und machte helles Lampenlicht zum ersten Mal für fast alle bezahlbar.', rarity: 'common', page: 'p3', where: fl(3), art: { body: 'chimney', form: 'petroleum', pattern: 'bands', metal: 0xc89a4a, glass: 0x7ab89a, flame: 0xffb860, mark: 0xd8f0e0 } },
+  { id: 'gluehstrumpf', name: 'Glühstrumpf', line: 'Carl Auer von Welsbach erfand 1885 den Glühstrumpf, ein Gewebe aus Metalloxiden, das in der Gasflamme hell weiß glüht.', rarity: 'rare', page: 'p3', where: rm('f3b'), art: { body: 'globe', form: 'clear', pattern: 'mesh', metal: 0x8a6a3a, glass: 0xe8eee8, flame: 0xf4ffe0, mark: 0xb8b090 } },
+  { id: 'davy', name: 'Davy-Grubenlampe', line: 'Humphry Davy umgab 1815 die Flamme mit feinem Drahtgewebe, das die Hitze ableitet, sodass Grubengas draußen nicht explodiert.', rarity: 'rare', page: 'p3', where: gm('derby'), art: { body: 'lantern', form: 'davy', pattern: 'mesh', metal: 0xd8a84a, glass: 0xe8e8e0, flame: 0xffc060, mark: 0xe8d8a8 } },
+  { id: 'bogenlampe', name: 'Bogenlampe', line: 'In der Bogenlampe springt ein greller Lichtbogen zwischen zwei Kohlestiften über; ab 1878 erhellte sie die Boulevards von Paris.', rarity: 'epic', page: 'p3', where: gm('tower'), art: { body: 'globe', form: 'clear', pattern: 'arc', metal: 0x4a4a56, glass: 0xdce8ff, flame: 0xf0f8ff, mark: 0x2a2a30, glow: 0xc8dcff } },
+  { id: 'unruhlampe', name: 'Ewige Unruh-Lampe', line: 'In einer Feuerwache im kalifornischen Livermore brennt seit 1901 eine Glühbirne, fast ohne Pause.', rarity: 'legendary', page: 'p3', where: fl(3), art: { body: 'bulb', pattern: 'gears', metal: 0xd8b048, glass: 0xfff0b8, flame: 0xffc860, mark: 0xa0701a, glow: 0xffe090 } },
+  // ---- Page 4: current and neon (floor 4) ----
+  { id: 'edison', name: 'Edison-Birne', line: 'Edisons Glühbirnen bekamen ab 1880 Fäden aus verkohltem Bambus, die über tausend Stunden hielten.', rarity: 'common', page: 'p4', where: fl(4), art: { body: 'bulb', pattern: 'filament', metal: 0xb89048, glass: 0xffe0a0, flame: 0xffa040, mark: 0xff8a30 } },
+  { id: 'neonroehre', name: 'Neonröhre', line: 'Georges Claude zeigte 1910 in Paris die erste Neonröhre; reines Neon leuchtet rotorange, die anderen Farben kommen von anderen Gasen.', rarity: 'common', page: 'p4', where: fl(4), art: { body: 'tube', form: 'bent', pattern: 'zigzag', metal: 0x24202a, glass: 0xff5fa2, flame: 0xffe0f0, mark: 0xff5fa2 } },
+  { id: 'spiegelkugel', name: 'Spiegelkugel', line: 'Spiegelkugeln drehten sich schon in den 1920er-Jahren über Tanzsälen, lange bevor die Disco sie berühmt machte.', rarity: 'rare', page: 'p4', where: rm('f4t'), art: { body: 'globe', pattern: 'facets', metal: 0x8a9ab0, glass: 0xb8c4d8, flame: 0xffffff, mark: 0xffffff } },
+  { id: 'schwarzlicht', name: 'Schwarzlicht', line: 'Schwarzlicht ist fast unsichtbares UV-Licht; weiße Hemden und Leuchtfarben glühen darin, weil sie es in sichtbares Licht umwandeln.', rarity: 'rare', page: 'p4', where: rm('f4h'), art: { body: 'tube', form: 'bar', pattern: 'dots', metal: 0x1a1622, glass: 0x9a5aff, flame: 0xd8b0ff, mark: 0x7affd0 } },
+  { id: 'stroboskop', name: 'Stroboskop', line: 'Mit Stroboskop-Blitzen machte Harold Edgerton in den 1930er-Jahren fallende Milchtropfen und fliegende Kugeln sichtbar.', rarity: 'epic', page: 'p4', where: gm('blackjack'), art: { body: 'lens', form: 'strobe', pattern: 'rays', metal: 0x2a2a34, glass: 0xe8f0ff, flame: 0xf0f6ff, mark: 0xcfe0ff, glow: 0xe0ecff } },
+  { id: 'lichtorgel', name: 'Die große Lichtorgel', line: 'Eine Lichtorgel teilt die Musik in Bässe, Mitten und Höhen und lässt für jeden Bereich eine eigene Farbe aufleuchten.', rarity: 'legendary', page: 'p4', where: fl(4), art: { body: 'tube', form: 'organ', pattern: 'neon', metal: 0x3a1a4a, glass: 0xff4a6a, flame: 0x5fe3ff, mark: 0x8aff6a, glow: 0xff8ad0 } },
+  // ---- Page 5: the dome and the mini bosses (floor 5, mini boss days) ----
+  { id: 'fresnel', name: 'Leuchtturmlinse', line: 'Augustin Fresnel ersetzte 1822 die dicke Glaslinse durch Ringstufen; so wurde das Leuchtturmlicht leichter und reichte weiter aufs Meer.', rarity: 'common', page: 'p5', where: fl(5), art: { body: 'lens', form: 'fresnel', pattern: 'rings', metal: 0xc89a4a, glass: 0xc8dcf4, flame: 0xfff6d8, mark: 0xffffff } },
+  { id: 'signallampe', name: 'Signallampe', line: 'Mit der Signallampe morsen Schiffe Lichtzeichen: Klappen vor dem Glas öffnen und schließen sich wie eine Jalousie.', rarity: 'rare', page: 'p5', where: fl(5), art: { body: 'lens', form: 'signal', pattern: 'bands', metal: 0x4a5a6a, glass: 0xfff0c0, flame: 0xffe08a, mark: 0x2a3440 } },
+  { id: 'kristall', name: 'Kronleuchter-Kristall', line: 'Bleikristall bricht das Licht stärker als gewöhnliches Glas, darum funkeln die Prismen eines Kronleuchters in Regenbogenfarben.', rarity: 'rare', page: 'p5', where: { kind: 'miniboss' }, art: { body: 'shard', form: 'prism', pattern: 'plain', metal: 0xe0b25a, glass: 0xdce8ff, flame: 0xffffff, mark: 0xbcd0ff } },
+  { id: 'mondsplitter', name: 'Splitter der Mondlampe', line: 'Der Mond leuchtet nicht selbst: Er wirft nur gut ein Zehntel des Sonnenlichts zurück, etwa so viel wie alter Asphalt.', rarity: 'epic', page: 'p5', where: { kind: 'miniboss' }, art: { body: 'shard', form: 'jagged', pattern: 'crescent', metal: 0x8a9ab8, glass: 0xbcd0ff, flame: 0xf0f6ff, mark: 0xffffff, glow: 0x9ab4ff } },
+  { id: 'lampenstange', name: `${BOSS_GEN} Lampenstange`, line: 'Laternenanzünder trugen eine lange Stange mit Haken und kleiner Flamme, um jede Gaslaterne zu öffnen und zu entzünden.', rarity: 'epic', page: 'p5', where: gm('queen'), art: { body: 'pole', pattern: 'bands', metal: 0x26305a, glass: 0x26305a, flame: 0xffd27a, mark: 0xe0b25a, glow: 0xffc870 } },
+  { id: 'mondlampe', name: 'Die kleine Mondlampe', line: 'Selene ist in der griechischen Sage die Göttin des Mondes; der Chemiker Berzelius benannte 1817 das Element Selen nach ihr.', rarity: 'legendary', page: 'p5', where: fl(5), art: { body: 'globe', form: 'stand', pattern: 'crescent', metal: 0xd8b048, glass: 0xdfe6f4, flame: 0xfff6e0, mark: 0xd8a830, glow: 0xd8e6ff } },
+  // ---- Page 6: special nights (events, anywhere) ----
+  { id: 'groschenlampe', name: 'Groschenlämpchen', line: 'Um 1900 gab es Gasuhren mit Münzeinwurf: Wer einen Groschen einwarf, bekam Gas für ein paar Stunden Licht.', rarity: 'common', page: 'p6', where: ev('groschen'), art: { body: 'jar', form: 'candle', pattern: 'coins', metal: 0xa87a3a, glass: 0xe8d0a0, flame: 0xffb040, mark: 0xffd870 } },
+  { id: 'sturmlaterne', name: 'Sturmlaterne', line: 'Bei der Sturmlaterne strömt die Luft durch hohle Seitenrohre zur Flamme, darum geht sie auch bei starkem Wind nicht aus.', rarity: 'rare', page: 'p6', where: ev('stromausfall'), art: { body: 'lantern', form: 'storm', pattern: 'plain', metal: 0xc0302a, glass: 0xfff0d0, flame: 0xffb040, mark: 0x6a1a14 } },
+  { id: 'lichterfest', name: 'Lichterfest-Lampion', line: 'Zu Diwali, dem indischen Lichterfest, stellen Familien kleine Öllämpchen aus Ton auf, die Diyas heißen.', rarity: 'rare', page: 'p6', where: ev('mottenschwarm'), art: { body: 'paper', pattern: 'zigzag', metal: 0xd8a030, glass: 0xff9a30, flame: 0xffd070, mark: 0xc8243a } },
+  { id: 'galaluester', name: 'Galalüster', line: 'Lange brannten die Lüster im Theater die ganze Vorstellung über; erst Richard Wagner ließ 1876 in Bayreuth den Saal verdunkeln.', rarity: 'epic', page: 'p6', where: ev('gala'), art: { body: 'chandelier', pattern: 'plain', metal: 0xe0b25a, glass: 0xfff2d8, flame: 0xffc860, mark: 0xffffff, glow: 0xffe0a0 } },
+  { id: 'nulllicht', name: 'Nulllicht', line: 'Ein Lichtteilchen, das Photon, hat keine Ruhemasse: Auf der Waage zeigt es genau null.', rarity: 'epic', page: 'p6', where: ev('nullnacht'), art: { body: 'globe', form: 'clear', pattern: 'zero', metal: 0x0b3a26, glass: 0x3aaa7a, flame: 0x7bffb0, mark: 0xeafff0, glow: 0x7bffb0 } },
+  { id: 'sternschnuppe', name: 'Sternschnuppe', line: 'Die meisten Sternschnuppen sind nur sandkorngroße Staubteilchen, die in rund hundert Kilometern Höhe verglühen.', rarity: 'legendary', page: 'p6', where: { kind: 'anywhere' }, art: { body: 'star', pattern: 'stars', metal: 0x2a3a8a, glass: 0xfff6c0, flame: 0xffd870, mark: 0xa0c0ff, glow: 0xa0c0ff } },
 ];
 
-export const mothById = (id: string) => MOTHS.find((m) => m.id === id);
-export const mothsOnPage = (page: string) => MOTHS.filter((m) => m.page === page);
+/** Older name of LAMPS, kept for the debug panel. */
+export const MOTHS = LAMPS;
+
+export const lampById = (id: string) => LAMPS.find((m) => m.id === id);
+export const lampsOnPage = (page: string) => LAMPS.filter((m) => m.page === page);
 export const caught = (d: SaveData, id: string) => (d.album?.[id] ?? 0) > 0;
-export const caughtCount = (d: SaveData) => MOTHS.filter((m) => caught(d, m.id)).length;
-export const pageDone = (d: SaveData, page: string) => mothsOnPage(page).every((m) => caught(d, m.id));
+export const caughtCount = (d: SaveData) => LAMPS.filter((m) => caught(d, m.id)).length;
+export const pageDone = (d: SaveData, page: string) => lampsOnPage(page).every((m) => caught(d, m.id));
 const pageKey = (page: string) => `albumPage:${page}`;
 export const pageRewarded = (d: SaveData, page: string) => (d.counters[pageKey(page)] ?? 0) > 0;
-export const albumDone = (d: SaveData) => caughtCount(d) === MOTHS.length;
+export const albumDone = (d: SaveData) => caughtCount(d) === LAMPS.length;
 
 /** Day 3, 6, 9, 12: the last day on a floor, when its mini boss waits. */
 export const isMiniBossDay = (day: number) => day < BOSS_DAY && day % 3 === 0;
@@ -153,8 +163,8 @@ const roomName = (id: string) => {
 };
 const FLOOR_NAME = ['Foyer', FLOOR_NAMES.f1, FLOOR_NAMES.f2, FLOOR_NAMES.f3, FLOOR_NAMES.f4, FLOOR_NAMES.f5];
 
-/** "Etage 2 · Mondgarten" etc.: where to look for a moth. */
-export function whereText(w: MothWhere) {
+/** "Etage 2 · Mondgarten" etc.: where to look for a lamp. */
+export function whereText(w: LampWhere) {
   switch (w.kind) {
     case 'floor':
       return `Etage ${w.floor} · ${FLOOR_NAME[w.floor] ?? ''}`;
@@ -171,8 +181,8 @@ export function whereText(w: MothWhere) {
   }
 }
 
-/** Hint for a missing moth: where, and how big the win has to be. */
-export function hintText(m: MothSpecies) {
+/** Hint for a missing lamp: where, and how big the win has to be. */
+export function hintText(m: LampSpecies) {
   const k = RARITY_MIN_MULT[m.rarity];
   return k > 1 ? `${whereText(m.where)} · ab ${k}-fachem Gewinn` : `${whereText(m.where)} · bei Gewinnen`;
 }
@@ -200,7 +210,7 @@ export function spotOf(d: SaveData, game: string): Spot {
   return { room: d.roomId, floor, parent, game, event: d.event, day: d.evening.number };
 }
 
-function fits(m: MothSpecies, s: Spot) {
+function fits(m: LampSpecies, s: Spot) {
   const w = m.where;
   switch (w.kind) {
     case 'floor':
@@ -218,8 +228,8 @@ function fits(m: MothSpecies, s: Spot) {
   }
 }
 
-/** Chance that a moth shows up after a round won at this multiple of the stake. */
-export function mothChance(mult: number) {
+/** Chance that a lamp shows up after a round won at this multiple of the stake. */
+export function lampChance(mult: number) {
   if (!(mult > 1)) return 0;
   if (mult < 2) return 0.06;
   if (mult < 4) return 0.1;
@@ -229,12 +239,12 @@ export function mothChance(mult: number) {
   return 0.8;
 }
 
-/** Picks a moth for a win of `mult` at this spot (rarer tiers need bigger wins); null if none fits. */
-export function pickMoth(d: SaveData, mult: number, s: Spot, rnd = Math.random): MothSpecies | null {
-  const pool = MOTHS.filter((m) => mult >= RARITY_MIN_MULT[m.rarity] && fits(m, s));
+/** Picks a lamp for a win of `mult` at this spot (rarer tiers need bigger wins); null if none fits. */
+export function pickLamp(d: SaveData, mult: number, s: Spot, rnd = Math.random): LampSpecies | null {
+  const pool = LAMPS.filter((m) => mult >= RARITY_MIN_MULT[m.rarity] && fits(m, s));
   if (!pool.length) return null;
   // Missing ones come a bit more often, so the album keeps growing.
-  const wt = (m: MothSpecies) => RARITY_WEIGHT[m.rarity] * (caught(d, m.id) ? 1 : 2.5);
+  const wt = (m: LampSpecies) => RARITY_WEIGHT[m.rarity] * (caught(d, m.id) ? 1 : 2.5);
   let t = rnd() * pool.reduce((a, m) => a + wt(m), 0);
   for (const m of pool) if ((t -= wt(m)) <= 0) return m;
   return pool[pool.length - 1];
@@ -243,7 +253,7 @@ export function pickMoth(d: SaveData, mult: number, s: Spot, rnd = Math.random):
 // ---- Catching -------------------------------------------------------------------------------------
 
 export interface CatchNews {
-  moth: MothSpecies;
+  lamp: LampSpecies;
   fresh: boolean;
   /** Pages completed by this catch (rewards paid). */
   pages: AlbumPage[];
@@ -252,18 +262,19 @@ export interface CatchNews {
   complete: boolean;
 }
 
-/** Puts a caught moth into the album, pays page rewards once and the trophy for the whole album. */
-export function catchMoth(state: GameState, id: string): CatchNews | null {
+/** Puts a caught lamp into the book, pays page rewards once and the trophy for the whole album. */
+export function catchLamp(state: GameState, id: string): CatchNews | null {
   const d = state.data;
-  const m = mothById(id);
+  const m = lampById(id);
   if (!m) return null;
   if (!d.album) d.album = {};
   const fresh = !caught(d, id);
   d.album[id] = (d.album[id] ?? 0) + 1;
+  // Counter key from the moth days, kept so old saves keep their tally.
   d.counters.mothsCaught = (d.counters.mothsCaught ?? 0) + 1;
   const news = settleRewards(state);
   state.emit();
-  return { moth: m, fresh, ...news };
+  return { lamp: m, fresh, ...news };
 }
 
 /** Pays any page reward not paid yet, and the trophy for a full album. */
@@ -287,28 +298,28 @@ export function settleRewards(state: GameState) {
   return { pages, stones, complete };
 }
 
-/** Debug: one of every moth. */
+/** Debug: one of every lamp. */
 export function fillAlbum(state: GameState) {
   const d = state.data;
-  for (const m of MOTHS) d.album[m.id] = Math.max(1, d.album[m.id] ?? 0);
+  for (const m of LAMPS) d.album[m.id] = Math.max(1, d.album[m.id] ?? 0);
   return settleRewards(state);
 }
 
 // ---- Rounds ---------------------------------------------------------------------------------------
 
-/** A moth is about to fly (main wiring shows it). */
-type FlightListener = (m: MothSpecies, mult: number) => void;
+/** A lamp is about to drift across the screen (main wiring shows it). */
+type FlightListener = (m: LampSpecies, mult: number) => void;
 const listeners: FlightListener[] = [];
-export function onMothFlight(fn: FlightListener) {
+export function onLampFlight(fn: FlightListener) {
   listeners.push(fn);
 }
 
-/** Shortest gap between two moths, so they stay a little surprise. */
+/** Shortest gap between two lamps, so they stay a little surprise. */
 const COOLDOWN_MS = 15000;
 let lastFlight = -1e9;
 let installed = false;
 
-/** Listens to finished rounds and rolls for a moth. `busy` is true while one is in the air. */
+/** Listens to finished rounds and rolls for a lamp. `busy` is true while one is in the air. */
 export function installAlbum(state: GameState, busy: () => boolean) {
   if (installed) return;
   installed = true;
@@ -316,28 +327,29 @@ export function installAlbum(state: GameState, busy: () => boolean) {
     if (!(r.stake > 0) || !(r.win > r.stake) || busy()) return;
     const mult = r.win / r.stake;
     const now = performance.now();
-    // Huge wins skip the wait; a moth after a 50× win is part of the moment.
+    // Huge wins skip the wait; a lamp after a 50× win is part of the moment.
     if (now - lastFlight < COOLDOWN_MS && mult < 30) return;
-    if (Math.random() >= mothChance(mult)) return;
-    const m = pickMoth(state.data, mult, spotOf(state.data, r.game));
+    if (Math.random() >= lampChance(mult)) return;
+    const m = pickLamp(state.data, mult, spotOf(state.data, r.game));
     if (!m) return;
     lastFlight = now;
     for (const l of listeners) l(m, mult);
   });
 }
 
-/** Debug: a moth now, as if after a huge win where you stand (any moth if none fits). */
+/** Debug: a lamp now, as if after a huge win where you stand (any lamp if none fits). */
 export function debugFlight(state: GameState, game = '') {
   const s = spotOf(state.data, game);
-  const m = pickMoth(state.data, 100, s) ?? MOTHS[Math.floor(Math.random() * MOTHS.length)];
+  const m = pickLamp(state.data, 100, s) ?? LAMPS[Math.floor(Math.random() * LAMPS.length)];
   lastFlight = performance.now();
   for (const l of listeners) l(m, 100);
   return m;
 }
 
-// Achievements for the album (shown with the others at the wall in the foyer).
+// Achievements for the book (shown with the others at the wall in the foyer). The IDs and
+// the 'moth' icon key are from the moth days; saves store the IDs, the icon now shows a bulb.
 ACHIEVEMENTS.push(
   { id: 'mothFirst', name: 'Erstes Licht', desc: `Fang deine erste ${ALBUM_ENTRY} fürs Album.`, icon: 'moth', reward: 1, progress: (d) => [Math.min(1, caughtCount(d)), 1] },
   { id: 'mothPage', name: 'Volle Seite', desc: `Füll eine ganze Seite im ${ALBUM_NAME}.`, icon: 'moth', reward: 3, progress: (d) => [ALBUM_PAGES.some((p) => pageDone(d, p.id)) ? 1 : 0, 1] },
-  { id: 'mothAll', name: 'Lampenkundler', desc: `Füll das ganze ${ALBUM_NAME}.`, icon: 'crown', reward: 10, progress: (d) => [caughtCount(d), MOTHS.length] },
+  { id: 'mothAll', name: 'Lampenkundler', desc: `Füll das ganze ${ALBUM_NAME}.`, icon: 'crown', reward: 10, progress: (d) => [caughtCount(d), LAMPS.length] },
 );

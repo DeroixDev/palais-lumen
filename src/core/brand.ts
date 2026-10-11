@@ -107,10 +107,12 @@ export const EVENT_FESTIVAL = 'Lichterfest';
 export const CHARM_BOSS = 'Kuppel-Bann';
 
 /**
- * The collection book. Still the moth album until its own migration (new art and save IDs);
- * these three words are all the UI needs to switch over.
+ * The collection book: 36 lamps from the history of light. ALBUM_NAME is the plain noun for
+ * running text ("im Lampenbuch", "das ganze Lampenbuch"); ALBUM_TITLE is the title with its
+ * article for plaques, the HUD key and the lectern.
  */
-export const ALBUM_NAME = 'Motten-Album';
-/** One entry ("eine Motte"), feminine like the planned "Leuchte". */
-export const ALBUM_ENTRY = 'Motte';
-export const ALBUM_ENTRIES = 'Motten';
+export const ALBUM_NAME = 'Lampenbuch';
+export const ALBUM_TITLE = 'Das Lampenbuch';
+/** One entry ("eine Leuchte"), feminine. */
+export const ALBUM_ENTRY = 'Leuchte';
+export const ALBUM_ENTRIES = 'Leuchten';

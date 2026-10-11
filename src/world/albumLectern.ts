@@ -1,14 +1,14 @@
-// The moth album on its lectern in the foyer, between the reception and the piano: a carved
-// wooden reading stand with the open album on it. Walk up and use it to open the album.
+// The Lampenbuch on its lectern in the foyer, between the reception and the piano: a carved
+// wooden reading stand with the open book on it. Walk up and use it to open the book.
 
 import type { Container } from 'pixi.js';
 import type { RoomDefinition } from '../core/registry';
-import { MOTHS } from '../core/album';
-import { drawSpecies } from './painted/mothArt';
+import { LAMPS } from '../core/album';
+import { drawSpecies } from './painted/lampArt';
 import { GOLD, INK, dark, fillInk, glowAt, gold, light, propSprite, rgb, shadow } from './painted/brush';
 import type { Rect } from './decor';
 
-import { ALBUM_NAME } from '../core/brand';
+import { ALBUM_TITLE } from '../core/brand';
 export interface LecternHost {
   entities: Container;
   obstacles: Rect[];
@@ -81,12 +81,12 @@ function lecternSprite(x: number, y: number) {
       pg.addColorStop(1, '#e2cea0');
       fillInk(c, pg, 1.2);
     }
-    // Pinned moths on the pages.
-    const show = [MOTHS[0], MOTHS[11], MOTHS[23], MOTHS[3]];
-    drawSpecies(c, show[1], -17, -82, 18);
-    drawSpecies(c, show[2], 17, -84, 16);
-    drawSpecies(c, show[0], -14, -72, 11);
-    drawSpecies(c, show[3], 18, -73, 11);
+    // Little lamp pictures on the pages.
+    const show = [LAMPS[0], LAMPS[7], LAMPS[18], LAMPS[29]];
+    drawSpecies(c, show[1], -18, -83, 14);
+    drawSpecies(c, show[2], 16, -84, 13);
+    drawSpecies(c, show[0], -11, -73, 10);
+    drawSpecies(c, show[3], 22, -74, 10);
     // Spine shadow and a ribbon bookmark.
     c.strokeStyle = 'rgba(90,60,30,0.5)';
     c.lineWidth = 1.5;
@@ -132,5 +132,5 @@ export function albumLectern(def: RoomDefinition, host: LecternHost) {
   s.zIndex = AT.y;
   host.entities.addChild(s);
   host.obstacles.push({ x: AT.x - 30, y: AT.y - 12, w: 60, h: 18 });
-  host.interactables.push({ kind: 'extra', id: 'album', x: AT.x, y: AT.y + 40, title: ALBUM_NAME } as { kind: string; x: number; y: number });
+  host.interactables.push({ kind: 'extra', id: 'album', x: AT.x, y: AT.y + 40, title: ALBUM_TITLE } as { kind: string; x: number; y: number });
 }
