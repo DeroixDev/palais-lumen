@@ -478,18 +478,31 @@ export function paintedElevator(ex: number, floors: number) {
   c.position.set(ex, 0);
   const cabin = new Sprite(
     paint(DW * 2, WH - top, (ctx) => {
+      // Night-blue lacquer with a gilded fan over a moon-silver mirror (as in the cabin view).
       const g = ctx.createLinearGradient(0, 0, 0, WH - top);
-      g.addColorStop(0, '#ffdca0');
-      g.addColorStop(0.3, '#8a4e26');
-      g.addColorStop(1, '#2a140a');
+      g.addColorStop(0, '#ffe2b0');
+      g.addColorStop(0.22, '#2a3a74');
+      g.addColorStop(1, '#0a1030');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, DW * 2, WH - top);
       for (let x = 6; x < DW * 2; x += 15) {
-        ctx.fillStyle = 'rgba(0,0,0,0.18)';
-        ctx.fillRect(x, 14, 1.5, WH - top - 30);
+        ctx.fillStyle = 'rgba(224,178,90,0.22)';
+        ctx.fillRect(x, 14, 1, WH - top - 30);
+      }
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI + ((k + 0.5) / 9) * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(DW, 12);
+        ctx.lineTo(DW + Math.cos(a) * 26, 12 + Math.sin(a) * 26 + 20);
+        ctx.strokeStyle = 'rgba(240,200,110,0.55)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
       }
       rrect(ctx, DW - 15, 12, 30, 40, 13);
-      ctx.fillStyle = '#9ab8d0';
+      const mg = ctx.createLinearGradient(DW - 15, 12, DW + 15, 52);
+      mg.addColorStop(0, '#eef3ff');
+      mg.addColorStop(1, '#8a9cc8');
+      ctx.fillStyle = mg;
       ctx.fill();
       ctx.strokeStyle = gold(ctx, DW - 15, 12, DW + 15, 52);
       ctx.lineWidth = 2.5;
@@ -510,26 +523,39 @@ export function paintedElevator(ex: number, floors: number) {
         g.addColorStop(1, side < 0 ? '#9a6824' : '#f0cc84');
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, DW, WH - top);
-        rrect(ctx, 5, 5, DW - 10, WH - top - 10, 3);
-        ctx.strokeStyle = 'rgba(80,46,10,0.8)';
+        // A night-blue lacquer panel in the brass leaf, with a gilded half-fan rising from the seam.
+        rrect(ctx, 6, 6, DW - 12, WH - top - 18, 3);
+        const lg = ctx.createLinearGradient(0, 6, 0, WH - top - 12);
+        lg.addColorStop(0, '#22306a');
+        lg.addColorStop(1, '#0c1434');
+        ctx.fillStyle = lg;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(80,46,10,0.9)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        // Sunburst etched from the seam.
-        const sx = side < 0 ? DW : 0;
-        for (let k = 0; k < 8; k++) {
-          const ang = (k / 7) * (Math.PI / 2) * 0.92 + 0.06;
+        const sx = side < 0 ? DW - 6 : 6;
+        const sy = WH - top - 18;
+        ctx.save();
+        rrect(ctx, 6, 6, DW - 12, WH - top - 18, 3);
+        ctx.clip();
+        for (let k = 0; k < 7; k++) {
+          const ang = ((k + 0.5) / 7) * (Math.PI / 2);
+          const len = k % 2 ? 44 : 60;
           ctx.beginPath();
-          ctx.moveTo(sx, 42);
-          ctx.lineTo(sx - side * Math.sin(ang) * 46, 42 - Math.cos(ang) * 40);
-          ctx.strokeStyle = 'rgba(90,52,12,0.6)';
-          ctx.lineWidth = 1.2;
-          ctx.stroke();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + side * Math.sin(ang - 0.05) * len, sy - Math.cos(ang - 0.05) * len);
+          ctx.lineTo(sx + side * Math.sin(ang + 0.05) * len, sy - Math.cos(ang + 0.05) * len);
+          ctx.closePath();
+          ctx.fillStyle = k % 2 ? 'rgba(240,200,110,0.55)' : 'rgba(250,214,130,0.85)';
+          ctx.fill();
         }
         ctx.beginPath();
-        ctx.arc(sx, 42, 10, side < 0 ? Math.PI : 1.5 * Math.PI, side < 0 ? 1.5 * Math.PI : 2 * Math.PI);
-        ctx.strokeStyle = 'rgba(90,52,12,0.8)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.arc(sx, sy, 12, side < 0 ? Math.PI : 1.5 * Math.PI, side < 0 ? 1.5 * Math.PI : 2 * Math.PI);
+        ctx.lineTo(sx, sy);
+        ctx.closePath();
+        ctx.fillStyle = '#f0c868';
+        ctx.fill();
+        ctx.restore();
         ctx.fillStyle = 'rgba(255,255,255,0.22)';
         ctx.fillRect(side < 0 ? 3 : DW - 6, 4, 3, WH - top - 8);
         ctx.fillStyle = 'rgba(80,46,10,0.8)';

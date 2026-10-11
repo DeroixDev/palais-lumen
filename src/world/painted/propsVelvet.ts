@@ -33,7 +33,7 @@ function wood(t: RoomTheme) {
   switch (t.style) {
     case 'clockwork': return 0x6a3a1c;
     case 'crystal': return 0x2c4868;
-    case 'throne': return 0x3a1634;
+    case 'throne': return 0x1e2448;
     case 'garden': return 0x4a3a28;
     default: return 0x5a2414;
   }
@@ -44,7 +44,7 @@ function marble(t: RoomTheme) {
   switch (t.style) {
     case 'velvet': return 0x6a2238;
     case 'clockwork': return 0x5a3a2a;
-    case 'throne': return 0x3a1a4a;
+    case 'throne': return 0x26305e;
     case 'crystal': return 0x9ab8d8;
     case 'garden': return 0xb8c0c8;
     default: return light(t.wall, 0.3);
@@ -56,7 +56,7 @@ function counterTop(t: RoomTheme) {
   switch (t.style) {
     case 'crystal': return 0xbfe6ff;
     case 'clockwork': return 0x8a5a32;
-    case 'throne': return 0x2a1238;
+    case 'throne': return 0x141c40;
     default: return 0x2a141c;
   }
 }
@@ -178,38 +178,31 @@ function cocktail(c: Ctx, x: number, y: number, kind: number, col: number) {
   }
 }
 
-/** A painted moth, wings spread, centred at (0, 0); used for the statue and emblems. */
-function mothShape(c: Ctx, s: number, fill: (c: Ctx) => string | CanvasGradient, lw = 1.6) {
-  for (const k of [-1, 1]) {
-    // Upper wing.
+/**
+ * The house's little art-deco sunburst in metal, centred at (0, 0) and about as wide as the old
+ * crest was (60·s): a half fan of rays over a base bar, a bright pearl in its heart.
+ */
+function sunShape(c: Ctx, s: number, fill: (c: Ctx) => string | CanvasGradient, lw = 1.6) {
+  const by = 8 * s;
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI + ((i + 0.5) / 9) * Math.PI;
+    const len = (i % 2 ? 20 : 27) * s;
     c.beginPath();
-    c.moveTo(0, -2 * s);
-    c.bezierCurveTo(k * 10 * s, -22 * s, k * 30 * s, -20 * s, k * 28 * s, -6 * s);
-    c.bezierCurveTo(k * 26 * s, 2 * s, k * 10 * s, 4 * s, 0, 2 * s);
+    c.moveTo(Math.cos(a - 0.1) * 7 * s, by + Math.sin(a - 0.1) * 7 * s);
+    c.lineTo(Math.cos(a) * len, by + Math.sin(a) * len);
+    c.lineTo(Math.cos(a + 0.1) * 7 * s, by + Math.sin(a + 0.1) * 7 * s);
+    c.closePath();
     fillInk(c, fill(c), lw);
-    // Lower wing.
-    c.beginPath();
-    c.moveTo(0, 2 * s);
-    c.bezierCurveTo(k * 14 * s, 2 * s, k * 22 * s, 12 * s, k * 14 * s, 20 * s);
-    c.bezierCurveTo(k * 8 * s, 24 * s, k * 2 * s, 14 * s, 0, 8 * s);
-    fillInk(c, fill(c), lw);
-    // Eye spot.
-    ellipse(c, k * 17 * s, -8 * s, 4 * s, 3.4 * s);
-    c.fillStyle = 'rgba(40,20,10,0.35)';
-    c.fill();
-    ellipse(c, k * 17 * s, -8 * s, 1.8 * s, 1.6 * s);
-    c.fillStyle = 'rgba(255,250,230,0.6)';
-    c.fill();
-    // Antenna.
-    c.beginPath();
-    c.moveTo(k * 1.5 * s, -9 * s);
-    c.quadraticCurveTo(k * 6 * s, -20 * s, k * 10 * s, -20 * s);
-    c.strokeStyle = INK;
-    c.lineWidth = 1.4;
-    c.stroke();
   }
-  ellipse(c, 0, 2 * s, 3.2 * s, 11 * s);
+  c.beginPath();
+  c.arc(0, by, 9 * s, Math.PI, 0);
+  c.closePath();
   fillInk(c, fill(c), lw);
+  rrect(c, -24 * s, by, 48 * s, 4 * s, 2 * s);
+  fillInk(c, fill(c), lw);
+  ellipse(c, 0, by - 3.5 * s, 2.6 * s, 2.6 * s);
+  c.fillStyle = 'rgba(255,250,230,0.85)';
+  c.fill();
 }
 
 // ---- The pieces ---------------------------------------------------------------------------------
@@ -342,10 +335,10 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
             c.strokeStyle = metal(c, t, px, 0, px + pw, 0);
             c.lineWidth = 1.6;
             c.stroke();
-            // Small moth emblem in each panel.
+            // Small sunburst in each panel.
             c.save();
             c.translate(px + pw / 2, by - H + 26);
-            mothShape(c, 0.28, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
+            sunShape(c, 0.28, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
             c.restore();
           }
           grain(c, -bw / 2, by - H, bw, H, Math.round(bw / 6), 7, 0.05);
@@ -532,7 +525,7 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
       return parts;
     }
 
-    // ---- Sideboard with a vase, a lamp and a little moth box --------------------------------
+    // ---- Sideboard with a vase, a lamp and a little jewel box --------------------------------
     case 'cabinet': {
       const cw = w || 110;
       const ch = h || 40;
@@ -628,14 +621,14 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
             c.fillStyle = '#c9902e';
             c.fill();
           }
-          // Moth jewellery box in the middle.
+          // Jewellery box with a sunburst lid in the middle.
           rrect(c, -13, topY + D * 0.4 - 6, 26, 12, 3);
           fillInk(c, vgrad(c, topY + D * 0.4 - 6, topY + D * 0.4 + 6, 0x1b1013, 0.3, 0.2), 1.4);
           rrect(c, -14, topY + D * 0.4 - 10, 28, 6, 3);
           fillInk(c, metal(c, t, -14, 0, 14, 0), 1.2);
           c.save();
           c.translate(0, topY + D * 0.4 - 16);
-          mothShape(c, 0.26, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
+          sunShape(c, 0.26, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
           c.restore();
           // Table lamp.
           const ly = topY + D * 0.6;
@@ -739,7 +732,7 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
             c.fillRect(-len / 2 - 4, top - 2, len + 8, 2.4);
             c.save();
             c.translate(0, top - 14);
-            mothShape(c, 0.36, (cc) => metal(cc, t, -10, -8, 10, 8), 1);
+            sunShape(c, 0.36, (cc) => metal(cc, t, -10, -8, 10, 8), 1);
             c.restore();
             rrect(c, -len / 2, top, len, H, 5);
             rim(c, 0.3, 1.4);
@@ -914,7 +907,7 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
       return [ent(v, [box(x, y, 52, 52)], y + 28)];
     }
 
-    // ---- Moth statue on a plinth --------------------------------------------------------------
+    // ---- Light-bearer statue on a plinth: a glass globe in a sunburst on a fluted shaft ----------
     case 'statue': {
       const v = new Container();
       const golden = t.style === 'throne' || t.style === 'velvet';
@@ -943,10 +936,10 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
           c.strokeStyle = metal(c, t, -18, 0, 18, 0);
           c.lineWidth = 1.6;
           c.stroke();
-          // Little moth plaque.
+          // Little sunburst plaque.
           c.save();
           c.translate(0, -10);
-          mothShape(c, 0.26, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
+          sunShape(c, 0.26, (cc) => metal(cc, t, -8, -6, 8, 6), 0.8);
           c.restore();
           if (t.style === 'garden') {
             // Moss creeping up the stone.
@@ -961,27 +954,48 @@ export function buildPaintedVelvet(d: DecorPlacement, t: RoomTheme): BuiltDecor[
           tg.addColorStop(0, rgb(light(stone, 0.4)));
           tg.addColorStop(1, rgb(stone));
           fillInk(c, tg, 2);
-          // Orb and the moth on top.
+          // A fluted shaft, the fan of rays and the glass globe that crowns it.
           ellipse(c, 0, -32, 14, 4.5);
           c.fillStyle = 'rgba(10,4,16,0.3)';
           c.fill();
-          c.beginPath();
-          c.arc(0, -42, 10, 0, Math.PI * 2);
-          fillInk(c, matGrad(c, -10, -52, 10, -32), 1.8);
+          rrect(c, -9, -60, 18, 26, 3);
+          fillInk(c, matGrad(c, -9, -60, 9, -34), 1.6);
+          for (const fx of [-4.5, 0, 4.5]) {
+            c.beginPath();
+            c.moveTo(fx, -57);
+            c.lineTo(fx, -37);
+            c.strokeStyle = golden ? 'rgba(90,50,10,0.45)' : 'rgba(60,70,90,0.4)';
+            c.lineWidth = 1;
+            c.stroke();
+          }
+          rrect(c, -13, -64, 26, 6, 2);
+          fillInk(c, matGrad(c, -13, -64, 13, -58), 1.4);
           c.save();
           c.translate(0, -74);
-          c.rotate(-0.04);
-          mothShape(c, 1.25, (cc) => matGrad(cc, -34, -26, 34, 26), 2);
-          // Wing veins.
-          c.strokeStyle = golden ? 'rgba(90,50,10,0.45)' : 'rgba(60,70,90,0.4)';
-          c.lineWidth = 1;
-          for (const k of [-1, 1])
-            for (const a of [-0.9, -0.5, -0.1]) {
-              c.beginPath();
-              c.moveTo(k * 3, -2);
-              c.lineTo(k * 3 + k * Math.cos(a) * 30, -2 + Math.sin(a) * 18);
-              c.stroke();
-            }
+          for (let i = 0; i < 11; i++) {
+            const a = Math.PI + ((i + 0.5) / 11) * Math.PI;
+            const len = i % 2 ? 30 : 40;
+            c.beginPath();
+            c.moveTo(Math.cos(a - 0.07) * 12, 8 + Math.sin(a - 0.07) * 12);
+            c.lineTo(Math.cos(a) * len, 8 + Math.sin(a) * len);
+            c.lineTo(Math.cos(a + 0.07) * 12, 8 + Math.sin(a + 0.07) * 12);
+            c.closePath();
+            fillInk(c, matGrad(c, -40, -32, 40, 8), 1.4);
+          }
+          c.beginPath();
+          c.ellipse(0, 8, 22, 5, 0, 0, Math.PI * 2);
+          fillInk(c, matGrad(c, -22, 3, 22, 13), 1.6);
+          // The globe: warm glass with a bright heart.
+          glowAt(c, 0, -6, 26, 26, 0xffe2a0, 0.45, 'lighter');
+          ellipse(c, 0, -5, 12, 12);
+          const gg = c.createRadialGradient(-4, -9, 1, 0, -5, 12);
+          gg.addColorStop(0, '#ffffff');
+          gg.addColorStop(0.45, '#fff0c8');
+          gg.addColorStop(1, '#e0a050');
+          fillInk(c, gg, 1.6);
+          ellipse(c, -4, -9, 3, 2.2);
+          c.fillStyle = 'rgba(255,255,255,0.8)';
+          c.fill();
           c.restore();
           glowAt(c, -14, -90, 26, 20, 0xfff4dc, 0.28, 'lighter');
         }),

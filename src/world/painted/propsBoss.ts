@@ -1,6 +1,6 @@
 // The four mini bosses in the painted chibi look (src/core/miniboss.ts): the Samtgräfin in her
 // velvet gown, the Gärtner der Nacht with moonflowers and shears, the Uhrmacher with his giant
-// pocket watch, DJ Stroboskop with moth wings behind his deck. Each is painted once (plus a
+// pocket watch, DJ Stroboskop with two fans of strobe light behind his deck. Each is painted once (plus a
 // "beaten" face) and cached; also a round portrait for the HUD plate and the boss trophies.
 
 import { Texture } from 'pixi.js';
@@ -315,7 +315,7 @@ function gaertner(c: Ctx, beaten: boolean) {
     ellipse(c, s * 12, -3, 10, 5);
     fillInk(c, '#2a1a12', 2);
   }
-  // Lantern with a moth at his side.
+  // A firefly lantern at his side.
   c.beginPath();
   c.moveTo(-34, -66);
   c.lineTo(-38, -52);
@@ -510,29 +510,25 @@ function uhrmacher(c: Ctx, beaten: boolean) {
 
 function falterbeat(c: Ctx, beaten: boolean) {
   aura(c, 0xff5fd8);
-  // Big moth wings behind.
+  // Two fans of strobe light behind him, magenta and cyan rays from his shoulders.
   for (const s of [-1, 1]) {
     c.save();
-    c.scale(s, 1);
-    c.beginPath();
-    c.moveTo(8, -118);
-    c.quadraticCurveTo(70, -170, 78, -118);
-    c.quadraticCurveTo(80, -92, 30, -94);
-    c.quadraticCurveTo(66, -80, 54, -56);
-    c.quadraticCurveTo(30, -50, 10, -88);
-    c.closePath();
-    const wg = c.createLinearGradient(0, -170, 60, -50);
-    wg.addColorStop(0, '#ffb8f4');
-    wg.addColorStop(0.45, '#9a3ac8');
-    wg.addColorStop(1, '#2a0a4a');
-    fillInk(c, wg, 2.4);
-    for (const [x, y, r] of [[48, -124, 10], [44, -70, 7]] as const) {
-      ellipse(c, x, y, r, r);
-      c.fillStyle = beaten ? 'rgba(120,90,140,0.7)' : '#5fe3ff';
-      c.fill();
-      ellipse(c, x, y, r * 0.45, r * 0.45);
-      c.fillStyle = '#1a0628';
-      c.fill();
+    c.translate(s * 14, -100);
+    for (let k = 0; k < 6; k++) {
+      const a = -Math.PI / 2 + s * (0.2 + (k / 5) * 1.25);
+      const len = k % 2 ? 58 : 76;
+      c.beginPath();
+      c.moveTo(Math.cos(a - 0.09) * 10, Math.sin(a - 0.09) * 10);
+      c.lineTo(Math.cos(a - 0.05) * len, Math.sin(a - 0.05) * len);
+      c.lineTo(Math.cos(a + 0.05) * len, Math.sin(a + 0.05) * len);
+      c.lineTo(Math.cos(a + 0.09) * 10, Math.sin(a + 0.09) * 10);
+      c.closePath();
+      const col = k % 2 ? 0x5fe3ff : 0xff5fd8;
+      const rg = c.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+      rg.addColorStop(0, rgb(light(col, 0.6), beaten ? 0.35 : 0.95));
+      rg.addColorStop(1, rgb(col, beaten ? 0.2 : 0.75));
+      fillInk(c, rg, 1.8);
+      if (!beaten) glowAt(c, Math.cos(a) * len, Math.sin(a) * len, 8, 8, col, 0.6, 'lighter');
     }
     c.restore();
   }
@@ -566,7 +562,7 @@ function falterbeat(c: Ctx, beaten: boolean) {
     c.fillStyle = s < 0 ? '#ff5fa2' : '#5fe3ff';
     c.fill();
   }
-  // Neon strips and the moth logo on the deck.
+  // Neon strips and his name on the deck.
   for (const [y, col] of [[-62, 0xff4fd8], [-10, 0x5fe3ff]] as const) {
     glowAt(c, 0, y, 60, 6, col, beaten ? 0.15 : 0.55, 'lighter');
     c.fillStyle = rgb(col, beaten ? 0.4 : 0.95);
@@ -578,17 +574,18 @@ function falterbeat(c: Ctx, beaten: boolean) {
   c.fillStyle = beaten ? 'rgba(255,220,255,0.4)' : '#ffd6ff';
   c.fillText('DJ', 0, -38);
   c.fillText('STROBO', 0, -24);
-  // Head: fluffy hair, antennae, headphones, sunglasses.
+  // Head: fluffy hair, a light-up headband, headphones, sunglasses.
   const hy = -HEAD_Y + 2;
   for (const s of [-1, 1]) {
     c.beginPath();
-    c.moveTo(s * 8, hy - 22);
-    c.quadraticCurveTo(s * 16, hy - 50, s * 30, hy - 52);
+    c.moveTo(s * 10, hy - 24);
+    c.lineTo(s * 16, hy - 42);
     c.strokeStyle = INK;
     c.lineWidth = 2.4;
     c.stroke();
-    ellipse(c, s * 30, hy - 52, 5, 5);
-    fillInk(c, '#ffd6ff', 1.6);
+    if (!beaten) glowAt(c, s * 16, hy - 46, 10, 10, s < 0 ? 0xff5fd8 : 0x5fe3ff, 0.6, 'lighter');
+    ellipse(c, s * 16, hy - 46, 5, 5.6);
+    fillInk(c, s < 0 ? '#ffd6ff' : '#d6faff', 1.6);
   }
   face(c, 0, hy, 26, 0xd8a888, beaten ? 'beaten' : 'shades', beaten ? 'o' : 'grin');
   c.beginPath();
@@ -744,14 +741,16 @@ export function bossTrophyArt(c: Ctx, n: number, metal: (x0: number, y0: number,
     c.fillStyle = rgb(gem);
     c.fill();
   } else {
-    // DJ: a record with moth wings.
-    for (const s of [-1, 1]) {
+    // DJ: a record in a fan of light rays.
+    for (let k = 0; k < 9; k++) {
+      const a = Math.PI + ((k + 0.5) / 9) * Math.PI;
+      const len = k % 2 ? 42 : 52;
       c.beginPath();
-      c.moveTo(0, -80);
-      c.quadraticCurveTo(s * 50, -128, s * 46, -84);
-      c.quadraticCurveTo(s * 44, -58, 0, -72);
+      c.moveTo(Math.cos(a - 0.1) * 20, -78 + Math.sin(a - 0.1) * 20);
+      c.lineTo(Math.cos(a) * len, -78 + Math.sin(a) * len);
+      c.lineTo(Math.cos(a + 0.1) * 20, -78 + Math.sin(a + 0.1) * 20);
       c.closePath();
-      fillInk(c, metal(-50, -128, 50, -58), 2);
+      fillInk(c, metal(-52, -130, 52, -78), 1.8);
     }
     rrect(c, -4, -50, 8, 26, 3);
     fillInk(c, metal(-4, -50, 4, -24), 1.6);

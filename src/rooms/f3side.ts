@@ -2,8 +2,9 @@ import type { RoomDefinition } from '../core/registry';
 
 import { FLOOR_NAMES } from '../core/brand';
 /**
- * Floor 3 side room: the Räderkammer under the Uhrwerk, down the stairs. The heart of the
- * clockwork turns in the floor; the Uhrwerk-Derby and two Uhrturm machines stay here every
+ * Floor 3 side room: the Räderkammer under the Laternenwerk, down the stairs. The heart of the
+ * clockwork turns in the floor, the gas main runs under the ceiling and a shelf of gas mantles
+ * (Glühstrümpfe) stands under the clock; the Uhrwerk-Derby and two Uhrturm machines stay here every
  * day, and once a day a lucky coin sticks in the great brass gear (src/core/curios.ts).
  */
 export const f3side: RoomDefinition = {
@@ -44,7 +45,9 @@ export const f3side: RoomDefinition = {
     { kind: 'pipes', x: 736, y: 520, w: 260, r: 1 },
     { kind: 'clockTower', x: 470, y: 280 },
     { kind: 'workbench', x: 330, y: 660, w: 130 },
-    { kind: 'floorLamp', x: 700, y: 660 },
+    { kind: 'gasLantern', x: 700, y: 660 },
+    { kind: 'mantleShelf', x: 532, y: 424, w: 92, h: 84 },
+    { kind: 'gasPipe', x: 380, y: 0, w: 712 },
     { kind: 'chandelier', x: 380, y: 690, w: 40 },
     { kind: 'gauge', x: 80, y: 0 },
     { kind: 'wallClock', x: 160, y: 0, w: 40 },

@@ -1204,7 +1204,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
         c.strokeStyle = gold(c, L, 0, R, B);
         c.lineWidth = 2;
         c.stroke();
-        // Moth emblem with a little crown.
+        // The house crest (sunburst and crescent) under a little star.
         const my = H * 0.4;
         glowAt(c, 0, my, bw * 0.45, bw * 0.45, 0xffcf7a, 0.25, 'lighter');
         c.save();
@@ -1213,15 +1213,17 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
         c.restore();
         c.beginPath();
         const cs = bw / 50;
-        c.moveTo(-7 * cs, my - 16 * cs);
-        c.lineTo(-8 * cs, my - 25 * cs);
-        c.lineTo(-3.5 * cs, my - 20 * cs);
-        c.lineTo(0, my - 27 * cs);
-        c.lineTo(3.5 * cs, my - 20 * cs);
-        c.lineTo(8 * cs, my - 25 * cs);
-        c.lineTo(7 * cs, my - 16 * cs);
+        const sy = my - 22 * cs;
+        c.moveTo(0, sy - 7 * cs);
+        c.lineTo(1.8 * cs, sy - 1.8 * cs);
+        c.lineTo(7 * cs, sy);
+        c.lineTo(1.8 * cs, sy + 1.8 * cs);
+        c.lineTo(0, sy + 7 * cs);
+        c.lineTo(-1.8 * cs, sy + 1.8 * cs);
+        c.lineTo(-7 * cs, sy);
+        c.lineTo(-1.8 * cs, sy - 1.8 * cs);
         c.closePath();
-        fillInk(c, gold(c, -8, my - 27, 8, my - 16), 1.1);
+        fillInk(c, gold(c, -7, sy - 7, 7, sy + 7), 1.1);
         // Fringe and tassels at the points.
         for (let k = 0; k <= 8; k++) {
           const tt = k / 8;
@@ -1405,7 +1407,7 @@ export function buildPaintedCrystal(d: DecorPlacement, t: RoomTheme): BuiltDecor
             c.fillStyle = rnd() < 0.5 ? 'rgba(40,10,6,0.8)' : 'rgba(255,200,90,0.8)';
             c.fill();
           }
-          // Gold moth on the bowl's front.
+          // The house crest on the bowl's front.
           c.save();
           c.translate(0, BY + 8);
           crestEmblem(c, 14, '#ff8a3a');

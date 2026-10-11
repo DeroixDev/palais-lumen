@@ -421,7 +421,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.roundRect(L + 3, T + 6, cw, ch, 6).fill({ color: 0x000000, alpha: 0.4 });
       g.roundRect(L, T, cw, ch, 6).fill(0x4a2a18).stroke({ color: COLORS.brassDark, width: 2 });
       g.rect(L + 4, T + 4, cw - 8, 4).fill({ color: 0xffffff, alpha: 0.1 });
-      // Things on top: a vase with flowers, a lamp, a small moth figurine.
+      // Things on top: a vase with flowers, a lamp, a small brass figurine.
       g.circle(L + 20, T + ch / 2, 8).fill(0x2f6fd6).stroke({ color: 0xfff6e6, width: 1.5 });
       for (let i = 0; i < 5; i++) g.circle(L + 20 + Math.cos(i * 1.26) * 7, T + ch / 2 + Math.sin(i * 1.26) * 7, 3).fill([0xff9ac0, 0xffe7a8, 0xfff6e6][i % 3]);
       g.circle(L + cw - 22, T + ch / 2, 9).fill(0xfff1c4).stroke({ color: COLORS.brass, width: 2 });
@@ -611,14 +611,14 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.roundRect(x - 12, y - 30, 24, 24, 6).fill(0x2a2a30).stroke({ color: COLORS.brass, width: 2 });
       g.roundRect(x - 8, y - 26, 16, 16, 4).fill(0xffe7a8);
       const gl = glow(c, x, y - 18, 200, COLORS.lamp, 0.45);
-      const moths: Sprite[] = [];
+      const flies: Sprite[] = [];
       for (let i = 0; i < 3; i++) {
         const m = new Sprite(emblemTexture());
         m.anchor.set(0.5);
         m.width = m.height = 12;
         m.tint = 0xfff1c4;
         c.addChild(m);
-        moths.push(m);
+        flies.push(m);
       }
       const ph = rnd() * 10;
       const base = 12 / 64;
@@ -627,11 +627,13 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         const kk = kick.step(dt);
         const spread = 1 + Math.sin(kk * Math.PI) * 3.5;
         gl.alpha = 0.4 + Math.sin(time * 4 + ph) * 0.05 + kk * 0.2;
-        moths.forEach((m, i) => {
-          const a = time * (1.2 + i * 0.4) * (1 + kk * 2) + i * 2 + ph;
+        // Fireflies drifting and blinking round the lantern.
+        flies.forEach((m, i) => {
+          const a = time * (0.35 + i * 0.12) * (1 + kk * 3) + i * 2 + ph;
           m.position.set(x + Math.cos(a) * (18 + i * 6) * spread, y - 22 + Math.sin(a * 1.3) * 12 * spread);
-          m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(time * 22 + i)));
-          m.scale.y = base;
+          const blink = Math.max(0, Math.sin(time * (1.3 + i * 0.3) + i * 2));
+          m.alpha = 0.25 + blink * 0.75;
+          m.scale.set(base * (0.8 + blink * 0.3));
         });
       });
       lp.poke = kick.poke;
@@ -676,7 +678,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.rect(x - bw / 2 + 3, y - 20, bw, 46).fill({ color: 0x000000, alpha: 0.35 });
       g.rect(x - bw / 2, y - 24, bw, 46).fill(0x5a3a22).stroke({ color: 0x2a1a10, width: 2 });
       g.rect(x - bw / 2, y - 24, bw, 6).fill(0x7a4e2c);
-      // Tools and a half-built moth automaton.
+      // Tools and a half-built lantern.
       g.rect(x - bw / 2 + 10, y - 12, 26, 5).fill(0x8a8a90);
       g.rect(x - bw / 2 + 32, y - 14, 8, 9).fill(0x6b3a1e);
       g.circle(x + 10, y, 11).stroke({ color: COLORS.brass, width: 3 });
@@ -807,25 +809,25 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       g.circle(x + 30, y - 38, 7).fill(COLORS.brass);
       const queen = new Container();
       const halo = glow(queen, 0, 0, 360, 0xc9a0ff, 0.45);
-      const wingsL = new Sprite(emblemTexture());
-      wingsL.anchor.set(0.5);
-      wingsL.width = wingsL.height = 170;
-      wingsL.tint = 0xe0b25a;
+      // Selene's light: a big glowing mote that breathes.
+      const fan = new Sprite(emblemTexture());
+      fan.anchor.set(0.5);
+      fan.width = fan.height = 170;
+      fan.tint = 0xe0b25a;
       const crown = new Graphics();
       crown.poly([-14, -46, -10, -60, -4, -50, 0, -64, 4, -50, 10, -60, 14, -46]).fill(COLORS.lamp).stroke({ color: OUTLINE, width: 1.5 });
       for (const cx of [-8, 0, 8]) crown.circle(cx, -48, 2).fill(0xff5fa2);
-      queen.addChild(wingsL, crown);
+      queen.addChild(fan, crown);
       queen.position.set(x, y - 90);
       c.addChild(queen);
       const base = 170 / 64;
       let hit = 0;
       const built: BuiltDecor = ent([{ x: x - W2 / 2, y: y - 60, w: W2, h: 120 }], y + 60, (time, dt) => {
         hit = Math.max(0, hit - dt / 500);
-        wingsL.scale.x = base * (0.75 + 0.25 * Math.abs(Math.cos(time * 1.6)));
-        wingsL.scale.y = base;
+        fan.scale.set(base * (0.92 + 0.08 * Math.sin(time * 1.6)));
         queen.y = y - 90 + Math.sin(time * 1.2) * 6;
         queen.x = x + (hit > 0 ? Math.sin(time * 60) * 6 * hit : 0);
-        wingsL.tint = hit > 0.3 ? 0xffffff : 0xe0b25a;
+        fan.tint = hit > 0.3 ? 0xffffff : 0xe0b25a;
         halo.alpha = 0.4 + Math.sin(time * 2) * 0.08 + hit * 0.4;
       });
       (c as Container & { hit?: () => void }).hit = () => (hit = 1);
@@ -910,7 +912,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         g.circle(L + iw * 0.7, IT + ih * 0.3, ih * 0.15).fill(0xfff1c4);
         g.rect(L + iw * 0.66, IT + ih * 0.62, iw * 0.08, ih * 0.3).fill({ color: 0xfff1c4, alpha: 0.4 });
       } else if (scene === 1) {
-        // Portrait of a moth noble.
+        // Portrait of a lady with a lamp.
         g.rect(L, IT, iw, ih).fill(0x3a1a2a);
         g.circle(x, IT + ih * 0.45, ih * 0.28).fill(0xe0b25a);
         g.ellipse(x, IT + ih * 0.95, iw * 0.3, ih * 0.3).fill(0x6b1a2e);
@@ -1308,15 +1310,15 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       c.addChild(mat);
       g.circle(x, wy + 14, r + 4).stroke({ color: COLORS.brass, width: 4 });
       g.circle(x, wy + 14, r).fill({ color: 0x9ab8d0, alpha: 0.12 });
-      const wings = new Graphics();
+      const spokes = new Graphics();
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2;
-        wings.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: 0xbfe6ff, width: 5, alpha: 0.55 });
-        wings.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: COLORS.brass, width: 1.5 });
+        spokes.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: 0xbfe6ff, width: 5, alpha: 0.55 });
+        spokes.moveTo(0, 0).lineTo(Math.cos(a) * r, Math.sin(a) * r).stroke({ color: COLORS.brass, width: 1.5 });
       }
-      wings.circle(0, 0, 7).fill(COLORS.brass);
-      wings.position.set(x, wy + 14);
-      c.addChild(wings);
+      spokes.circle(0, 0, 7).fill(COLORS.brass);
+      spokes.position.set(x, wy + 14);
+      c.addChild(spokes);
       g.rect(x - r - 30, wy - 2, 12, 34).fill(COLORS.brass);
       g.rect(x + r + 18, wy - 2, 12, 34).fill(COLORS.brass);
       glow(c, x, wy - 10, 260, COLORS.lamp, 0.18);
@@ -1326,7 +1328,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
         layer: 'entities',
         obstacles: [],
         z: wy + 60,
-        update: (time, dt) => (wings.rotation += dt * (0.0003 + kick.step(dt) * 0.004)),
+        update: (time, dt) => (spokes.rotation += dt * (0.0003 + kick.step(dt) * 0.004)),
         poke: kick.poke,
       };
     }

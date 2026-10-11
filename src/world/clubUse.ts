@@ -21,7 +21,7 @@ export const CLUB_USE_TITLE: Partial<Record<DecorKind, string>> = {
 
 const TRACKS = ['„Funkenflug (Extended Mix)“', '„Neonnacht“', '„Licht im Stroboskop“', '„Mondstein Bounce“', '„4 Uhr früh“'];
 const DRINKS = ['Neon-Limo mit Gurke', 'Blue Lagoon ohne Alkohol', 'Ginger-Fizz', 'Mate-Spritz', 'Beeren-Slush in Pink'];
-const SNEAKERS = ['„Mondläufer“ in Neon-Lila, limitiert auf 99 Paar.', `Weiße „${CURRENCY} Low“ – keine einzige Falte. Respekt.`, 'Goldene High-Tops mit Flügel-Logo.', '„Nachtschicht“-Runner mit leuchtender Sohle.'];
+const SNEAKERS = ['„Mondläufer“ in Neon-Lila, limitiert auf 99 Paar.', `Weiße „${CURRENCY} Low“ – keine einzige Falte. Respekt.`, 'Goldene High-Tops mit Sonnenstrahl-Logo.', '„Nachtschicht“-Runner mit leuchtender Sohle.'];
 const LIGHTS = ['Pink & Türkis', 'Feuer', 'Aurora', 'Weißgold'];
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];

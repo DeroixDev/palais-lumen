@@ -88,11 +88,15 @@ function slotCabinet(options: Record<string, unknown>): PaintedStation {
     x.fillStyle = rgb(dark(th.body, 0.55));
     x.fill();
     glowAt(x, 0, -122, 30, 12, th.neon, 0.9, 'lighter');
-    // Moth emblem in the marquee.
-    for (const s of [-1, 1]) {
-      ellipse(x, s * 6, -123, 6, 4);
-      x.fillStyle = rgb(light(th.neon, 0.5));
-      x.fill();
+    // A little sunburst in the marquee.
+    for (let k = 0; k < 7; k++) {
+      const a = Math.PI + ((k + 0.5) / 7) * Math.PI;
+      x.beginPath();
+      x.moveTo(Math.cos(a) * 2, -119 + Math.sin(a) * 2);
+      x.lineTo(Math.cos(a) * (k % 2 ? 6 : 9), -119 + Math.sin(a) * (k % 2 ? 6 : 9));
+      x.strokeStyle = rgb(light(th.neon, 0.5));
+      x.lineWidth = 1.6;
+      x.stroke();
     }
     // Screen with three reels.
     rrect(x, -21, -96, 42, 34, 5);
@@ -302,7 +306,7 @@ function plinkoCabinet(): PaintedStation {
       x.fillStyle = col;
       x.fillRect(-21 + i * 6, -52, 5, 6);
     });
-    // A falling moth ball.
+    // A falling spark.
     ellipse(x, 3, -84, 2.6, 2.6);
     x.fillStyle = '#ffffff';
     x.fill();
@@ -387,12 +391,16 @@ function crashTable(): PaintedStation {
     rrect(x, -4, -18, 8, 26, 3);
     fillInk(x, gold(x, -4, -18, 4, 8), 1.4);
     x.restore();
-    // A moth flying the curve.
-    for (const s of [-1, 1]) {
-      ellipse(x, 10 + s * 3.5, -4, 3.5, 2.4);
-      x.fillStyle = '#fff1c4';
-      x.fill();
-    }
+    // A sky lantern rising along the curve.
+    glowAt(x, 10, -5, 7, 7, 0xffc070, 0.7, 'lighter');
+    x.beginPath();
+    x.moveTo(6, -10);
+    x.lineTo(14, -10);
+    x.lineTo(12.5, 0);
+    x.lineTo(7.5, 0);
+    x.closePath();
+    x.fillStyle = '#ffe2a8';
+    x.fill();
   });
   c.addChild(sp);
   const lamp = new Container();

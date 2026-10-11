@@ -89,7 +89,8 @@ export class RoomScene {
   private obstacles: Rect[] = [];
   private interactables: Interactable[] = [];
   private stationLamps: { g: Container; phase: number }[] = [];
-  private lampMoths: { c: Container; wings: Sprite; base: number; cx: number; cy: number; r: number; ph: number; sp: number }[] = [];
+  /** Little lights drifting round the lamps (the house's old moths, now motes of light). */
+  private lampMotes: { c: Container; glow: Sprite; core: Sprite; cx: number; cy: number; r: number; ph: number; sp: number; size: number }[] = [];
   private animated: NonNullable<BuiltDecor['update']>[] = [];
   private spots: Spot[] = [];
   private guests: Guests | null = null;
@@ -109,7 +110,7 @@ export class RoomScene {
   private shelf: Container | null = null;
   private achWall: { c: Container; w: number } | null = null;
   private entrance: BuiltDecor | null = null;
-  private companion: { c: Container; wings: Sprite; base: number; vx: number; vy: number } | null = null;
+  private companion: { c: Container; glow: Sprite; core: Sprite; vx: number; vy: number } | null = null;
   private useCooldown = 0;
   private shelfSize = { w: 300, h: 44 };
   private sign!: Container;
@@ -285,17 +286,17 @@ export class RoomScene {
     // Floor dial above the doors.
     const dy = top - 22;
     g.circle(0, dy, 30).fill(COLORS.brassDark);
-    g.moveTo(-28, dy).arc(0, dy, 28, Math.PI, 0).closePath().fill(0x1b1013);
+    g.moveTo(-28, dy).arc(0, dy, 28, Math.PI, 0).closePath().fill(0x0c1026);
     g.moveTo(-26, dy).arc(0, dy, 26, Math.PI, 0).stroke({ color: COLORS.brass, width: 1.5 });
     for (let f = 0; f <= 5; f++) {
       const a = Math.PI + ((f + 0.5) / 6) * Math.PI;
-      g.circle(Math.cos(a) * 20, dy + Math.sin(a) * 20, f === 5 ? 3 : 2.2).fill(f === 5 ? 0xc9a0ff : 0xfff1c4);
+      g.circle(Math.cos(a) * 20, dy + Math.sin(a) * 20, f === 5 ? 3 : 2.2).fill(f === 5 ? 0xdfe8ff : 0xfff1c4);
     }
     g.rect(-30, dy, 60, 4).fill(COLORS.brass);
-    // Cabin behind the doors: warm light, wood panels, a mirror at the back.
-    g.rect(-DOOR_W, top, DOOR_W * 2, WALL_H - top).fill(0x2a1a10);
-    g.rect(-DOOR_W + 8, top + 6, DOOR_W * 2 - 16, WALL_H - top - 24).fill(0x4a2a18);
-    g.roundRect(-16, top + 14, 32, 44, 12).fill(0x9ab8d0).stroke({ color: COLORS.brass, width: 2 });
+    // Cabin behind the doors: warm light, night-blue lacquer, a moon-silver mirror at the back.
+    g.rect(-DOOR_W, top, DOOR_W * 2, WALL_H - top).fill(0x0c1434);
+    g.rect(-DOOR_W + 8, top + 6, DOOR_W * 2 - 16, WALL_H - top - 24).fill(0x1c2a5e);
+    g.roundRect(-16, top + 14, 32, 44, 12).fill(0xdfe8ff).stroke({ color: COLORS.brass, width: 2 });
     g.rect(-DOOR_W, WALL_H - 14, DOOR_W * 2, 14).fill(shade(t.carpet, -0.2));
     c.addChild(g);
     const inner = new Sprite(glowTexture());
@@ -381,7 +382,7 @@ export class RoomScene {
       if (wallPiece !== undefined) {
         const w = d.w && d.w > 2 ? d.w : wallPiece;
         add(d.x - w / 2 - 26, d.x + w / 2 + 26);
-      } else if (d.y < WALL_H + 110 && !['rug', 'runner', 'path', 'mosaic', 'gearInlay', 'chandelier'].includes(d.kind)) {
+      } else if (d.y < WALL_H + 110 && !['rug', 'runner', 'path', 'mosaic', 'gearInlay', 'chandelier', 'gasPipe', 'domeFloor'].includes(d.kind)) {
         const w = d.w && d.w > 2 ? d.w : 60;
         add(d.x - w / 2 - 20, d.x + w / 2 + 20);
       }
@@ -712,7 +713,7 @@ export class RoomScene {
     this.buildCompanion();
   }
 
-  /** A pet moth from the shop that flutters after the player. */
+  /** A companion light from the shop (Laternchen, Mondglas, Goldfunke) that floats after the player. */
   private buildCompanion() {
     const kind = this.state.look.companion;
     if (kind === 'none') return;
@@ -724,14 +725,14 @@ export class RoomScene {
     gl.tint = col;
     gl.alpha = 0.55;
     gl.blendMode = 'add';
-    const wings = new Sprite(emblemTexture());
-    wings.anchor.set(0.5);
-    wings.width = wings.height = 22;
-    wings.tint = col;
-    c.addChild(gl, wings);
+    const core = new Sprite(emblemTexture());
+    core.anchor.set(0.5);
+    core.width = core.height = 20;
+    core.tint = col;
+    c.addChild(gl, core);
     c.position.set(this.player.view.x + 30, this.player.view.y - 30);
     this.lights.addChild(c);
-    this.companion = { c, wings, base: 22 / wings.texture.width, vx: 0, vy: 0 };
+    this.companion = { c, glow: gl, core, vx: 0, vy: 0 };
   }
 
   private updateCompanion(dt: number) {
@@ -745,8 +746,12 @@ export class RoomScene {
     m.vy += (ty - m.c.y) * dt * 6 - m.vy * dt * 3;
     m.c.x += m.vx * dt;
     m.c.y += m.vy * dt;
-    m.c.rotation = Math.atan2(m.vy, m.vx) * 0.25;
-    m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 20)));
+    // A light floats, it doesn't flap: a slow bob and a gentle breathing glow.
+    m.core.y = Math.sin(this.time * 2.2) * 3;
+    m.glow.y = m.core.y;
+    const pulse = 0.5 + 0.5 * Math.sin(this.time * 2.6);
+    m.core.width = m.core.height = 19 + pulse * 3;
+    m.glow.alpha = 0.4 + pulse * 0.25;
     m.c.alpha = pv.alpha;
   }
 
@@ -816,6 +821,8 @@ export class RoomScene {
     for (const d of this.def.decor) {
       if (d.kind === 'chandelier') spots.push({ x: d.x, y: d.y, r: (d.w ?? 46) * 4.2, col: 0xffd49a, a: 0.5 });
       else if (d.kind === 'floorLamp') spots.push({ x: d.x, y: d.y, r: 120, col: 0xffc880, a: 0.45 });
+      else if (d.kind === 'gasLantern' && !d.r) spots.push({ x: d.x, y: d.y, r: 130, col: 0xfff0c8, a: 0.4 });
+      else if (d.kind === 'candelabrum') spots.push({ x: d.x, y: d.y, r: 130, col: 0xffc070, a: 0.45 });
       else if (d.kind === 'painting') spots.push({ x: d.x, y: 40, r: 70, col: 0xffe2a8, a: 0.3 });
       else if (d.kind === 'jukebox' || d.kind === 'fountain') spots.push({ x: d.x, y: d.y, r: 110, col: d.kind === 'jukebox' ? 0xff7ab8 : 0x7ad8ff, a: 0.3 });
     }
@@ -823,7 +830,7 @@ export class RoomScene {
     return spots;
   }
 
-  /** Painted room: breathing light under each chandelier, dust in the light, moths around the crystal. */
+  /** Painted room: breathing light under each chandelier, dust in the light, motes of light round the crystal. */
   private buildPaintedLights() {
     const motes: { s: Sprite; x: number; y: number; vx: number; vy: number; ph: number; box: { x: number; y: number; r: number } }[] = [];
     for (const d of this.def.decor) {
@@ -863,14 +870,14 @@ export class RoomScene {
           glow.tint = 0xffe2a8;
           glow.alpha = 0.35;
           glow.blendMode = 'add';
-          const wings = new Sprite(emblemTexture());
-          wings.anchor.set(0.5);
-          wings.width = wings.height = 12;
-          wings.tint = 0xfff1c4;
-          wings.alpha = 0.8;
-          c.addChild(glow, wings);
+          const core = new Sprite(emblemTexture());
+          core.anchor.set(0.5);
+          core.width = core.height = 9;
+          core.tint = 0xfff1c4;
+          core.alpha = 0.8;
+          c.addChild(glow, core);
           this.lights.addChild(c);
-          this.lampMoths.push({ c, wings, base: 12 / wings.texture.width, cx: d.x, cy: d.y - lift, r: 26 + Math.random() * 30, ph: Math.random() * 10, sp: 0.8 + Math.random() * 1.2 });
+          this.lampMotes.push({ c, glow, core, cx: d.x, cy: d.y - lift, r: 26 + Math.random() * 30, ph: Math.random() * 10, sp: 0.25 + Math.random() * 0.3, size: 9 });
         }
       }
     }
@@ -897,7 +904,7 @@ export class RoomScene {
       return;
     }
     const th = this.def.theme;
-    // Soft pools of light on the floor, with a few moths circling each.
+    // Soft pools of light on the floor, with a few motes of light drifting in each.
     for (let y = WALL_H + 140; y < this.def.height; y += 280) {
       for (let x = 200; x < this.def.width; x += 340) {
         const s = new Sprite(glowTexture());
@@ -916,14 +923,14 @@ export class RoomScene {
           glow.tint = th.light;
           glow.alpha = 0.35;
           glow.blendMode = 'add';
-          const wings = new Sprite(emblemTexture());
-          wings.anchor.set(0.5);
-          wings.width = wings.height = 14;
-          wings.tint = 0xfff1c4;
-          wings.alpha = 0.75;
-          c.addChild(glow, wings);
+          const core = new Sprite(emblemTexture());
+          core.anchor.set(0.5);
+          core.width = core.height = 10;
+          core.tint = 0xfff1c4;
+          core.alpha = 0.75;
+          c.addChild(glow, core);
           this.lights.addChild(c);
-          this.lampMoths.push({ c, wings, base: 14 / wings.texture.width, cx: x, cy: y, r: 22 + Math.random() * 40, ph: Math.random() * 10, sp: 0.8 + Math.random() * 1.4 });
+          this.lampMotes.push({ c, glow, core, cx: x, cy: y, r: 22 + Math.random() * 40, ph: Math.random() * 10, sp: 0.25 + Math.random() * 0.35, size: 10 });
         }
       }
     }
@@ -1364,13 +1371,14 @@ export class RoomScene {
     // Lamps on machines pulse; the neon sign flickers now and then.
     for (const l of this.stationLamps) l.g.alpha = 0.55 + 0.45 * Math.sin(this.time * 3 + l.phase);
     if (!this.painted) this.sign.alpha = Math.sin(this.time * 31) > 0.97 ? 0.55 : 1;
-    for (const m of this.lampMoths) {
+    for (const m of this.lampMotes) {
+      // Slow, drifting loops and a soft glow that swells and fades.
       const a = this.time * m.sp + m.ph;
-      const x = m.cx + Math.cos(a) * m.r + Math.sin(a * 2.7) * 8;
-      const y = m.cy + Math.sin(a * 1.3) * m.r * 0.7;
-      m.c.rotation = Math.atan2(y - m.c.y, x - m.c.x) + Math.PI / 2;
-      m.c.position.set(x, y);
-      m.wings.scale.x = m.base * (0.35 + 0.65 * Math.abs(Math.cos(this.time * 22 + m.ph)));
+      m.c.position.set(m.cx + Math.cos(a) * m.r + Math.sin(a * 1.9) * 6, m.cy + Math.sin(a * 1.3) * m.r * 0.6 + Math.sin(this.time * 1.7 + m.ph) * 4);
+      const pulse = 0.5 + 0.5 * Math.sin(this.time * 2.1 + m.ph * 3);
+      m.core.alpha = 0.45 + pulse * 0.45;
+      m.core.width = m.core.height = m.size * (0.85 + pulse * 0.3);
+      m.glow.alpha = 0.18 + pulse * 0.25;
     }
     for (const a of this.animated) a(this.time, dtMs);
     if (this.elevator) this.elevator.lamp.alpha = this.frozen ? 1 : 0.55 + 0.25 * Math.sin(this.time * 2.5);

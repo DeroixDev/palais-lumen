@@ -222,21 +222,27 @@ function court(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r: () =>
     c.ellipse(kx, cy, 340, 300, 0, -Math.PI / 2, Math.PI / 2, s < 0);
     c.stroke();
   }
-  // Moth logo in the centre circle.
+  // The house sunburst in the centre circle.
   c.save();
-  c.translate(cx, cy);
+  c.translate(cx, cy + 14);
   c.scale(1, 0.62);
-  for (const s of [-1, 1]) {
+  for (let k = 0; k < 11; k++) {
+    const a = Math.PI + ((k + 0.5) / 11) * Math.PI;
+    const len = k % 2 ? 50 : 66;
     c.beginPath();
-    c.ellipse(s * 34, -8, 34, 24, s * 0.4, 0, Math.PI * 2);
+    c.moveTo(Math.cos(a - 0.06) * 16, Math.sin(a - 0.06) * 16);
+    c.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+    c.lineTo(Math.cos(a + 0.06) * 16, Math.sin(a + 0.06) * 16);
+    c.closePath();
     c.fillStyle = rgb(t.carpetPattern, 0.7);
     c.fill();
-    c.beginPath();
-    c.ellipse(s * 24, 26, 20, 17, -s * 0.4, 0, Math.PI * 2);
-    c.fill();
   }
-  rrect(c, -6, -34, 12, 70, 6);
+  c.beginPath();
+  c.arc(0, 0, 14, Math.PI, 0);
+  c.closePath();
   c.fillStyle = 'rgba(255,248,236,0.8)';
+  c.fill();
+  rrect(c, -60, 0, 120, 6, 3);
   c.fill();
   c.restore();
   // Black sneaker scuffs.
@@ -432,7 +438,7 @@ function brickWall(c: Ctx, W: number, WH: number, r: () => number) {
     c.restore();
     x += wd + 70 + r() * 80;
   }
-  // Small tags and a stencilled moth here and there.
+  // Small tags and a stencilled light bulb here and there.
   for (let i = 0; i < W / 70; i++) {
     const x = r() * W;
     const y = 20 + r() * (WH - 50);
@@ -447,15 +453,18 @@ function brickWall(c: Ctx, W: number, WH: number, r: () => number) {
     c.save();
     c.translate(x, WH - 52);
     c.fillStyle = 'rgba(14,8,14,0.7)';
-    for (const s of [-1, 1]) {
-      c.beginPath();
-      c.ellipse(s * 9, -3, 9, 6, s * 0.4, 0, Math.PI * 2);
-      c.fill();
-      c.beginPath();
-      c.ellipse(s * 6, 7, 5, 4, -s * 0.4, 0, Math.PI * 2);
-      c.fill();
+    c.beginPath();
+    c.arc(0, -3, 9, Math.PI * 0.8, Math.PI * 2.2);
+    c.lineTo(3.5, 8);
+    c.lineTo(-3.5, 8);
+    c.closePath();
+    c.fill();
+    c.fillRect(-3.5, 9, 7, 2);
+    c.fillRect(-3.5, 12, 7, 2);
+    for (let k = 0; k < 5; k++) {
+      const a = Math.PI + ((k + 0.5) / 5) * Math.PI;
+      c.fillRect(Math.cos(a) * 14 - 1, -3 + Math.sin(a) * 14 - 1, 2.4, 2.4);
     }
-    c.fillRect(-1.5, -9, 3, 20);
     c.restore();
   }
 }

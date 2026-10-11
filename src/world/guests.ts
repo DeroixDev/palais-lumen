@@ -381,7 +381,7 @@ export class Guests {
     g.blockedFor = 0;
   }
 
-  /** A little win at someone else's machine: a few moths rise and a number floats up. */
+  /** A little win at someone else's machine: a few sparks of light rise and a number floats up. */
   private smallWin(s: Spot) {
     const at = s.fx ?? { x: s.x, y: s.y - 40 };
     const amount = pick([20, 30, 40, 60, 80, 120, 150, 250]);
@@ -407,12 +407,12 @@ export class Guests {
       void animate(
         1300 + Math.random() * 500,
         (k) => {
-          // The room may be left (and destroyed) while the moths still flutter.
+          // The room may be left (and destroyed) while the sparks still rise.
           if (c.destroyed) return;
           c.x = at.x + Math.cos(ang) * dist * k + Math.sin(k * 12 + i) * 6;
           c.y = at.y + Math.sin(ang) * dist * k;
           c.alpha = 1 - k;
-          m.scale.x = base * (0.4 + 0.6 * Math.abs(Math.cos(k * 40)));
+          m.scale.set(base * (0.8 + 0.3 * Math.sin(k * 14 + i)));
         },
         ease.outCubic,
       ).then(() => !c.destroyed && c.destroy({ children: true }));

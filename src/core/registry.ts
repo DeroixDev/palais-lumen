@@ -117,7 +117,9 @@ export type DecorKind =
   // above everything
   | 'chandelier'
   // back wall
-  | 'painting' | 'sconce' | 'curtain' | 'window' | 'mirror' | 'wallClock' | 'ivy' | 'banner' | 'relief' | 'gauge';
+  | 'painting' | 'sconce' | 'curtain' | 'window' | 'mirror' | 'wallClock' | 'ivy' | 'banner' | 'relief' | 'gauge'
+  // the history of light (src/world/painted/propsLight.ts): Kerzensaal, Laternenwerk, the Kuppel
+  | 'candelabrum' | 'gasLantern' | 'mantleShelf' | 'domeFloor' | 'gasPipe' | 'eraLamp' | 'domeVault';
 
 export interface DecorPlacement {
   kind: DecorKind;

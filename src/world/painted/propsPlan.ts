@@ -133,7 +133,7 @@ export function buildPaintedPlan(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
   switch (d.kind) {
     // ---- Kerzensaal ----------------------------------------------------------------------------
     case 'runner': {
-      // A long velvet runner down the nave, gold edges and moth medallions.
+      // A long velvet runner down the nave, gold edges and sunburst medallions.
       const rw = w || 160;
       const rh = h || 600;
       const col = t.carpetPattern;
@@ -171,12 +171,17 @@ export function buildPaintedPlan(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           c.strokeStyle = rgb(t.carpetAccent, 0.75);
           c.lineWidth = 2;
           c.stroke();
-          for (const sd of [-1, 1]) {
-            ellipse(c, sd * 8, -2, 8, 5);
+          for (let k = 0; k < 7; k++) {
+            const a = Math.PI + ((k + 0.5) / 7) * Math.PI;
+            c.beginPath();
+            c.moveTo(Math.cos(a - 0.16) * 4, 6 + Math.sin(a - 0.16) * 4);
+            c.lineTo(Math.cos(a) * (k % 2 ? 12 : 17), 6 + Math.sin(a) * (k % 2 ? 12 : 17));
+            c.lineTo(Math.cos(a + 0.16) * 4, 6 + Math.sin(a + 0.16) * 4);
+            c.closePath();
             c.fillStyle = rgb(t.carpetAccent, 0.6);
             c.fill();
           }
-          ellipse(c, 0, 0, 2, 7);
+          ellipse(c, 0, 6, 3.4, 3.4);
           c.fillStyle = rgb(light(t.carpetAccent, 0.3), 0.9);
           c.fill();
           c.restore();

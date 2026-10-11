@@ -3,7 +3,7 @@ import type { RoomDefinition } from '../core/registry';
 import { FLOOR_NAMES, SLOT_GOLD } from '../core/brand';
 /**
  * Floor 1 side room: the Hinterzimmer behind the Kerzensaal. Low green lamps, leather, cigar
- * smoke and high limits: a roulette from 50, Goldmotte machines and a baccarat salon, all on
+ * smoke and high limits: a roulette from 50, Goldlicht machines and a baccarat salon, all on
  * fixed spots. A cigar box on the side table hides a Mondstein once a day (src/core/curios.ts).
  */
 export const f1side: RoomDefinition = {

@@ -1,10 +1,10 @@
-// Painted pieces for floor 3, "Uhrwerk": brass, copper, steam and turning gears, in the slanted
+// Painted pieces for floor 3, the "Laternenwerk" (once the Uhrwerk): brass, copper, steam and turning gears, in the slanted
 // 3/4 view of the foyer. Each piece is painted once; gears, needles, hands and steam animate on top.
 // Footprints, z, pokes and update behaviour match the flat versions in ../decor.ts.
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { DecorPlacement, RoomTheme } from '../../core/registry';
-import { FONT_BODY, drawEmblem, glowTexture } from '../../core/fx';
+import { FONT_BODY, glowTexture } from '../../core/fx';
 import type { BuiltDecor } from '../decor';
 import { P_WALL_H } from './foyerShell';
 import { box, ent, glow, kicker } from './foyerProps';
@@ -584,40 +584,45 @@ export function buildPaintedClockwork(d: DecorPlacement, t: RoomTheme): BuiltDec
             c.fillStyle = '#d8d8e0';
             c.fill();
           }
-          // The half-built moth automaton on a little stand.
+          // A half-built lantern on a little stand: left panes glazed, the right side still an open frame.
           const mx = bw * 0.27;
           const my = top + 10;
           ellipse(c, mx, my + 10, 11, 3.5);
           fillInk(c, metal(c, mx - 11, my + 7, mx + 11, my + 13, IRON), 1.2);
-          c.fillStyle = gold(c, mx - 1, 0, mx + 1, 0);
-          c.fillRect(mx - 1, my - 2, 2, 12);
-          const wg = c.createLinearGradient(mx - 16, my - 18, mx + 16, my + 2);
-          wg.addColorStop(0, '#fff1c4');
-          wg.addColorStop(0.5, '#d9a24a');
-          wg.addColorStop(1, '#8a5a1a');
-          c.save();
-          // Left wing finished, right wing still an open frame.
           c.beginPath();
-          c.rect(mx - 20, my - 30, 20, 40);
-          c.clip();
-          drawEmblem(c, mx, my - 10, 30, wg, '#3a2008', '#5fe3ff');
-          c.restore();
-          c.save();
-          c.translate(mx, my - 10);
-          c.strokeStyle = gold(c, 0, -10, 14, 6);
-          c.lineWidth = 1.2;
+          c.moveTo(mx - 8, my - 18);
+          c.lineTo(mx, my - 18);
+          c.lineTo(mx, my + 6);
+          c.lineTo(mx - 6, my + 6);
+          c.closePath();
+          const pg = c.createLinearGradient(0, my - 18, 0, my + 6);
+          pg.addColorStop(0, 'rgba(255,246,214,0.85)');
+          pg.addColorStop(1, 'rgba(220,170,90,0.7)');
+          c.fillStyle = pg;
+          c.fill();
+          // A spare mantle inside, not yet lit.
+          ellipse(c, mx, my - 6, 2.6, 4);
+          c.fillStyle = '#f4efe4';
+          c.fill();
+          c.strokeStyle = gold(c, mx - 10, my - 26, mx + 10, my + 8);
+          c.lineWidth = 1.4;
           c.beginPath();
-          c.ellipse(0.27 * 30, -0.1 * 30, 0.3 * 30, 0.19 * 30, -0.45, 0, Math.PI * 2);
-          c.moveTo(0.18 * 30 + 0.18 * 30, 0.17 * 30);
-          c.ellipse(0.18 * 30, 0.17 * 30, 0.18 * 30, 0.13 * 30, 0.6, 0, Math.PI * 2);
+          for (const [tx, bx] of [[-8, -6], [0, 0], [8, 6]]) {
+            c.moveTo(mx + tx, my - 18);
+            c.lineTo(mx + bx, my + 6);
+          }
+          c.moveTo(mx - 6, my + 6);
+          c.lineTo(mx + 6, my + 6);
           c.stroke();
           c.beginPath();
-          c.moveTo(0, -2);
-          c.lineTo(14, -6);
-          c.moveTo(0, 1);
-          c.lineTo(12, 2);
-          c.stroke();
-          c.restore();
+          c.moveTo(mx - 11, my - 18);
+          c.lineTo(mx + 11, my - 18);
+          c.lineTo(mx + 5, my - 25);
+          c.lineTo(mx - 5, my - 25);
+          c.closePath();
+          fillInk(c, metal(c, mx - 11, 0, mx + 11, 0, IRON), 1.1);
+          ellipse(c, mx, my - 27, 2.2, 2.2);
+          fillInk(c, gold(c, mx - 2, my - 29, mx + 2, my - 25), 0.8);
           // Magnifier lamp on a jointed arm.
           const ax = bw / 2 - 6;
           ellipse(c, ax, top + 6, 6, 2.4);

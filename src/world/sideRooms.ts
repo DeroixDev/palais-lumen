@@ -1,6 +1,6 @@
 // What makes a side room special: its daily find (a glinting curio you can pick up once a day),
 // a spotlight under its pinned special machines, and a little life of its own (cigar smoke
-// in the Hinterzimmer, moths round the moonflower in the Gewächshaus, steam in the Kammer).
+// in the Hinterzimmer, fireflies round the moonflower in the Gewächshaus, steam in the Kammer).
 
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { glowTexture, emblemTexture, reducedMotion } from '../core/fx';
@@ -300,7 +300,7 @@ interface Floater {
   r: number;
   ph: number;
   sp: number;
-  kind: 'smoke' | 'moth' | 'steam';
+  kind: 'smoke' | 'firefly' | 'steam';
   base: number;
 }
 
@@ -405,14 +405,14 @@ export class RoomSpecials {
   }
 
   private floater(kind: Floater['kind'], x: number, y: number, r: number, size: number, tint: number, alpha: number) {
-    const s = new Sprite(kind === 'moth' ? emblemTexture() : glowTexture());
+    const s = new Sprite(kind === 'firefly' ? emblemTexture() : glowTexture());
     s.anchor.set(0.5);
     s.width = s.height = size;
     s.tint = tint;
     s.alpha = alpha;
-    if (kind === 'moth') s.blendMode = 'add';
+    if (kind === 'firefly') s.blendMode = 'add';
     this.host.lights.addChild(s);
-    this.floaters.push({ s, x, y, r, ph: Math.random() * 10, sp: 0.5 + Math.random() * 0.8, kind, base: kind === 'moth' ? size / s.texture.width : alpha });
+    this.floaters.push({ s, x, y, r, ph: Math.random() * 10, sp: 0.5 + Math.random() * 0.8, kind, base: kind === 'firefly' ? size / s.texture.width : alpha });
   }
 
   private buildAmbience() {
@@ -421,8 +421,8 @@ export class RoomSpecials {
       // Cigar smoke hanging under the lamps.
       for (let i = 0; i < 9; i++) this.floater('smoke', 120 + Math.random() * (W - 240), 230 + Math.random() * (H - 330), 40 + Math.random() * 50, 220 + Math.random() * 160, 0xb8b4c8, 0.07);
     } else if (this.def.id === 'f2b' && this.curio) {
-      // Moths circling the moonflower while it blooms, and some round the lamps.
-      for (let i = 0; i < 7; i++) this.floater('moth', this.curio.x, this.curio.y - 104, 30 + Math.random() * 50, 14, 0xf0e8ff, 0.85);
+      // Pale fireflies circling the moonflower while it blooms, and some round the lamps.
+      for (let i = 0; i < 7; i++) this.floater('firefly', this.curio.x, this.curio.y - 104, 30 + Math.random() * 50, 14, 0xf0e8ff, 0.85);
       for (let i = 0; i < 12; i++) this.floater('smoke', 80 + Math.random() * (W - 160), 200 + Math.random() * (H - 260), 30, 10, 0xd8ff9a, 0.5);
     } else if (this.def.id === 'f3b') {
       for (let i = 0; i < 6; i++) this.floater('steam', 80 + Math.random() * (W - 160), 260 + Math.random() * (H - 360), 30, 160 + Math.random() * 100, 0xe8e0d8, 0.06);
@@ -443,15 +443,14 @@ export class RoomSpecials {
     const bloom = this.curio && !curioTaken(this.state, this.curio.room);
     for (const f of this.floaters) {
       const a = t * f.sp * (calm ? 0.3 : 1) + f.ph;
-      if (f.kind === 'moth') {
-        // Fewer moths stay once the flower has closed.
+      if (f.kind === 'firefly') {
+        // Fewer stay once the flower has closed. They float in slow loops and glow on and off.
         f.s.visible = !!bloom || f.ph < 3;
-        const x = f.x + Math.cos(a * 1.6) * f.r + Math.sin(a * 3.1) * 6;
-        const y = f.y + Math.sin(a * 2.1) * f.r * 0.6;
-        f.s.rotation = Math.atan2(y - f.s.y, x - f.s.x) + Math.PI / 2;
-        f.s.position.set(x, y);
-        f.s.scale.x = f.base * (0.35 + 0.65 * Math.abs(Math.cos(t * 20 + f.ph)));
-        f.s.scale.y = f.base;
+        const b = a * 0.45;
+        f.s.position.set(f.x + Math.cos(b * 1.6) * f.r + Math.sin(b * 3.1) * 6, f.y + Math.sin(b * 2.1) * f.r * 0.6);
+        const glowK = Math.max(0, Math.sin(t * (1.2 + f.sp) + f.ph * 2));
+        f.s.alpha = 0.3 + glowK * 0.65;
+        f.s.scale.set(f.base * (0.8 + glowK * 0.35));
       } else if (f.r <= 30 && f.kind === 'smoke') {
         // Fireflies.
         f.s.position.set(f.x + Math.sin(a * 0.7) * 40, f.y + Math.cos(a * 0.9) * 26);

@@ -9,8 +9,9 @@ import { buildPaintedClockwork } from './propsClockwork';
 import { buildPaintedCrystal } from './propsCrystal';
 import { buildPaintedPlan } from './propsPlan';
 import { buildPaintedClub } from './propsClub';
+import { buildPaintedLight } from './propsLight';
 
-const builders = [buildPainted, buildPaintedVelvet, buildPaintedGarden, buildPaintedClockwork, buildPaintedCrystal, buildPaintedPlan, buildPaintedClub];
+const builders = [buildPainted, buildPaintedVelvet, buildPaintedGarden, buildPaintedClockwork, buildPaintedCrystal, buildPaintedPlan, buildPaintedClub, buildPaintedLight];
 
 export function buildPaintedDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | null {
   for (const b of builders) {

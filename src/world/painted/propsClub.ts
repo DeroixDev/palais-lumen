@@ -262,7 +262,7 @@ function sneaker(c: Ctx, x: number, y: number, col: number, accent: number, flip
   c.quadraticCurveTo(12, -11, 17, -5);
   c.closePath();
   fillInk(c, vgrad(c, -18, -5, col, 0.3, 0.25), 1.3);
-  // Wing-shaped logo and laces.
+  // Swoosh logo and laces.
   c.beginPath();
   c.moveTo(-10, -7);
   c.quadraticCurveTo(0, -13, 10, -7);
@@ -465,25 +465,26 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           fillInk(c, '#c8ccd6', 1.2);
           c.fillStyle = 'rgba(120,200,255,0.8)';
           c.fillRect(85, top - 23, 16, 15);
-          // Front panel: white gloss with the moth logo.
+          // Front panel: white gloss with the club's neon sunburst.
           rrect(c, -bw / 2, top + 14, bw, fy - top - 14 + 14, 6);
           fillInk(c, vgrad(c, top + 14, fy + 14, 0xeef0f6, 0.1, 0.3), 2);
           c.save();
-          c.translate(0, top + 40);
+          c.translate(0, top + 50);
           c.shadowColor = rgb(MAGENTA);
           c.shadowBlur = 12;
-          for (const s of [-1, 1]) {
+          c.strokeStyle = rgb(MAGENTA);
+          c.lineWidth = 2.6;
+          for (let k = 0; k < 7; k++) {
+            const a = Math.PI + ((k + 0.5) / 7) * Math.PI;
             c.beginPath();
-            c.ellipse(s * 15, -3, 15, 10, s * 0.45, 0, Math.PI * 2);
-            c.moveTo(s * 10 + 8 * s, 10);
-            c.ellipse(s * 10, 9, 9, 7, -s * 0.4, 0, Math.PI * 2);
-            c.strokeStyle = rgb(MAGENTA);
-            c.lineWidth = 2.6;
+            c.moveTo(Math.cos(a) * 9, Math.sin(a) * 9);
+            c.lineTo(Math.cos(a) * (k % 2 ? 19 : 25), Math.sin(a) * (k % 2 ? 19 : 25));
             c.stroke();
           }
           c.beginPath();
-          c.moveTo(0, -14);
-          c.lineTo(0, 16);
+          c.arc(0, 0, 6, Math.PI, 0);
+          c.moveTo(-28, 2);
+          c.lineTo(28, 2);
           c.stroke();
           c.restore();
           c.font = `700 9px ${FONT_BODY}`;
@@ -1557,7 +1558,7 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           c.quadraticCurveTo(22, -84, 22, -52);
           c.closePath();
           fillInk(c, vgrad(c, -112, -52, 0x2a2232, 0.2, 0.4), 1.8);
-          // Chains: thick links in loops, a moth pendant.
+          // Chains: thick links in loops, a sunburst pendant.
           for (const [ry, n] of [[18, 16], [24, 20]] as const) {
             for (let k = 0; k <= n; k++) {
               const a = (k / n) * Math.PI;
@@ -1571,12 +1572,17 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
               c.stroke();
             }
           }
-          for (const s of [-1, 1]) {
-            ellipse(c, s * 5, -64, 5, 4);
-            fillInk(c, gold(c, -10, -68, 10, -60), 1);
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            c.beginPath();
+            c.moveTo(Math.cos(a) * 5, -64 + Math.sin(a) * 5);
+            c.lineTo(Math.cos(a) * 9, -64 + Math.sin(a) * 9);
+            c.strokeStyle = gold(c, -9, -73, 9, -55);
+            c.lineWidth = 2;
+            c.stroke();
           }
-          ellipse(c, 0, -63, 2, 4);
-          fillInk(c, '#7a4e18', 0.8);
+          ellipse(c, 0, -64, 5, 5);
+          fillInk(c, gold(c, -5, -69, 5, -59), 1);
           // Glass case.
           rrect(c, -30, -150, 60, 100, 3);
           c.fillStyle = 'rgba(200,230,255,0.1)';
@@ -1652,25 +1658,29 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
           }
           return;
         }
-        // A moth outline.
-        for (const sd of [-1, 1]) {
+        // A light bulb: the age of electric light, in neon.
+        c.beginPath();
+        c.moveTo(-9, 20);
+        c.bezierCurveTo(-10, 8, -24, 2, -24, -14);
+        c.arc(0, -14, 24, Math.PI, 0);
+        c.bezierCurveTo(24, 2, 10, 8, 9, 20);
+        c.closePath();
+        neonStroke(c, col, 3);
+        for (const yy of [25, 30]) {
           c.beginPath();
-          c.ellipse(sd * 22, -8, 22, 15, sd * 0.45, 0, Math.PI * 2);
-          neonStroke(c, col, 3);
-          c.beginPath();
-          c.ellipse(sd * 15, 15, 12, 10, -sd * 0.4, 0, Math.PI * 2);
-          neonStroke(c, col, 3);
+          c.moveTo(-8, yy);
+          c.lineTo(8, yy);
+          neonStroke(c, CYAN, 2);
         }
         c.beginPath();
-        c.moveTo(0, -24);
-        c.lineTo(0, 26);
-        neonStroke(c, 0xffffff, 3);
-        c.beginPath();
-        c.moveTo(-2, -24);
-        c.quadraticCurveTo(-10, -36, -18, -36);
-        c.moveTo(2, -24);
-        c.quadraticCurveTo(10, -36, 18, -36);
-        neonStroke(c, col, 2);
+        c.moveTo(-7, 18);
+        c.lineTo(-5, -10);
+        c.lineTo(-2, -4);
+        c.lineTo(1, -12);
+        c.lineTo(4, -4);
+        c.lineTo(5, -10);
+        c.lineTo(7, 18);
+        neonStroke(c, 0xffffff, 2);
       });
       v.addChild(sp);
       const gl = glow(v, x, 26 + 50 * s, tw * 1.6, 120 * s, col, 0.3);
@@ -1892,11 +1902,12 @@ export function buildPaintedClub(d: DecorPlacement, t: RoomTheme): BuiltDecor[] 
 /** A neon-tube sign on a black steel plate (instead of the gilded marquee), or null for other floors. */
 export function clubSign(text: string, style: string, neon: number, x: number, y: number, font: string) {
   if (style !== 'club' && style !== 'techno' && style !== 'hiphop') return null;
+  if (style === 'club') return clubNeonSign(text, neon, x, y);
   const c = new Container();
-  const size = style === 'club' ? 46 : 38;
+  const size = 38;
   const w = Math.max(200, text.length * size * 0.62 + 70);
   const h = size + 30;
-  const second = style === 'club' ? CYAN : style === 'techno' ? 0xffffff : 0xffd23f;
+  const second = style === 'techno' ? 0xffffff : 0xffd23f;
   const plate = new Sprite(
     paint(w + 40, h + 40, (ctx) => {
       ctx.translate(20, 20);
@@ -1952,6 +1963,105 @@ export function clubSign(text: string, style: string, neon: number, x: number, y
     update: (time: number) => {
       const b = beatNow(time);
       // Buzz now and then; on the club floor the halo breathes with the kick.
+      const flick = Math.sin(time * 31) > 0.992 ? 0.5 : 1;
+      plate.alpha = flick;
+      halo.alpha = (0.22 + 0.12 * kickOf(b)) * flick;
+    },
+  };
+}
+
+/**
+ * The Club Neon's own sign: the name in Limelight bent from glass tube, the first word small in
+ * cyan over the second in pink, and a neon sunburst fanning out on each side. Baked once.
+ */
+function clubNeonSign(text: string, neon: number, x: number, y: number) {
+  const [first, ...rest] = text.split(' ');
+  const main = rest.join(' ') || first;
+  const top = rest.length ? first : '';
+  const W = Math.max(300, main.length * 46 + 200);
+  const H = 100;
+  const c = new Container();
+  const tube = (ctx: Ctx, col: number, width: number, blur: number) => {
+    ctx.shadowColor = rgb(col);
+    ctx.shadowBlur = blur;
+    ctx.lineWidth = width;
+    ctx.strokeStyle = rgb(col);
+  };
+  const plate = new Sprite(
+    paint(W + 40, H + 40, (ctx) => {
+      ctx.translate(20 + W / 2, 20);
+      // A dark backing board with chrome studs, stepped like a deco marquee.
+      ctx.beginPath();
+      ctx.moveTo(-W / 2 + 18, 6);
+      ctx.lineTo(-W / 2 + 40, 6);
+      ctx.lineTo(-W / 2 + 40, 0);
+      ctx.lineTo(W / 2 - 40, 0);
+      ctx.lineTo(W / 2 - 40, 6);
+      ctx.lineTo(W / 2 - 18, 6);
+      ctx.lineTo(W / 2 - 18, H - 4);
+      ctx.lineTo(-W / 2 + 18, H - 4);
+      ctx.closePath();
+      fillInk(ctx, vgrad(ctx, 0, H, 0x14121c, 0.12, 0.3), 2.2);
+      for (const bx of [-W / 2 + 28, W / 2 - 28]) {
+        ellipse(ctx, bx, 16, 3, 3);
+        ctx.fillStyle = chrome(ctx, bx - 3, 13, bx + 3, 19);
+        ctx.fill();
+      }
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      // Small first word on top, in cyan.
+      if (top) {
+        ctx.font = '26px Limelight, Cinzel, serif';
+        tube(ctx, CYAN, 3.2, 14);
+        ctx.strokeText(top.split('').join(String.fromCharCode(8202)), 0, 26);
+        tube(ctx, light(CYAN, 0.85), 1.2, 4);
+        ctx.strokeText(top.split('').join(String.fromCharCode(8202)), 0, 26);
+      }
+      // The main word, big, in pink.
+      ctx.font = '48px Limelight, Cinzel, serif';
+      tube(ctx, neon, 4.6, 22);
+      ctx.strokeText(main, 0, top ? 64 : 52);
+      tube(ctx, light(neon, 0.85), 1.6, 6);
+      ctx.strokeText(main, 0, top ? 64 : 52);
+      // Neon sunbursts on both sides.
+      const mw = main.length * 19 + 30;
+      for (const sd of [-1, 1]) {
+        ctx.save();
+        ctx.translate(sd * (mw + 22), 78);
+        for (let k = 0; k < 5; k++) {
+          const a = sd < 0 ? Math.PI + (k / 4) * (Math.PI / 2) : -Math.PI / 2 + (k / 4) * (Math.PI / 2);
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
+          ctx.lineTo(Math.cos(a) * (k % 2 ? 26 : 36), Math.sin(a) * (k % 2 ? 26 : 36));
+          tube(ctx, k % 2 ? CYAN : neon, 2.6, 10);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(-mw + 10, 88);
+      ctx.lineTo(mw - 10, 88);
+      neonStroke(ctx, CYAN, 2);
+    }),
+  );
+  plate.anchor.set(0.5, 0.5);
+  plate.position.set(0, 0);
+  c.addChild(plate);
+  const halo = new Sprite(glowTexture());
+  halo.anchor.set(0.5);
+  halo.width = W * 1.6;
+  halo.height = H * 2.4;
+  halo.tint = neon;
+  halo.alpha = 0.3;
+  halo.blendMode = 'add';
+  c.addChildAt(halo, 0);
+  c.position.set(x, y + 14);
+  return {
+    view: c,
+    update: (time: number) => {
+      const b = beatNow(time);
       const flick = Math.sin(time * 31) > 0.992 ? 0.5 : 1;
       plate.alpha = flick;
       halo.alpha = (0.22 + 0.12 * kickOf(b)) * flick;

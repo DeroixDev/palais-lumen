@@ -1,6 +1,6 @@
 // What today brings into a room: the day event (candlelight in a power cut, closed games
 // with a sign), guests with a task ("!" bubble above their head), the regulars' upgrades
-// from full stamp cards (gold felt, golden cabinets, a golden moth statue) and, in the
+// from full stamp cards (gold felt, golden cabinets, a golden light-bearer statue) and, in the
 // foyer, the stamp card stand next to the reception. Rebuilt when the state changes.
 
 import { Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';

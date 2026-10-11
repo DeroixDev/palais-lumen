@@ -1,6 +1,6 @@
 // Painted pieces for the night garden ("Mondgarten", floor 2) in the slanted 3/4 view:
 // hedges, flowerbeds, trees, lantern posts, the moon pool, the floor mosaic, arched windows
-// and ivy on the back wall. Moonlit blues and silvers, warm lantern light, glowing moths.
+// and ivy on the back wall. Moonlit blues and silvers, warm lantern light, fireflies.
 // Coordinates follow decor.ts: (x, y) is the middle of the footprint; wall pieces hang at x.
 
 import { Container, Graphics, Sprite } from 'pixi.js';
@@ -66,14 +66,16 @@ function blossom(c: Ctx, x: number, y: number, s: number, col: number) {
   c.fill();
 }
 
-/** A painted moth with ink outline (for emblems and statues). */
-function paintedMoth(c: Ctx, x: number, y: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
+/** The house sunburst with an ink outline (for medallions). */
+function paintedSun(c: Ctx, x: number, y: number, s: number, wing: string | CanvasGradient, body: string, spots?: string) {
   drawEmblem(c, x + 1.2, y + 1.6, s * 1.04, INK, INK);
   drawEmblem(c, x, y, s, wing, body, spots);
 }
 
-function mothSprite(c: Container, size: number, tint: number) {
+/** A firefly: a little point of light (it pulses, it doesn't flap). */
+function fireflySprite(c: Container, size: number, tint: number) {
   const m = new Sprite(emblemTexture());
+  m.blendMode = 'add';
   m.anchor.set(0.5);
   m.width = m.height = size;
   m.tint = tint;
@@ -174,7 +176,7 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
               c.stroke();
             }
           }
-          // Medallion with the house moth.
+          // Medallion with the house sunburst.
           const cr = r * 0.24;
           ellipse(c, 0, 0, cr, cr);
           c.strokeStyle = rgb(acc);
@@ -184,7 +186,7 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
           mg.addColorStop(0, rgb(light(acc, 0.5)));
           mg.addColorStop(0.5, rgb(acc));
           mg.addColorStop(1, rgb(dark(acc, 0.4)));
-          paintedMoth(c, 0, cr * 0.05, cr * 1.5, mg, rgb(dark(acc, 0.55)), rgb(t.neon, 0.8));
+          paintedSun(c, 0, cr * 0.05, cr * 1.5, mg, rgb(dark(acc, 0.55)), rgb(t.neon, 0.8));
           // Gold rim around the whole mosaic.
           ellipse(c, 0, 0, r, r);
           c.strokeStyle = INK;
@@ -693,7 +695,7 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
       v.addChild(core);
       const gl = glow(v, x, y + LY, 200, 200, COLORS.lamp, 0.45);
       const hot = glow(v, x, y + LY, 60, 70, 0xfff1c4, 0.5);
-      const moths = [0, 1, 2].map(() => mothSprite(v, 12, 0xfff1c4));
+      const flies = [0, 1, 2].map(() => fireflySprite(v, 10, 0xe8ff9a));
       // Warm pool of light on the ground (on the floor layer, under everyone's feet).
       const pool = new Container();
       pool.addChild(
@@ -703,7 +705,7 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
         }),
       );
       const ph = rnd() * 10;
-      const base = 12 / 64;
+      const base = 10 / 64;
       const kick = kicker(2200);
       return [
         ent(v, [box(x, y, 20, 20)], y + 8, (time, dt) => {
@@ -714,11 +716,13 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
           hot.alpha = 0.4 + (fl - 1) * 2 + kk * 0.3;
           core.scale.set(1, fl);
           pool.alpha = 0.9 + (fl - 1) * 0.8 + kk * 0.3;
-          moths.forEach((m, i) => {
-            const a = time * (1.2 + i * 0.4) * (1 + kk * 2) + i * 2 + ph;
-            m.position.set(x + Math.cos(a) * (18 + i * 6) * spread, y + LY - 4 + Math.sin(a * 1.3) * 12 * spread);
-            m.scale.x = base * (0.35 + 0.65 * Math.abs(Math.cos(time * 22 + i)));
-            m.scale.y = base;
+          // Fireflies drifting round the lantern, blinking slowly; a poke scatters them.
+          flies.forEach((m, i) => {
+            const a = time * (0.35 + i * 0.12) * (1 + kk * 3) + i * 2 + ph;
+            m.position.set(x + Math.cos(a) * (20 + i * 7) * spread, y + LY - 4 + Math.sin(a * 1.3) * 12 * spread + Math.sin(time * 1.9 + i) * 3);
+            const blink = Math.max(0, Math.sin(time * (1.3 + i * 0.3) + i * 2 + ph));
+            m.alpha = 0.25 + blink * 0.75;
+            m.scale.set(base * (0.8 + blink * 0.35));
           });
         }, kick.poke),
         { view: pool, layer: 'floor', obstacles: [] },
@@ -873,15 +877,25 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
               c.fill();
             }
           }
-          // Small stone moth sitting on the rim, front right.
+          // A firefly jar standing on the rim, front right.
           const mx = orx * 0.62;
           const my = sy + ory * 0.72;
           rrect(c, mx - 6, my - 6, 12, 8, 2);
           fillInk(c, vgrad(c, my - 6, my + 2, 0xb8b8cc, 0.2, 0.4), 1.2);
-          const sg = c.createLinearGradient(mx - 12, my - 26, mx + 12, my - 6);
-          sg.addColorStop(0, '#f0f4ff');
-          sg.addColorStop(1, '#8a8aa8');
-          paintedMoth(c, mx, my - 15, 22, sg, '#5a5a78');
+          glowAt(c, mx, my - 16, 16, 16, 0xe8ff9a, 0.45, 'lighter');
+          rrect(c, mx - 7, my - 26, 14, 20, 4);
+          const jg = c.createLinearGradient(mx - 7, 0, mx + 7, 0);
+          jg.addColorStop(0, 'rgba(230,250,255,0.55)');
+          jg.addColorStop(0.5, 'rgba(200,240,210,0.25)');
+          jg.addColorStop(1, 'rgba(150,190,200,0.5)');
+          fillInk(c, jg, 1.2);
+          rrect(c, mx - 5, my - 30, 10, 4, 1.5);
+          fillInk(c, gold(c, mx - 5, 0, mx + 5, 0), 1);
+          for (const [fx, fy] of [[-2, -18], [2.5, -13], [0, -22]]) {
+            ellipse(c, mx + fx, my + fy, 1.4, 1.4);
+            c.fillStyle = '#f4ffb0';
+            c.fill();
+          }
           grain(c, -orx, sy - ory, orx * 2, ory * 2 + wall, Math.round(r * 0.6), 7, 0.035);
         }),
       );
@@ -900,7 +914,7 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
       v.addChild(disc);
       const ripple = new Graphics();
       v.addChild(ripple);
-      const fly = mothSprite(v, 13, 0xcfe8ff);
+      const fly = fireflySprite(v, 11, 0xdff4ff);
       const flyGl = glow(v, x, y, 34, 34, 0x9fd8ff, 0.5);
       const ph = rnd() * 10;
       const kick = kicker(1600);
@@ -920,10 +934,10 @@ export function buildPaintedGarden(d: DecorPlacement, t: RoomTheme): BuiltDecor[
             const e = Math.min(1, (1 - kk) * 1.6 - i * 0.2);
             if (e > 0) ripple.ellipse(mxw, myw, 8 + e * r * 0.9, (8 + e * r * 0.9) * 0.6).stroke({ color: 0xfff1c4, width: 2, alpha: (1 - e) * 0.7 });
           }
-          // A glowing moth skimming over the water.
-          const a = time * 0.7 + ph;
-          fly.position.set(x + Math.cos(a) * r * 0.55, y + sy + Math.sin(a) * ry * 0.45 - 18 - Math.sin(time * 3) * 4);
-          fly.scale.x = (13 / 64) * (0.35 + 0.65 * Math.abs(Math.cos(time * 20)));
+          // A moon-pale firefly drifting over the water.
+          const a = time * 0.35 + ph;
+          fly.position.set(x + Math.cos(a) * r * 0.55, y + sy + Math.sin(a) * ry * 0.45 - 18 - Math.sin(time * 1.6) * 4);
+          fly.alpha = 0.55 + 0.45 * Math.sin(time * 1.8 + ph);
           flyGl.position.set(fly.x, fly.y);
           flyGl.alpha = 0.45 + kk * 0.3;
         }, kick.poke),

@@ -1,7 +1,8 @@
-// The boss corridor's own pieces in the room (floor 5): a moth-wing gate after every machine
-// (a wall the player can't pass until that machine had its one try), a brass plaque at each
-// machine ("Automat 2 von 5 · Ein Versuch"), a wax seal on spent machines, a light over the
-// machine that is up next, a shadow that deepens towards the throne, and the Queen's challenge.
+// The boss corridor's own pieces in the room (floor 5): a light lock (Lichtschleuse) after every
+// machine (a curtain of light beams the player can't pass until that machine had its one try,
+// closed by a brass lens lock), a brass plaque at each machine ("Automat 2 von 5 · Ein Versuch",
+// with the era of light whose lamp hangs above it), a wax seal on spent machines, a light over
+// the machine that is up next, a shade that deepens towards the Kuppel, and Selene's challenge.
 // Built by RoomScene for a room with `corridor: true`; the flow is in src/ui/bossRun.ts.
 
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
@@ -13,7 +14,8 @@ import { getGame } from '../core/registry';
 import { animate, ease } from '../core/tween';
 import { sfx } from '../core/audio';
 import { type Ctx, ellipse, fillInk, glowAt, gold, paint, rrect, seeded, shadow } from './painted/brush';
-import { crestEmblem, paintWing } from './painted/propsCrystal';
+import { crestEmblem } from './painted/propsCrystal';
+import { ERA_NAMES } from './painted/propsLight';
 import type { Rect } from './decor';
 import type { ExtraInteractable } from './roomExtras';
 import { WALL_H } from './styles';
@@ -46,12 +48,12 @@ export const corridorLeadPx = (viewW: number) => Math.min(280, viewW * 0.27);
 const cache = new Map<string, Texture>();
 const cached = (k: string, make: () => Texture) => cache.get(k) ?? (cache.set(k, make()), cache.get(k)!);
 
-// ---- The gates: an iron portcullis across the corridor --------------------------------------
+// ---- The light locks across the corridor ----------------------------------------------------
 // A gate stands across the corridor, i.e. along the depth axis. Seen straight on it would be a
 // thin line, so it gets a slight perspective shear (the back end leans left, GATE_SK px of x per
-// px of depth). The grille comes down out of the dark above the room: its bars reach up to one
-// line near the top of the back wall and fade out there, so it reads as a portcullis hanging
-// from the ceiling. Two stone posts hold it, a moth with spread wings guards the red wax seal.
+// px of depth). Its beams of light come down out of the dark above the room: they reach up to
+// one line near the top of the back wall and fade out there. Two night-blue pylons with brass
+// capitals and glass lamp finials hold it, and a brass lens lock sits in the middle of the beams.
 
 /** Perspective shear of the gate line (x per px of depth). */
 export const GATE_SK = 0.36;
@@ -109,16 +111,16 @@ function box3(c: Ctx, P: P3, x0: number, x1: number, y0: number, y1: number, z0:
   fillFace(c, top, ink);
 }
 
-/** A square stone post with a plinth, a gold capital, a moth finial and a moth carved on its front. */
+/** A square night-blue pylon with a plinth, a brass capital, a lamp finial and the crest on its front. */
 function paintPost(c: Ctx, P: P3, y: number, h: number) {
   const [fx] = P(-14, y + 5, 0);
   const fg = c.createLinearGradient(fx, 0, fx + 28, 0);
-  fg.addColorStop(0, '#3e3050');
-  fg.addColorStop(0.45, '#5e4e72');
-  fg.addColorStop(1, '#2a2036');
+  fg.addColorStop(0, '#2a3a6e');
+  fg.addColorStop(0.45, '#44568e');
+  fg.addColorStop(1, '#162048');
   // Depth is drawn shallow, like the other props' plinths.
-  box3(c, P, -18, 18, y - 7, y + 7, 0, 14, '#1e1628', fg, '#4a3a5c', 1.4);
-  box3(c, P, -14, 14, y - 5, y + 5, 14, h - 14, '#1a1324', fg, '#3a2e48', 1.4);
+  box3(c, P, -18, 18, y - 7, y + 7, 0, 14, '#0e1430', fg, '#34447a', 1.4);
+  box3(c, P, -14, 14, y - 5, y + 5, 14, h - 14, '#0c1230', fg, '#283664', 1.4);
   // Fluting on the front face.
   for (const dx of [-7, 0, 7]) {
     const [x0, y0] = P(dx, y + 5, 22);
@@ -126,13 +128,13 @@ function paintPost(c: Ctx, P: P3, y: number, h: number) {
     c.beginPath();
     c.moveTo(x0, y0);
     c.lineTo(x0, y1);
-    c.strokeStyle = 'rgba(14,6,20,0.45)';
-    c.lineWidth = 1.6;
+    c.strokeStyle = 'rgba(224,178,90,0.45)';
+    c.lineWidth = 1.2;
     c.stroke();
     c.beginPath();
     c.moveTo(x0 + 1.4, y0);
     c.lineTo(x0 + 1.4, y1);
-    c.strokeStyle = 'rgba(220,200,255,0.12)';
+    c.strokeStyle = 'rgba(223,232,255,0.12)';
     c.lineWidth = 1;
     c.stroke();
   }
@@ -142,17 +144,19 @@ function paintPost(c: Ctx, P: P3, y: number, h: number) {
   c.save();
   c.translate(mx, my);
   c.globalAlpha = 0.9;
-  crestEmblem(c, 16, '#c98ae0');
+  crestEmblem(c, 16, '#fff0c8');
   c.restore();
-  // Finial: a little gold moth on a ball.
+  // Finial: a glass lamp globe on a brass cup.
   const [tx, ty] = P(0, y, h);
-  glowAt(c, tx, ty - 14, 18, 16, 0xffcf7a, 0.35, 'lighter');
-  ellipse(c, tx, ty - 5, 6, 5);
-  fillInk(c, gold(c, tx - 6, ty - 10, tx + 6, ty), 1.2);
-  c.save();
-  c.translate(tx, ty - 17);
-  crestEmblem(c, 20);
-  c.restore();
+  glowAt(c, tx, ty - 16, 24, 22, 0xfff0c8, 0.5, 'lighter');
+  ellipse(c, tx, ty - 4, 7, 3.5);
+  fillInk(c, gold(c, tx - 7, ty - 8, tx + 7, ty), 1.2);
+  ellipse(c, tx, ty - 14, 8, 9);
+  const lg = c.createRadialGradient(tx - 3, ty - 18, 1, tx, ty - 14, 9);
+  lg.addColorStop(0, '#ffffff');
+  lg.addColorStop(0.5, '#fff0c8');
+  lg.addColorStop(1, '#e0a050');
+  fillInk(c, lg, 1.2);
 }
 
 /** Back post (stands against the back wall, behind the player). */
@@ -178,7 +182,7 @@ function frontPostSprite(len: number) {
 /** Screen y of the grille's top edge (gate-local). */
 const TOP_Y = -GATE_TOP;
 
-/** The grille: bars from the floor slot up into the dark, rails, a purple veil, the moth's wings. */
+/** The light curtain: beams from the floor slot up into the dark, brass rails, a warm veil, the lock's halo. */
 function grilleSprite(len: number) {
   const P = proj(len);
   const [bx] = P(0, 0, 0);
@@ -187,37 +191,38 @@ function grilleSprite(len: number) {
   const x1 = fx + 90;
   return gateSprite(`ggrille-${len}`, x0, TOP_Y - 4, x1, len + 16, (c) => {
     const floor = (y: number) => P(0, y, 0);
-    // Veil of moth light filling the gate.
+    // A veil of warm light filling the lock.
     quad(c, [floor(0), floor(len), [floor(len)[0], TOP_Y], [floor(0)[0], TOP_Y]]);
     const vg = c.createLinearGradient(0, TOP_Y, 0, len);
-    vg.addColorStop(0, 'rgba(120,60,180,0.05)');
-    vg.addColorStop(0.5, 'rgba(160,90,220,0.22)');
-    vg.addColorStop(1, 'rgba(225,175,255,0.4)');
+    vg.addColorStop(0, 'rgba(255,214,140,0.04)');
+    vg.addColorStop(0.5, 'rgba(255,224,160,0.16)');
+    vg.addColorStop(1, 'rgba(255,240,200,0.32)');
     c.fillStyle = vg;
     c.fill();
-    // Vertical bars with gold spike tips in the floor slot.
+    // Beams of light standing in brass emitter cups in the floor slot.
     const step = 17;
     for (let y = 8; y <= len - 6; y += step) {
       const [x, yb] = floor(y);
       const s = 0.7 + 0.3 * (y / len);
-      const w = 3 * s;
-      c.beginPath();
-      c.rect(x - w - 1.2 * s, TOP_Y, 1.2 * s, yb - TOP_Y);
-      c.fillStyle = '#06040a';
-      c.fill();
+      const w = 3.2 * s;
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      const halo = c.createLinearGradient(x - w * 3, 0, x + w * 3, 0);
+      halo.addColorStop(0, 'rgba(255,200,110,0)');
+      halo.addColorStop(0.5, 'rgba(255,200,110,0.28)');
+      halo.addColorStop(1, 'rgba(255,200,110,0)');
+      c.fillStyle = halo;
+      c.fillRect(x - w * 3, TOP_Y, w * 6, yb - TOP_Y);
+      c.restore();
       const g = c.createLinearGradient(x - w, 0, x + w, 0);
-      g.addColorStop(0, '#120c18');
-      g.addColorStop(0.4, '#54466a');
-      g.addColorStop(1, '#100a16');
+      g.addColorStop(0, 'rgba(255,190,90,0.55)');
+      g.addColorStop(0.45, 'rgba(255,250,232,0.98)');
+      g.addColorStop(1, 'rgba(255,190,90,0.55)');
       rrect(c, x - w, TOP_Y, w * 2, yb - TOP_Y, w);
       c.fillStyle = g;
       c.fill();
-      c.beginPath();
-      c.moveTo(x - w - 0.6, yb - 3);
-      c.lineTo(x + w + 0.6, yb - 3);
-      c.lineTo(x, yb + 8 * s);
-      c.closePath();
-      fillInk(c, gold(c, x - 3, yb - 3, x + 3, yb + 8), 0.9);
+      ellipse(c, x, yb - 1, w + 2.4 * s, 2.6 * s);
+      fillInk(c, gold(c, x - 5, yb - 4, x + 5, yb + 2), 0.9);
     }
     // Cross rails, parallel to the floor, riveted where they meet the bars.
     for (const z of [18, 84, 156, 236]) {
@@ -229,31 +234,19 @@ function grilleSprite(len: number) {
       c.rect(x0, TOP_Y, x1 - x0, len + 20 - TOP_Y);
       c.clip();
       quad(c, [a, b, [b[0], b[1] - 7], [a[0], a[1] - 7]]);
-      const rg = c.createLinearGradient(0, b[1] - 7, 0, b[1]);
-      rg.addColorStop(0, '#7a6a90');
-      rg.addColorStop(0.5, '#3a3048');
-      rg.addColorStop(1, '#140e1a');
-      fillInk(c, rg, 1);
+      fillInk(c, gold(c, 0, b[1] - 7, 0, b[1]), 1);
       for (let y = 8; y <= len - 6; y += step) {
         const [rx, ry] = P(-3, y, z);
         if (ry - 3.5 < TOP_Y) continue;
         ellipse(c, rx, ry - 3.5, 1.5, 1.5);
-        c.fillStyle = '#e0b25a';
+        c.fillStyle = '#fff4c2';
         c.fill();
       }
       c.restore();
     }
-    // The moth's wings spread across the grille around the seal (the seal is its body).
+    // The lens lock's halo on the beams (the lock itself is the two halves on top).
     const [sx, sy] = sealAt(len);
-    glowAt(c, sx, sy - 6, 96, 60, 0xc98ae0, 0.3, 'lighter');
-    for (const s of [-1, 1]) {
-      c.save();
-      c.translate(sx + s * 6, sy - 4);
-      c.scale(s * 0.62, 0.62);
-      c.rotate(-0.18);
-      paintWing(c, false);
-      c.restore();
-    }
+    glowAt(c, sx, sy - 2, 70, 50, 0xfff0c8, 0.35, 'lighter');
     // Into the dark: the top of the grille fades out.
     c.save();
     c.globalCompositeOperation = 'destination-out';
@@ -288,71 +281,70 @@ function slotSprite(len: number) {
   });
 }
 
-/** Where the seal hangs on the grille (gate-local screen offset): the middle, at chest height of the moth. */
+/** Where the lens lock sits on the beams (gate-local screen offset): the middle, at chest height. */
 const sealAt = (len: number) => proj(len)(-3, len / 2, 150);
 
-/** Red wax seal with the moth crest, as two halves that break apart along a jagged crack. */
+/**
+ * The lens lock: a brass ring with a glass lens and the house crest, as two halves that part
+ * along a stepped seam when the machine has had its try.
+ */
 function sealHalf(side: -1 | 1) {
-  return cached(`gseal-${side}`, () =>
+  return cached(`glock-${side}`, () =>
     paint(60, 80, (c) => {
       c.translate(30, 34);
-      const crack: [number, number][] = [[1, -26], [-3, -14], [3, -5], [-2, 4], [3, 13], [-1, 24], [1, 40]];
+      const seam: [number, number][] = [[0, -26], [0, -14], [3, -14], [3, -4], [-3, -4], [-3, 6], [2, 6], [2, 16], [0, 16], [0, 30]];
       c.save();
       c.beginPath();
       c.moveTo(side * 40, -40);
-      for (const [x, y] of crack) c.lineTo(x, y);
+      for (const [x, y] of seam) c.lineTo(x, y);
       c.lineTo(side * 40, 46);
       c.closePath();
       c.clip();
-      // Ribbon tails under the wax.
-      for (const s of [-1, 1]) {
+      // Brass ring with twelve rays round it.
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
         c.beginPath();
-        c.moveTo(s * 4, 6);
-        c.lineTo(s * 13, 40);
-        c.lineTo(s * 8, 36);
-        c.lineTo(s * 4, 42);
-        c.lineTo(s * -2, 8);
+        c.moveTo(Math.cos(a - 0.12) * 19, Math.sin(a - 0.12) * 19);
+        c.lineTo(Math.cos(a) * (k % 2 ? 24 : 27), Math.sin(a) * (k % 2 ? 24 : 27));
+        c.lineTo(Math.cos(a + 0.12) * 19, Math.sin(a + 0.12) * 19);
         c.closePath();
-        fillInk(c, s < 0 ? '#7a1a3a' : '#5a1030', 1.2);
+        fillInk(c, gold(c, -27, -27, 27, 27), 1);
       }
-      const r = seeded(31);
-      c.beginPath();
-      for (let k = 0; k <= 28; k++) {
-        const a = (k / 28) * Math.PI * 2;
-        const rr = 19 + (r() - 0.5) * 3.4 + (k % 7 === 3 ? 2.6 : 0);
-        if (k) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
-        else c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      ellipse(c, 0, 0, 20, 20);
+      fillInk(c, gold(c, -20, -20, 20, 20), 1.8);
+      ellipse(c, 0, 0, 15, 15);
+      const g = c.createRadialGradient(-5, -6, 1, 0, 0, 16);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.5, '#fff0c8');
+      g.addColorStop(1, '#c89a50');
+      c.fillStyle = g;
+      c.fill();
+      for (const rr of [5, 10]) {
+        ellipse(c, 0, 0, rr, rr);
+        c.strokeStyle = 'rgba(160,110,40,0.35)';
+        c.lineWidth = 0.9;
+        c.stroke();
       }
-      c.closePath();
-      const g = c.createRadialGradient(-6, -7, 2, 0, 0, 22);
-      g.addColorStop(0, '#f06070');
-      g.addColorStop(0.55, '#b02238');
-      g.addColorStop(1, '#5e0c1c');
-      fillInk(c, g, 1.6);
-      ellipse(c, 0, 0, 13, 13);
-      c.strokeStyle = 'rgba(60,0,12,0.55)';
-      c.lineWidth = 1.6;
-      c.stroke();
-      c.globalAlpha = 0.85;
-      crestEmblem(c, 20, '#ffcf7a');
+      c.globalAlpha = 0.9;
+      crestEmblem(c, 18, '#ffcf7a');
       c.globalAlpha = 1;
-      glowAt(c, -7, -8, 6, 4, 0xffffff, 0.35, 'lighter');
+      glowAt(c, -6, -7, 6, 4, 0xffffff, 0.45, 'lighter');
       c.restore();
-      // The broken edge.
+      // The seam.
       c.beginPath();
-      crack.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
-      c.strokeStyle = 'rgba(40,0,8,0.5)';
+      seam.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
+      c.strokeStyle = 'rgba(60,36,8,0.55)';
       c.lineWidth = 1;
       c.stroke();
     }),
   );
 }
 
-/** "AUTOMAT 2 VON 5 · Ein Versuch. Wähle deinen Einsatz." on a brass easel. */
+/** "AUTOMAT 2 VON 5 · Ein Versuch. Wähle deinen Einsatz." on a brass easel, the lamp's era on a tab above. */
 function plaqueTexture(i: number, name: string) {
   return cached(`plq-${i}-${name}`, () =>
-    paint(190, 132, (c) => {
-      c.translate(95, 126);
+    paint(190, 150, (c) => {
+      c.translate(95, 144);
       shadow(c, 0, 0, 30, 6, 0.5);
       for (const s of [-1, 1]) {
         c.beginPath();
@@ -362,12 +354,26 @@ function plaqueTexture(i: number, name: string) {
         c.lineWidth = 4;
         c.stroke();
       }
+      // The era tab: "I · Kerze", the lamp that hangs over this machine.
+      const era = ERA_NAMES[i];
+      if (era) {
+        rrect(c, -58, -138, 116, 22, 6);
+        fillInk(c, gold(c, -58, -138, 58, -116), 1.8);
+        rrect(c, -53, -134, 106, 16, 4);
+        c.fillStyle = '#0e1430';
+        c.fill();
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillStyle = '#f2d08a';
+        c.font = '700 10.5px Cinzel, Georgia, serif';
+        c.fillText(`${['I', 'II', 'III', 'IV', 'V'][i]} · ${era.era.toLocaleUpperCase('de-DE')}`, 0, -125.5);
+      }
       rrect(c, -90, -122, 180, 72, 8);
       fillInk(c, gold(c, -90, -122, 90, -50), 2.2);
       rrect(c, -83, -115, 166, 58, 5);
       const g = c.createLinearGradient(0, -115, 0, -57);
-      g.addColorStop(0, '#3a0e3a');
-      g.addColorStop(1, '#1a0620');
+      g.addColorStop(0, '#1c2a5e');
+      g.addColorStop(1, '#0c1230');
       c.fillStyle = g;
       c.fill();
       c.textAlign = 'center';
@@ -378,7 +384,7 @@ function plaqueTexture(i: number, name: string) {
       c.fillStyle = '#f2e6c9';
       c.font = '700 14px "Barlow Condensed", sans-serif';
       c.fillText(name, 0, -86);
-      c.fillStyle = '#d9b8ff';
+      c.fillStyle = '#c8d8ff';
       c.font = '700 13px "Barlow Condensed", sans-serif';
       c.fillText('Ein Versuch. Wähle deinen Einsatz.', 0, -69);
     }),
@@ -430,16 +436,16 @@ function arrowTexture() {
   );
 }
 
-/** The corridor grows darker towards the throne (a thin gradient stretched over the floor). */
+/** The corridor grows darker towards the Kuppel (a thin gradient stretched over the floor). */
 function shadeTexture() {
   return cached('shade', () =>
     paint(256, 4, (c) => {
       const g = c.createLinearGradient(0, 0, 256, 0);
-      g.addColorStop(0, 'rgba(6,0,12,0)');
-      g.addColorStop(0.35, 'rgba(6,0,12,0.05)');
-      g.addColorStop(0.75, 'rgba(6,0,12,0.3)');
-      g.addColorStop(0.88, 'rgba(10,0,16,0.38)');
-      g.addColorStop(1, 'rgba(10,0,16,0.2)');
+      g.addColorStop(0, 'rgba(2,4,16,0)');
+      g.addColorStop(0.35, 'rgba(2,4,16,0.05)');
+      g.addColorStop(0.75, 'rgba(2,4,16,0.26)');
+      g.addColorStop(0.88, 'rgba(4,6,20,0.22)');
+      g.addColorStop(1, 'rgba(4,6,20,0.05)');
       c.fillStyle = g;
       c.fillRect(0, 0, 256, 4);
     }, 1),
@@ -526,7 +532,7 @@ export class CorridorScene {
       };
       slots.addChild(at(slotSprite(len), 0));
       host.entities.addChild(at(backPostSprite(len), yTop + 16), at(frontPostSprite(len), yBot + 30));
-      // The grille rises into the dark above the room: a mask cuts it off at its top edge.
+      // The beams rise into the dark above the room: a mask cuts them off at their top edge.
       const grille = new Container();
       grille.zIndex = yBot + 1;
       const bars = at(grilleSprite(len), 0);
@@ -545,14 +551,14 @@ export class CorridorScene {
       host.entities.addChild(sealL, sealR);
       const sealGlow = new Sprite(glowTexture());
       sealGlow.anchor.set(0.5);
-      sealGlow.tint = 0xff7a6a;
+      sealGlow.tint = 0xfff0c8;
       sealGlow.blendMode = 'add';
       sealGlow.position.set(gx + sx, yTop + sy);
       sealGlow.width = sealGlow.height = 90;
       sealGlow.alpha = 0.35;
       const glow = new Sprite(glowTexture());
       glow.anchor.set(0.5);
-      glow.tint = 0xb06ad8;
+      glow.tint = 0xffd890;
       glow.blendMode = 'add';
       glow.position.set(gx, yTop + len / 2 - 90);
       glow.width = 190;
@@ -570,7 +576,7 @@ export class CorridorScene {
         rects.push({ x: x - 18, y, w: 36, h: (k === N - 1 ? H : yTop + u1 + 2) - y });
       }
       const line = (y: number) => gx + P(0, y - yTop, 0)[0];
-      const hints: ExtraInteractable[] = [WALL_H + 70, WALL_H + 175, WALL_H + 280, WALL_H + 385].map((y) => ({ kind: 'extra', id: `gate:${i}`, x: line(y) - 48, y, title: 'Tor · erst den Automaten spielen' }));
+      const hints: ExtraInteractable[] = [WALL_H + 70, WALL_H + 175, WALL_H + 280, WALL_H + 385].map((y) => ({ kind: 'extra', id: `gate:${i}`, x: line(y) - 48, y, title: 'Lichtschleuse · erst den Automaten spielen' }));
       this.gates.push({ i, x: gx, y0: yTop, len, rects, grille, bars, sealL, sealR, sealGlow, glow, hints, open: null });
     });
 
@@ -579,7 +585,7 @@ export class CorridorScene {
     machines.forEach((st, i) => {
       const g = getGame(st.game);
       const p = new Sprite(plaqueTexture(i, st.label ?? g.name));
-      p.anchor.set(0.5, 126 / 132);
+      p.anchor.set(0.5, 144 / 150);
       p.position.set(st.x - 96, st.y + g.footprint.h + 6);
       p.zIndex = p.y;
       host.entities.addChild(p);
@@ -678,7 +684,7 @@ export class CorridorScene {
       }
     };
     if (!animated) return still();
-    // Opening: the wax seal cracks and falls, the grille grinds up into the arch.
+    // Opening: the lens lock parts and falls, the beams draw up into the dark.
     sfx.crack();
     setTimeout(() => !this.dead && sfx.creak(), 180);
     sfx.shimmer();
@@ -693,7 +699,8 @@ export class CorridorScene {
     for (let k = 0; k < 9; k++) {
       const c = new Sprite(glowTexture());
       c.anchor.set(0.5);
-      c.tint = 0xa01a2c;
+      c.tint = 0xffd890;
+      c.blendMode = 'add';
       c.width = c.height = 5 + Math.random() * 4;
       c.position.set(seal.x + (Math.random() - 0.5) * 16, seal.y + (Math.random() - 0.5) * 16);
       this.host.fx.addChild(c);

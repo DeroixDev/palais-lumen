@@ -73,7 +73,8 @@ export const f1: RoomDefinition = {
     { kind: 'floorLamp', x: 860, y: 1300 },
     { kind: 'bar', x: 190, y: 950, w: 240, h: 64 },
     { kind: 'bookshelf', x: 980, y: 930, w: 160 },
-    { kind: 'statue', x: 580, y: 1060 },
+    // A candelabrum by the dais, where the house's last three moths still dance round the flame.
+    { kind: 'candelabrum', x: 840, y: 1050 },
     { kind: 'plant', x: 50, y: 210 },
     { kind: 'plant', x: 1110, y: 210 },
     { kind: 'plant', x: 50, y: 1350 },

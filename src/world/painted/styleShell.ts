@@ -30,7 +30,7 @@ export function styleFloor(c: Ctx, W: number, H: number, top: number, t: RoomThe
   }
 }
 
-/** Deep velvet carpet with a gold lattice, little moth medallions and a soft nap. */
+/** Deep velvet carpet with a gold lattice, little sunburst medallions and a soft nap. */
 function velvetFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r: () => number) {
   const g = c.createLinearGradient(0, top, 0, H);
   g.addColorStop(0, rgb(dark(t.carpet, 0.25)));
@@ -53,16 +53,21 @@ function velvetFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r:
       c.closePath();
       c.strokeStyle = rgb(t.carpetAccent, 0.22);
       c.stroke();
-      // Medallion: a tiny moth of gold thread.
+      // Medallion: a tiny sunburst of gold thread.
       c.save();
-      c.translate(x, y);
+      c.translate(x, y + 2);
       c.scale(1, 0.72);
-      for (const s of [-1, 1]) {
-        ellipse(c, s * 6, -1, 6, 4);
-        c.fillStyle = rgb(t.carpetAccent, 0.35);
+      for (let k = 0; k < 7; k++) {
+        const an = Math.PI + ((k + 0.5) / 7) * Math.PI;
+        c.beginPath();
+        c.moveTo(Math.cos(an - 0.14) * 2.5, Math.sin(an - 0.14) * 2.5);
+        c.lineTo(Math.cos(an) * (k % 2 ? 7 : 10), Math.sin(an) * (k % 2 ? 7 : 10));
+        c.lineTo(Math.cos(an + 0.14) * 2.5, Math.sin(an + 0.14) * 2.5);
+        c.closePath();
+        c.fillStyle = rgb(t.carpetAccent, 0.38);
         c.fill();
       }
-      ellipse(c, 0, 0, 1.6, 5);
+      ellipse(c, 0, 0, 2.6, 2.6);
       c.fillStyle = rgb(t.carpetAccent, 0.5);
       c.fill();
       c.restore();
@@ -256,42 +261,41 @@ function crystalFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r
   border(c, W, H, top, t.carpetAccent, 40);
 }
 
-/** Dark stone slabs and a royal runner up to the throne. */
+/** Night-blue marble slabs with brass inlay, and a runner up to the Kuppel. */
 function throneFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r: () => number) {
   const sh = 44;
   for (let row = 0, y = top; y < H; row++, y += sh) {
     let x = row % 2 ? -40 : 0;
     while (x < W) {
       const w = 80 + r() * 50;
-      const base = mix(0x2a2232, 0x16101e, r());
+      const base = mix(0x1a2450, 0x0c1230, r());
       const g = c.createLinearGradient(x, y, x + w * 0.4, y + sh);
-      g.addColorStop(0, rgb(light(base, 0.12)));
+      g.addColorStop(0, rgb(light(base, 0.1)));
       g.addColorStop(1, rgb(dark(base, 0.3)));
-      rrect(c, x + 1, y + 1, w - 2, sh - 2, 3);
+      rrect(c, x + 1, y + 1, w - 2, sh - 2, 2);
       c.fillStyle = g;
       c.fill();
-      c.strokeStyle = 'rgba(6,2,10,0.85)';
-      c.lineWidth = 2;
+      c.strokeStyle = 'rgba(224,178,90,0.22)';
+      c.lineWidth = 1.4;
       c.stroke();
-      // Chips and cracks.
-      if (r() < 0.3) {
+      // Moon-silver veins in the marble.
+      if (r() < 0.45) {
         c.beginPath();
-        c.moveTo(x + r() * w, y + 2);
-        c.lineTo(x + r() * w, y + sh * 0.5);
-        c.lineTo(x + r() * w, y + sh - 2);
-        c.strokeStyle = 'rgba(0,0,0,0.3)';
-        c.lineWidth = 0.8;
+        c.moveTo(x + r() * w, y + 3);
+        c.quadraticCurveTo(x + r() * w, y + sh * 0.5, x + r() * w, y + sh - 3);
+        c.strokeStyle = 'rgba(200,214,255,0.12)';
+        c.lineWidth = 1;
         c.stroke();
       }
       x += w;
     }
   }
-  // A long corridor gets its runner lengthwise, from the elevator to the throne.
+  // A long corridor gets its runner lengthwise, from the elevator to the Kuppel.
   if (W > H * 3) {
     const cy = top + (H - top) * 0.52;
     const rg = c.createLinearGradient(0, cy - 70, 0, cy + 70);
     rg.addColorStop(0, rgb(dark(t.carpetPattern, 0.2)));
-    rg.addColorStop(0.5, rgb(light(t.carpetPattern, 0.15)));
+    rg.addColorStop(0.5, rgb(light(t.carpetPattern, 0.12)));
     rg.addColorStop(1, rgb(dark(t.carpetPattern, 0.2)));
     c.fillStyle = rg;
     c.fillRect(0, cy - 70, W, 140);
@@ -299,11 +303,28 @@ function throneFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r:
       c.fillStyle = r() < 0.5 ? rgb(light(t.carpetPattern, 0.3), 0.2) : rgb(dark(t.carpetPattern, 0.4), 0.2);
       c.fillRect(r() * W, cy - 70 + r() * 140, 3, 1);
     }
+    // Small brass fans woven into the runner, pointing the way.
+    for (let x = 120; x < W; x += 160) {
+      c.save();
+      c.translate(x, cy + 6);
+      c.scale(1, 0.7);
+      for (let k = 0; k < 7; k++) {
+        const a = Math.PI + ((k + 0.5) / 7) * Math.PI;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(Math.cos(a - 0.08) * 22, Math.sin(a - 0.08) * 22);
+        c.lineTo(Math.cos(a + 0.08) * 22, Math.sin(a + 0.08) * 22);
+        c.closePath();
+        c.fillStyle = rgb(t.carpetAccent, 0.32);
+        c.fill();
+      }
+      c.restore();
+    }
     for (const ey of [cy - 70, cy + 63]) {
       c.fillStyle = gold(c, 0, ey, 0, ey + 7);
       c.fillRect(0, ey, W, 7);
     }
-    c.fillStyle = 'rgba(8,2,14,0.35)';
+    c.fillStyle = 'rgba(4,6,20,0.3)';
     c.fillRect(0, top, W, H - top);
     return;
   }
@@ -320,7 +341,7 @@ function throneFloor(c: Ctx, W: number, H: number, top: number, t: RoomTheme, r:
     c.fillStyle = gold(c, ex, 0, ex + 8, 0);
     c.fillRect(ex, top, 8, H - top);
   }
-  c.fillStyle = 'rgba(8,2,14,0.35)';
+  c.fillStyle = 'rgba(4,6,20,0.3)';
   c.fillRect(0, top, W, H - top);
 }
 
@@ -478,39 +499,47 @@ export function styleWall(c: Ctx, W: number, WH: number, t: RoomTheme) {
       return;
     }
     case 'throne': {
-      // Heavy stone blocks with purple drapes swagged between gold hooks.
-      for (let y = 18, row = 0; y < WH - 36; y += 28, row++) {
-        for (let x = row % 2 ? -30 : 0; x < W; x += 60) {
-          const base = mix(0x2a2034, 0x1a1222, r());
-          rrect(c, x + 1, y + 1, 58, 26, 2);
-          c.fillStyle = rgb(base);
-          c.fill();
-          c.strokeStyle = 'rgba(4,0,8,0.8)';
-          c.lineWidth = 1.5;
+      // Night-blue lacquer panels in brass frames, each crowned with a small sunburst.
+      const pw = 80;
+      for (let x = 0; x < W; x += pw) {
+        const g = c.createLinearGradient(x, 16, x + pw, WH - 40);
+        g.addColorStop(0, rgb(light(t.wall, 0.12)));
+        g.addColorStop(1, rgb(dark(t.wall, 0.25)));
+        c.fillStyle = g;
+        c.fillRect(x + 6, 18, pw - 12, WH - 58);
+        c.strokeStyle = rgb(t.wallTrim, 0.55);
+        c.lineWidth = 1.6;
+        c.strokeRect(x + 6, 18, pw - 12, WH - 58);
+        c.strokeStyle = rgb(t.wallTrim, 0.2);
+        c.lineWidth = 1;
+        c.strokeRect(x + 11, 23, pw - 22, WH - 68);
+        // Sunburst over the panel's foot.
+        const fx = x + pw / 2;
+        const fy = WH - 46;
+        for (let k = 0; k < 9; k++) {
+          const a = Math.PI + ((k + 0.5) / 9) * Math.PI;
+          c.beginPath();
+          c.moveTo(fx + Math.cos(a) * 6, fy + Math.sin(a) * 6);
+          c.lineTo(fx + Math.cos(a) * (k % 2 ? 22 : 30), fy + Math.sin(a) * (k % 2 ? 22 : 30));
+          c.strokeStyle = rgb(t.wallTrim, k % 2 ? 0.25 : 0.4);
+          c.lineWidth = 1.4;
           c.stroke();
-          c.fillStyle = 'rgba(255,230,200,0.05)';
-          c.fillRect(x + 2, y + 2, 56, 3);
+        }
+        c.beginPath();
+        c.arc(fx, fy, 6, Math.PI, 0);
+        c.fillStyle = rgb(t.wallTrim, 0.45);
+        c.fill();
+        // Moon-silver stars scattered in the lacquer.
+        for (let k = 0; k < 3; k++) {
+          ellipse(c, x + 14 + r() * (pw - 28), 26 + r() * (WH - 100), 0.9, 0.9);
+          c.fillStyle = 'rgba(223,232,255,0.55)';
+          c.fill();
         }
       }
-      const cur = t.curtain ?? 0x5a1a6a;
-      for (let x = 0; x < W; x += 140) {
-        c.beginPath();
-        c.moveTo(x, 18);
-        c.quadraticCurveTo(x + 70, 70, x + 140, 18);
-        c.lineTo(x + 140, 30);
-        c.quadraticCurveTo(x + 70, 84, x, 30);
-        c.closePath();
-        const g = c.createLinearGradient(0, 18, 0, 84);
-        g.addColorStop(0, rgb(light(cur, 0.2)));
-        g.addColorStop(1, rgb(dark(cur, 0.4)));
-        c.fillStyle = g;
-        c.fill();
-        c.strokeStyle = 'rgba(10,2,14,0.8)';
-        c.lineWidth = 1.5;
-        c.stroke();
-        ellipse(c, x, 22, 5, 5);
-        c.fillStyle = gold(c, x - 5, 17, x + 5, 27);
-        c.fill();
+      // A thin brass frieze of steps along the top.
+      for (let x = 0; x < W; x += 16) {
+        c.fillStyle = rgb(t.wallTrim, x % 32 ? 0.25 : 0.45);
+        c.fillRect(x, 8, 10, x % 32 ? 4 : 7);
       }
       return;
     }

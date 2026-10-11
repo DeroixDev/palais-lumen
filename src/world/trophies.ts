@@ -82,14 +82,14 @@ export function drawMedal(medal: Medal): Container {
     g.circle(Math.cos(a) * 76, Math.sin(a) * 76, 2.4).fill(m.light);
   }
   g.circle(0, 0, 56).stroke({ color: m.light, width: 3, alpha: 0.7 });
-  // Moth emblem.
-  g.ellipse(-20, -6, 20, 26).fill({ color: m.dark, alpha: 0.85 });
-  g.ellipse(20, -6, 20, 26).fill({ color: m.dark, alpha: 0.85 });
-  g.ellipse(-14, 22, 12, 14).fill({ color: m.dark, alpha: 0.85 });
-  g.ellipse(14, 22, 12, 14).fill({ color: m.dark, alpha: 0.85 });
-  g.roundRect(-4, -26, 8, 56, 4).fill(m.light);
-  g.moveTo(-2, -26).lineTo(-12, -42).stroke({ color: m.light, width: 2 });
-  g.moveTo(2, -26).lineTo(12, -42).stroke({ color: m.light, width: 2 });
+  // The house sunburst.
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI + ((i + 0.5) / 9) * Math.PI;
+    const len = i % 2 ? 34 : 44;
+    g.poly([Math.cos(a - 0.12) * 12, 14 + Math.sin(a - 0.12) * 12, Math.cos(a) * len, 14 + Math.sin(a) * len, Math.cos(a + 0.12) * 12, 14 + Math.sin(a + 0.12) * 12]).fill({ color: m.dark, alpha: 0.85 });
+  }
+  g.circle(0, 14, 12).fill(m.light);
+  g.roundRect(-40, 14, 80, 6, 3).fill({ color: m.dark, alpha: 0.85 });
   c.addChild(g);
   return c;
 }
