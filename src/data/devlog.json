@@ -1,5 +1,20 @@
 [
  {
+  "v": "20.4",
+  "date": "2026-10-11",
+  "kind": "Patch",
+  "title": "Von allen Seiten",
+  "sections": [
+   {
+    "h": "Verbessert",
+    "items": [
+     "Automaten, Spieltische, Requisiten und Gäste lassen sich jetzt von jeder freien Seite benutzen, auch von oben, nicht nur von vorn.",
+     "Tippst du ein Ding an, läuft die Figur zur nächstgelegenen freien Seite statt außen herum nach vorn."
+    ]
+   }
+  ]
+ },
+ {
   "v": "20.3",
   "date": "2026-10-11",
   "kind": "Patch",

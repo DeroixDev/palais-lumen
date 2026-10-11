@@ -35,12 +35,12 @@ import { clubLightSpots, clubSign } from './painted/propsClub';
 export { WALL_H };
 
 export type Interactable =
-  | { kind: 'station'; station: StationPlacement; x: number; y: number; title: string }
+  | { kind: 'station'; station: StationPlacement; x: number; y: number; title: string; area?: Rect }
   | { kind: 'elevator'; x: number; y: number; title: string }
   | { kind: 'door'; door: DoorDef; x: number; y: number; title: string }
   | { kind: 'shelf'; x: number; y: number; title: string }
   | { kind: 'achievements'; x: number; y: number; title: string }
-  | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void }
+  | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void; area?: Rect }
   | ExtraInteractable;
 
 /** Things on the floors you can use, and what the prompt says. */
@@ -434,6 +434,8 @@ export class RoomScene {
         x: st.x + game.footprint.w / 2,
         y: st.y + game.footprint.h + 22,
         title: `${st.label ?? game.name} spielen`,
+        // Usable from every free side, not only from the front.
+        area: { x: st.x, y: st.y, w: game.footprint.w, h: game.footprint.h },
       });
     }
   }
@@ -451,6 +453,8 @@ export class RoomScene {
       const spot = cands.find(([x, y]) => !this.collides(x, y)) ?? below;
       i.x = spot[0];
       i.y = spot[1];
+      // Things with a fixed side (the piano's keys) keep it; everything else works from all sides.
+      if (!from && i.prop !== 'piano') i.area = o;
       this.interactables.push(i);
     }
     this.pendingUse = [];
@@ -1020,6 +1024,46 @@ export class RoomScene {
     this.stick.circle(d.sx + (d.x - d.sx) * k, d.sy + (d.y - d.sy) * k, 22).fill({ color: COLORS.lamp, alpha: 0.55 });
   }
 
+  /** How far the player's feet are from being able to use `i`: to its spot, or to any side of its area. */
+  private reach(i: Interactable, x: number, y: number) {
+    const spot = Math.hypot(i.x - x, i.y - y);
+    const a = this.areaOf(i);
+    if (!a) return spot;
+    const dx = Math.max(a.x - x, 0, x - (a.x + a.w));
+    const dy = Math.max(a.y - y, 0, y - (a.y + a.h));
+    // Standing right at an edge is like standing on the spot (which is 22-26 px in front).
+    return Math.min(spot, Math.hypot(dx, dy) + 14);
+  }
+
+  /**
+   * What an interactable occupies on the floor, so it can be used from every side. People, lecterns
+   * and boards ('extra') stand 40 px above their prompt spot; the Queen's throne keeps its front.
+   */
+  private areaOf(i: Interactable): Rect | undefined {
+    if ('area' in i && i.area) return i.area;
+    if (i.kind === 'extra' && i.id !== 'queen') return { x: i.x - 22, y: i.y - 60, w: 44, h: 30 };
+    return undefined;
+  }
+
+  /** The free spot on whichever side of the thing is closest to the player (the front if in doubt). */
+  private sideNearPlayer(i: Interactable) {
+    const a = this.areaOf(i);
+    const pv = this.player.view;
+    if (!a) return { x: i.x, y: i.y };
+    const cx = Math.max(a.x + 10, Math.min(a.x + a.w - 10, pv.x));
+    const cy = Math.max(a.y + 6, Math.min(a.y + a.h - 6, pv.y));
+    const cands = [
+      { x: i.x, y: i.y },
+      { x: cx, y: a.y + a.h + 20 },
+      { x: cx, y: a.y - 14 },
+      { x: a.x - 26, y: cy },
+      { x: a.x + a.w + 26, y: cy },
+    ].filter((c) => !this.collides(c.x, c.y));
+    if (!cands.length) return { x: i.x, y: i.y };
+    cands.sort((u, v) => Math.hypot(u.x - pv.x, u.y - pv.y) - Math.hypot(v.x - pv.x, v.y - pv.y));
+    return cands[0];
+  }
+
   /** Middle of the thing an interactable belongs to (to tell if the player walks into it). */
   private objectPoint(i: Interactable) {
     if (i.kind === 'station') {
@@ -1043,8 +1087,14 @@ export class RoomScene {
         best = i;
       }
     }
+    // Tapping the thing itself counts too, from any side.
+    if (!best)
+      for (const i of this.interactables) {
+        const a = this.areaOf(i);
+        if (a && p.x > a.x - 10 && p.x < a.x + a.w + 10 && p.y > a.y - 40 && p.y < a.y + a.h + 10) best = i;
+      }
     if (best) {
-      this.target = { x: best.x, y: best.y };
+      this.target = this.sideNearPlayer(best);
       this.pending = best;
     } else {
       this.target = { x: p.x, y: p.y };
@@ -1231,7 +1281,7 @@ export class RoomScene {
     let bestD = 64;
     for (const i of this.interactables) {
       // Small props give way to machines, the elevator and the shops when both are close.
-      const d = Math.hypot(i.x - pv.x, i.y - pv.y) + (i.kind === 'use' && !['shopCounter', 'wardrobe', 'reception'].includes(i.prop) ? 18 : 0);
+      const d = this.reach(i, pv.x, pv.y) + (i.kind === 'use' && !['shopCounter', 'wardrobe', 'reception'].includes(i.prop) ? 18 : 0);
       if (d < bestD) {
         bestD = d;
         best = i;

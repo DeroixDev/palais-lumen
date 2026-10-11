@@ -2,6 +2,15 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v20.4: Von allen Seiten
+
+*Patch · 11.10.2026*
+
+**Verbessert**
+
+- Automaten, Spieltische, Requisiten und Gäste lassen sich jetzt von jeder freien Seite benutzen, auch von oben, nicht nur von vorn.
+- Tippst du ein Ding an, läuft die Figur zur nächstgelegenen freien Seite statt außen herum nach vorn.
+
 ## v20.3: Wegfindung
 
 *Patch · 11.10.2026*
