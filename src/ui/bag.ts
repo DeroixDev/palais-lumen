@@ -485,19 +485,19 @@ function injectStyle() {
   .bag-key .bag-n { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; font: 700 .8rem/20px var(--body); text-align: center; color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 1.5px rgba(22,10,20,.9); }
   .bag-key.has-active .bag-ic { animation: bagglow 2.4s ease-in-out infinite; }
   @keyframes bagglow { 50% { filter: drop-shadow(0 0 6px rgba(255,207,122,.9)); } }
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     #hud .bag-key { order: 9; width: 48px; height: 44px; min-height: 44px; padding: 0; justify-content: center; align-self: end; }
     #hud .bag-key .lbl { display: none; }
     #hud .evening { flex-basis: calc(100% - 56px); }
   }
-  @media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+  @media (max-width: 1100px) and (max-height: 500px) and (orientation: landscape) {
     #hud .bag-key { order: 0; align-self: center; }
     #hud .evening { flex-basis: auto; }
   }
 
   /* Desktop: top right under the rail (the dealer's quip bubble lives top left). Phones: top left. */
   #items-rail { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(var(--hud-h) + 8px); z-index: 33; display: none; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(60vw, 520px); pointer-events: none; }
-  @media (max-width: 900px) { #items-rail { right: auto; left: max(10px, env(safe-area-inset-left, 0px)); justify-content: flex-start; } }
+  @media (max-width: 1100px) { #items-rail { right: auto; left: max(10px, env(safe-area-inset-left, 0px)); justify-content: flex-start; } }
   #items-rail.on { display: flex; }
   body.hud-off #items-rail, body.modal-open #items-rail { display: none; }
   .it-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; min-height: 0; height: 36px; padding: 0 9px 0 2px; border-radius: 18px; font: 700 .95rem/1 var(--body); color: var(--cream); }
@@ -546,7 +546,7 @@ function injectStyle() {
     border: 4px solid transparent; border-image: var(--nf-plate, none) 24 fill / 12px stretch; border-radius: 14px; background: linear-gradient(180deg, #3a1428, #1a0612) padding-box;
     filter: drop-shadow(0 12px 22px rgba(0,0,0,.65)); animation: offerin .28s cubic-bezier(.3,1.25,.55,1) both; }
   #item-offer.out { animation: offerout .16s ease-in both; }
-  @media (max-width: 900px) { #item-offer { --ox: -50%; right: auto; left: 50%; top: calc(var(--hud-h) + 50px); } }
+  @media (max-width: 1100px) { #item-offer { --ox: -50%; right: auto; left: 50%; top: calc(var(--hud-h) + 50px); } }
   @keyframes offerin { from { opacity: 0; transform: translateX(var(--ox)) translateY(-12px) scale(.94); } }
   @keyframes offerout { to { opacity: 0; transform: translateX(var(--ox)) translateY(-6px); } }
   body.hud-off #item-offer { display: none; }

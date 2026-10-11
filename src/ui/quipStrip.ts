@@ -4,7 +4,7 @@
 import { reducedMotion } from '../core/fx';
 
 /** The HUD has two rows (phones), or one squeezed row (landscape phones). */
-export const stripLayout = () => matchMedia('(max-width: 900px)').matches;
+export const stripLayout = () => matchMedia('(max-width: 1100px)').matches;
 
 export class QuipStrip {
   private el: HTMLElement;

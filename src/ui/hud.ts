@@ -353,7 +353,7 @@ export class Hud {
 
   private pumpToasts() {
     // In a game on a phone only one strip at a time, so the second never reaches the table.
-    const max = this.inGame && matchMedia('(max-width: 900px)').matches ? 1 : 2;
+    const max = this.inGame && matchMedia('(max-width: 1100px)').matches ? 1 : 2;
     while (this.toastsShown.length < max && this.toastQueue.length) {
       const i = this.toastsHeld ? this.toastQueue.findIndex((x) => x.urgent) : 0;
       if (i < 0) break;

@@ -153,7 +153,13 @@
   .hud-btn.icon:hover .lbl, .hud-btn.icon:focus-visible .lbl { opacity: 1; transform: translate(50%, 0); }
   .hud-btns .hud-btn.icon:last-child .lbl { right: 0; transform: translate(0, -4px); }
   .hud-btns .hud-btn.icon:last-child:hover .lbl, .hud-btns .hud-btn.icon:last-child:focus-visible .lbl { transform: none; }
-  @media (max-width: 1440px) and (min-width: 901px) {
+  /* Medium widths: the keys keep the top row, the day gauge gets its own full-width row below. */
+  @media (max-width: 1699px) and (min-width: 1101px) {
+    #hud { flex-wrap: wrap; row-gap: 6px; padding-bottom: 8px; }
+    .evening { order: 10; flex: 1 1 100%; max-width: none; margin: 0; gap: 4px; }
+    #ev-bar { margin-right: 12px; }
+  }
+  @media (max-width: 1440px) and (min-width: 1101px) {
     .hud-btns .hud-btn:not(.icon) { width: 44px; padding: 0; justify-content: center; }
     .hud-btns .hud-btn:not(.icon) .lbl { position: absolute; top: calc(100% + 9px); right: 50%; transform: translateX(50%); opacity: 0; pointer-events: none; font: 700 .9rem/1 var(--body); color: #2a1406; text-shadow: none; padding: 6px 10px; border-radius: 6px; background: var(--brass-grad); box-shadow: 0 0 0 1.5px rgba(22,10,20,.9); transition: opacity .15s; }
     .hud-btns .hud-btn:not(.icon):hover .lbl, .hud-btns .hud-btn:not(.icon):focus-visible .lbl { opacity: 1; }
@@ -351,7 +357,7 @@
   #skip-hint { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); left: 0; right: 0; text-align: center; color: rgba(255,246,230,.7); font-size: 1rem; pointer-events: none; text-shadow: 0 1px 3px #000; }
 
   /* ---- Phones: two slim rows, the rarely used keys live in a drop-down. ---- */
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     #hud { flex-wrap: wrap; gap: 6px 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 6px); padding-bottom: 8px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
     .plaque { height: 44px; padding: 0 12px 0 5px; gap: 7px; }
     .plaque small { display: none; }
@@ -372,7 +378,7 @@
     #btn-back[hidden] ~ #hud-more { margin-left: auto; }
     .hud-btns {
       position: absolute; top: calc(100% + 10px); right: 10px; margin: 0; z-index: 3;
-      display: grid; gap: 8px; width: 220px; padding: 12px; box-sizing: border-box;
+      display: grid; gap: 8px; width: 220px; padding: 12px; box-sizing: border-box; max-height: calc(100dvh - var(--hud-h) - 24px); overflow-y: auto; overscroll-behavior: contain;
       border: 4px solid transparent; border-image: var(--nf-plate, none) 24 fill / 12px stretch; border-radius: 12px;
       background: linear-gradient(180deg, #3a1428, #1a0612) padding-box;
       filter: drop-shadow(0 12px 20px rgba(0,0,0,.6));

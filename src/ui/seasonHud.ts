@@ -34,7 +34,7 @@ const CSS = `
   .evening.boss.boss-p3 #ev-goal { color: #ffb8a8; }
   @keyframes bosspulse { 50% { filter: brightness(1.3); } }
   @media (prefers-reduced-motion: reduce) { .perkchain img, .evening.boss-p3 #ev-bar.boss #ev-fill { animation: none; } }
-  @media (max-width: 900px) { .perkchain img { width: 24px; height: 24px; } .perkchain img:nth-of-type(n+4) { display: none; } }
+  @media (max-width: 1100px) { .perkchain img { width: 24px; height: 24px; } .perkchain img:nth-of-type(n+4) { display: none; } }
   .perks-list { display: grid; gap: 8px; margin: 0; }
   .perk-row { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(10,4,12,.4); box-shadow: inset 0 0 0 1px rgba(224,178,90,.25); }
   .perk-row img { width: 48px; height: 48px; }
