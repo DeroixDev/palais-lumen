@@ -24,6 +24,7 @@ export const f4techno: RoomDefinition = {
     sofa: 0x2a2a30,
   },
   spawn: { x: 120, y: 470 },
+  tabletX: 1010,
   doors: [
     { x: 0, y: 470, side: 'left', to: 'f4', label: 'Club' },
     { x: 0, y: 470, side: 'right', to: 'f4h', label: 'Hip-Hop-Floor' },

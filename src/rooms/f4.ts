@@ -32,6 +32,7 @@ export const f4: RoomDefinition = {
     barLabel: 'NEON-BAR',
   },
   spawn: { x: 160, y: 240 },
+  tabletX: 1500,
   doors: [{ x: 0, y: 930, side: 'right', to: 'f4t', label: 'Techno-Bunker' }],
   stations: [
     // Left wing: a bank by the elevator and two tables.

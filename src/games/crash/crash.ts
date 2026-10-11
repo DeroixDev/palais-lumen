@@ -24,7 +24,8 @@ import {
   starTexture,
 } from './paint';
 import { MAX_MULT, RTP, SHIELD_BELOW, SHIELD_RTP, drawWindPoint, shielded } from './rules';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
+import { RulesKnob } from '../rulesKnob';
 import { luckDraw, luckBias } from '../../core/debugLuck';
 
 import { CURRENCY_PLURAL } from '../../core/brand';
@@ -159,6 +160,15 @@ class CrashGame implements GameInstance {
   private odds!: OddsWatch;
   private shield = false;
   private rtpText: Text | null = null;
+  /** "So geht's" with the payout share, top left in the sky. */
+  private rules = new RulesKnob(this.view, () => [
+    'Die Himmelslaterne steigt zum Mond, der Multiplikator wächst mit ihr. Sammelst du ein, bevor der Nachtwind sie erwischt, zahlt dein Einsatz × Multiplikator. Erwischt er sie vorher, ist der Einsatz weg.',
+    '• Auto-Einsammeln sammelt beim gewählten Multiplikator von selbst ein.',
+    '• Wie weit sie kommt, steht schon beim Abflug fest.',
+    '',
+    `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %, egal wann du einsammelst.`,
+    ...(this.odds?.id ? [itemRtpText(SHIELD_RTP, 'mondschirm', `einsammeln ab ${fmt(SHIELD_BELOW)}×`)] : []),
+  ]);
   private rtpMaxW = 0;
   private t = 0;
   private mult = 1;
@@ -363,8 +373,8 @@ class CrashGame implements GameInstance {
     this.betText.anchor.set(0.5);
     const autoBtn = (aw: number) => button({ label: '', ariaLabel: (t) => `Auto-Einsammeln: ${t}`, width: aw, height: 52, color: 0x3a2040, textColor: CREAM, fontSize: 19, display: false, onClick: () => this.cycleAuto() });
     const rtp = new Text({
-      text: `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %`,
-      // (replaced by refreshRtp() while the Mondschirm works)
+      text: '',
+      // (filled by refreshRtp() while the Mondschirm works)
       style: { fontFamily: FONT_BODY, fontSize: tall ? 14 : 15, fontWeight: '600', fill: 0xbfa98a },
     });
     if (tall) {
@@ -662,19 +672,17 @@ class CrashGame implements GameInstance {
         this.moth.x = sx + (calm ? 0 : Math.sin(k * 7) * 26);
         this.moth.y = sy + (this.skyH - 70 - sy) * k;
         this.moth.rotation = calm ? 0 : Math.sin(k * 7) * 0.25;
-        this.mothWings.scale.x = 0.6 + 0.2 * Math.abs(Math.sin(k * 6));
+        this.mothWings.scale.set(0.97 + 0.03 * Math.sin(this.time * 9));
       },
       ease.outCubic,
     );
   }
 
-  /** The payout line, with the Mondschirm while it works. */
+  /** The line under the controls: only the Mondschirm while it works (the payout share is in the rules card). */
   private refreshRtp() {
     const t = this.rtpText;
     if (!t) return;
-    t.text = this.odds?.id
-      ? itemRtpText(SHIELD_RTP, 'mondschirm', `einsammeln ab ${fmt(SHIELD_BELOW)}×`)
-      : `Auszahlungsquote ${Math.round(RTP * 100)} % · Hausvorteil ${Math.round((1 - RTP) * 100)} %`;
+    t.text = this.odds?.id ? `${itemName('mondschirm')}: Einsatz zurück bei Wind unter ${fmt(SHIELD_BELOW)}×` : '';
     t.style.fill = this.odds?.id ? 0xc8dcff : 0xbfa98a;
     t.scale.set(1);
     if (this.rtpMaxW > 0 && t.width > this.rtpMaxW) t.scale.set(Math.max(0.6, this.rtpMaxW / t.width));
@@ -865,6 +873,9 @@ class CrashGame implements GameInstance {
     this.subText.position.set(skyX + skyW / 2, skyY + (PLAQUE.h - 4) * ps - plaqueOver + 14);
     this.subText.style.fontSize = tall ? 18 : 21;
     this.historyLayer.position.set(skyX - 4, skyY + skyH + 30 + histH / 2 - 4);
+    this.board.addChild(this.rules.button);
+    this.rules.button.position.set(skyX + 38, skyY + 38);
+    this.rules.resize(w, h);
     this.controls.position.set(x0, H - margin - ctrlH);
     this.board.position.set(0, 0);
   }

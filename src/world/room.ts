@@ -31,6 +31,7 @@ import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
 import { CLUB_USE_TITLE } from './clubUse';
 import { clubLightSpots, clubSign } from './painted/propsClub';
+import { TABLET_Y, paintedTablet } from './painted/tablet';
 
 import { CURRENCY } from '../core/brand';
 export { WALL_H };
@@ -42,6 +43,8 @@ export type Interactable =
   | { kind: 'shelf'; x: number; y: number; title: string }
   | { kind: 'achievements'; x: number; y: number; title: string }
   | { kind: 'use'; prop: DecorKind; x: number; y: number; title: string; cx: number; cy: number; poke?: () => void; area?: Rect }
+  /** The house-tech panel on the back wall (one per room, see buildTablet). */
+  | { kind: 'tablet'; x: number; y: number; title: string }
   | ExtraInteractable;
 
 /** Things on the floors you can use, and what the prompt says. */
@@ -180,6 +183,7 @@ export class RoomScene {
     albumLectern(this.def, { entities: this.entities, obstacles: this.obstacles, interactables: this.interactables });
     this.miniboss = MinibossFigure.for(state, this.def, { entities: this.entities, lights: this.lights, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y) });
     if (!this.def.corridor) this.regulars = new Regulars(state, this.def, { entities: this.entities, fx: this.fxLayer, interactables: this.interactables, obstacles: this.obstacles, collides: (x, y) => this.collides(x, y), player: () => this.player.view.position, refreshPrompt: () => (this.nearest = null) });
+    this.buildTablet();
     this.spawnGuests();
     // Debug switched today's event: closed games and the crowd change right away.
     this.offEventSwitch = onEventSwitch(() => {
@@ -354,6 +358,68 @@ export class RoomScene {
     this.elevator = { doorL, doorR, needle, lamp, open: 0 };
     this.setDial(this.def.floor);
     this.interactables.push({ kind: 'elevator', x: ex, y: WALL_H + 40, title: 'Aufzug nehmen' });
+  }
+
+  /**
+   * The small house-tech tablet on the back wall: on the stretch of wall that is furthest from
+   * everything else up there (elevator, doorways, the sign, pictures and lamps, machines and
+   * furniture standing against the wall, other things to use), so it never blocks a way or a game.
+   * In the boss corridor it hangs in the first stretch, before the first gate.
+   */
+  private buildTablet() {
+    const W = this.def.width;
+    const busy: [number, number][] = [];
+    const add = (a: number, b: number) => busy.push([a, b]);
+    if (!this.def.parent) add(this.def.elevatorX - 125, this.def.elevatorX + 125);
+    for (const d of this.def.doors ?? []) if (d.side === 'back') add(d.x - 95, d.x + 95);
+    const sb = this.sign.getLocalBounds();
+    const half = Math.min(320, sb.width / 2);
+    add(this.sign.x - half - 20, this.sign.x + half + 20);
+    const WALL_W: Partial<Record<DecorKind, number>> = { painting: 80, sconce: 40, window: 66, mirror: 60, wallClock: 40, ivy: 80, banner: 50, relief: 80, gauge: 40, curtain: 80, neonArt: 140, laser: 40, strobe: 40, hoop: 60, plaque: 120, achievementWall: 250 };
+    for (const d of this.def.decor) {
+      const wallPiece = WALL_W[d.kind];
+      if (wallPiece !== undefined) {
+        const w = d.w && d.w > 2 ? d.w : wallPiece;
+        add(d.x - w / 2 - 26, d.x + w / 2 + 26);
+      } else if (d.y < WALL_H + 110 && !['rug', 'runner', 'path', 'mosaic', 'gearInlay', 'chandelier'].includes(d.kind)) {
+        const w = d.w && d.w > 2 ? d.w : 60;
+        add(d.x - w / 2 - 20, d.x + w / 2 + 20);
+      }
+    }
+    for (const st of this.def.stations)
+      if (st.y < WALL_H + 140) {
+        const g = getGame(st.game);
+        add(st.x - 20, st.x + g.footprint.w + 20);
+      }
+    for (const i of this.interactables) if (i.y < WALL_H + 120) add(i.x - 70, i.x + 70);
+    let lo = SIDE + 60;
+    let hi = W - SIDE - 60;
+    if (this.def.corridor) {
+      const gates = this.interactables.filter((i) => i.kind === 'extra' && i.x > this.def.elevatorX + 200).map((i) => i.x);
+      hi = Math.min(hi, (gates.length ? Math.min(...gates) : 1000) - 120);
+    }
+    const sy = WALL_H + 40;
+    let best = -Infinity;
+    let bestX = Math.round((lo + hi) / 2);
+    // A room may name its spot (tabletX); it is used while its floor spot is free.
+    const fixed = this.def.tabletX;
+    if (fixed !== undefined && !this.collides(fixed, sy)) {
+      lo = hi = bestX = fixed;
+    }
+    for (let x = lo; x <= hi; x += 5) {
+      if (this.collides(x, sy) || this.collides(x, sy + 30)) continue;
+      let clear = Math.min(x - lo + 40, hi - x + 40);
+      // Outside a busy stretch: the distance to it; inside: how deep (negative).
+      for (const [a, b] of busy) clear = Math.min(clear, x < a ? a - x : x > b ? x - b : -Math.min(x - a, b - x));
+      if (clear > best) {
+        best = clear;
+        bestX = x;
+      }
+    }
+    const t = paintedTablet(bestX);
+    this.wallDecor.addChild(t.view);
+    this.animated.push((time) => t.update(time));
+    this.interactables.push({ kind: 'tablet', x: bestX, y: sy, title: 'Haustechnik' });
   }
 
   /** Doorways to the other rooms of this floor. */
@@ -1072,6 +1138,7 @@ export class RoomScene {
       return { x: i.station.x + g.footprint.w / 2, y: i.station.y + g.footprint.h / 2 };
     }
     if (i.kind === 'use') return { x: i.cx, y: i.cy };
+    if (i.kind === 'tablet') return { x: i.x, y: TABLET_Y };
     return { x: i.x, y: i.y - 70 };
   }
 
@@ -1282,7 +1349,7 @@ export class RoomScene {
     let bestD = 64;
     for (const i of this.interactables) {
       // Small props give way to machines, the elevator and the shops when both are close.
-      const d = this.reach(i, pv.x, pv.y) + (i.kind === 'use' && !['shopCounter', 'wardrobe', 'reception'].includes(i.prop) ? 18 : 0);
+      const d = this.reach(i, pv.x, pv.y) + ((i.kind === 'use' && !['shopCounter', 'wardrobe', 'reception'].includes(i.prop)) || i.kind === 'tablet' ? 18 : 0);
       if (d < bestD) {
         bestD = d;
         best = i;

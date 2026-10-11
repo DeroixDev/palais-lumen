@@ -1,10 +1,11 @@
 // Shared frame for the cash-out ladder machines (Diamantminen, Drachenturm, Mondmünze):
 // a painted scene of 380×410 design pixels next to (wide screens) or above (portrait) a
-// velvet control deck with the bet stepper, the main button, the collect button, the
-// payout line and a "So geht's" card. Each game paints its own scene and options row.
+// velvet control deck with the bet stepper, the main button, the collect button and a
+// "So geht's" card, which carries the payout line (the deck itself doesn't show it).
+// Each game paints its own scene and options row.
 
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { COLORS, FONT_BODY, FONT_DISPLAY, rewardLevel, shake } from '../core/fx';
+import { COLORS, FONT_DISPLAY, rewardLevel, shake } from '../core/fx';
 import type { GameContext } from '../core/registry';
 import { winStage } from './slots/stage';
 import { button, label, type Button } from '../core/ui';
@@ -54,10 +55,8 @@ export class LadderDeck {
   private secondState = { label: 'KASSIEREN', enabled: false };
   private betState = { text: '', minus: true, plus: true };
   private betLocked = false;
-  private rtpText: Text | null = null;
-  private rtpInner = 0;
-  /** A different payout line (an odds item is on), with its colour; null = the game's own. */
-  private rtpOverride: { text: string; fill: number } | null = null;
+  /** A different payout line for the rules (an odds item is on); null = the game's own. */
+  private rtpOverride: string | null = null;
   w = DECK_WIDE;
   h = SCENE_H;
 
@@ -80,8 +79,6 @@ export class LadderDeck {
     this.betText.anchor.set(0.5);
     this.minus = button({ label: '–', ariaLabel: 'Einsatz senken', width: 50, height: 50, onClick: () => this.o.onBet(-1) });
     this.plus = button({ label: '+', ariaLabel: 'Einsatz erhöhen', width: 50, height: 50, onClick: () => this.o.onBet(1) });
-    const rtp = new Text({ text: rtpLine(this.o.rtp), style: { fontFamily: FONT_BODY, fontSize: 18, fontWeight: '600', fill: 0xe6d6b4 } });
-    rtp.anchor.set(0.5);
     const info = button({ label: "So geht's", width: tall ? 140 : 150, height: 42, color: 0x4a2a3a, textColor: 0xfff6e6, fontSize: 19, display: false, onClick: () => this.showRules() });
     let mw: number, sw: number;
     if (tall) {
@@ -101,7 +98,6 @@ export class LadderDeck {
       info.position.set(W - pad - 70, by);
       this.main.position.set(pad + mw / 2, 186);
       this.second.position.set(W - pad - sw / 2, 186);
-      rtp.position.set(W / 2, 242);
     } else {
       opts.position.set(20, 24);
       const by = 150;
@@ -111,36 +107,24 @@ export class LadderDeck {
       this.betText.position.set(W / 2, by + 9);
       this.main.position.set(W / 2, 214);
       this.second.position.set(W / 2, 278);
-      rtp.position.set(W / 2, 324);
-      info.position.set(W / 2, 364);
+      info.position.set(W / 2, 340);
     }
-    this.rtpText = rtp;
-    this.rtpInner = inner;
-    this.applyRtp();
-    this.view.addChild(opts, betCap, this.betText, this.minus, this.plus, this.main, this.second, rtp, info);
+    this.view.addChild(opts, betCap, this.betText, this.minus, this.plus, this.main, this.second, info);
     this.applyMain();
     this.applySecond();
     this.applyBet();
     this.o.refresh();
   }
 
-  /** Shows another payout line (e.g. with an odds item), or the game's own again with null. */
-  setRtp(text: string | null, fill = 0xe6d6b4) {
-    this.rtpOverride = text === null ? null : { text, fill };
-    this.applyRtp();
+  /** Another payout line for the rules card (e.g. with an odds item), or the game's own again with null. */
+  setRtp(text: string | null, _fill = 0xe6d6b4) {
+    this.rtpOverride = text === null ? null : text.replace(/\n/g, ' · ');
   }
 
-  private applyRtp() {
-    const t = this.rtpText;
-    if (!t || t.destroyed) return;
-    t.text = this.rtpOverride?.text ?? rtpLine(this.o.rtp);
-    t.style.fill = this.rtpOverride?.fill ?? 0xe6d6b4;
-    const two = t.text.includes('\n');
-    t.style.fontSize = two ? 16 : 18;
-    t.style.lineHeight = two ? 18 : 0;
-    t.style.align = 'center';
-    t.scale.set(1);
-    if (t.width > this.rtpInner) t.scale.set(this.rtpInner / t.width);
+  /** The payout line at the end of the rules card. */
+  private rtpRules() {
+    const own = rtpLine(this.o.rtp);
+    return this.rtpOverride ? `${this.rtpOverride}\nOhne Item: ${own}` : own;
   }
 
   setMain(text: string, enabled = true) {
@@ -202,7 +186,7 @@ export class LadderDeck {
     const head = label("SO GEHT'S", 24, COLORS.lamp, true);
     head.anchor.set(0.5, 0);
     head.position.set(W / 2, 26);
-    const body = bodyText(this.o.rules, 18, 0xf2e6c9, { wrap: W - 56, align: 'left' });
+    const body = bodyText(`${this.o.rules}\n\n${this.rtpRules()}`, 18, 0xf2e6c9, { wrap: W - 56, align: 'left' });
     body.position.set(28, 70);
     if (body.height > H - 120) body.scale.set((H - 120) / body.height);
     const foot = bodyText('Tippen zum Schließen', 16, 0xc9b48e);

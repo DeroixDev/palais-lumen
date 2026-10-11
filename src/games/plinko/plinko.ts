@@ -15,6 +15,7 @@ import { StakeWatch } from '../stakeWatch';
 
 import { HALF, RISK_LABEL, ROWS, TABLE, returnToPlayer, wingPath, wingRtp, type Risk } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { RulesKnob } from '../rulesKnob';
 import { setItemRtp } from '../../core/modifiers';
 import { luckDraw } from '../../core/debugLuck';
 
@@ -246,6 +247,7 @@ class PlinkoGame implements GameInstance {
   private inFlight = 0;
   private betText!: Text;
   private rtpText!: Text;
+  private rules = new RulesKnob(this.view, () => this.rulesLines(), { width: 150, height: 40, fontSize: 18 });
   private riskButtons: Button[] = [];
   private minus!: Button;
   private plus!: Button;
@@ -390,7 +392,8 @@ class PlinkoGame implements GameInstance {
     this.rtpText = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: 21, fontWeight: '600', fill: 0xe6d6b4, align: 'center' } });
     this.rtpText.anchor.set(0.5);
     this.rtpText.position.set(W - 172, DECK_Y + 152);
-    b.addChild(this.rtpText, this.stageLayer);
+    this.rules.button.position.set(W - 172, DECK_Y + 152);
+    b.addChild(this.rtpText, this.rules.button, this.stageLayer);
 
     this.setRisk('mid');
     this.changeBet(0);
@@ -425,19 +428,21 @@ class PlinkoGame implements GameInstance {
     this.refreshRtp();
   }
 
-  /** The payout line: the true share, with the wing while it works. */
+  /** The payout share lives in the rules card ("So geht's" under the button), not on the machine. */
   private refreshRtp() {
-    const r = this.risk;
-    if (this.odds.id) {
-      this.rtpText.text = itemRtpText(wingRtp(r), 'mottenfluegel').replace(' · ', '\n');
-      this.rtpText.style.fill = 0xffc0de;
-      this.rtpText.style.fontSize = 17;
-      return;
-    }
-    const rtp = returnToPlayer(r);
-    this.rtpText.text = `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %\nHausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
-    this.rtpText.style.fill = 0xe6d6b4;
-    this.rtpText.style.fontSize = 21;
+    this.rtpText.visible = false;
+  }
+
+  private rulesLines() {
+    const p = (x: number) => (x * 100).toFixed(1).replace('.', ',');
+    const risks: Risk[] = ['low', 'mid', 'high'];
+    return [
+      'Lass einen Funken los: An jedem der 12 Stifte springt er mit gleicher Chance nach links oder rechts und landet in einem der 13 Becher. Der Becher zeigt, wie viel dein Einsatz zählt.',
+      '• Ruhig: kleine Ausschläge. • Mittel. • Wild: viel am Rand, wenig in der Mitte.',
+      '',
+      `Auszahlungsquote: ${risks.map((r) => `${RISK_LABEL[r]} ${p(returnToPlayer(r))} %`).join(' · ')}.`,
+      ...(this.odds.id ? [itemRtpText(wingRtp(this.risk), 'mottenfluegel')] : []),
+    ];
   }
 
   private changeBet(d: number) {
@@ -665,6 +670,7 @@ class PlinkoGame implements GameInstance {
     const s = Math.min((w * 0.97) / W, (h * 0.95) / (H + PAD));
     this.board.scale.set(s);
     this.board.position.set((w - W * s) / 2, (h - H * s) / 2 + 8 * s);
+    this.rules.resize(w, h);
     this.relabel();
     const side = (w - W * s) / 2;
     const want = s < 0.45 && side > 120 && h > 230;

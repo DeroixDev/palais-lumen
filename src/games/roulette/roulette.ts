@@ -10,7 +10,8 @@ import { button, type Button } from '../../core/ui';
 import { focusable } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
+import { RulesKnob } from '../rulesKnob';
 import { magnetRtp, magnetSpin } from './rules';
 import {
   CHIP_ANCHOR,
@@ -223,6 +224,20 @@ class RouletteGame implements GameInstance {
   /** Odds item of this table: the Magnetkugel pulls the ball out of the zero once. */
   private odds: OddsWatch;
   private edgeText!: Text;
+  /** "So geht's" with the payout share, top right of the game. */
+  private rules = new RulesKnob(this.view, () => {
+    const p = (x: number) => (x * 100).toFixed(1).replace('.', ',');
+    return [
+      'Europäisches Roulette: 37 Fächer, 1 bis 36 und die grüne Null. Wähle einen Chip, lege ihn auf Zahlen oder Felder und drehe.',
+      '• Zahl (Volltreffer): 35 zu 1.',
+      '• Dutzend und Kolonne: 2 zu 1.',
+      '• Rot/Schwarz, Gerade/Ungerade, 1–18/19–36: 1 zu 1.',
+      'Fällt die Null, gewinnt nur, wer auf die Null gesetzt hat.',
+      '',
+      `Auszahlungsquote ${p(1 - HOUSE_EDGE)} % · Hausvorteil ${p(HOUSE_EDGE)} %, bei jeder Wette gleich: Die Null ist der Vorteil des Hauses.`,
+      ...(this.odds.id ? [itemRtpText(magnetRtp([]), 'magnetkugel', 'Wetten ohne Null')] : []),
+    ];
+  });
   private keyHandler = (e: KeyboardEvent) => {
     if (e.code === 'Space') {
       e.preventDefault();
@@ -699,12 +714,10 @@ class RouletteGame implements GameInstance {
     this.ctx.sfx.thud();
   }
 
-  /** The line under the table: the true payout share, with the magnet while it works. */
+  /** The line under the table (the payout share is in the rules card, top right). */
   private refreshEdge() {
     if (!this.edgeText) return;
-    this.edgeText.text = this.odds.id
-      ? itemRtpText(magnetRtp([]), 'magnetkugel', 'Wetten ohne Null')
-      : `Hausvorteil ${(HOUSE_EDGE * 100).toFixed(1).replace('.', ',')} % · Volltreffer zahlt 35:1`;
+    this.edgeText.text = this.odds.id ? `Volltreffer zahlt 35:1 · ${itemName('magnetkugel')} im Kessel` : 'Volltreffer zahlt 35:1';
     this.edgeText.style.fill = this.odds.id ? 0xffb0a0 : 0xbfa98a;
   }
 
@@ -870,6 +883,9 @@ class RouletteGame implements GameInstance {
 
   resize(w: number, h: number) {
     this.lastW = w;
+    this.view.addChild(this.rules.button);
+    this.rules.button.position.set(w - 40, 40);
+    this.rules.resize(w, h);
     const tall = w / h < 0.9;
     if (!tall) {
       const key = 'wide';

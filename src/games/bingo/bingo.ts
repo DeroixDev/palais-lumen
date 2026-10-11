@@ -154,7 +154,7 @@ class BingoGame implements GameInstance {
     this.cardLayer.position.set(CARD_X, CARD_Y);
     this.numLayer.position.set(CARD_X, CARD_Y);
     sc.addChild(this.cardLayer, this.lineLayer, this.numLayer, this.trayLayer, this.sitters, this.flyLayer);
-    const info = infoKnob(() => this.shell.showRules(RULES));
+    const info = infoKnob(() => this.shell.showRules(`${RULES}\n\n${this.rtp.line()}`));
     info.position.set(52, 52);
     sc.addChild(info);
     this.buildCard();

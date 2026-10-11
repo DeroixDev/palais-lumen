@@ -13,7 +13,7 @@ import { StakeWatch } from '../stakeWatch';
 import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
 import { FLY_RTP, FLY_SELF_RTP, PAY, RTP, flyRound, hitPays, mothUnder } from './rules';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
 import { FLAME_Y, LANTERN, boothLayout, boothTexture, drawShellsStation, flameTexture, lanternTexture, emblemTexture, type BoothLayout } from './paint';
 import { luckStep, luckOn } from '../../core/debugLuck';
 
@@ -115,6 +115,7 @@ class ShellsGame implements GameInstance {
       title: 'DREI LATERNEN',
       accent: 0x9fe0ff,
       rules: RULES,
+      odds: () => (this.odds.id ? `${itemRtpText(FLY_RTP, 'leuchtkaefer')}\nnur die Käfer-Laterne: ${pct(FLY_SELF_RTP)}\u00a0%` : ''),
       ctrlSize: barSize,
       buildControls: (c, w, h, layout, fs) => this.buildControls(c, w, h, layout, fs),
       layoutScene: (w, h, layout) => this.layoutScene(w, h, layout === 'tall'),
@@ -293,18 +294,14 @@ class ShellsGame implements GameInstance {
 
   private luckText() {
     return this.odds.id
-      ? `Leuchtkäfer: unter seiner Laterne 1 zu 5, unter jeder anderen 2 zu 5\nzahlt ${String(PAY).replace('.', ',')}× · Auszahlungsquote ${pct(FLY_RTP)}\u00a0% ohne Käfer-Laterne`
+      ? `Leuchtkäfer: unter seiner Laterne 1 zu 5, unter jeder anderen 2 zu 5\nzahlt ${String(PAY).replace('.', ',')}×`
       : `${LUCK}\nTrefferchance 1 zu 3 · zahlt ${String(PAY).replace('.', ',')}×`;
   }
 
-  /** The honest line under the controls (and the luck line on the cloth). */
+  /** The line under the controls (and the luck line on the cloth); the payout share is in the rules card. */
   private refreshRtp() {
     if (this.rtpText) {
-      this.rtpText.text = this.odds.id
-        ? this.shell.layout === 'tall'
-          ? `${itemRtpText(FLY_RTP, 'leuchtkaefer')}\nnur die Käfer-Laterne: ${pct(FLY_SELF_RTP)}\u00a0%`
-          : `${itemRtpText(FLY_RTP, 'leuchtkaefer').replace(' · ', '\n')}\nnur die Käfer-Laterne: ${pct(FLY_SELF_RTP)}\u00a0%`
-        : `Auszahlungsquote ${pct(RTP)}\u00a0% · Hausvorteil ${pct(1 - RTP)}\u00a0%\nDas Tempo ändert nur den Tanz, nicht die Chance`;
+      this.rtpText.text = this.odds.id ? `${itemName('leuchtkaefer')}: meide seine Laterne` : 'Das Tempo ändert nur den Tanz, nicht die Chance';
       this.rtpText.style.fill = this.odds.id ? 0xe4ffb0 : 0xbfa98a;
     }
     if (this.luck && !this.luck.destroyed && this.L) {

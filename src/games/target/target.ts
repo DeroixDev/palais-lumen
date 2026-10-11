@@ -14,7 +14,7 @@ import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, rtpText, type Layout } from '../sceneShell';
 import { EYE_RTP, STYLES, STYLE_ORDER, drawHit, eyeDrawHit, eyeExtra, eyeRadii, eyeRings, missChance, multFor, returnToPlayer, ringRadii, type Style } from './rules';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
 import { RING_COLORS, RING_INK, RT, archerTexture, armTexture, boardTexture, dartTexture, faceTexture, gladeTexture, stuckTexture } from './paint';
 import { luckDraw } from '../../core/debugLuck';
 
@@ -94,6 +94,7 @@ class TargetGame implements GameInstance {
         '• Sicher: viele kleine Treffer, Mitte ×5.\n• Normal: Mitte ×20.\n• Riskant: oft daneben, aber die Mitte zahlt ×100.\n' +
         'Jeder Wurfstil zahlt im Schnitt genau 95 % zurück. Der Treffer steht fest, bevor der Pfeil die Hand verlässt.\n' +
         'Leertaste: werfen.',
+      odds: () => `${STYLES[this.style].label}: ${this.eye ? `${itemRtpText(EYE_RTP, 'eulenauge', 'größere Mitte')}\nOhne Item: ` : ''}${rtpText(returnToPlayer(this.style))}`,
       ctrlSize: (l) => (l === 'tall' ? 196 : l === 'side' ? 400 : 168),
       buildControls: (c, w, h, l, fs) => this.buildControls(c, w, h, l, fs),
       layoutScene: (w, h, l) => this.layoutScene(w, h, l),
@@ -354,9 +355,10 @@ class TargetGame implements GameInstance {
     });
     this.mainBtn.setEnabled(free);
     this.mainBtn.setLabel(free ? `WERFEN · ${formatChips(this.bet)}` : '…');
+    // The style's top prize; the payout share is in the rules card.
     this.rtpLine.text = this.eye
-      ? `${STYLES[this.style].label}: ${itemRtpText(EYE_RTP, 'eulenauge', 'größere Mitte').replace(' · ', '\n')}`
-      : `${STYLES[this.style].label}: Mitte ${fmtM(STYLES[this.style].rings[0].mult)} · ${rtpText(returnToPlayer(this.style))}`;
+      ? `${STYLES[this.style].label}: größere Mitte mit ${itemName('eulenauge')}`
+      : `${STYLES[this.style].label}: Mitte ${fmtM(STYLES[this.style].rings[0].mult)}`;
     this.rtpLine.style.fill = this.eye ? 0xffd89a : 0xbfa98a;
   }
 

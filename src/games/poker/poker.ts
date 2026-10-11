@@ -484,6 +484,7 @@ class PokerGame implements GameInstance {
 
     this.rtpText = new Text({ text: `Auszahlungsquote ${pct(RTP)} % · Hausvorteil ${pct(1 - RTP)} %\nbei bester Spielweise`, style: { fontFamily: FONT_BODY, fontSize: 23, fontWeight: '600', fill: 0xe6d6b4, align: 'center' } });
     this.rtpText.anchor.set(0.5);
+    this.rtpText.visible = false; // the payout share is in the rules card (?)
     this.betLabel = label('EINSATZ', 19, 0xd9c6a0);
     this.betLabel.anchor.set(0.5);
     this.betText = new Text({ text: '', style: { fontFamily: FONT_DISPLAY, fontSize: 28, fill: 0xfff6e6 } });

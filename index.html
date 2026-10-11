@@ -198,7 +198,7 @@
   #modal .dbg-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   #modal .dbg-row input { width: 9em; min-height: 44px; box-sizing: border-box; padding: 0 10px; font: inherit; border-radius: 10px; border: 1px solid rgba(224,178,90,.6); background: rgba(10,4,12,.55); color: inherit; }
   #modal .dbg-info { margin: 0 0 4px; font-variant-numeric: tabular-nums; }
-  /* ---- Mod-Menü (test tool): categories like a trainer, toggles, sliders, search. ---- */
+  /* ---- House controls on the tablet: categories like a trainer, toggles, sliders, search. ---- */
   .card.card-mod { width: min(100%, 940px); }
   #modal .mod .dbg-info { font-size: .98rem; color: var(--cream-2); margin: 0 0 10px; }
   .mod-top { position: sticky; top: 0; z-index: 2; display: grid; gap: 8px; padding: 0 0 8px; background: linear-gradient(180deg, #2a0c20 80%, rgba(42,12,32,0)); }
@@ -262,6 +262,41 @@
     #modal .mod input[type=range] { flex: 1 1 10em; }
   }
   .mod.searching .mod-nav { display: none; }
+  /* ---- House-tech tablet: brass-framed wall panel; its night-blue glass holds the code pad or the controls. ---- */
+  .card.card-tablet {
+    --tab-ink: #dfe6f6; --tab-glass: #0c1430;
+    width: min(100%, 390px); border: 14px solid transparent; border-bottom-width: 34px; border-radius: 30px; border-image: none;
+    background: radial-gradient(130% 60% at 50% 0%, rgba(70,100,180,.32), transparent 65%) padding-box, linear-gradient(180deg, #121d40, #070b1a) padding-box, linear-gradient(135deg, #fff4c2, #f0c868 20%, #b07a2a 48%, #e6b85a 76%, #7a4e18) border-box;
+    box-shadow: 0 30px 70px rgba(0,0,0,.65), 0 0 0 1.5px rgba(22,10,20,.9), inset 0 0 0 3px #04060e, inset 0 0 24px rgba(0,0,0,.6);
+    padding: 12px 14px 12px;
+  }
+  .card.card-tablet.card-mod { width: min(100%, 980px); }
+  .card.card-tablet::before { content: ""; position: absolute; top: -9px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #1a1f2e; box-shadow: 0 0 0 1px rgba(60,40,10,.6); }
+  .card.card-tablet::after { content: ""; position: absolute; bottom: -26px; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff4c2, #d9a648 45%, #7a4e18); box-shadow: 0 0 0 1.5px rgba(22,10,20,.85), inset 0 -2px 3px rgba(60,30,0,.5); }
+  .card.card-tablet h2 { font: 700 .92rem/1 var(--body); letter-spacing: .26em; text-transform: uppercase; color: #aebbdc; text-shadow: none; margin: 4px 52px 12px 4px; padding-bottom: 10px; background: linear-gradient(90deg, rgba(174,187,220,.45), transparent 75%) bottom / 100% 1px no-repeat; }
+  .card.card-tablet .card-x { top: -2px; right: -2px; width: 44px; height: 44px; background: rgba(20,32,70,.7); box-shadow: inset 0 0 0 1px rgba(174,187,220,.4); color: var(--tab-ink); }
+  .card.card-tablet .actions:empty { display: none; }
+  .card.card-tablet .mod-top { background: linear-gradient(180deg, #0f1938 80%, rgba(15,25,56,0)); }
+  .tab-pin { display: grid; justify-items: center; gap: 14px; padding: 6px 0 8px; outline: none; }
+  .tab-pin.shake { animation: tabshake .4s cubic-bezier(.36,.07,.19,.97) both; }
+  @keyframes tabshake { 15%, 55% { transform: translateX(-9px); } 35%, 75% { transform: translateX(9px); } 90% { transform: translateX(-3px); } }
+  .tab-lock svg { width: 34px; height: 34px; fill: none; stroke: var(--tab-ink); stroke-width: 1.5; stroke-linecap: round; opacity: .85; }
+  .card .tab-ask { margin: -4px 0 0; font: 600 1.05rem/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: #aebbdc; }
+  .tab-dots { display: flex; gap: 12px; min-height: 14px; }
+  .tab-dots i { width: 13px; height: 13px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(223,230,246,.65); transition: background .12s; }
+  .tab-dots i.on { background: var(--tab-ink); box-shadow: 0 0 10px rgba(170,195,255,.65); }
+  .tab-keys { display: grid; grid-template-columns: repeat(3, 70px); gap: 12px 18px; margin-top: 4px; }
+  #modal .tab-keys button { width: 70px; height: 70px; min-height: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; font: 500 1.75rem/1 var(--body); color: var(--tab-ink); text-shadow: none; background: radial-gradient(circle at 38% 30%, rgba(130,160,230,.3), rgba(18,28,64,.65)); box-shadow: inset 0 0 0 1px rgba(174,187,220,.38), 0 2px 6px rgba(0,0,0,.35); }
+  #modal .tab-keys button:hover { box-shadow: inset 0 0 0 1.5px rgba(223,230,246,.8), 0 0 14px rgba(140,170,255,.35); }
+  #modal .tab-keys button.fn { background: none; box-shadow: none; }
+  #modal .tab-keys button.fn:hover { box-shadow: inset 0 0 0 1px rgba(174,187,220,.38); }
+  #modal .tab-keys button.ok { color: #ffd98a; }
+  #modal .tab-keys button svg { width: 28px; height: 28px; stroke-width: 1.8; }
+  .tab-screen { position: relative; }
+  .card .tab-note { position: sticky; bottom: 0; margin: 8px 0 0; padding: 8px 12px; border-radius: 10px; font-size: .98rem; color: var(--tab-ink); background: rgba(10,16,40,.94); box-shadow: inset 0 0 0 1px rgba(174,187,220,.35); opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; }
+  .card .tab-note.on { opacity: 1; transform: none; }
+  @media (max-width: 420px) { .tab-keys { grid-template-columns: repeat(3, 64px); gap: 10px 16px; } #modal .tab-keys button { width: 64px; height: 64px; } }
+  @media (max-height: 560px) { .tab-pin { gap: 8px; } .tab-lock { display: none; } #modal .tab-keys button { width: 54px; height: 54px; font-size: 1.45rem; } .tab-keys { grid-template-columns: repeat(3, 54px); gap: 8px 14px; } }
   #modal.closing { animation: fadeout .18s ease-in both; pointer-events: none; }
   #modal.closing .card { animation: panelout .18s ease-in both; }
   @keyframes fadein { from { opacity: 0; } }
@@ -454,7 +489,6 @@
     <button id="btn-haptics" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="4" width="7" height="16" rx="1.6"/><path class="wave" d="M5.5 9v6M3 10.5v3M18.5 9v6M21 10.5v3"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Vibration an</span></button>
     <button id="btn-music" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Musik an</span></button>
     <button id="btn-mute" class="hud-btn icon" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/><path class="slash" d="M3.5 3.5l17 17"/></svg><span class="lbl">Ton an</span></button>
-    <button id="btn-debug" class="hud-btn icon" aria-label="Mod-Menü" title="Mod-Menü"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4.5 16.5a1.8 1.8 0 0 0 2.5 2.5l5-5a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.1-.4-.4-2.1z"/></svg><span class="lbl">Mod-Menü</span></button>
     <button id="btn-help" class="hud-btn icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.6M12 16.8h.01"/></svg><span class="lbl">Hilfe</span></button>
   </div>
 </header>
@@ -471,7 +505,7 @@
       <button id="m-saves">Spielstände</button>
     </div>
     <div id="title-info"></div>
-    <p class="pledge">Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
+    <p class="pledge">In den Regeln jedes Spiels steht offen, wie viel das Haus im Schnitt behält.</p>
   </div>
   <div class="card lobby" id="menu-lobby" hidden>
     <h2 id="lobby-title">Lobby</h2>

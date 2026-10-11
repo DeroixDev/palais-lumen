@@ -31,6 +31,7 @@ export const f1side: RoomDefinition = {
     barLabel: 'SALON · Tonic & Mocktails',
   },
   spawn: { x: 690, y: 220 },
+  tabletX: 42,
   doors: [{ x: 690, y: 0, side: 'back', to: 'f1', label: FLOOR_NAMES.f1 }],
   stations: [
     { game: 'slots', pinned: true, x: 60, y: 210, label: SLOT_GOLD, options: { theme: 'gold' } },

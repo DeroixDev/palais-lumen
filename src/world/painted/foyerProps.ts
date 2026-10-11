@@ -1344,7 +1344,7 @@ export function buildPainted(d: DecorPlacement, t: RoomTheme): BuiltDecor[] | nu
           c.font = `700 12px ${FONT_BODY}`;
           c.fillText('HAUSORDNUNG', 0, T + 20);
           c.font = `600 11px ${FONT_BODY}`;
-          c.fillText('Offene Quoten.', 0, T + 35);
+          c.fillText('Quoten in den Regeln.', 0, T + 35);
           c.fillText('Jeder Abend darf enden.', 0, T + 48);
         }),
       );

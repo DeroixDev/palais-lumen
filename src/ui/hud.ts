@@ -10,7 +10,7 @@ import { coinDataUrl } from '../core/fx';
 import { ACHIEVEMENTS, type Achievement, type AchievementIcon } from '../core/achievements';
 import { stoneDataUrl } from './stone';
 import { installHudArt } from './hudArt';
-import { debugPanel } from './debug';
+import { TABLET_TITLE, openTablet } from './tablet';
 import './fit.css';
 
 import { BOSS_FULL, BOSS_GEN, BOSS_NAME, CURRENCY_PLURAL, DOME, HOUSE } from '../core/brand';
@@ -25,7 +25,7 @@ export interface HudActions {
   leaveGame(): void;
   newGame(): void;
   debugDay(day: number): void;
-  /** Mod-Menü: open any game right here / walk into any room. */
+  /** House tablet: open any game right here / walk into any room. */
   debugOpenGame(id: string): void;
   debugToRoom(id: string): void;
 }
@@ -54,6 +54,8 @@ export class Hud {
   private isOpen = false;
   private closeTimer = 0;
   private openTitle = '';
+  /** The house tablet is open (see openTablet). */
+  private quiet = false;
   private toastsShown: ToastItem[] = [];
   private toastQueue: ToastItem[] = [];
   /** A full-screen panel (recap, draft, moon dial …) is open: toasts wait in line. */
@@ -107,7 +109,6 @@ export class Hud {
       syncMusic();
     });
     $('#btn-help').addEventListener('click', () => this.help());
-    $('#btn-debug').addEventListener('click', () => this.openDebug());
     state.onChange(() => this.render());
     // Brand coin in the purse, and a little bump whenever a coin lands in it.
     const coinUrl = coinDataUrl(96);
@@ -332,6 +333,8 @@ export class Hud {
    * within 3 s becomes one strip with a counter. Tap to dismiss.
    */
   toast(text: string, cls = '', urgent = false) {
+    // The house tablet is open: what it changes stays quiet (no toasts now, none queued for later).
+    if (this.quiet) return;
     const now = performance.now();
     const same = [...this.toastsShown, ...this.toastQueue].find((t) => t.text === text && (t.el || now - t.at < 3000));
     if (same) {
@@ -400,6 +403,7 @@ export class Hud {
    */
   modal(title: string, body: HTMLElement | string, buttons: { label: string; primary?: boolean; onClick: () => void }[], opts: { closable?: boolean } = {}) {
     const root = $('#modal');
+    if (title !== TABLET_TITLE) this.quiet = false;
     const replacing = this.isOpen && this.openTitle === title;
     clearTimeout(this.closeTimer);
     root.classList.remove('closing');
@@ -460,6 +464,7 @@ export class Hud {
   }
 
   closeModal() {
+    this.quiet = false;
     if (!this.isOpen) return;
     this.isOpen = false;
     this.openTitle = '';
@@ -504,18 +509,30 @@ export class Hud {
     );
   }
 
-  /** Mod-Menü (test tool): every detail of the save and the running game, sorted like a trainer. */
-  openDebug() {
-    const body = debugPanel(this.state, {
-      jumpToDay: (day) => this.actions.debugDay(day),
-      endDay: () => this.actions.endEvening(),
-      openGame: (id) => this.actions.debugOpenGame(id),
-      toRoom: (id) => this.actions.debugToRoom(id),
-      toast: (t) => this.toast(t, '', true),
-      close: () => this.closeModal(),
-    });
-    this.modal('Mod-Menü', body, [{ label: 'Schließen', onClick: () => this.closeModal() }]);
-    document.querySelector('#modal .card')?.classList.add('card-mod');
+  /**
+   * The house-tech tablet on the wall (code pad, then the house controls from ./debug.ts on its
+   * screen). Its only way in is the tablet itself; what it changes stays quiet.
+   */
+  openTablet() {
+    openTablet(
+      this.state,
+      {
+        show: (body) => {
+          this.modal(TABLET_TITLE, body, []);
+          this.quiet = true;
+          document.querySelector('#modal .card')?.classList.add('card-tablet');
+          document.querySelector('#modal .card')?.classList.toggle('card-mod', body.classList.contains('tab-screen'));
+        },
+        close: () => this.closeModal(),
+        isOpen: () => this.isOpen && this.openTitle === TABLET_TITLE,
+      },
+      {
+        jumpToDay: (day) => this.actions.debugDay(day),
+        endDay: () => this.actions.endEvening(),
+        openGame: (id) => this.actions.debugOpenGame(id),
+        toRoom: (id) => this.actions.debugToRoom(id),
+      },
+    );
   }
 
   openSaves() {
@@ -611,11 +628,11 @@ export class Hud {
       <p><strong>Saison:</strong> Jeder Tag hat ein Gewinnziel, und es steigt von Tag zu Tag. Schaffst du es, gibt es Bronze, Silber, Gold oder Diamant und es geht weiter. Ab Silber gibt es eine Trophäe für die Vitrine.</p>
       <p><strong>Etagen:</strong> Alle 3 Tage öffnet sich eine neue Etage, mit dem Aufzug fährst du hin. An Tag 13 wartet ${BOSS_FULL}, ganz oben unter der ${DOME}. Besiegst du sie, hast du die Saison gewonnen.</p>
       <p><strong>Foyer:</strong> Hier startest du und hierher kommst du nach jedem Tag zurück. Im Laden gibt es Kleidung, Begleiter, Glücksbringer und Glücksgriffe (Items) für Mondsteine, in der Umkleide ziehst du dich um, am Empfang stellst du deine Gruppe zusammen. Mondsteine gibt es für gewonnene Runden, Medaillen, den Überschuss über dem Tagesziel, Erfolge und den Sieg über ${BOSS_NAME}.</p>
-      <p><strong>Beutel:</strong> Gekaufte Items trägst du im Beutel oben in der Leiste (oder Taste <kbd>I</kbd>), auch am Spieltisch. Ist ein Item aktiv, zeigt das Spiel oben die echte Auszahlungsquote mit Item.</p>
+      <p><strong>Beutel:</strong> Gekaufte Items trägst du im Beutel oben in der Leiste (oder Taste <kbd>I</kbd>), auch am Spieltisch. Was ein Item an der Auszahlungsquote ändert, steht im Beutel und in den Regeln des Spiels.</p>
       <p><strong>Ausprobieren:</strong> Klavier, Brunnen, Jukebox und vieles mehr auf den Etagen kannst du benutzen. Einfach hingehen und <kbd>E</kbd> drücken.</p>
       <p><strong>Ziel verfehlt oder pleite:</strong> Dann ist die Saison vorbei und die nächste startet mit 1.000 ${CURRENCY_PLURAL}. Trophäen, Medaillen und Rekorde bleiben, die Etagen sind wieder zu.</p>
       <p><strong>Speichern:</strong> Das Spiel speichert automatisch. Unter „Spielstände“ kannst du zusätzlich drei Plätze belegen.</p>
-      <p class="safe">Jedes Spiel zeigt offen, wie viel das Haus im Schnitt behält.</p>
+      <p class="safe">In den Regeln jedes Spiels („So geht’s“) steht offen, wie viel das Haus im Schnitt behält.</p>
       <details class="credits"><summary>Musik &amp; Klang</summary>
         <p>Alle Stücke sind für ${HOUSE} geschrieben und werden live im Spiel gespielt. Die Instrumente sind freie Aufnahmen:</p>
         <p>Versilian Community Sample Library (Versilian Studios, CC0) · Splendid Grand Piano (Akai, gemeinfrei) · Kontrabass von D. Smolken (CC0) · Wurlitzer EP200 von Greg Sullivan (CC BY 3.0) · FluidR3 GM von Frank Wen, aufbereitet von gleitz/midi-js-soundfonts (CC BY 3.0) · tonejs-instruments von Nicholaus Brosowsky (CC BY 3.0) · LinnDrum, TR-808 und MFB-512 aus smpldsnds/drum-machines (gemeinfrei).</p>

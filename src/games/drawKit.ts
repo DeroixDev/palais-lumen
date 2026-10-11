@@ -208,23 +208,20 @@ export class BetStepper {
   }
 }
 
-/** Payout line under the controls. */
+/**
+ * The game's payout line. It isn't shown at the machine any more (only in the rules card, see
+ * `line()`); the hidden text keeps the games' layouts unchanged.
+ */
 export function rtpText(rtp: number, maxWidth: number) {
   const t = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: MIN_FONT, fontWeight: '600', fill: 0xe6d6b4, align: 'center' } });
   t.anchor.set(0.5);
-  /** `line` replaces the standard text (an odds item is on), `fill` its colour. */
-  const set = (r: number, w = maxWidth, line?: string, fill = 0xe6d6b4) => {
-    const full = line ?? rtpLine(r);
-    t.text = full;
-    t.style.fill = fill;
-    t.scale.set(1);
-    if (t.width > w) {
-      // Two lines rather than shrinking below the readable size.
-      t.text = full.replace(' · ', '\n');
-    }
+  t.visible = false;
+  let current = rtpLine(rtp);
+  /** `line` replaces the standard text (an odds item is on). */
+  const set = (r: number, _w = maxWidth, line?: string, _fill = 0xe6d6b4) => {
+    current = line ?? rtpLine(r);
   };
-  set(rtp);
-  return { text: t, set };
+  return { text: t, set, line: () => current };
 }
 
 /** Small round info knob ("?") that opens the rules card. */

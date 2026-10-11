@@ -1341,7 +1341,7 @@ export function buildDecor(d: DecorPlacement, t: RoomTheme): BuiltDecor | null {
       const t1 = new Text({ text: 'HAUSORDNUNG', style: { fontFamily: FONT_BODY, fontSize: 13, fontWeight: '700', fill: 0x3a2008, letterSpacing: 2 } });
       t1.anchor.set(0.5);
       t1.position.set(x, T + 15);
-      const t2 = new Text({ text: 'Offene Quoten.\nJeder Abend darf enden.', style: { fontFamily: FONT_BODY, fontSize: 12, fontWeight: '600', fill: 0x3a2008, align: 'center', lineHeight: 14 } });
+      const t2 = new Text({ text: 'Quoten in den Regeln.\nJeder Abend darf enden.', style: { fontFamily: FONT_BODY, fontSize: 12, fontWeight: '600', fill: 0x3a2008, align: 'center', lineHeight: 14 } });
       t2.anchor.set(0.5);
       t2.position.set(x, T + 40);
       c.addChild(t1, t2);

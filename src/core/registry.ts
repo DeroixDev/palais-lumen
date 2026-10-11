@@ -164,6 +164,11 @@ export interface RoomDefinition {
   spawn: { x: number; y: number };
   stations: StationPlacement[];
   decor: DecorPlacement[];
+  /**
+   * x of the house-tech tablet on the back wall (src/world/painted/tablet.ts). Left out, the room
+   * picks the freest stretch of wall itself.
+   */
+  tabletX?: number;
 }
 
 const games = new Map<string, GameDefinition>();

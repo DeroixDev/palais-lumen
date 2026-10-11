@@ -105,7 +105,7 @@
   "date": "2026-10-10",
   "kind": "Großes Update",
   "title": "Klang des Hauses",
-  "intro": "Das ganze Casino klingt jetzt nach echten Instrumenten: 64 Aufnahmen, für jede Etage eigene Musik und über 70 neue Effekte. Dazu kommt das Mod-Menü.",
+  "intro": "Das ganze Casino klingt jetzt nach echten Instrumenten: 64 Aufnahmen, für jede Etage eigene Musik und über 70 neue Effekte.",
   "sections": [
    {
     "h": "Musik",
@@ -126,14 +126,6 @@
      "Gewinne enden als Fanfare. Große Gewinne mit Gong, Bläsern, Chor und Münzregen.",
      "Regen auf der Straße vor dem Casino, Gemurmel und Gläserklirren im Saal.",
      "Das Klavier im Foyer ist jetzt ein echter Flügel."
-    ]
-   },
-   {
-    "h": "Mod-Menü",
-    "items": [
-     "Das Debug-Menü heißt jetzt Mod-Menü: in Kategorien gegliedert, mit Suche, fast jeder Wert lässt sich ändern.",
-     "Gewinnchance-Regler von „Immer verlieren“ bis „Immer gewinnen“, wirkt in allen 20 Spielen und im Duell mit der Königin.",
-     "Ist der Regler nicht auf normal, zeigt ein roter Hinweis „Quote manipuliert“ die gemessene Quote."
     ]
    },
    {
@@ -306,8 +298,7 @@
      "Glücksbringer-Auswahl: nach jedem geschafften Tag einer von drei Perks.",
      "Mondstufen als Schwierigkeitsgrade nach jedem Saisonsieg.",
      "Bossphasen der Mottenkönigin, Sprüche der Croupiers, Fotomodus, Vibration.",
-     "Eigene Musik pro Etage und eine Verlaufskurve im Tagesrückblick.",
-     "Debug-Menü zum Testen."
+     "Eigene Musik pro Etage und eine Verlaufskurve im Tagesrückblick."
     ]
    }
   ]

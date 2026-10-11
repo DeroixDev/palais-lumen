@@ -32,9 +32,10 @@ import { seasonDebug } from './season';
 import { bossRunDebug } from './bossRun';
 import { albumDebug } from './album';
 import { chapterTitle } from './chapter';
+import { setPin, validPin } from '../core/tabletPin';
 
 import { ALBUM_ENTRY, ALBUM_NAME, BOSS_NAME, CURRENCY, CURRENCY_PLURAL } from '../core/brand';
-/** What the Mod-Menü needs from the game loop. */
+/** What the house controls on the tablet need from the game loop. */
 export interface DebugActions {
   /** Start the given day fresh with the current money and walk into the foyer. */
   jumpToDay(day: number): void;
@@ -94,10 +95,11 @@ const store = {
 };
 
 /**
- * Mod-Menü (test tool, removed before a real release): every detail of the save and the running
- * game, sorted like a trainer: categories on the left (a list to drill into on phones), toggles,
- * sliders and fields on the right, the active cheats on top and a search over everything.
- * Every change goes straight into the save, like normal play.
+ * House controls (shown on the wall tablet, src/ui/tablet.ts): every detail of the save and the
+ * running game, sorted like a trainer: categories on the left (a list to drill into on phones),
+ * toggles, sliders and fields on the right, the active cheats on top and a search over everything.
+ * Every change goes straight into the save, like normal play, and quietly: notes go to `a.toast`,
+ * which the tablet shows on its own screen only.
  */
 export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   const d = () => state.data;
@@ -129,7 +131,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   search.type = 'search';
   search.className = 'mod-search';
   search.placeholder = 'Suchen: Mondsteine, Album, Tempo …';
-  search.setAttribute('aria-label', 'Mod-Menü durchsuchen');
+  search.setAttribute('aria-label', 'Haustechnik durchsuchen');
   top.append(status, search);
 
   const main = document.createElement('div');
@@ -386,11 +388,11 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   for (const [v, t] of [[-100, 'Immer verlieren'], [-50, '−50 %'], [0, 'Normal'], [50, '+50 %'], [100, 'Immer gewinnen']] as const) {
     btn(presets, t, () => {
       setLuck(state, v);
-      return v ? `Gewinnchance: ${luckLabel(v)}. Jedes Spiel zeigt jetzt oben das rote Mod-Menü-Schild.` : 'Gewinnchance normal: alle Spiele mit ihren echten Quoten.';
+      return v ? `Gewinnchance: ${luckLabel(v)}. Wirkt still, an den Spielen steht nichts davon.` : 'Gewinnchance normal: alle Spiele mit ihren echten Quoten.';
     });
   }
   note(
-    'Wirkt in allen 20 Spielen und im Bossduell. Bei +X % wird eine Runde mit X % Wahrscheinlichkeit so lange neu gezogen, bis sie gewinnt (bei −X % bis sie verliert); bei Spielen mit mehreren Zügen (Karten, Münze, Minen, Turm, Eis) gilt das für jeden einzelnen Zug. Auf „normal“ sind die Chancen exakt wie ohne Mod-Menü. Solange der Regler nicht auf normal steht, zeigt jedes Spiel oben ein rotes Schild mit der gemessenen Auszahlungsquote.',
+    'Wirkt in allen 20 Spielen und im Bossduell. Bei +X % wird eine Runde mit X % Wahrscheinlichkeit so lange neu gezogen, bis sie gewinnt (bei −X % bis sie verliert); bei Spielen mit mehreren Zügen (Karten, Münze, Minen, Turm, Eis) gilt das für jeden einzelnen Zug. Auf „normal“ sind die Chancen exakt wie im echten Spiel. Die Spiele zeigen davon nichts an; was der Regler bewirkt, wird nur hier gemessen.',
   );
   group('Gemessen seit dem Verstellen', true);
   live(
@@ -698,12 +700,12 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
     return /^f\d$/.test(r) ? r : floorOfDay(d().evening.number);
   };
   btn(stRow, '+1 Stempel', () => {
-    addStamps(state, stampFloor(), 1, 'Mod-Menü');
+    addStamps(state, stampFloor(), 1, 'Geschenk des Hauses');
     return `Stempel auf Etage ${stampFloor().slice(1)}.`;
   });
   btn(stRow, 'Karte füllen', () => {
     const f = stampFloor();
-    addStamps(state, f, STAMPS_PER_CARD - (stampsOnCard(d(), f) % STAMPS_PER_CARD), 'Mod-Menü');
+    addStamps(state, f, STAMPS_PER_CARD - (stampsOnCard(d(), f) % STAMPS_PER_CARD), 'Geschenk des Hauses');
     return `Karte von Etage ${f.slice(1)} ist voll.`;
   });
   for (const f of STAMP_FLOORS) {
@@ -747,7 +749,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   mSel.addEventListener('change', () => (medal = mSel.value as Medal));
   trRow.append(kSel, mSel);
   btn(trRow, 'Hinzufügen', () => {
-    state.addTrophy(kind, medal, `Mod-Menü: ${TROPHY_KINDS.find((t) => t[0] === kind)![1]} (${MEDAL_LABEL[medal]})`);
+    state.addTrophy(kind, medal, `Geschenk des Hauses: ${TROPHY_KINDS.find((t) => t[0] === kind)![1]} (${MEDAL_LABEL[medal]})`);
     return 'Trophäe steht in der Vitrine.';
   });
   btn(row('', 'trophäe'), 'Alle Trophäen entfernen', () => void (d().trophies = []));
@@ -813,6 +815,35 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   nameRow.appendChild(nameIn);
   addSync(() => keep(nameIn, d().players.host?.name ?? 'Du'));
   note('Lautstärke: über „Ton an/aus“ im Menü. Feine Regler folgen mit dem neuen Ton.');
+
+  // =================================================================================================
+  // Tablet
+  cat('tablet', 'Tablet', 'Code ändern');
+  group('Code', true);
+  const pinIn = (label: string) => {
+    const i = document.createElement('input');
+    i.type = 'password';
+    i.inputMode = 'numeric';
+    i.autocomplete = 'off';
+    i.maxLength = 8;
+    i.pattern = '[0-9]*';
+    i.placeholder = '4–8 Ziffern';
+    i.setAttribute('aria-label', label);
+    i.addEventListener('input', () => (i.value = i.value.replace(/\D/g, '').slice(0, 8)));
+    row(label, 'code pin tablet passwort').appendChild(i);
+    return i;
+  };
+  const pin1 = pinIn('Neuer Code');
+  const pin2 = pinIn('Neuer Code (noch einmal)');
+  btn(row('', 'code pin tablet speichern'), 'Code speichern', () => {
+    const v = pin1.value;
+    if (!validPin(v)) return 'Der Code braucht 4 bis 8 Ziffern.';
+    if (v !== pin2.value) return 'Die beiden Eingaben sind nicht gleich.';
+    if (!setPin(v)) return 'Der Code ließ sich auf diesem Gerät nicht speichern.';
+    pin1.value = pin2.value = '';
+    return 'Neuer Code gespeichert. Er gilt ab dem nächsten Öffnen, für alle Spielstände auf diesem Gerät.';
+  }, true);
+  note('Der Code steht nirgends im Klartext. Vergessen? Die Website-Daten des Browsers für dieses Spiel löschen setzt ihn zurück (dabei gehen auch die Spielstände verloren).');
 
   // ---- Search ------------------------------------------------------------------------------------
   pane.appendChild(empty);

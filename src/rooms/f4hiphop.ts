@@ -25,6 +25,7 @@ export const f4hiphop: RoomDefinition = {
     sofa: 0x2a6ae8,
   },
   spawn: { x: 120, y: 520 },
+  tabletX: 182,
   doors: [{ x: 0, y: 520, side: 'left', to: 'f4t', label: 'Techno-Bunker' }],
   stations: [
     { game: 'slots', x: 830, y: 196, options: { theme: 'gold' } },

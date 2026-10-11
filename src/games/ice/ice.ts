@@ -15,7 +15,7 @@ import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, fmtX, rtpText, type Layout } from '../sceneShell';
 import { LEVELS, LEVEL_ORDER, RTP, drawBreak, drawBreakSteady, multAt, payout, steadyRtp, type Level } from './rules';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import {
   PENGUIN,
@@ -144,6 +144,7 @@ class IceGame implements GameInstance {
         'Jede Scholle bricht mit dem Risiko der Stufe (Leicht 8 %, Mittel 16 %, Schwer 25 %, Extrem 40 %). Bricht sie, geht der Pinguin baden und der Einsatz ist weg. Am anderen Ufer wird automatisch eingesammelt.\n' +
         'Der Multiplikator ist die faire Quote × 0,95: Auf jeder Scholle, auf jeder Stufe, kommen im Schnitt genau 95 % zurück. Welche Scholle bricht, steht vor dem ersten Sprung fest.\n' +
         'Leertaste: Start und Hüpfen.',
+      odds: () => (this.odds.id ? `${itemRtpText(steadyRtp(this.level), 'ruhigehand')}\nOhne Item: ${rtpText(RTP)}` : rtpText(RTP)),
       ctrlSize: (l) => (l === 'tall' ? 304 : l === 'side' ? 420 : 186),
       buildControls: (c, w, h, l, fs) => this.buildControls(c, w, h, l, fs),
       layoutScene: (w, h) => this.layoutScene(w, h),
@@ -418,9 +419,8 @@ class IceGame implements GameInstance {
     this.collectBtn.setEnabled(canCollect);
     this.collectBtn.setLabel(canCollect ? `EINSAMMELN ${formatChips(Math.floor(this.stake * multAt(this.level, this.k)))}` : 'EINSAMMELN');
     setItemRtp('ice', 'ruhigehand', steadyRtp(this.level));
-    this.rtpLine.text = this.odds.id
-      ? `${itemRtpText(steadyRtp(this.level), 'ruhigehand')} · erste Scholle hält`
-      : `${rtpText(RTP)} · Bruchrisiko je Scholle ${Math.round(LEVELS[this.level].q * 100)} %`;
+    // The risk of the level; the payout share is in the rules card.
+    this.rtpLine.text = this.odds.id ? `${itemName('ruhigehand')}: erste Scholle hält` : `Bruchrisiko je Scholle ${Math.round(LEVELS[this.level].q * 100)} %`;
     this.rtpLine.style.fill = this.odds.id ? 0xbff0ff : 0xbfa98a;
   }
 

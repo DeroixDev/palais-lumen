@@ -263,6 +263,8 @@ class BaccaratGame implements GameInstance {
     this.rtpText = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, align: 'center', lineHeight: 20 } });
     this.rtpText.anchor.set(0.5, 0);
     this.rtpText.position.set(L.mode === 'tall' ? L.W / 2 : 1140, L.mode === 'tall' ? 52 : 484);
+    // The payout shares are in the rules card (?), not at the table.
+    this.rtpText.visible = false;
     const pw = L.mode === 'wide' ? 262 : L.W - 20;
     const py = L.mode === 'wide' ? 80 : T.y + g.h - 10;
     const ph = L.mode === 'wide' ? 566 : L.H - py - 6;

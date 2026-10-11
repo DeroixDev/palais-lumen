@@ -126,7 +126,7 @@ async function boot() {
   installDaily(state);
   installLongRun(state);
   installStory(state);
-  // Mod-Menü cheats (Gewinnchance, stake/goal factors, speed); neutral unless set in the menu.
+  // House-tablet cheats (Gewinnchance, stake/goal factors, speed); neutral unless set on the tablet.
   installDebugLuck(state);
   let mode: Mode = 'title';
   let room!: RoomScene;
@@ -316,7 +316,10 @@ async function boot() {
       sfx.door();
       hud.achievements();
     } else if (i.kind === 'use') useProp(i);
-    else if (i.kind === 'door') void walkThrough(i.door.to);
+    else if (i.kind === 'tablet') {
+      sfx.click();
+      hud.openTablet();
+    } else if (i.kind === 'door') void walkThrough(i.door.to);
     else void rideElevator();
   }
 

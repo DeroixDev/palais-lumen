@@ -9,7 +9,7 @@ import { button, label, type Button } from '../../core/ui';
 import { markModal } from '../../core/focus';
 import { formatChips } from '../../core/state';
 import { StakeWatch } from '../stakeWatch';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
 import { SYMBOLS, SYMBOL_NAMES, paintEmblem, symbolTextures, type SymbolId } from './symbols';
 import { bulbTexture, lightWave, plaqueTexture, reducedMotion, winStage } from './stage';
 import { INK, dark, ellipse, fillInk, glowAt, gold, grain, light, paint, rgb, rim, rrect, shadow, vgrad, type Ctx } from '../../world/painted/brush';
@@ -470,6 +470,7 @@ class SlotGame implements GameInstance {
   private odds: OddsWatch;
   private feather = false;
   private infoText!: Text;
+  private paytableRtp: Text | null = null;
   private get bet() {
     return this.bets[this.betIndex];
   }
@@ -598,10 +599,9 @@ class SlotGame implements GameInstance {
     this.spinBtn.position.set(W - 116, CTRL_Y);
     c.addChild(this.spinBtn);
 
-    // Footer: transparency.
-    const rtp = returnToPlayer();
+    // Footer: where the paytable is (it carries the payout share; the machine front doesn't).
     const info = new Text({
-      text: `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %  ·  Hausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`,
+      text: 'Alle 8 Linien zählen  ·  Gewinntabelle links',
       style: { fontFamily: FONT_BODY, fontSize: 21, fontWeight: '600', fill: 0xe6d6b4 },
     });
     info.anchor.set(0.5);
@@ -708,6 +708,10 @@ class SlotGame implements GameInstance {
     wild.position.set(x0 + 20, 668);
     if (wild.width > W - 2 * x0 - 40) wild.scale.set((W - 2 * x0 - 40) / wild.width);
     p.addChild(wild);
+    // The payout share: here, not on the machine front (filled by refreshInfo).
+    this.paytableRtp = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, lineHeight: 20 } });
+    this.paytableRtp.position.set(x0 + 20, 694);
+    p.addChild(this.paytableRtp);
     return p;
   }
 
@@ -845,13 +849,16 @@ class SlotGame implements GameInstance {
     await wait(this.calm ? 150 : 300);
   }
 
-  /** The footer: the true payout share, with the feather while it works. */
+  /** The footer (with the feather while it works) and the payout line in the paytable. */
   private refreshInfo() {
     if (!this.infoText) return;
     const rtp = returnToPlayer();
-    this.infoText.text = this.odds.id
-      ? itemRtpText(FEATHER_RTP, 'gluecksfeder')
-      : `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %  ·  Hausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
+    const own = `Auszahlungsquote ${(rtp * 100).toFixed(1).replace('.', ',')} %  ·  Hausvorteil ${((1 - rtp) * 100).toFixed(1).replace('.', ',')} %`;
+    if (this.paytableRtp) {
+      this.paytableRtp.text = this.odds.id ? `${itemRtpText(FEATHER_RTP, 'gluecksfeder')}\nOhne Item: ${own}` : own;
+      this.paytableRtp.scale.set(Math.min(1, (W - 132) / (this.paytableRtp.width / this.paytableRtp.scale.x)));
+    }
+    this.infoText.text = this.odds.id ? `${itemName('gluecksfeder')}: ohne Linie wird einmal neu gezogen` : 'Alle 8 Linien zählen  ·  Gewinntabelle links';
     this.infoText.style.fill = this.odds.id ? 0xffd890 : 0xe6d6b4;
     this.infoText.scale.set(Math.min(1, (W - 40) / (this.infoText.width / this.infoText.scale.x)));
   }

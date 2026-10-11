@@ -269,6 +269,8 @@ class BlackjackGame implements GameInstance {
     });
     this.rtpText.anchor.set(L.mode === 'tall' ? 0.5 : 0, 0);
     this.rtpText.position.set(L.mode === 'tall' ? L.W / 2 : 28, 58);
+    // The payout share is in the rules card (?), not at the table.
+    this.rtpText.visible = false;
     this.luckNote?.destroy();
     this.luckNote = new Text({ text: '', style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xc8b0f0, align: 'center' } });
     this.luckNote.anchor.set(0.5);

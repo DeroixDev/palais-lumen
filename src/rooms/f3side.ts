@@ -29,6 +29,7 @@ export const f3side: RoomDefinition = {
     sofa: 0x4a3a2a,
   },
   spawn: { x: 640, y: 240 },
+  tabletX: 715,
   doors: [{ x: 640, y: 0, side: 'back', to: 'f3', label: FLOOR_NAMES.f3 }],
   stations: [
     { game: 'derby', pinned: true, x: 230, y: 330, label: 'Uhrwerk-Derby' },
@@ -48,6 +49,5 @@ export const f3side: RoomDefinition = {
     { kind: 'gauge', x: 80, y: 0 },
     { kind: 'wallClock', x: 160, y: 0, w: 40 },
     { kind: 'gauge', x: 560, y: 0 },
-    { kind: 'wallClock', x: 730, y: 0, w: 28 },
   ],
 };

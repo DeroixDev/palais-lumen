@@ -16,6 +16,8 @@ export interface ShellHooks {
   title: string;
   accent: number;
   rules: string;
+  /** The payout line for the current choice; shown at the end of the rules card (not at the table). */
+  odds?(): string;
   /** Height of the control bar (tall/wide) or its width (side), in design pixels. */
   ctrlSize(layout: Layout): number;
   /** Builds the controls into `c` (already cleared) for this size. `fs` lifts a font size to ≥ 13.5 css px. */
@@ -232,7 +234,8 @@ export class SceneShell {
     }
     const pw = Math.min(this.sw - 20, 620);
     const fsz = this.fs(this.tall ? 17 : 20);
-    const body = bodyText(this.hooks.rules, fsz, 0xf2e6c9, { wrap: pw - 56, align: 'left' });
+    const odds = this.hooks.odds?.();
+    const body = bodyText(odds ? `${this.hooks.rules}\n\n${odds}` : this.hooks.rules, fsz, 0xf2e6c9, { wrap: pw - 56, align: 'left' });
     const ph = Math.min(this.sh + 40, body.height + 130);
     const p = new Container();
     const bg = new Sprite(panelTexture(Math.round(pw), Math.round(ph)));

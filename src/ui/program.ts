@@ -1,5 +1,5 @@
 // The programme panel, opened at the easel in the foyer: every game of the house with its
-// line, its house edge and where it stands today (src/core/rotation.ts), or that it is
+// line and where it stands today (src/core/rotation.ts), or that it is
 // closed or not in the house today.
 
 import { Container, Sprite, Text, type Texture } from 'pixi.js';
@@ -15,7 +15,6 @@ import { CREAM, MUTED } from './kit';
 import { Panel } from './panel';
 
 import { SLOT_WILD } from '../core/brand';
-const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
 
 /** Lines for the first four games, which were written before games carried a blurb. */
 const BLURB: Record<string, string> = {
@@ -51,7 +50,6 @@ interface Entry {
   id: string;
   name: string;
   blurb: string;
-  edge: number;
   floors: number[];
   closed: boolean;
   isNew: boolean;
@@ -86,7 +84,6 @@ export class ProgramPanel extends Panel {
       id: g.id,
       name: g.name,
       blurb: g.blurb ?? BLURB[g.id] ?? '',
-      edge: g.houseEdge,
       floors: floorsOf(g.id),
       closed: closed.includes(g.id),
       isNew: fresh.has(g.id),
@@ -152,14 +149,11 @@ export class ProgramPanel extends Panel {
     if (!here) ic.alpha = 0.55;
     c.addChild(ic);
     const tx = 68;
-    const edge = new Text({ text: `Hausvorteil ${pct(e.edge)} %`, style: { fontFamily: FONT_BODY, fontSize: 16, fontWeight: '600', fill: MUTED } });
-    edge.anchor.set(1, 0);
-    edge.position.set(w - 14, 9);
     const name = new Text({ text: e.name, style: { fontFamily: FONT_BODY, fontSize: 22, fontWeight: '700', fill: here ? CREAM : 0xb8a684 } });
     name.position.set(tx, 5);
-    const maxName = w - 14 - edge.width - 12 - tx - (e.isNew ? 92 : 0);
+    const maxName = w - 14 - tx - (e.isNew ? 92 : 0);
     if (name.width > maxName) name.scale.set(maxName / name.width);
-    c.addChild(edge, name);
+    c.addChild(name);
     if (e.isNew) {
       const b = newBadge(13, 'NEU HEUTE');
       b.position.set(tx + name.width + 8 + b.width / 2, 19);

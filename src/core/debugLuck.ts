@@ -1,4 +1,4 @@
-// Mod-Menü runtime cheats (test tool only, removed before a real release): the "Gewinnchance"
+// House-tablet runtime cheats (for playing with friends): the "Gewinnchance"
 // slider, plus the trainer switches that act on the running game (stake and goal factor,
 // animation speed, all floors open). Everything lives in the save's counters under 'dbg:*',
 // so it survives a reload like normal play, and is absent (= neutral) in a normal save.
@@ -14,9 +14,9 @@
 // Games with several draws per round (a card per hit, a flip per call, a tile per click) steer
 // each single draw towards the player's (or the house's) side with `luckStep`.
 //
-// Honesty: while the bias is not neutral `luckOn()` is true, and the items rail at every table
-// shows a red "Mod-Menü" chip: the odds are steered, with the payout share measured since the
-// slider was last moved (luckStats), since the games' own payout lines don't hold then.
+// Quiet: nothing outside the house tablet (src/ui/tablet.ts) shows that a cheat is on. The
+// tablet itself lists the active cheats and the payout share measured since the slider was last
+// moved (luckStats).
 
 import type { GameState, RoundReport } from './state';
 import { setTweenSpeed } from './tween';

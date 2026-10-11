@@ -16,7 +16,7 @@ import { winStage } from '../slots/stage';
 import { StakeWatch } from '../stakeWatch';
 import { SceneShell, betStepper, caption, rtpText, type Layout } from '../sceneShell';
 import { CRUMB, FORMS, betRtp, crumbProbs, crumbRtp, drawOrder, makeCard, randomCard, settle, type BetKind, type RaceCard } from './rules';
-import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
+import { OddsWatch, itemMoment, itemName, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import {
   DUCK,
@@ -142,6 +142,8 @@ class DerbyGame implements GameInstance {
   private betText!: Text;
   private mainBtn!: Button;
   private rtpLine!: Text;
+  /** Payout line of the current bet, for the rules card. */
+  private oddsLine = '';
 
   private bets: number[];
   private stakeWatch: StakeWatch;
@@ -171,6 +173,7 @@ class DerbyGame implements GameInstance {
         'Die Quoten stehen auf der Rennkarte: Favoriten zahlen wenig, Außenseiter viel. Jede Karte hat feste Siegchancen; die Quote ist die faire Quote mal 0,965, auf 0,05 abgerundet. ' +
         'Die Reihenfolge wird beim Startschuss ausgelost, das Rennen zeigt sie dann. Ein Gewinn zahlt Einsatz × Quote.\n' +
         'Leertaste: Start.',
+      odds: () => `Deine Wette: ${this.oddsLine}`,
       ctrlSize: (l) => (l === 'tall' ? 312 : l === 'side' ? 420 : 186),
       buildControls: (c, w, h, l, fs) => this.buildControls(c, w, h, l, fs),
       layoutScene: (w, h, l) => this.layoutScene(w, h, l === 'tall'),
@@ -474,8 +477,10 @@ class DerbyGame implements GameInstance {
       // With the crumbs: the exact return of this very bet (its duck pulls 1.25 times as strong).
       const rtp = crumbRtp(this.card, this.pick, this.kind);
       setItemRtp('derby', 'brotkrumen', rtp);
-      this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))} · ${itemRtpText(rtp, 'brotkrumen')}`;
-    } else this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))} · ${rtpText(betRtp(this.card, this.pick, this.kind))}`;
+      this.oddsLine = itemRtpText(rtp, 'brotkrumen');
+    } else this.oddsLine = rtpText(betRtp(this.card, this.pick, this.kind));
+    // The quote for this bet only; the payout share is in the rules card.
+    this.rtpLine.text = `${head}×${fmtOdds(this.odds(this.pick))}${crumbs ? ` · mit ${itemName('brotkrumen')}` : ''}`;
     this.rtpLine.style.fill = crumbs ? 0xffd89a : 0xbfa98a;
   }
 

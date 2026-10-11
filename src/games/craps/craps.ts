@@ -236,6 +236,7 @@ class CrapsGame implements GameInstance {
       title: 'STRASSENWÜRFEL',
       accent: 0xffb860,
       rules: RULES,
+      odds: () => (this.odds.id ? `Linie: ${itemRtpText(LOADED_LINE_RTP, 'gezinkte')}` : ''),
       ctrlSize: barSize,
       buildControls: (c, w, h, layout, fs) => this.buildControls(c, w, h, layout, fs),
       layoutScene: (w, h, layout) => this.layoutScene(w, h, layout === 'tall'),
@@ -375,10 +376,9 @@ class CrapsGame implements GameInstance {
 
   private buildControls(c: Container, width: number, height: number, layout: Layout, fs: (px: number) => number) {
     const tall = layout === 'tall';
+    // The payout share is in the rules card (see `odds` in the shell), not at the table.
     const rtp = new Text({
-      text: this.odds.id
-        ? `Linie: ${itemRtpText(LOADED_LINE_RTP, 'gezinkte')}\nFeld: Auszahlungsquote ${pct(FIELD_RTP)}\u00a0% · Hausvorteil ${pct(1 - FIELD_RTP)}\u00a0%`
-        : `Linie: Auszahlungsquote ${pct(LINE_RTP)}\u00a0% · Hausvorteil ${pct(1 - LINE_RTP)}\u00a0%\nFeld: Auszahlungsquote ${pct(FIELD_RTP)}\u00a0% · Hausvorteil ${pct(1 - FIELD_RTP)}\u00a0%`,
+      text: '',
       style: { fontFamily: FONT_BODY, fontSize: fs(tall ? 13 : 15), fontWeight: '600', fill: this.odds.id ? 0xfff1c4 : 0xbfa98a, lineHeight: fs(tall ? 15 : 18) },
     });
     const bar = layoutBar(c, width, height, layout, fs, {

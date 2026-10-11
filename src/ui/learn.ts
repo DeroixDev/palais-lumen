@@ -361,7 +361,7 @@ export class LearnPage {
     }
     table.appendChild(tb);
     sc.appendChild(table);
-    html('p', 'Die Werte gelten für die Grundeinstellung. Wo ein Spiel Modi, Risikostufen oder Items hat, zeigt es dir am Tisch die genaue Quote für deine Wahl.');
+    html('p', 'Die Werte gelten für die Grundeinstellung. Wo ein Spiel Modi, Risikostufen oder Items hat, steht die genaue Quote in seinen Regeln („So geht’s“ am Tisch).');
 
     // ---- 4. Simulation ---------------------------------------------------------------------
     html('h3', '1.000 Runden simulieren');

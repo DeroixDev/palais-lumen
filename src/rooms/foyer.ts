@@ -28,6 +28,7 @@ export const foyer: RoomDefinition = {
     barLabel: 'SAFTBAR · alkoholfrei',
   },
   spawn: { x: 700, y: 730 },
+  tabletX: 1318,
   stations: [],
   decor: [
     // Floor
@@ -67,6 +68,5 @@ export const foyer: RoomDefinition = {
     { kind: 'plaque', x: 90, y: 0, w: 120 },
     { kind: 'painting', x: 200, y: 0, w: 76 },
     { kind: 'painting', x: 330, y: 0, w: 76 },
-    { kind: 'painting', x: 1318, y: 0, w: 70, h: 56 },
   ],
 };

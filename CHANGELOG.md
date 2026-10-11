@@ -75,7 +75,7 @@ Die obere Leiste passt jetzt auf jede Bildschirmbreite.
 
 *Großes Update · 10.10.2026*
 
-Das ganze Casino klingt jetzt nach echten Instrumenten: 64 Aufnahmen, für jede Etage eigene Musik und über 70 neue Effekte. Dazu kommt das Mod-Menü.
+Das ganze Casino klingt jetzt nach echten Instrumenten: 64 Aufnahmen, für jede Etage eigene Musik und über 70 neue Effekte.
 
 **Musik**
 
@@ -93,12 +93,6 @@ Das ganze Casino klingt jetzt nach echten Instrumenten: 64 Aufnahmen, für jede 
 - Gewinne enden als Fanfare. Große Gewinne mit Gong, Bläsern, Chor und Münzregen.
 - Regen auf der Straße vor dem Casino, Gemurmel und Gläserklirren im Saal.
 - Das Klavier im Foyer ist jetzt ein echter Flügel.
-
-**Mod-Menü**
-
-- Das Debug-Menü heißt jetzt Mod-Menü: in Kategorien gegliedert, mit Suche, fast jeder Wert lässt sich ändern.
-- Gewinnchance-Regler von „Immer verlieren“ bis „Immer gewinnen“, wirkt in allen 20 Spielen und im Duell mit der Königin.
-- Ist der Regler nicht auf normal, zeigt ein roter Hinweis „Quote manipuliert“ die gemessene Quote.
 
 **Sonstiges**
 
@@ -212,7 +206,6 @@ Gegenstände wie in Gamble With Your Friends: manche ändern die Wirtschaft, man
 - Mondstufen als Schwierigkeitsgrade nach jedem Saisonsieg.
 - Bossphasen der Mottenkönigin, Sprüche der Croupiers, Fotomodus, Vibration.
 - Eigene Musik pro Etage und eine Verlaufskurve im Tagesrückblick.
-- Debug-Menü zum Testen.
 
 ## v13: Gemalter Stil
 

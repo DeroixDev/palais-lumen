@@ -237,7 +237,7 @@ class ScratchGame implements GameInstance {
     title.anchor.set(0.5);
     title.position.set(SW / 2 + 20, 46);
     sc.addChild(marquee, title);
-    const info = infoKnob(() => this.shell.showRules(RULES));
+    const info = infoKnob(() => this.shell.showRules(`${RULES}\n\n${this.rtp.line()}`));
     info.position.set(50, 46);
     sc.addChild(info);
 

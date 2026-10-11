@@ -122,7 +122,7 @@ class KenoGame implements GameInstance {
       this.stars.push(this.makeStar(i + 1, x, y));
     }
     sc.addChild(this.fxLayer);
-    const info = infoKnob(() => this.shell.showRules(RULES));
+    const info = infoKnob(() => this.shell.showRules(`${RULES}\n\n${this.rtp.line()}`));
     info.position.set(34, 34);
     sc.addChild(info);
 

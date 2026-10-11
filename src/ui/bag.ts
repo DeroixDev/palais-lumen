@@ -17,7 +17,6 @@ import {
   fmtPct,
   installItems,
   itemRtp,
-  itemRtpLabel,
   onItemEvent,
   pendingOffer,
   reactionChance,
@@ -28,7 +27,6 @@ import {
   type Offer,
 } from '../core/itemsCore';
 import { formatChips, type GameState } from '../core/state';
-import { luckBias, luckLabel, luckOn, luckStats, onLuckChange } from '../core/debugLuck';
 import { itemUrl, pouchUrl } from './itemArt';
 import { stoneDataUrl } from './stone';
 
@@ -96,7 +94,6 @@ export class Bag {
 
     state.onChange(() => this.refresh());
     state.onRound((r) => this.lastRtp.set(r.game, r.rtp));
-    onLuckChange(() => this.refresh());
     onItemEvent((e) => {
       if (e.type === 'note') host.toast(e.text);
       else if (e.type === 'stones') this.floatStones(e.n, e.why);
@@ -137,12 +134,10 @@ export class Bag {
     this.badge.hidden = !n;
     this.key.setAttribute('aria-label', `Beutel, ${n} ${n === 1 ? 'Item' : 'Items'}${d.active.length ? `, ${d.active.length} aktiv` : ''}`);
     this.key.classList.toggle('has-active', d.active.length > 0);
-    // Active items with rounds left, then the honest payout share at the open game.
+    // Active items with rounds left. The payout share is in the bag and in each game's rules,
+    // not on the table.
     const act = activeList(this.state).filter((a) => !a.game || a.game === currentGame() || !currentGame());
-    const g = currentGame();
-    const rtp = g ? itemRtp(this.state, g, this.lastRtp.get(g)) : null;
-    const luck = luckOn() ? { b: luckBias(), g, m: g ? luckStats(g) : null } : null;
-    const sig = JSON.stringify([act.map((a) => [a.id, a.left, a.game]), rtp && [rtp.rtp, rtp.approx], luck]);
+    const sig = JSON.stringify(act.map((a) => [a.id, a.left, a.game]));
     if (sig === this.rail.dataset.sig) return;
     this.rail.dataset.sig = sig;
     this.rail.innerHTML = '';
@@ -157,30 +152,6 @@ export class Bag {
       b.title = `${a.def.name}${where}: ${a.def.desc}`;
       b.addEventListener('click', () => this.open());
       this.rail.appendChild(b);
-    }
-    if (rtp) {
-      const c = document.createElement('button');
-      c.type = 'button';
-      c.className = 'it-chip rtp' + (rtp.rtp > 1 ? ' up' : '');
-      c.innerHTML = `<b>${itemRtpLabel(rtp)}</b><small>statt ${fmtPct(rtp.plain)} %</small>`;
-      c.title = this.rtpNote(g!, rtp);
-      c.setAttribute('aria-label', `Auszahlungsquote ${itemRtpLabel(rtp)}, ohne Items ${fmtPct(rtp.plain)} %. ${c.title}`);
-      c.addEventListener('click', () => this.open());
-      this.rail.appendChild(c);
-    }
-    if (luck) {
-      // Mod-Menü: the odds are steered. Say so at every table, with the measured payout share.
-      const c = document.createElement('div');
-      c.className = 'it-chip rtp dbg-luck';
-      c.setAttribute('role', 'status');
-      c.setAttribute('aria-label', `Mod-Menü aktiv: Gewinnchance ${luckLabel()}, die Auszahlungsquote ist manipuliert.`);
-      const m = luck.m;
-      const measured = m ? `Quote manipuliert · gemessen ${fmtPct(m.rtp)} % in ${m.rounds} ${m.rounds === 1 ? 'Runde' : 'Runden'}` : g ? 'Quote manipuliert · noch nicht gemessen' : 'Quote an allen Spielen manipuliert';
-      c.innerHTML = '<b></b><small></small>';
-      c.querySelector('b')!.textContent = `Mod-Menü: Gewinnchance ${luckLabel()}`;
-      c.querySelector('small')!.textContent = measured;
-      c.title = 'Mod-Menü: Die Gewinnchance ist verstellt. Die angezeigten Auszahlungsquoten der Spiele gelten gerade nicht; oben steht die gemessene Quote seit dem letzten Verstellen.';
-      this.rail.appendChild(c);
     }
     this.rail.classList.toggle('on', this.rail.childElementCount > 0);
   }
@@ -239,7 +210,7 @@ export class Bag {
       p.textContent = r
         ? `${this.host.gameName(g)}: Auszahlungsquote ohne Items ${fmtPct(r.plain)} %, mit Items ${r.approx ? 'ca. ' : ''}${fmtPct(r.rtp)} %. ${this.rtpNote(g, r)}`
         : base !== undefined
-          ? `${this.host.gameName(g)}: Auszahlungsquote ${fmtPct(base)} %. Items, die Verluste abfedern oder Gewinne erhöhen, zeigen hier und oben links die Quote mit Item.`
+          ? `${this.host.gameName(g)}: Auszahlungsquote ${fmtPct(base)} %. Items, die Verluste abfedern oder Gewinne erhöhen, zeigen hier die Quote mit Item.`
           : '';
       if (p.textContent) body.appendChild(p);
     }
@@ -503,13 +474,6 @@ function injectStyle() {
   body.hud-off #items-rail, body.modal-open #items-rail { display: none; }
   .it-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; min-height: 0; height: 36px; padding: 0 9px 0 2px; border-radius: 18px; font: 700 .95rem/1 var(--body); color: var(--cream); }
   .it-chip img { width: 32px; height: 32px; }
-  .it-chip.rtp { padding: 0 12px; flex-direction: column; justify-content: center; gap: 1px; height: 40px; border-radius: 12px; }
-  .it-chip.rtp b { font: 700 .98rem/1 var(--body); color: var(--lamp); }
-  .it-chip.rtp.up b { color: #9ff0a8; }
-  .it-chip.dbg-luck { background: linear-gradient(180deg, #7a1030, #3a0618); border: 2px solid #ff6a8a; box-shadow: 0 0 12px rgba(255, 80, 120, .55); }
-  .it-chip.dbg-luck b { color: #ffd0dc; }
-  .it-chip.dbg-luck small { color: #ffb0c0; }
-  .it-chip.rtp small { font: 600 .72rem/1 var(--body); color: var(--muted); letter-spacing: .04em; }
   .it-chip::before { content: ""; position: absolute; inset: -6px -3px; }
   .it-chip { position: relative; }
 

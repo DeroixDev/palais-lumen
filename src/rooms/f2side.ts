@@ -30,6 +30,7 @@ export const f2side: RoomDefinition = {
     bare: true,
   },
   spawn: { x: 120, y: 470 },
+  tabletX: 792,
   doors: [{ x: 0, y: 470, side: 'left', to: 'f2', label: FLOOR_NAMES.f2 }],
   stations: [
     { game: 'slots', pinned: true, x: 600, y: 230, label: 'Nachtblüte', options: { theme: 'diamond' } },

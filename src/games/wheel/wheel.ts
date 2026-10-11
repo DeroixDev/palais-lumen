@@ -15,7 +15,7 @@ import { light } from '../../world/painted/brush';
 import { SceneShell, type Layout } from '../sceneShell';
 import { barSize, layoutBar } from '../barLayout';
 import { lightWave, winStage } from '../slots/stage';
-import { BONUS_PAY, BONUS_WHEEL, BRAKE_MAX, BRAKE_MIN, COUNT, FIELDS, FIELD_RTP, MIN_RTP, PAY, SEGMENTS, brakeRtp, brakeSpin, payout, spin, type BrakeResult, type Field, type SpinResult } from './rules';
+import { BONUS_PAY, BONUS_WHEEL, BRAKE_MAX, BRAKE_MIN, COUNT, FIELDS, FIELD_RTP, PAY, SEGMENTS, brakeRtp, brakeSpin, payout, spin, type BrakeResult, type Field, type SpinResult } from './rules';
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { setItemRtp } from '../../core/modifiers';
 import {
@@ -40,7 +40,6 @@ const CHIPS = [10, 20, 50, 100, 200, 500];
 const SEG = (Math.PI * 2) / SEGMENTS;
 const CREAM = 0xfff3dc;
 const pct = (x: number) => (x * 100).toFixed(1).replace('.', ',');
-const MAX_RTP = Math.max(...FIELDS.map((f) => FIELD_RTP[f]));
 
 const RULES = [
   'Setze auf ein oder mehrere Felder und dreh das Rad. Hält der Zeiger auf deinem Feld, zahlt es seine Zahl zu 1: ×1 zahlt 1:1, ×20 zahlt 20:1 – der Einsatz kommt dazu zurück.',
@@ -130,6 +129,7 @@ class WheelGame implements GameInstance {
       title: 'GROSSES RAD',
       accent: 0xff5fa2,
       rules: RULES,
+      odds: () => (this.odds.id ? this.brakeLine : ''),
       ctrlSize: barSize,
       buildControls: (c, w, h, layout, fs) => this.buildControls(c, w, h, layout, fs),
       layoutScene: (w, h, layout) => this.layoutScene(w, h, layout === 'tall'),
@@ -322,7 +322,10 @@ class WheelGame implements GameInstance {
     this.changeChip(0);
   }
 
-  /** The payout line: per field, or with the Radbremse the exact share for the bets on the table. */
+  /** Payout of the Radbremse for the bets on the table, for the rules card. */
+  private brakeLine = '';
+
+  /** The line under the controls (only with the Radbremse; the payout shares are in the rules card). */
   private refreshRtp() {
     const t = this.rtpText;
     if (!t || t.destroyed) return;
@@ -333,12 +336,14 @@ class WheelGame implements GameInstance {
       const b = Object.fromEntries(bets) as Partial<Record<Field, number>>;
       const has = bets.size > 0;
       if (has) setItemRtp('wheel', 'radbremse', brakeRtp(b));
-      t.text = has
-        ? itemRtpText(brakeRtp(b), 'radbremse', 'deine Einsätze').replace(' · ', sep)
-        : `Mit Radbremse: ein Feld allein ${pct(BRAKE_MIN)}–${pct(BRAKE_MAX)}\u00a0%${sep}mehrere Felder: weniger (Bremse greift seltener)`;
+      // The exact share goes to the rules card (see `odds`), not on the table.
+      this.brakeLine = has
+        ? itemRtpText(brakeRtp(b), 'radbremse', 'deine Einsätze')
+        : `Mit Radbremse: ein Feld allein ${pct(BRAKE_MIN)}–${pct(BRAKE_MAX)}\u00a0%, mehrere Felder: weniger (Bremse greift seltener)`;
+      t.text = `Mit Radbremse${sep}am stärksten auf einem Feld allein`;
       t.style.fill = 0xffb8d8;
     } else {
-      t.text = `Auszahlungsquote ${pct(MIN_RTP)}–${pct(MAX_RTP)}\u00a0% je Feld${sep}Hausvorteil ${pct(1 - MAX_RTP)}–${pct(1 - MIN_RTP)}\u00a0%`;
+      t.text = '';
       t.style.fill = 0xbfa98a;
     }
     // Keep inside the room the bar gave the line.

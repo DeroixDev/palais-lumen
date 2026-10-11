@@ -30,6 +30,7 @@ export const f1: RoomDefinition = {
     curtain: 0x8a1a2e,
   },
   spawn: { x: 200, y: 200 },
+  tabletX: 1052,
   doors: [{ x: 960, y: 0, side: 'back', to: 'f1b', label: 'Hinterzimmer' }],
   stations: [
     // Upper gallery: a bank on each side, a table on the runner.

@@ -246,6 +246,7 @@ class HiloGame implements GameInstance {
     title.position.set(L.mode === 'wide' ? L.strip.x + L.strip.w / 2 : L.W / 2, L.mode === 'wide' ? 30 : 28);
     this.rtpText = new Text({ text: this.rtpLabel(), style: { fontFamily: FONT_BODY, fontSize: 17, fontWeight: '600', fill: 0xe6d6b4, align: 'center', lineHeight: 20 } });
     this.rtpText.anchor.set(0.5, 0);
+    this.rtpText.visible = false; // the payout share is in the rules card (?)
     const pw = L.mode === 'wide' ? 262 : L.W - 20;
     const py = L.mode === 'wide' ? 80 : L.strip.y + L.strip.h + 2;
     const ph = L.mode === 'wide' ? 566 : L.H - py - 6;
