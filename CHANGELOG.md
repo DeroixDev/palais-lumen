@@ -2,6 +2,15 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v21.2: Spiele in Nachtblau
+
+*Patch · 12.10.2026*
+
+**Verbessert**
+
+- Funkenfall, Laterne, Selene 21, Himmelslaterne, Großes Rad und die meisten anderen Spiele tragen jetzt das Nachtblau und Messing des Palais statt des alten Lilas.
+- Farben mit Bedeutung bleiben, zum Beispiel Rot und Schwarz beim Roulette, die Ringe der Zielscheibe und die Felle von Baccarat und Kartenleiter.
+
 ## v21.1: Näher dran
 
 *Patch · 12.10.2026*
