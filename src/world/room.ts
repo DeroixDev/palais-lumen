@@ -30,6 +30,7 @@ import { buildDecor, type BuiltDecor, type Rect } from './decor';
 import { SIDE, WALL_H, paintFloor, paintWalls, shade } from './styles';
 import { sfx } from '../core/audio';
 import { CLUB_USE_TITLE } from './clubUse';
+import { CAM_KEY, CAM_NORMAL, WALK_KEY, WALK_NORMAL, cheat } from '../core/debugLuck';
 import { clubLightSpots, clubSign } from './painted/propsClub';
 import { TABLET_Y, paintedTablet } from './painted/tablet';
 
@@ -140,6 +141,8 @@ export class RoomScene {
   private screenW = 800;
   private screenH = 600;
   zoom = 1;
+  /** The tablet's camera factor the last resize used (a change re-zooms live). */
+  private camFactor = CAM_NORMAL / 100;
   /** Height of the HTML bar covering the top of the screen. */
   topInset = 64;
   /** Disables movement while a game or menu is open. */
@@ -1252,6 +1255,7 @@ export class RoomScene {
   }
 
   update(dtMs: number) {
+    if (!this.cameraLocked && this.screenW && Math.max(0.6, Math.min(2.5, cheat(this.state, CAM_KEY, CAM_NORMAL) / 100)) !== this.camFactor) this.resize(this.screenW, this.screenH);
     this.time += dtMs / 1000;
     const dt = Math.min(dtMs, 50) / 1000;
     let dx = 0;
@@ -1303,7 +1307,7 @@ export class RoomScene {
     const len = Math.hypot(dx, dy);
     const pv = this.player.view;
     if (len > 0) {
-      const speed = 280;
+      const speed = Math.max(60, Math.min(800, cheat(this.state, WALK_KEY, WALK_NORMAL)));
       const step = Math.min(speed * dt, capTo);
       const mx = (dx / len) * step;
       const my = (dy / len) * step;
@@ -1423,7 +1427,11 @@ export class RoomScene {
     this.screenW = w;
     this.screenH = h;
     const narrow = w < 700;
-    this.zoom = this.def.corridor ? corridorZoom(w, h, this.topInset) : Math.max(narrow ? 0.72 : 0.5, Math.min(1.2, Math.min(w / 1000, (h - this.topInset) / 720)));
+    // The camera sits closer than a whole-room view, so rooms feel big and the camera follows.
+    const near = (this.camFactor = Math.max(0.6, Math.min(2.5, cheat(this.state, CAM_KEY, CAM_NORMAL) / 100)));
+    const fit = Math.max(narrow ? 0.72 : 0.5, Math.min(1.2, Math.min(w / 1000, (h - this.topInset) / 720)));
+    // Phones already show little of the room: there only half of the extra closeness applies.
+    this.zoom = this.def.corridor ? corridorZoom(w, h, this.topInset) : fit * (narrow ? 1 + (near - 1) / 2 : near);
     this.world.scale.set(this.zoom);
     this.updateCamera();
   }

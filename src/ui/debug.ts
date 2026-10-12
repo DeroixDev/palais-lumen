@@ -19,6 +19,13 @@ import {
   FLOORS_KEY,
   GOAL_KEY,
   LUCK_KEY,
+  CAM_KEY,
+  CAM_NORMAL,
+  WALK_KEY,
+  WALK_NORMAL,
+  PLINKO_MAX_KEY,
+  PLINKO_MAX_NORMAL,
+  PLINKO_SPEED_KEY,
   SPEED_KEY,
   STAKE_KEY,
   activeCheats,
@@ -119,7 +126,7 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   allOff.className = 'mod-mini';
   allOff.addEventListener('click', () =>
     apply(() => {
-      for (const [k, n] of [[LUCK_KEY, 0], [STAKE_KEY, 100], [GOAL_KEY, 100], [SPEED_KEY, 100], [FLOORS_KEY, 0]] as const) setCheat(state, k, n, n);
+      for (const [k, n] of [[LUCK_KEY, 0], [STAKE_KEY, 100], [GOAL_KEY, 100], [SPEED_KEY, 100], [FLOORS_KEY, 0], [PLINKO_SPEED_KEY, 100], [PLINKO_MAX_KEY, PLINKO_MAX_NORMAL], [CAM_KEY, CAM_NORMAL], [WALK_KEY, WALK_NORMAL]] as const) setCheat(state, k, n, n);
       d().evening.quota = state.quotaToday(d().evening.number);
       return 'Alle Cheats aus: Gewinnchance normal, Einsätze, Ziel und Tempo wie im echten Spiel.';
     }),
@@ -404,6 +411,14 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
       for (const s of st) note(`${gameName(s.game)}: ${s.rounds} ${s.rounds === 1 ? 'Runde' : 'Runden'}, ${pct(s.winRate)} gewonnen, Auszahlungsquote ${pct(s.rtp)}`);
     },
   );
+
+  // =================================================================================================
+  // Spiele
+  cat('games', 'Spiele', 'Einstellungen einzelner Spiele');
+  group(gameName('plinko'), true);
+  slider('Tempo der Funken', SPEED_STEPS, () => cheat(state, PLINKO_SPEED_KEY, 100), (v) => setCheat(state, PLINKO_SPEED_KEY, v, 100), x100, 'plinko funkenfall tempo geschwindigkeit ball');
+  slider('Funken gleichzeitig', [1, 50, 1], () => cheat(state, PLINKO_MAX_KEY, PLINKO_MAX_NORMAL), (v) => setCheat(state, PLINKO_MAX_KEY, v, PLINKO_MAX_NORMAL), (v) => `${v}`, 'plinko funkenfall bälle anzahl gleichzeitig');
+  note(`Normal: Tempo ×1, ${PLINKO_MAX_NORMAL} Funken gleichzeitig. Das Tempo gilt zusätzlich zum allgemeinen Animationstempo. Die Quoten ändern sich dadurch nicht.`);
 
   // =================================================================================================
   // Geld & Wirtschaft
@@ -795,6 +810,10 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   group('Tempo', true);
   slider('Animationstempo', SPEED_STEPS, () => cheat(state, SPEED_KEY, 100), (v) => setCheat(state, SPEED_KEY, v, 100), x100, 'speed geschwindigkeit');
   note('Beschleunigt oder bremst alle Animationen und Wartezeiten (Walzen, Kugel, Karten). Die Ergebnisse ändern sich dadurch nicht.');
+  group('Kamera & Laufen', true);
+  slider('Kamera-Nähe', [60, 250, 5], () => cheat(state, CAM_KEY, CAM_NORMAL), (v) => setCheat(state, CAM_KEY, v, CAM_NORMAL), x100, 'kamera zoom nah weit karte map');
+  slider('Laufgeschwindigkeit', [100, 500, 10], () => cheat(state, WALK_KEY, WALK_NORMAL), (v) => setCheat(state, WALK_KEY, v, WALK_NORMAL), (v) => `${v}`, 'laufen tempo spieler geschwindigkeit');
+  note(`Normal: Kamera ${x100(CAM_NORMAL)}, Laufen ${WALK_NORMAL}. Kamera ×1 zeigt fast den ganzen Raum wie früher.`);
   group('Bewegung & Vibration', true);
   const motion = row('Ruhige Bewegung', 'reduced motion animation');
   for (const [v, t] of [[null, 'Wie System'], [true, 'An'], [false, 'Aus']] as const) btn(motion, t, () => {

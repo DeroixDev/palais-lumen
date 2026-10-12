@@ -1,5 +1,27 @@
 [
  {
+  "v": "21.1",
+  "date": "2026-10-12",
+  "kind": "Patch",
+  "title": "Näher dran",
+  "intro": "Die Kamera rückt näher an die Figur, und die Räume wirken dadurch größer.",
+  "sections": [
+   {
+    "h": "Verbessert",
+    "items": [
+     "Die Kamera zeigt die Räume näher und folgt der Figur. Am Handy rückt sie etwas weniger nah heran.",
+     "Die Figur läuft etwas gemächlicher durch die Räume."
+    ]
+   },
+   {
+    "h": "Neu",
+    "items": [
+     "Im Haustechnik-Tablet gibt es neue Regler für Kamera-Nähe, Laufgeschwindigkeit und für Funkenfall das Tempo der Funken und wie viele gleichzeitig fallen dürfen."
+    ]
+   }
+  ]
+ },
+ {
   "v": "21",
   "date": "2026-10-11",
   "kind": "Großes Update",

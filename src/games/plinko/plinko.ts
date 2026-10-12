@@ -18,7 +18,7 @@ import { HALF, RISK_LABEL, ROWS, TABLE, returnToPlayer, wingPath, wingRtp, type 
 import { OddsWatch, itemMoment, itemRtpText } from '../itemKit';
 import { RulesKnob } from '../rulesKnob';
 import { setItemRtp } from '../../core/modifiers';
-import { luckDraw } from '../../core/debugLuck';
+import { PLINKO_MAX_KEY, PLINKO_MAX_NORMAL, PLINKO_SPEED_KEY, cheat, luckDraw } from '../../core/debugLuck';
 
 import { CURRENCY_PLURAL, GAME_NAMES } from '../../core/brand';
 export { returnToPlayer };
@@ -472,7 +472,7 @@ class PlinkoGame implements GameInstance {
 
   /** Drops one moth. Several can fall at the same time. */
   drop() {
-    if (this.inFlight >= 8) return;
+    if (this.inFlight >= Math.max(1, Math.min(50, cheat(this.ctx.state, PLINKO_MAX_KEY, PLINKO_MAX_NORMAL)))) return;
     const bet = this.bet;
     if (!this.ctx.state.placeBet(bet)) {
       this.ctx.toast(`Nicht genug ${CURRENCY_PLURAL} für diesen Einsatz.`);
@@ -494,6 +494,8 @@ class PlinkoGame implements GameInstance {
 
   private async fly(path: number[], bet: number, risk: Risk, wing = false) {
     this.inFlight++;
+    // House-tablet setting: how fast this spark falls (read once, at the drop).
+    const pace = Math.max(0.1, Math.min(8, cheat(this.ctx.state, PLINKO_SPEED_KEY, 100) / 100));
     const ball = new Container();
     const glow = new Sprite(glowTexture());
     glow.anchor.set(0.5);
@@ -514,7 +516,7 @@ class PlinkoGame implements GameInstance {
     ball.scale.set(0.4);
     void tween(ball.scale, { x: 1, y: 1 }, 200, ease.outBack);
     // Fall onto the top peg.
-    await animate(260, (k) => !ball.destroyed && ball.position.set(x, y + (TOP - 16 - y) * k), ease.inCubic);
+    await animate(260 / pace, (k) => !ball.destroyed && ball.position.set(x, y + (TOP - 16 - y) * k), ease.inCubic);
     let rights = 0;
     for (let r = 0; r < ROWS; r++) {
       // Hit the peg in row r.
@@ -528,7 +530,7 @@ class PlinkoGame implements GameInstance {
       const sx = ball.x;
       const sy = ball.y;
       const hop = 10 + Math.random() * 8;
-      const dur = 115 + Math.random() * 30;
+      const dur = (115 + Math.random() * 30) / pace;
       await animate(dur, (k) => {
         if (ball.destroyed) return;
         ball.x = sx + (nx - sx) * k;

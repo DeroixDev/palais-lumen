@@ -28,6 +28,17 @@ export const STAKE_KEY = 'dbg:stake';
 export const GOAL_KEY = 'dbg:goal';
 /** Animation speed ×100 (100 = normal). */
 export const SPEED_KEY = 'dbg:speed';
+/** Funkenfall: how fast the sparks fall ×100 (100 = normal). */
+export const PLINKO_SPEED_KEY = 'dbg:plinkoSpeed';
+/** Funkenfall: how many sparks may be on the board at once (8 = normal). */
+export const PLINKO_MAX_KEY = 'dbg:plinkoMax';
+export const PLINKO_MAX_NORMAL = 8;
+/** Room camera: how close it sits ×100 (135 = normal, 100 = the old wide view). */
+export const CAM_KEY = 'dbg:cam';
+export const CAM_NORMAL = 135;
+/** Walking speed in world px per second (210 = normal). */
+export const WALK_KEY = 'dbg:walk';
+export const WALK_NORMAL = 210;
 /** 1: the elevator goes to every floor (read in GameState.topFloor). */
 export const FLOORS_KEY = 'dbg:floors';
 
@@ -131,6 +142,14 @@ export function activeCheats(state: GameState): string[] {
   if (g !== 100) out.push(`Tagesziel ${x(g)}`);
   const sp = cheat(state, SPEED_KEY, 100);
   if (sp !== 100) out.push(`Tempo ${x(sp)}`);
+  const ps = cheat(state, PLINKO_SPEED_KEY, 100);
+  if (ps !== 100) out.push(`Funkenfall-Tempo ${x(ps)}`);
+  const pm = cheat(state, PLINKO_MAX_KEY, PLINKO_MAX_NORMAL);
+  if (pm !== PLINKO_MAX_NORMAL) out.push(`Funkenfall: ${pm} Funken gleichzeitig`);
+  const cm = cheat(state, CAM_KEY, CAM_NORMAL);
+  if (cm !== CAM_NORMAL) out.push(`Kamera ${x(cm)}`);
+  const wk = cheat(state, WALK_KEY, WALK_NORMAL);
+  if (wk !== WALK_NORMAL) out.push(`Laufen ${wk} px/s`);
   if (cheat(state, FLOORS_KEY, 0)) out.push('Alle Etagen offen');
   return out;
 }

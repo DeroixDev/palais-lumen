@@ -2,6 +2,21 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v21.1: Näher dran
+
+*Patch · 12.10.2026*
+
+Die Kamera rückt näher an die Figur, und die Räume wirken dadurch größer.
+
+**Verbessert**
+
+- Die Kamera zeigt die Räume näher und folgt der Figur. Am Handy rückt sie etwas weniger nah heran.
+- Die Figur läuft etwas gemächlicher durch die Räume.
+
+**Neu**
+
+- Im Haustechnik-Tablet gibt es neue Regler für Kamera-Nähe, Laufgeschwindigkeit und für Funkenfall das Tempo der Funken und wie viele gleichzeitig fallen dürfen.
+
 ## v21: Palais Lumen
 
 *Großes Update · 11.10.2026*
