@@ -13,10 +13,6 @@ Die Kamera rückt näher an die Figur, und die Räume wirken dadurch größer.
 - Die Kamera zeigt die Räume näher und folgt der Figur. Am Handy rückt sie etwas weniger nah heran.
 - Die Figur läuft etwas gemächlicher durch die Räume.
 
-**Neu**
-
-- Im Haustechnik-Tablet gibt es neue Regler für Kamera-Nähe, Laufgeschwindigkeit und für Funkenfall das Tempo der Funken und wie viele gleichzeitig fallen dürfen.
-
 ## v21: Palais Lumen
 
 *Großes Update · 11.10.2026*
@@ -31,7 +27,6 @@ Aus dem Casino Nachtfalter wird das Palais Lumen, ein Grandhotel im Art-déco-St
 - Das Mottenalbum ist jetzt das Lampenbuch mit 36 Leuchten von der Talgkerze bis zur Mondlampe. Gesammelte Einträge werden automatisch übernommen.
 - Selene, Herrin der Lampen, wartet unter der Kuppel mit einem Fächer aus Licht. Der Gang dorthin führt durch Lichtschleusen, jeder Automat steht unter der Lampe eines Zeitalters.
 - Etage 3 heißt jetzt Laternenwerk, mit Gasleitungen, Gaslaternen und einem Glühstrumpf-Regal in der Räderkammer. Etage 4 heißt Club Neon.
-- In jedem Raum hängt ein Haustechnik-Tablet an der Wand.
 
 **Verbessert**
 
