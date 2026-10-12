@@ -1,4 +1,4 @@
-// Painted pieces of "Selene 21": the half-moon table in plum felt (wide and tall cut),
+// Painted pieces of "Selene 21": the half-moon table in night-blue felt (wide and tall cut),
 // the croupier with her faces, and the station on the casino floor.
 
 import { Container, Sprite, type Texture } from 'pixi.js';
@@ -7,8 +7,8 @@ import { dark, ellipse, fillInk, glowAt, gold, light, paint, propSprite, rgb, rr
 import { velvetNap } from '../../core/ui';
 import { registerPaintedStation, type PaintedStation } from '../../world/painted/stations';
 
-export const FELT = 0x3e1f5a;
-const RAIL = 0x5a1a2e;
+export const FELT = 0x1e2c64;
+const RAIL = 0x4a1226;
 
 const cache = new Map<string, Texture>();
 function cached(key: string, make: () => Texture) {
@@ -402,7 +402,7 @@ function stool(c: Ctx, x: number, y: number) {
   c.fillStyle = gold(c, x - 2, y - 10, x + 2, y);
   c.fillRect(x - 2, y - 12, 4, 14);
   ellipse(c, x, y - 14, 11, 5.5);
-  fillInk(c, vgrad2(c, y - 20, y - 8, 0x3a1a3a), 1.6);
+  fillInk(c, vgrad2(c, y - 20, y - 8, 0x4a1226), 1.6);
 }
 
 export function station(): PaintedStation {
@@ -463,7 +463,7 @@ export function station(): PaintedStation {
       x.translate(cx, cy);
       x.rotate(r);
       rrect(x, -5, -7, 10, 14, 2);
-      fillInk(x, face ? '#fbf1dc' : '#2a1446', 1);
+      fillInk(x, face ? '#fbf1dc' : '#1c2650', 1);
       if (face) {
         ellipse(x, 0, 0, 2, 2);
         x.fillStyle = '#b81f45';

@@ -93,8 +93,8 @@ export function itemMedalTexture(id: string) {
     rim(c, 0.6, 2);
     ellipse(c, m, m, 38, 38);
     const g = c.createRadialGradient(m - 10, m - 12, 4, m, m, 40);
-    g.addColorStop(0, rgb(0x4a1a3a));
-    g.addColorStop(1, rgb(0x14060f));
+    g.addColorStop(0, rgb(0x24306a));
+    g.addColorStop(1, rgb(0x080c1e));
     fillInk(c, g, 2);
     glowAt(c, m, m, 34, 34, itemColor(id), 0.3, 'lighter');
     c.save();

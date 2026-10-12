@@ -590,8 +590,8 @@ export function trayTexture(w: number, h: number, res: number) {
     c.restore();
     rrect(c, 10, 12, w - 20, h - 24, 12);
     const v = c.createLinearGradient(0, 12, 0, h - 12);
-    v.addColorStop(0, '#1c0a14');
-    v.addColorStop(1, '#3a1626');
+    v.addColorStop(0, '#0b1027');
+    v.addColorStop(1, '#1a2348');
     c.fillStyle = v;
     c.fill();
     c.strokeStyle = 'rgba(224,178,90,0.45)';

@@ -33,7 +33,7 @@ export function doorLayout(n: number) {
   return { w, xs: Array.from({ length: n }, (_, i) => x0 + i * (w + gap)) };
 }
 
-function stones(c: Ctx, x: number, y: number, w: number, h: number, seed: number, base = 0x5a4e62) {
+function stones(c: Ctx, x: number, y: number, w: number, h: number, seed: number, base = 0x4c5468) {
   const r = seeded(seed);
   const rowH = 20;
   for (let row = 0; row * rowH < h; row++) {
@@ -45,7 +45,7 @@ function stones(c: Ctx, x: number, y: number, w: number, h: number, seed: number
       const col = r() < 0.5 ? light(base, r() * 0.12) : dark(base, r() * 0.25);
       c.fillStyle = vgrad(c, by, by + rowH, col, 0.18, 0.3);
       c.fill();
-      c.strokeStyle = 'rgba(16,8,18,0.55)';
+      c.strokeStyle = 'rgba(8,10,20,0.55)';
       c.lineWidth = 1.4;
       c.stroke();
       c.fillStyle = 'rgba(255,240,230,0.08)';
@@ -61,8 +61,8 @@ export function sceneTexture() {
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
       const sky = c.createLinearGradient(0, 0, 0, SCENE_H);
       sky.addColorStop(0, '#141a3e');
-      sky.addColorStop(0.6, '#24163a');
-      sky.addColorStop(1, '#2a1028');
+      sky.addColorStop(0.6, '#1a2350');
+      sky.addColorStop(1, '#222c5c');
       fillInk(c, sky, 3);
       c.save();
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
@@ -80,7 +80,7 @@ export function sceneTexture() {
       fillInk(c, gold(c, VIEW.x, VIEW.y, VIEW.x + VIEW.w, VIEW.y + VIEW.h), 2.6);
       rim(c, 0.6, 1.6);
       rrect(c, VIEW.x - 1, VIEW.y - 1, VIEW.w + 2, VIEW.h + 2, 11);
-      c.fillStyle = '#0c0812';
+      c.fillStyle = '#080a14';
       c.fill();
       // Title banner: a pennant ribbon with the name plate.
       c.beginPath();
@@ -99,7 +99,7 @@ export function sceneTexture() {
       rrect(c, 70, 50, SCENE_W - 140, 46, 12);
       fillInk(c, gold(c, 70, 50, SCENE_W - 70, 96), 2.2);
       rrect(c, 75, 54, SCENE_W - 150, 38, 9);
-      c.fillStyle = vgrad(c, 54, 92, 0x1e1440, 0.1, 0.4);
+      c.fillStyle = vgrad(c, 54, 92, 0x141c40, 0.1, 0.4);
       c.fill();
     }),
   );
@@ -120,7 +120,7 @@ export function floorTexture(n: number, seed: number) {
       c.fillRect(0, 0, VIEW.w, FLOOR_H);
       // Cornice at the bottom.
       rrect(c, -4, FLOOR_H - 12, VIEW.w + 8, 12, 3);
-      fillInk(c, vgrad(c, FLOOR_H - 12, FLOOR_H, 0x8a7a8a, 0.3, 0.45), 1.8);
+      fillInk(c, vgrad(c, FLOOR_H - 12, FLOOR_H, 0x7e8698, 0.3, 0.45), 1.8);
       // Doorways.
       const { w, xs } = doorLayout(n);
       for (const x of xs) archway(c, x, FLOOR_H - 12, w);
@@ -147,11 +147,11 @@ function archway(c: Ctx, x: number, floorY: number, w: number) {
     c.closePath();
   };
   path(6);
-  fillInk(c, vgrad(c, top - 6, floorY, 0x9a8a96, 0.3, 0.4), 1.8);
+  fillInk(c, vgrad(c, top - 6, floorY, 0x8c94a6, 0.3, 0.4), 1.8);
   path(0);
   const g = c.createLinearGradient(0, top, 0, floorY);
-  g.addColorStop(0, '#0a0610');
-  g.addColorStop(1, '#2a1626');
+  g.addColorStop(0, '#06080f');
+  g.addColorStop(1, '#1a2032');
   fillInk(c, g, 1.6);
 }
 
@@ -191,7 +191,7 @@ export function doorTexture(w: number) {
       }
       // Iron bands with studs.
       for (const by of [w / 2 + 6, DOOR_H - 20]) {
-        c.fillStyle = '#2e2630';
+        c.fillStyle = '#262a34';
         c.fillRect(0, by, w, 6);
         for (let sx = 5; sx < w; sx += 10) {
           ellipse(c, sx, by + 3, 1.6, 1.6);
@@ -381,10 +381,10 @@ export function topTexture() {
       stones(c, 0, y, VIEW.w, 50, 33);
       for (let x = 4; x < VIEW.w; x += 44) {
         rrect(c, x, y - 22, 28, 26, 3);
-        fillInk(c, vgrad(c, y - 22, y + 4, 0x6a5e72, 0.3, 0.3), 1.6);
+        fillInk(c, vgrad(c, y - 22, y + 4, 0x5e667a, 0.3, 0.3), 1.6);
       }
       rrect(c, -4, y - 2, VIEW.w + 8, 8, 2);
-      fillInk(c, '#7a6a7a', 1.4);
+      fillInk(c, '#6e7688', 1.4);
       // Pennant.
       c.strokeStyle = INK;
       c.lineWidth = 2;
@@ -406,10 +406,10 @@ export function topTexture() {
 export function baseTexture() {
   return cached('base', () =>
     paint(VIEW.w, 120, (c) => {
-      stones(c, 0, 0, VIEW.w, 70, 41, 0x4a4252);
+      stones(c, 0, 0, VIEW.w, 70, 41, 0x40465a);
       for (let i = 0; i < 3; i++) {
         rrect(c, 40 - i * 14, 70 + i * 14, VIEW.w - 80 + i * 28, 14, 3);
-        fillInk(c, vgrad(c, 70 + i * 14, 84 + i * 14, 0x7a6a7a, 0.3, 0.4), 1.6);
+        fillInk(c, vgrad(c, 70 + i * 14, 84 + i * 14, 0x6e7688, 0.3, 0.4), 1.6);
       }
       const r = seeded(3);
       for (let i = 0; i < 20; i++) {

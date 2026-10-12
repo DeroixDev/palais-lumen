@@ -278,9 +278,9 @@ export function backTexture() {
     fillInk(c, '#f3e6c8', 2.4);
     rrect(c, 6, 6, CW - 12, CH - 12, 7);
     const g = c.createLinearGradient(0, 6, 0, CH - 6);
-    g.addColorStop(0, '#6a1a4a');
-    g.addColorStop(0.5, '#4a1036');
-    g.addColorStop(1, '#2a0820');
+    g.addColorStop(0, '#7a1e34');
+    g.addColorStop(0.5, '#4a1226');
+    g.addColorStop(1, '#260812');
     c.fillStyle = g;
     c.fill();
     c.save();
@@ -306,7 +306,7 @@ export function backTexture() {
     fillInk(c, gold(c, CW / 2 - 30, CH / 2 - 30, CW / 2 + 30, CH / 2 + 30), 1.8);
     rim(c, 0.6, 1.4);
     ellipse(c, CW / 2, CH / 2, 24, 24);
-    c.fillStyle = '#1a0818';
+    c.fillStyle = '#0c1026';
     c.fill();
     paintEmblem(c, CW / 2, CH / 2 + 2, 38, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xfff1c4 }, 1.3);
     c.strokeStyle = INK;

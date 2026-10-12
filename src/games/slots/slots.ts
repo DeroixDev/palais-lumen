@@ -104,10 +104,12 @@ interface SlotTheme {
   body: number;
   metal: 'gold' | number;
   velvet: number;
+  /** Colour of the light spilling behind the cabinet and round the bulbs (defaults to `neon`). */
+  glow?: number;
 }
 
 const THEMES: Record<string, SlotTheme> = {
-  classic: { title: SLOT_CLASSIC.toLocaleUpperCase('de-DE'), bodyTop: '#7a1d34', bodyBottom: '#2a0f1c', trim: COLORS.brass, neon: COLORS.neon, bets: [10, 20, 50, 100], body: 0x7a1d34, metal: 'gold', velvet: 0x2a0a18 },
+  classic: { title: SLOT_CLASSIC.toLocaleUpperCase('de-DE'), bodyTop: '#2a3a7a', bodyBottom: '#0c1230', trim: COLORS.brass, neon: COLORS.neon, bets: [10, 20, 50, 100], body: 0x24306a, metal: 'gold', velvet: 0x111838, glow: COLORS.lamp },
   diamond: { title: 'MONDSCHEIN', bodyTop: '#16526b', bodyBottom: '#0a1a2a', trim: 0x9fe8ff, neon: COLORS.cyan, bets: [50, 100, 250, 500], body: 0x16526b, metal: 0xcfeaff, velvet: 0x0a1a2a },
   gold: { title: SLOT_GOLD.toLocaleUpperCase('de-DE'), bodyTop: '#8a6a1f', bodyBottom: '#2a1d08', trim: 0xfff1c4, neon: COLORS.lamp, bets: [100, 250, 500, 1000], body: 0x5a3a12, metal: 'gold', velvet: 0x22140a },
 };
@@ -238,7 +240,7 @@ function paintCabinet(t: SlotTheme) {
     fillInk(c, metalFill(c, m, REELS_X - 26, REELS_Y - 26, REELS_X + REELS_W, REELS_Y + SYM * 3 + 26), 5);
     rim(c, 0.65, 2.5);
     rrect(c, REELS_X - 12, REELS_Y - 12, REELS_W + 24, SYM * 3 + 24, 16);
-    fillInk(c, '#0b0508', 3);
+    fillInk(c, '#05070f', 3);
     for (let i = 0; i < 3; i++) {
       const x = REELS_X + i * (REEL_W + REEL_GAP);
       rrect(c, x, REELS_Y, REEL_W, SYM * 3, 6);
@@ -268,7 +270,7 @@ function paintCabinet(t: SlotTheme) {
     rim(c, 0.6, 2);
     rrect(c, 74, WIN_Y + 4, W - 148, 50, 12);
     const wg = c.createLinearGradient(0, WIN_Y + 4, 0, WIN_Y + 54);
-    wg.addColorStop(0, '#050204');
+    wg.addColorStop(0, '#03050c');
     wg.addColorStop(1, rgb(dark(t.velvet, 0.2)));
     fillInk(c, wg, 2);
     glowAt(c, W - 160, WIN_Y + 30, 140, 22, 0xffcf7a, 0.12, 'lighter');
@@ -487,7 +489,7 @@ class SlotGame implements GameInstance {
     halo.position.set(W / 2, H / 2);
     halo.width = W * 2.1;
     halo.height = H * 1.6;
-    halo.tint = t.neon;
+    halo.tint = t.glow ?? t.neon;
     halo.alpha = 0.28;
     halo.blendMode = 'add';
     c.addChild(halo);
@@ -511,7 +513,7 @@ class SlotGame implements GameInstance {
       glow.anchor.set(0.5);
       glow.position.set(x, y);
       glow.width = glow.height = r * 6;
-      glow.tint = t.neon;
+      glow.tint = t.glow ?? t.neon;
       glow.blendMode = 'add';
       const s = new Sprite(bulbTex);
       s.anchor.set(0.5);
@@ -897,11 +899,11 @@ class SlotGame implements GameInstance {
     const dy = (last.y - first.y) * 0.2;
     const g = new Graphics();
     const path = () => g.moveTo(first.x - dx, first.y - dy).lineTo(last.x + dx, last.y + dy);
-    path().stroke({ color: 0x160a14, width: 16, cap: 'round', alpha: 0.75 });
+    path().stroke({ color: 0x0a0e20, width: 16, cap: 'round', alpha: 0.75 });
     path().stroke({ color, width: 11, cap: 'round' });
     path().stroke({ color: 0xffffff, width: 3, cap: 'round', alpha: 0.9 });
     for (const p of pts) {
-      g.circle(p.x, p.y, 11).fill(0x160a14);
+      g.circle(p.x, p.y, 11).fill(0x0a0e20);
       g.circle(p.x, p.y, 8).fill(color);
       g.circle(p.x - 2, p.y - 2, 3).fill({ color: 0xffffff, alpha: 0.9 });
     }

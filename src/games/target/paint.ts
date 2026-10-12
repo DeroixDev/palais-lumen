@@ -26,8 +26,8 @@ export function gladeTexture(w: number, h: number, tx: number, ty: number, R: nu
   return paint(w, h, (c) => {
     const g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#0a0c2a');
-    g.addColorStop(0.6, '#1e1a48');
-    g.addColorStop(1, '#2a1838');
+    g.addColorStop(0.6, '#18204c');
+    g.addColorStop(1, '#1e2850');
     c.fillStyle = g;
     c.fillRect(0, 0, w, h);
     const r = seeded(23);

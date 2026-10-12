@@ -77,7 +77,7 @@ class KenoGame implements GameInstance {
   private unkey: () => void;
 
   constructor(private ctx: GameContext) {
-    this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 500, velvet: 0x1e1838, layout: (t, w, h) => this.layout(t, w, h) });
+    this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 500, velvet: 0x182042, layout: (t, w, h) => this.layout(t, w, h) });
     this.view = this.shell.view;
     this.bet = new BetStepper(ctx, BETS, 300);
     this.odds = new OddsWatch(ctx.state, 'keno', ['sternschnuppe']);

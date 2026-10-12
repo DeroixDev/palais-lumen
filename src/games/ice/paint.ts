@@ -439,7 +439,7 @@ export function signTexture() {
       c.fillStyle = gold(c, -2, -30, 2, 0);
       c.fillRect(-2, -32, 4, 34);
       rrect(c, -54, -60, 108, 30, 7);
-      fillInk(c, vgrad(c, -60, -30, 0x2a1236, 0.2, 0.3), 2);
+      fillInk(c, vgrad(c, -60, -30, 0x1c2650, 0.2, 0.3), 2);
       c.fillStyle = '#ffcf7a';
       c.font = `15px ${FONT_DISPLAY}`;
       c.textAlign = 'center';

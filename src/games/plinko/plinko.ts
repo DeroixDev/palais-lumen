@@ -45,12 +45,12 @@ function bucketColor(m: number) {
   if (m >= 5) return 0xffa94a;
   if (m >= 1.5) return 0xffcf7a;
   if (m >= 1) return 0xb69a6a;
-  return 0x5a4a5a;
+  return 0x4a5470;
 }
 
 // ---- Painted parts --------------------------------------------------------
 
-const VELVET = 0x3a1030;
+const VELVET = 0x182042;
 
 /** The cabinet: brass crown with the title arch, a deep night-glass playfield, the deck. */
 function paintCabinet() {
@@ -68,7 +68,7 @@ function paintCabinet() {
     rim(c, 0.7, 2.5);
     // Body.
     rrect(c, 0, 120, W, H - 120, 34);
-    fillInk(c, vgrad(c, 120, H, 0x5a1a4a, 0.2, 0.55), 5);
+    fillInk(c, vgrad(c, 120, H, 0x1e2a5a, 0.2, 0.55), 5);
     const side = c.createLinearGradient(0, 0, W, 0);
     side.addColorStop(0, 'rgba(255,240,220,0.15)');
     side.addColorStop(0.1, 'rgba(255,240,220,0)');
@@ -90,8 +90,8 @@ function paintCabinet() {
     c.lineTo(W - 36, 140);
     c.closePath();
     const mg = c.createLinearGradient(0, 30, 0, 140);
-    mg.addColorStop(0, '#2a0a24');
-    mg.addColorStop(1, '#140612');
+    mg.addColorStop(0, '#141c40');
+    mg.addColorStop(1, '#0a0e22');
     fillInk(c, mg, 4);
     c.save();
     c.clip();
@@ -102,7 +102,7 @@ function paintCabinet() {
     fillInk(c, gold(c, W / 2 - 30, -20, W / 2 + 30, 32), 4);
     rim(c, 0.7, 2);
     ellipse(c, W / 2, 6, 21, 18);
-    c.fillStyle = '#1a0818';
+    c.fillStyle = '#0c1026';
     c.fill();
     paintEmblem(c, W / 2, 8, 40, { wing: 0xf0c868, wingDark: 0x9a6418, body: 0x5a3010, eye: 0xfff1c4 }, 1.6);
     // Playfield: night glass framed in brass.
@@ -112,15 +112,15 @@ function paintCabinet() {
     rim(c, 0.6, 2.5);
     rrect(c, fx, fy, fw, fh, 18);
     const pg = c.createLinearGradient(0, fy, 0, fy + fh);
-    pg.addColorStop(0, '#120a2a');
-    pg.addColorStop(0.6, '#2a0e36');
-    pg.addColorStop(1, '#3a1030');
+    pg.addColorStop(0, '#0a0f26');
+    pg.addColorStop(0.6, '#152044');
+    pg.addColorStop(1, '#1e2a58');
     fillInk(c, pg, 3);
     c.save();
     rrect(c, fx, fy, fw, fh, 18);
     c.clip();
     glowAt(c, W / 2, fy + 40, 260, 120, 0xffcf7a, 0.18, 'lighter');
-    glowAt(c, W / 2, BUCKET_Y, 300, 90, 0xff5fa2, 0.14, 'lighter');
+    glowAt(c, W / 2, BUCKET_Y, 300, 90, 0x6a86d8, 0.16, 'lighter');
     // Stars.
     const r = seeded(17);
     for (let i = 0; i < 70; i++) {
@@ -155,7 +155,7 @@ function paintCabinet() {
     rrect(c, CX - 26, fy - 14, 52, 26, 8);
     fillInk(c, gold(c, CX - 26, fy - 14, CX + 26, fy + 12), 3);
     rrect(c, CX - 15, fy - 6, 30, 14, 5);
-    c.fillStyle = '#0a0410';
+    c.fillStyle = '#050814';
     c.fill();
     // Control deck.
     rrect(c, 22, DECK_Y, W - 44, H - DECK_Y - 22, 22);
@@ -638,7 +638,7 @@ class PlinkoGame implements GameInstance {
     const c = new Container();
     const col = bucketColor(m);
     const g = new Graphics();
-    g.roundRect(-25, -14, 50, 28, 9).fill(0x160a14);
+    g.roundRect(-25, -14, 50, 28, 9).fill(0x0a0e20);
     g.roundRect(-23, -12, 46, 24, 7).fill(col);
     g.roundRect(-21, -11, 42, 8, 4).fill({ color: 0xffffff, alpha: 0.28 });
     const t = new Text({ text: `${fmtMult(m)}×`, style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 20, fill: m < 1 ? 0xe6d6b4 : 0x14080f } });
@@ -753,7 +753,7 @@ class PayoutLegend {
       const col = bucketColor(m);
       const y = 30 + i * 31;
       const g = new Graphics();
-      g.roundRect(0, y, 80, 26, 9).fill(0x160a14);
+      g.roundRect(0, y, 80, 26, 9).fill(0x0a0e20);
       g.roundRect(2, y + 2, 76, 22, 7).fill(col);
       g.roundRect(4, y + 3, 72, 7, 4).fill({ color: 0xffffff, alpha: 0.25 });
       const t = new Text({ text: `${fmtMult(m)}×`, style: { fontFamily: FONT_BODY, fontWeight: '700', fontSize: 18, fill: m < 1 ? 0xe6d6b4 : 0x14080f } });
@@ -773,10 +773,10 @@ function drawStation() {
   const g = new Graphics();
   // Upright board seen from above: a tall triangle of lights.
   g.roundRect(4, 8, 76, 64, 10).fill({ color: 0x000000, alpha: 0.4 });
-  g.roundRect(0, 0, 76, 64, 10).fill(0x3a1030).stroke({ color: COLORS.brass, width: 2 });
+  g.roundRect(0, 0, 76, 64, 10).fill(0x182042).stroke({ color: COLORS.brass, width: 2 });
   for (let r = 0; r < 5; r++) for (let j = 0; j <= r; j++) g.circle(38 + (j - r / 2) * 11, 10 + r * 9, 2.2).fill(0xffe7a8);
   for (let k = 0; k < 6; k++) g.rect(8 + k * 10.5, 54, 9, 6).fill(k === 0 || k === 5 ? 0xff5fa2 : 0xffcf7a);
-  g.circle(38, 82, 8).fill(0x3a2230).stroke({ color: COLORS.brassDark, width: 2 });
+  g.circle(38, 82, 8).fill(0x1e2a48).stroke({ color: COLORS.brassDark, width: 2 });
   c.addChild(g);
   const lamp = new Graphics().circle(38, 10, 5).fill(COLORS.lamp);
   lamp.label = 'lamp';

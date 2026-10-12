@@ -133,7 +133,7 @@ export function streetTexture(L: StreetLayout, res = 2) {
   const { sw, sh, wallH } = L;
   return paint(sw, sh, (c) => {
     // Cobbles: rows get smaller towards the wall (a little perspective).
-    c.fillStyle = '#1d1622';
+    c.fillStyle = '#141a2a';
     c.fillRect(0, 0, sw, sh);
     const r = seeded(31);
     let y = sh + 4;
@@ -145,7 +145,7 @@ export function streetTexture(L: StreetLayout, res = 2) {
       let x = row % 2 ? -rw / 2 : 0;
       while (x < sw + rw) {
         const w = rw * (0.8 + r() * 0.4);
-        const base = [0x4a4058, 0x433a50, 0x504660, 0x3c3448][Math.floor(r() * 4)];
+        const base = [0x3e465e, 0x384056, 0x444c66, 0x343a50][Math.floor(r() * 4)];
         rrect(c, x + 1.5, y - rh + 1.5, w - 3, rh - 3, rh * 0.38);
         const g = c.createLinearGradient(0, y - rh, 0, y);
         g.addColorStop(0, rgb(light(base, 0.22)));
@@ -153,7 +153,7 @@ export function streetTexture(L: StreetLayout, res = 2) {
         g.addColorStop(1, rgb(dark(base, 0.45)));
         c.fillStyle = g;
         c.fill();
-        c.strokeStyle = 'rgba(10,6,14,0.7)';
+        c.strokeStyle = 'rgba(6,8,18,0.7)';
         c.lineWidth = 1.4;
         c.stroke();
         x += w;
@@ -210,7 +210,7 @@ export function streetTexture(L: StreetLayout, res = 2) {
     }
     // Curb: a long stone ledge the dice knock against.
     rrect(c, -8, wallH - 14, sw + 16, 18, 5);
-    fillInk(c, vgrad(c, wallH - 14, wallH + 4, 0x6a6276, 0.35, 0.4), 2);
+    fillInk(c, vgrad(c, wallH - 14, wallH + 4, 0x5e6478, 0.35, 0.4), 2);
     c.fillStyle = 'rgba(255,244,220,0.25)';
     c.fillRect(0, wallH - 12, sw, 2);
     shadow(c, sw / 2, wallH + 6, sw * 0.6, 8, 0.5);
@@ -370,8 +370,8 @@ export function dieTexture(v: number) {
           pg.addColorStop(0, '#ff7a8a');
           pg.addColorStop(1, '#8a1022');
         } else {
-          pg.addColorStop(0, '#6a3a6a');
-          pg.addColorStop(1, '#1e0a1e');
+          pg.addColorStop(0, '#3e4a74');
+          pg.addColorStop(1, '#0c1026');
         }
         c.fillStyle = pg;
         c.fill();
@@ -401,8 +401,8 @@ export function puckTexture(on: boolean) {
       fillInk(c, gold(c, cx - r, cy - r, cx + r, cy + r), 2);
       ellipse(c, cx, cy, r - 6, r - 6);
       const g = c.createRadialGradient(cx - 6, cy - 8, 2, cx, cy, r);
-      g.addColorStop(0, on ? '#ffffff' : '#3a3440');
-      g.addColorStop(1, on ? '#d8d0c0' : '#0e0a12');
+      g.addColorStop(0, on ? '#ffffff' : '#343a4c');
+      g.addColorStop(1, on ? '#d8d0c0' : '#0a0e1a');
       c.fillStyle = g;
       c.fill();
       c.font = `700 ${on ? 19 : 16}px Cinzel, Georgia, serif`;
@@ -425,7 +425,7 @@ function crapsStation(): PaintedStation {
     shadow(x, 0, 30, 84, 26, 0.6);
     // Cobble patch.
     ellipse(x, 0, 8, 66, 34);
-    x.fillStyle = '#2a2232';
+    x.fillStyle = '#222838';
     x.fill();
     x.save();
     ellipse(x, 0, 8, 66, 34);
@@ -434,7 +434,7 @@ function crapsStation(): PaintedStation {
     for (let yy = -30; yy < 46; yy += 9) {
       for (let xx = -70 + ((yy / 9) % 2) * 6; xx < 70; xx += 13) {
         rrect(x, xx + 1, yy + 1, 11, 7, 3);
-        x.fillStyle = rgb([0x5a5068, 0x4c445a, 0x645a74][Math.floor(r() * 3)]);
+        x.fillStyle = rgb([0x4e566e, 0x444c62, 0x58607a][Math.floor(r() * 3)]);
         x.fill();
       }
     }
@@ -479,7 +479,7 @@ function crapsStation(): PaintedStation {
     x.restore();
     // Curb.
     rrect(x, -64, -22, 128, 9, 3);
-    fillInk(x, vgrad(x, -22, -13, 0x7a7286, 0.35, 0.4), 1.8);
+    fillInk(x, vgrad(x, -22, -13, 0x6e7488, 0.35, 0.4), 1.8);
     // Chalk sun on the wall.
     x.strokeStyle = 'rgba(244,238,222,0.7)';
     x.lineWidth = 1.2;

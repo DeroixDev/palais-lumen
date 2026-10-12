@@ -54,8 +54,8 @@ export function domeTexture(W: number, H: number) {
       const g = c.createLinearGradient(0, 0, 0, H);
       g.addColorStop(0, '#060a24');
       g.addColorStop(0.5, '#141a4a');
-      g.addColorStop(0.85, '#2a1648');
-      g.addColorStop(1, '#3a1a40');
+      g.addColorStop(0.85, '#1c2656');
+      g.addColorStop(1, '#243062');
       fillInk(c, g, 3);
       c.save();
       arch(18);
@@ -66,7 +66,7 @@ export function domeTexture(W: number, H: number) {
         const t = r();
         const x = -40 + t * (W + 80);
         const y = H * 0.82 - t * H * 0.6 + (r() - 0.5) * 90;
-        glowAt(c, x, y, 50 + r() * 70, 24 + r() * 30, r() < 0.5 ? 0x8a6ad8 : 0x4a7ad8, 0.06 + r() * 0.05, 'lighter');
+        glowAt(c, x, y, 50 + r() * 70, 24 + r() * 30, r() < 0.5 ? 0x6a7ad8 : 0x4a7ad8, 0.06 + r() * 0.05, 'lighter');
       }
       glowAt(c, W * 0.86, H * 0.2, 220, 180, 0xfff1c4, 0.08, 'lighter');
       grain(c, 0, 0, W, H, 900, 12, 0.03);
@@ -109,7 +109,7 @@ export function domeTexture(W: number, H: number) {
 
 export type StarKind = 'dim' | 'pick' | 'hit' | 'miss';
 const STAR_COL: Record<StarKind, [string, string, number, number]> = {
-  dim: ['#d8d0e4', '#6a6288', 0x9aa8ff, 0.18],
+  dim: ['#d4dcec', '#5a6688', 0x9aa8ff, 0.18],
   pick: ['#fff6c8', '#e09a2a', 0xffcf7a, 0.6],
   hit: ['#ffffff', '#ffc24a', 0xfff1c4, 0.95],
   miss: ['#eef6ff', '#5a8ad8', 0x7fc8ff, 0.5],

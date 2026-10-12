@@ -13,14 +13,14 @@ function cached(key: string, make: () => Texture) {
 
 // ---- Sky -----------------------------------------------------------------------------------------
 
-/** The sky behind everything: deep blue to plum with a soft nebula and painted haze. Size-dependent. */
+/** The sky behind everything: midnight to night blue with a soft nebula and painted haze. Size-dependent. */
 export function skyTexture(w: number, h: number) {
   return paint(w, h, (c) => {
     const g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#070b26');
     g.addColorStop(0.45, '#161a46');
-    g.addColorStop(0.78, '#2c1648');
-    g.addColorStop(1, '#4a1c44');
+    g.addColorStop(0.78, '#1c2654');
+    g.addColorStop(1, '#2a3466');
     c.fillStyle = g;
     c.fillRect(0, 0, w, h);
     // Milky haze and nebula dabs.
@@ -28,7 +28,7 @@ export function skyTexture(w: number, h: number) {
     for (let i = 0; i < 26; i++) {
       const x = r() * w;
       const y = h * (0.1 + r() * 0.7);
-      glowAt(c, x, y, 60 + r() * 140, 30 + r() * 60, r() < 0.5 ? 0x6a4aa8 : 0x2a5a9a, 0.08 + r() * 0.06);
+      glowAt(c, x, y, 60 + r() * 140, 30 + r() * 60, r() < 0.5 ? 0x4a5aa8 : 0x2a5a9a, 0.08 + r() * 0.06);
     }
     // Moonlight wash from the upper right.
     glowAt(c, w * 0.85, h * 0.12, w * 0.6, h * 0.55, 0xfff1c4, 0.1);
@@ -56,7 +56,7 @@ export function skylineTexture(w: number) {
     for (let x = 0; x <= w; x += 18) c.lineTo(x, 70 + Math.sin(x * 0.03) * 10 + r() * 8);
     c.lineTo(w, h);
     c.closePath();
-    c.fillStyle = '#1c1036';
+    c.fillStyle = '#151d3c';
     c.fill();
     // Casino roof with a dome and a lamp spire.
     const dx = w * 0.62;
@@ -70,7 +70,7 @@ export function skylineTexture(w: number) {
     c.lineTo(dx + 160, 92);
     c.lineTo(dx + 160, h);
     c.closePath();
-    fillInk(c, '#140a26', 2);
+    fillInk(c, '#0e1430', 2);
     c.strokeStyle = 'rgba(224,178,90,0.55)';
     c.lineWidth = 2;
     c.beginPath();
@@ -109,7 +109,7 @@ export function skylineTexture(w: number) {
     }
     c.lineTo(w, h);
     c.closePath();
-    c.fillStyle = '#0d0818';
+    c.fillStyle = '#090d1e';
     c.fill();
     c.strokeStyle = 'rgba(120,140,220,0.15)';
     c.lineWidth = 1.5;
@@ -124,8 +124,8 @@ export function cloudTexture(i: number) {
       const blobs: [number, number, number][] = [];
       for (let k = 0; k < 7; k++) blobs.push([50 + r() * 220, 58 + (r() - 0.5) * 24, 22 + r() * 26]);
       // Shadowed underside first, then the lit top.
-      for (const [x, y, rad] of blobs) glowAt(c, x, y + 8, rad * 1.6, rad * 0.9, 0x2a1a48, 0.55);
-      for (const [x, y, rad] of blobs) glowAt(c, x - 4, y - 6, rad * 1.4, rad * 0.8, 0x9a8ac8, 0.38);
+      for (const [x, y, rad] of blobs) glowAt(c, x, y + 8, rad * 1.6, rad * 0.9, 0x1a2248, 0.55);
+      for (const [x, y, rad] of blobs) glowAt(c, x - 4, y - 6, rad * 1.4, rad * 0.8, 0x8a9cc8, 0.38);
       for (const [x, y, rad] of blobs) glowAt(c, x - 8, y - 12, rad * 0.8, rad * 0.4, 0xfff1dc, 0.16);
     }),
   );
@@ -467,9 +467,9 @@ export function plaqueTexture() {
       // Glass.
       rrect(c, 16, 14, w - 32, h - 28, 10);
       const g = c.createLinearGradient(0, 14, 0, h - 14);
-      g.addColorStop(0, '#1a0e22');
-      g.addColorStop(0.5, '#0c0612');
-      g.addColorStop(1, '#22102a');
+      g.addColorStop(0, '#161e40');
+      g.addColorStop(0.5, '#0a0e22');
+      g.addColorStop(1, '#1a2248');
       fillInk(c, g, 2.5);
       // Glass reflection.
       c.save();
@@ -502,14 +502,14 @@ export function plaqueTexture() {
   );
 }
 
-/** The dark velvet control bar under the window, with a brass top edge. */
+/** The dark night-blue control bar under the window, with a brass top edge. */
 export function barTexture(w: number, h: number) {
   return paint(w, h + 10, (c) => {
     shadow(c, w / 2, h, w / 2, 12, 0.5);
     rrect(c, 1, 1, w - 2, h - 2, 20);
     const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#2c1638');
-    g.addColorStop(1, '#170a1e');
+    g.addColorStop(0, '#1a2348');
+    g.addColorStop(1, '#0b1027');
     fillInk(c, g, 2.5);
     c.save();
     rrect(c, 1, 1, w - 2, h - 2, 20);

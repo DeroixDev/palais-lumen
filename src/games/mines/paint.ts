@@ -59,7 +59,7 @@ function wood(c: Ctx, x: number, y: number, w: number, h: number, seed: number) 
 
 function bolt(c: Ctx, x: number, y: number, r = 3) {
   ellipse(c, x, y, r, r);
-  fillInk(c, '#3a3036', 1.2);
+  fillInk(c, '#30343f', 1.2);
   ellipse(c, x - r * 0.3, y - r * 0.3, r * 0.4, r * 0.4);
   c.fillStyle = 'rgba(255,240,220,0.5)';
   c.fill();
@@ -72,9 +72,9 @@ export function sceneTexture() {
       // Rock.
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
       const bg = c.createLinearGradient(0, 0, 0, SCENE_H);
-      bg.addColorStop(0, '#3a2632');
-      bg.addColorStop(0.5, '#24161e');
-      bg.addColorStop(1, '#140a10');
+      bg.addColorStop(0, '#2c3246');
+      bg.addColorStop(0.5, '#1a1e2e');
+      bg.addColorStop(1, '#0c0e18');
       fillInk(c, bg, 3);
       c.save();
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
@@ -87,11 +87,11 @@ export function sceneTexture() {
         const ry = rx * (0.5 + r() * 0.4);
         ellipse(c, x, y, rx, ry);
         const g = c.createLinearGradient(x - rx, y - ry, x + rx * 0.4, y + ry);
-        g.addColorStop(0, `rgba(120,96,110,${0.16 + r() * 0.12})`);
-        g.addColorStop(1, 'rgba(10,4,8,0.25)');
+        g.addColorStop(0, `rgba(100,112,138,${0.16 + r() * 0.12})`);
+        g.addColorStop(1, 'rgba(4,6,14,0.25)');
         c.fillStyle = g;
         c.fill();
-        c.strokeStyle = 'rgba(10,4,8,0.35)';
+        c.strokeStyle = 'rgba(4,6,14,0.35)';
         c.lineWidth = 1.2;
         c.stroke();
       }
@@ -130,7 +130,7 @@ export function sceneTexture() {
       rrect(c, 74, 52, SCENE_W - 148, 46, 12);
       fillInk(c, gold(c, 74, 52, SCENE_W - 74, 98), 2.2);
       rrect(c, 79, 56, SCENE_W - 158, 38, 9);
-      c.fillStyle = vgrad(c, 56, 94, 0x2a0e22, 0.1, 0.4);
+      c.fillStyle = vgrad(c, 56, 94, 0x141c40, 0.1, 0.4);
       c.fill();
       // Stone tray: iron rim around a deep pit.
       const tx = FIELD_X - 8;
@@ -138,13 +138,13 @@ export function sceneTexture() {
       const tw = GRID + 16;
       rrect(c, tx, ty, tw, tw, 14);
       const ig = c.createLinearGradient(tx, ty, tx + tw, ty + tw);
-      ig.addColorStop(0, '#6a5a64');
-      ig.addColorStop(0.5, '#3a3036');
-      ig.addColorStop(1, '#1e181c');
+      ig.addColorStop(0, '#5a6274');
+      ig.addColorStop(0.5, '#30343f');
+      ig.addColorStop(1, '#181a22');
       fillInk(c, ig, 2.6);
       rim(c, 0.3, 1.5);
       rrect(c, tx + 5, ty + 5, tw - 10, tw - 10, 10);
-      c.fillStyle = '#0c0608';
+      c.fillStyle = '#06080e';
       c.fill();
       for (const [x, y] of [[tx + 7, ty + 7], [tx + tw - 7, ty + 7], [tx + 7, ty + tw - 7], [tx + tw - 7, ty + tw - 7]]) bolt(c, x, y, 2.6);
     }),
@@ -168,7 +168,7 @@ export function stoneTexture(v: number, half = 0) {
         c.clip();
       }
       rrect(c, 1, 1, TILE - 2, TILE - 2, 11);
-      const base = [0x6e6070, 0x645a6c, 0x74626a][v % 3];
+      const base = [0x626a7c, 0x5a6274, 0x687082][v % 3];
       fillInk(c, vgrad(c, 0, TILE, base, 0.3, 0.45), 2.2);
       c.save();
       rrect(c, 1, 1, TILE - 2, TILE - 2, 11);
@@ -182,12 +182,12 @@ export function stoneTexture(v: number, half = 0) {
         c.lineTo(x + 8 + r() * 14, y + (r() - 0.5) * 10);
         c.lineTo(x + (r() - 0.3) * 12, y + 8 + r() * 14);
         c.closePath();
-        c.fillStyle = r() < 0.5 ? 'rgba(255,240,230,0.1)' : 'rgba(10,4,10,0.16)';
+        c.fillStyle = r() < 0.5 ? 'rgba(255,240,230,0.1)' : 'rgba(4,6,14,0.16)';
         c.fill();
       }
       for (let i = 0; i < 10; i++) {
         ellipse(c, r() * TILE, r() * TILE, 0.8 + r(), 0.8 + r());
-        c.fillStyle = r() < 0.3 ? 'rgba(159,232,255,0.55)' : 'rgba(20,10,16,0.35)';
+        c.fillStyle = r() < 0.3 ? 'rgba(159,232,255,0.55)' : 'rgba(8,10,20,0.35)';
         c.fill();
       }
       // Shade toward the bottom right, soft top light.
@@ -249,8 +249,8 @@ export function pocketTexture() {
       c.translate(4, 4);
       rrect(c, 2, 2, TILE - 4, TILE - 4, 11);
       const g = c.createRadialGradient(TILE / 2, TILE * 0.6, 2, TILE / 2, TILE / 2, TILE * 0.6);
-      g.addColorStop(0, '#2a1a22');
-      g.addColorStop(1, '#0a0408');
+      g.addColorStop(0, '#1c2030');
+      g.addColorStop(1, '#05070c');
       c.fillStyle = g;
       c.fill();
       c.strokeStyle = 'rgba(0,0,0,0.6)';
@@ -446,8 +446,8 @@ function station(): PaintedStation {
     // Timber mine entrance: two posts and a lintel, rock face inside.
     rrect(x, -32, -138, 64, 112, 8);
     const rock = x.createLinearGradient(0, -138, 0, -26);
-    rock.addColorStop(0, '#3a2632');
-    rock.addColorStop(1, '#160a10');
+    rock.addColorStop(0, '#2c3246');
+    rock.addColorStop(1, '#0c0e18');
     fillInk(x, rock, 2);
     // Grid of stones, a few opened with diamonds, one sooty lantern.
     const r = seeded(9);
@@ -457,7 +457,7 @@ function station(): PaintedStation {
         const gy = -122 + j * 9.4;
         rrect(x, gx - 3.8, gy - 3.8, 7.6, 7.6, 2);
         const open = r() < 0.32;
-        x.fillStyle = open ? '#0a0408' : '#6e6070';
+        x.fillStyle = open ? '#05070c' : '#626a7c';
         x.fill();
         if (open) {
           const trap = i === 3 && j === 1;

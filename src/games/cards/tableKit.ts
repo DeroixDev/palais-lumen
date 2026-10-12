@@ -275,7 +275,7 @@ export class TotalBadge {
     this.text.text = s;
     const w = Math.max(this.text.height * 1.5, this.text.width + 26);
     const h = this.text.height + 10;
-    const fill = tone === 'good' ? 0x1d6a4a : tone === 'bad' ? 0x6a1a2a : tone === 'gold' ? 0x8a5a14 : 0x2a1436;
+    const fill = tone === 'good' ? 0x1d6a4a : tone === 'bad' ? 0x6a1a2a : tone === 'gold' ? 0x8a5a14 : 0x1c2650;
     this.bg.clear();
     this.bg.roundRect(-w / 2, -h / 2 + 3, w, h, h / 2).fill({ color: 0x0a0410, alpha: 0.45 });
     this.bg.roundRect(-w / 2, -h / 2, w, h, h / 2).fill(fill).stroke({ color: tone === 'gold' ? 0xffe7a8 : COLORS.brass, width: 3 });

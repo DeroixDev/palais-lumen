@@ -265,8 +265,8 @@ export function skyTexture(w: number, h: number) {
   return paint(w, h, (c) => {
     const g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#0a0c2a');
-    g.addColorStop(0.7, '#1e1a4a');
-    g.addColorStop(1, '#3a2050');
+    g.addColorStop(0.7, '#18204c');
+    g.addColorStop(1, '#263266');
     c.fillStyle = g;
     c.fillRect(0, 0, w, h);
     const r = seeded(31);
@@ -481,7 +481,7 @@ export function finishTexture(h: number, bank: number) {
     c.fillRect(57, bank * 0.08, 6, bank * 0.95);
     // Banner.
     rrect(c, 8, bank * 0.08, 104, Math.min(34, bank * 0.4), 6);
-    fillInk(c, vgrad(c, 0, bank * 0.5, 0x8a1a3a, 0.2, 0.3), 2);
+    fillInk(c, vgrad(c, 0, bank * 0.5, 0x7e1f36, 0.2, 0.3), 2);
     c.fillStyle = '#fff3dc';
     c.font = `${Math.round(Math.min(22, bank * 0.28))}px ${FONT_DISPLAY}`;
     c.textAlign = 'center';
@@ -546,7 +546,7 @@ export function podiumTexture() {
       ];
       for (const [x, y, col, n] of steps) {
         rrect(c, x + 4, y, 92, PODIUM.h - y, 8);
-        fillInk(c, vgrad(c, y, PODIUM.h, 0x5a1638, 0.18, 0.4), 2.2);
+        fillInk(c, vgrad(c, y, PODIUM.h, 0x1e2a5c, 0.18, 0.4), 2.2);
         rrect(c, x, y, 100, 14, 6);
         fillInk(c, vgrad(c, y, y + 14, col, 0.4, 0.3), 2);
         c.fillStyle = rgb(light(col, 0.2));

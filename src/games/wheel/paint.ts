@@ -60,7 +60,7 @@ export function wheelTexture() {
       ellipse(c, 0, 0, R, R);
       fillInk(c, gold(c, -R, -R, R, R), 3);
       ellipse(c, 0, 0, R - 22, R - 22);
-      c.fillStyle = '#2a0e18';
+      c.fillStyle = '#0c1026';
       c.fill();
       // Segments.
       WHEEL.forEach((s, i) => {
@@ -116,8 +116,8 @@ export function wheelTexture() {
       fillInk(c, gold(c, -SEG_IN, -SEG_IN, SEG_IN, SEG_IN), 3);
       ellipse(c, 0, 0, SEG_IN - 12, SEG_IN - 12);
       const hg = c.createRadialGradient(-12, -16, 4, 0, 0, SEG_IN);
-      hg.addColorStop(0, '#5a1a40');
-      hg.addColorStop(1, '#1e0816');
+      hg.addColorStop(0, '#2a3670');
+      hg.addColorStop(1, '#0a0e22');
       c.fillStyle = hg;
       c.fill();
       c.strokeStyle = INK;
@@ -281,13 +281,13 @@ export interface StageLayout {
   floorY: number;
 }
 
-/** Velvet curtains, a plank stage with footlights and the wheel's brass stand. */
+/** Night-blue backdrop, bordeaux curtains, a plank stage with footlights and the wheel's brass stand. */
 export function stageTexture(sw: number, sh: number, L: StageLayout, res = 2) {
   return paint(sw, sh, (c) => {
-    // Backdrop: deep velvet with folds.
+    // Backdrop: deep night-blue velvet with folds.
     const bg = c.createLinearGradient(0, 0, 0, sh);
-    bg.addColorStop(0, '#1a0614');
-    bg.addColorStop(1, '#3a0c22');
+    bg.addColorStop(0, '#0a0e22');
+    bg.addColorStop(1, '#1c2654');
     c.fillStyle = bg;
     c.fillRect(0, 0, sw, sh);
     const folds = Math.max(6, Math.round(sw / 70));
@@ -295,7 +295,7 @@ export function stageTexture(sw: number, sh: number, L: StageLayout, res = 2) {
       const x = (i + 0.5) * (sw / folds);
       const g = c.createLinearGradient(x - sw / folds / 2, 0, x + sw / folds / 2, 0);
       g.addColorStop(0, 'rgba(0,0,0,0.35)');
-      g.addColorStop(0.45, 'rgba(255,120,170,0.08)');
+      g.addColorStop(0.45, 'rgba(150,175,255,0.08)');
       g.addColorStop(1, 'rgba(0,0,0,0.35)');
       c.fillStyle = g;
       c.fillRect(x - sw / folds / 2, 0, sw / folds, L.floorY);
@@ -312,7 +312,7 @@ export function stageTexture(sw: number, sh: number, L: StageLayout, res = 2) {
     const sw2 = Math.max(4, Math.round(sw / 120));
     for (let i = sw2; i >= 0; i--) c.quadraticCurveTo(((i + 0.5) / sw2) * sw, vh * 1.9, (i / sw2) * sw, vh);
     c.closePath();
-    fillInk(c, vgrad(c, 0, vh * 1.6, 0x7a1a3a, 0.2, 0.4), 2);
+    fillInk(c, vgrad(c, 0, vh * 1.6, 0x6e1a30, 0.2, 0.4), 2);
     c.strokeStyle = gold(c, 0, 0, sw, vh);
     c.lineWidth = 3;
     c.beginPath();
@@ -332,7 +332,7 @@ export function stageTexture(sw: number, sh: number, L: StageLayout, res = 2) {
       c.quadraticCurveTo(x0 + d * cw * 0.4, L.floorY * 0.5, x0 + d * cw, L.floorY);
       c.lineTo(x0, L.floorY);
       c.closePath();
-      fillInk(c, vgrad(c, 0, L.floorY, 0x8a1a44, 0.25, 0.5), 2);
+      fillInk(c, vgrad(c, 0, L.floorY, 0x7e1f36, 0.25, 0.5), 2);
       ellipse(c, x0 + d * cw * 0.5, L.floorY * 0.52, 6, 10);
       fillInk(c, gold(c, x0, L.floorY * 0.5 - 10, x0 + d * 12, L.floorY * 0.5 + 10), 1.4);
     }

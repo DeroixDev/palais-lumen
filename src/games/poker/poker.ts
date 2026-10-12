@@ -152,8 +152,8 @@ function machineTexture(sp: Spec) {
     fillInk(c, gold(c, p.x, p.y, p.x + p.w, p.y + ph), 3);
     rrect(c, p.x, p.y, p.w, ph, 12);
     const pg = c.createLinearGradient(0, p.y, 0, p.y + ph);
-    pg.addColorStop(0, '#20102a');
-    pg.addColorStop(1, '#0c0614');
+    pg.addColorStop(0, '#182248');
+    pg.addColorStop(1, '#090d22');
     fillInk(c, pg, 2);
     // Felt bed for the cards.
     const cw = sp.cardX(4) - sp.cardX(0) + (CW + 18) * sp.cardScale;

@@ -22,7 +22,7 @@ export const FIELD = { x: 236, y: 84, size: 342, cell: 102, gap: 12 };
 
 // ---- Machine -------------------------------------------------------------------------------------
 
-/** The machine's body around the card: lacquered wood, brass trim, bulbs down the sides. */
+/** The machine's body around the card: night-blue lacquer, brass trim, bulbs down the sides. */
 export function machineTexture(W: number, H: number) {
   return cached(`vend-${W}x${H}`, () =>
     paint(W, H, (c) => {
@@ -30,13 +30,13 @@ export function machineTexture(W: number, H: number) {
       fillInk(c, gold(c, 0, 0, W * 0.6, H), 4);
       rim(c, 0.6, 2.5);
       rrect(c, 16, 16, W - 32, H - 32, 18);
-      fillInk(c, vgrad(c, 16, H - 16, 0x4a1420, 0.2, 0.55), 3);
+      fillInk(c, vgrad(c, 16, H - 16, 0x1e2a5c, 0.2, 0.55), 3);
       grain(c, 16, 16, W - 32, H - 32, 600, 31, 0.05);
       // Recess where the card lands.
       rrect(c, 40, 104, W - 80, H - 132, 16);
       const rg = c.createLinearGradient(0, 104, 0, H - 28);
-      rg.addColorStop(0, '#12060c');
-      rg.addColorStop(1, '#2a0c18');
+      rg.addColorStop(0, '#070a18');
+      rg.addColorStop(1, '#141c40');
       fillInk(c, rg, 2.5);
       glowAt(c, W / 2, 140, W * 0.45, 120, 0xffcf7a, 0.12, 'lighter');
       // Bulbs down both sides.
@@ -61,10 +61,10 @@ export function marqueeTexture(W: number) {
       rim(c, 0.6, 2.5);
       rrect(c, 16, 14, W - 32, 62, 14);
       const g = c.createLinearGradient(0, 14, 0, 76);
-      g.addColorStop(0, '#3a0a1a');
-      g.addColorStop(1, '#1a040c');
+      g.addColorStop(0, '#1a2450');
+      g.addColorStop(1, '#0a0e22');
       fillInk(c, g, 2.5);
-      glowAt(c, W / 2, 45, W * 0.4, 30, 0xff5fa2, 0.25, 'lighter');
+      glowAt(c, W / 2, 45, W * 0.4, 30, 0xffcf7a, 0.22, 'lighter');
       // Slot.
       rrect(c, 52, 86, W - 104, 14, 7);
       c.fillStyle = '#05020a';

@@ -30,8 +30,8 @@ export function sceneTexture() {
     paint(SCENE_W, SCENE_H, (c) => {
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
       const bg = c.createLinearGradient(0, 0, 0, SCENE_H);
-      bg.addColorStop(0, '#3a0e2a');
-      bg.addColorStop(1, '#16061a');
+      bg.addColorStop(0, '#1e2a5c');
+      bg.addColorStop(1, '#0a0e22');
       fillInk(c, bg, 3);
       c.save();
       rrect(c, 0, 0, SCENE_W, SCENE_H, 22);
@@ -41,7 +41,7 @@ export function sceneTexture() {
         const x = (i + 0.5) * (SCENE_W / 12);
         const g = c.createLinearGradient(x - 18, 0, x + 18, 0);
         g.addColorStop(0, 'rgba(0,0,0,0.25)');
-        g.addColorStop(0.5, 'rgba(255,170,200,0.08)');
+        g.addColorStop(0.5, 'rgba(150,175,255,0.08)');
         g.addColorStop(1, 'rgba(0,0,0,0.25)');
         c.fillStyle = g;
         c.fillRect(x - 18, 0, 36, SCENE_H);
@@ -69,8 +69,8 @@ export function sceneTexture() {
       c.restore();
       // The table: brass rim, velvet top, a skirt below.
       ellipse(c, TABLE.x, TABLE.y + 22, TABLE.rx, TABLE.ry);
-      fillInk(c, vgrad(c, TABLE.y, TABLE.y + 60, 0x5a1a3a, 0.2, 0.5), 2.4);
-      c.fillStyle = vgrad(c, TABLE.y, TABLE.y + 22, 0x5a1a3a, 0.2, 0.5);
+      fillInk(c, vgrad(c, TABLE.y, TABLE.y + 60, 0x5e1428, 0.2, 0.5), 2.4);
+      c.fillStyle = vgrad(c, TABLE.y, TABLE.y + 22, 0x5e1428, 0.2, 0.5);
       c.fillRect(TABLE.x - TABLE.rx, TABLE.y, TABLE.rx * 2, 22);
       c.strokeStyle = INK;
       c.lineWidth = 2.4;
@@ -109,7 +109,7 @@ export function sceneTexture() {
       rrect(c, 70, 50, SCENE_W - 140, 46, 12);
       fillInk(c, gold(c, 70, 50, SCENE_W - 70, 96), 2.2);
       rrect(c, 75, 54, SCENE_W - 150, 38, 9);
-      c.fillStyle = vgrad(c, 54, 92, 0x2a0e22, 0.1, 0.4);
+      c.fillStyle = vgrad(c, 54, 92, 0x141c40, 0.1, 0.4);
       c.fill();
     }),
   );
@@ -240,7 +240,7 @@ export function phaseTexture(i: number, lit: boolean) {
       const R = 15;
       if (lit) glowAt(c, 0, 0, 21, 21, MOON, 0.55, 'lighter');
       ellipse(c, 0, 0, R, R);
-      c.fillStyle = lit ? '#2a2440' : '#1a1222';
+      c.fillStyle = lit ? '#232c4c' : '#141a30';
       c.fill();
       // Lit part: the disc minus an offset disc (crescent grows to full).
       const frac = (i + 1) / 8;

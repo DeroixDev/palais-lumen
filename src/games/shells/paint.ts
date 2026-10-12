@@ -200,8 +200,8 @@ export function boothTexture(L: BoothLayout, res = 2) {
   return paint(sw, sh, (c) => {
     const sky = c.createLinearGradient(0, 0, 0, sh);
     sky.addColorStop(0, '#0a0c26');
-    sky.addColorStop(0.55, '#1c1238');
-    sky.addColorStop(1, '#2a0e2a');
+    sky.addColorStop(0.55, '#151c42');
+    sky.addColorStop(1, '#1e2852');
     c.fillStyle = sky;
     c.fillRect(0, 0, sw, sh);
     const r = seeded(11);

@@ -105,7 +105,7 @@ class ScratchGame implements GameInstance {
   private redrawn = false;
 
   constructor(private ctx: GameContext) {
-    this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 420, velvet: 0x3a0e1e, layout: (t, w) => this.layout(t, w) });
+    this.shell = new DrawShell({ sceneW: SW, sceneH: SH, deckWide: 480, deckTall: 420, velvet: 0x182042, layout: (t, w) => this.layout(t, w) });
     this.view = this.shell.view;
     this.bet = new BetStepper(ctx, this.design.ladder, 300, 'PREIS');
     this.bet.onChange = () => this.refreshMain();
@@ -233,7 +233,7 @@ class ScratchGame implements GameInstance {
     sc.addChild(this.card, this.mask);
     this.card.mask = this.mask;
     const marquee = new Sprite(marqueeTexture(SW));
-    const title = new Text({ text: 'KRATZGLÜCK', style: { fontFamily: FONT_DISPLAY, fontSize: 34, fill: 0xffe0ee, letterSpacing: 4, stroke: { color: 0x1a040c, width: 6 } } });
+    const title = new Text({ text: 'KRATZGLÜCK', style: { fontFamily: FONT_DISPLAY, fontSize: 34, fill: 0xfff3dc, letterSpacing: 4, stroke: { color: 0x080c1e, width: 6 } } });
     title.anchor.set(0.5);
     title.position.set(SW / 2 + 20, 46);
     sc.addChild(marquee, title);

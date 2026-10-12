@@ -26,7 +26,7 @@ function cached(key: string, make: () => Texture) {
 }
 
 /** Art-deco brass plaque with a velvet inset; (w, h) is the plaque, the texture has a margin of 10. */
-export function plaqueTexture(w: number, h: number, velvet = 0x2a0e22) {
+export function plaqueTexture(w: number, h: number, velvet = 0x141c40) {
   return cached(`plaque-${w}-${h}-${velvet}`, () =>
     paint(w + 20, h + 20, (c) => {
       c.translate(10, 10);
@@ -147,7 +147,7 @@ export async function winStage(parent: Container, o: StageOptions) {
   const root = new Container();
   const cx = o.x + o.w / 2;
   const cy = o.y + o.h / 2;
-  const veil = new Graphics().roundRect(o.x, o.y, o.w, o.h, 22).fill({ color: 0x0a0410, alpha: 0.72 });
+  const veil = new Graphics().roundRect(o.x, o.y, o.w, o.h, 22).fill({ color: 0x05081a, alpha: 0.72 });
   veil.eventMode = 'static';
   veil.cursor = 'pointer';
   const rays = new Sprite(raysTexture());
