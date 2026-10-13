@@ -31,6 +31,8 @@ export interface HudActions {
 }
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Height of one digit row in a balance reel, in em (must match `#balance .reel > span > b` in index.html). */
+const REEL_ROW = 1.1;
 
 /** Medal marks on the day gauge, as multiples of the day's quota. */
 const MARKS: [string, number][] = [['m-bronze', 1], ['m-silver', 1.5], ['m-gold', 2], ['m-diamond', 3]];
@@ -270,7 +272,7 @@ export class Hud {
         strip.innerHTML = '<b>0</b><b>1</b><b>2</b><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b><b>9</b>';
         const start = Number(pad[Math.max(0, di++)] ?? 0);
         strip.style.transition = 'none';
-        strip.style.transform = `translateY(${-start}em)`;
+        strip.style.transform = `translateY(${-start * REEL_ROW}em)`;
         r.appendChild(strip);
         reels.appendChild(r);
       }
@@ -285,7 +287,7 @@ export class Hud {
     const calm = reduceMotion();
     strips.forEach((s, i) => {
       s.style.transitionDelay = calm ? '0ms' : `${(strips.length - 1 - i) * 50}ms`;
-      s.style.transform = `translateY(${-Number(digits[i])}em)`;
+      s.style.transform = `translateY(${-Number(digits[i]) * REEL_ROW}em)`;
     });
     (el.querySelector('.sr') as HTMLElement).textContent = `${text} ${CURRENCY_PLURAL}`;
     if (from < 0) return;
