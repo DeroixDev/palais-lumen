@@ -162,7 +162,7 @@ function invBlock(): Row {
       const changed = () => { commit(); redrawLine(it.uid); };
       floatCtl(e.querySelector('.mm-fl') as HTMLElement, () => s, () => it.float, (f, done) => { it.float = f; if (done) changed(); });
       (e.querySelector('.e-seed') as HTMLInputElement).addEventListener('change', (ev) => { it.seed = Math.max(0, Math.min(999, Math.round(Number((ev.target as HTMLInputElement).value) || 0))); changed(); });
-      (e.querySelector('.e-st') as HTMLInputElement).addEventListener('change', (ev) => { it.statTrak = (ev.target as HTMLInputElement).checked && s.rarity !== 'gold'; changed(); });
+      (e.querySelector('.e-st') as HTMLInputElement).addEventListener('change', (ev) => { it.statTrak = (ev.target as HTMLInputElement).checked && s.rarity !== 'gold'; (e.querySelector('.mm-sw span') as HTMLElement).textContent = it.statTrak ? 'An' : 'Aus'; changed(); });
       (e.querySelector('.e-val') as HTMLInputElement).addEventListener('change', (ev) => { const t = (ev.target as HTMLInputElement).value.trim().replace(',', '.'); M.setItemOverride(it.uid, t === '' ? null : Number(t)); changed(); });
       e.querySelector('.e-dup')!.addEventListener('click', () => { const i = save.inv.indexOf(it); save.inv.splice(i + 1, 0, { ...it, uid: uid() }); commit(); draw(); note('Dupliziert.'); });
       e.querySelector('.e-best')!.addEventListener('click', () => { save.stats.best = { item: { ...it }, value: itemValue(it), ts: Date.now() }; commit(); note('Als besten Drop eingetragen.'); refreshAll(); });
