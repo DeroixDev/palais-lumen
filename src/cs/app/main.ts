@@ -12,7 +12,7 @@ import { rColor, skinArt, names } from './ui/items';
 import { closeAllModals } from './ui/modal';
 import { sfx } from './lib/sound';
 import { openPanelPad } from './ui/admin';
-import { setLuck } from './lib/panel';
+import { devUnlocked, setLuck } from './lib/panel';
 import type { Page, Cleanup } from './pages/page';
 
 import { casesPage } from './pages/cases';
@@ -36,10 +36,18 @@ const NAV: { id: string; label: string; icon: string; page: Page }[] = [
   { id: 'inventory', label: 'Inventar', icon: 'inventory', page: inventoryPage },
   { id: 'career', label: 'Karriere', icon: 'career', page: careerPage },
 ];
+// The fountain loads on demand (its own chunk), only behind the code pad.
+const brunnenPage: Page = (root) => {
+  let off: Cleanup;
+  let dead = false;
+  import('./pages/fountain').then((m) => { if (!dead) off = m.fountainPage(root); }, (err) => console.error(err));
+  return () => { dead = true; if (typeof off === 'function') off(); };
+};
 const EXTRA: Record<string, { page: Page; nav: string; label: string }> = {
   case: { page: casePage, nav: 'cases', label: 'Kiste' },
   battle: { page: battlePage, nav: 'battles', label: 'Battle' },
   settings: { page: settingsPage, nav: '', label: 'Einstellungen' },
+  brunnen: { page: brunnenPage, nav: '', label: 'Zauberbrunnen' },
 };
 
 const app = document.getElementById('app')!;
@@ -146,8 +154,11 @@ onFeed((e) => {
 let cleanup: Cleanup;
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || 'cases';
-  const [id, ...args] = hash.split('/').map((s) => { try { return decodeURIComponent(s); } catch { return s; } });
-  if (id === 'page') return; // skip link
+  const parts = hash.split('/').map((s) => { try { return decodeURIComponent(s); } catch { return s; } });
+  if (parts[0] === 'page') return; // skip link
+  // Without the code in this session the dev page is just the start page.
+  if (parts[0] === 'brunnen' && !devUnlocked()) parts[0] = 'cases';
+  const [id, ...args] = parts;
   const nav = NAV.find((n) => n.id === id);
   const extra = EXTRA[id];
   const page = nav?.page ?? extra?.page ?? casesPage;

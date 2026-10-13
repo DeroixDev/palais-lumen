@@ -374,17 +374,31 @@ function datenPane(close: () => void): HTMLElement[] {
   ];
 }
 
+// ---------- Dev ----------
+
+/** The big button that opens the fountain page (closes the menu first). */
+function fountainRow(close: () => void) {
+  return block('Zauberbrunnen', (host) => {
+    host.innerHTML = `<button type="button" class="mm-fb-btn"><span class="mm-fb-ic" aria-hidden="true">✺</span><span><b>Zauberbrunnen öffnen</b><small>Beliebig viele zufällige Items aus dem Brunnen britzeln lassen</small></span></button>`;
+    host.querySelector('button')!.addEventListener('click', () => { location.hash = '#/brunnen'; close(); });
+  }, { keys: 'zauberbrunnen brunnen dev spiel items random zufall fountain' });
+}
+function devPane(close: () => void): HTMLElement[] {
+  return [group('Dev-Spiele', [fountainRow(close)], 'Nur über dieses Menü erreichbar.')];
+}
+
 // ---------- shell ----------
 
 const CATS: { id: string; label: string; icon: string; build: (close: () => void) => HTMLElement[] }[] = [
   { id: 'konto', label: 'Konto', icon: '◉', build: kontoPane },
-  { id: 'inventar', label: 'Inventar', icon: '▦', build: () => inventoryPane(say) },
+  { id: 'inventar', label: 'Inventar', icon: '▦', build: (close) => [group('Zauberbrunnen', [fountainRow(close)]), ...inventoryPane(say)] },
   { id: 'kisten', label: 'Kisten', icon: '◆', build: kistenPane },
   { id: 'glueck', label: 'Glück', icon: '✦', build: glueckPane },
   { id: 'wirtschaft', label: 'Wirtschaft', icon: '¢', build: wirtschaftPane },
   { id: 'feed', label: 'Live-Feed & Bots', icon: '≋', build: feedPane },
   { id: 'anzeige', label: 'Anzeige', icon: '✧', build: anzeigePane },
   { id: 'daten', label: 'Daten', icon: '⌘', build: datenPane },
+  { id: 'dev', label: 'Dev', icon: '✺', build: devPane },
 ];
 
 let lastCat = 'konto';
@@ -413,7 +427,7 @@ export function openModMenu() {
       M.flush();
       // Pages that show prices, locks or values redraw once the menu is gone.
       const page = location.hash.replace(/^#\/?/, '').split('/')[0] || 'cases';
-      if (dirty && !['crash', 'battle', 'upgrader', 'coinflip', 'contracts'].includes(page)) setTimeout(() => dispatchEvent(new HashChangeEvent('hashchange')), 230);
+      if (dirty && !['crash', 'battle', 'upgrader', 'coinflip', 'contracts', 'brunnen'].includes(page)) setTimeout(() => dispatchEvent(new HashChangeEvent('hashchange')), 230);
     },
   });
   const close = () => m.close();

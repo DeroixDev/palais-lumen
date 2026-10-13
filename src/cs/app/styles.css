@@ -405,7 +405,7 @@ div.icard .ic-check, .res-grid .ic-check, .showcase .ic-check, .upg-slots .ic-ch
 .ii-meta div { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.25); border: 1px solid var(--line); min-width: 0; }
 .ii-meta small { color: var(--dim); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
 .ii-meta b { font-size: .95rem; line-height: 1.15; display: flex; align-items: center; min-width: 0; overflow-wrap: anywhere; }
-.ii-meta .val { color: var(--hot-2); }
+.ii-meta .val { color: var(--hot-2); white-space: nowrap; overflow-wrap: normal; font-size: clamp(.7rem, 1.6vw, .95rem); }
 .ii-src, .ii-from { color: var(--dim); font-size: .85rem; }
 .ii-from { margin-top: 12px; text-align: center; }
 .ii-from a { color: var(--hot); }

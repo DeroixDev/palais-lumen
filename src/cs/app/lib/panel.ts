@@ -41,3 +41,12 @@ export const luck = () => M.luckMult('you');
 /** Sets your luck from a multiplier (0.125..8 maps to -100..100). */
 export function setLuck(v: number) { M.set('luck.you', Math.round(Math.max(-100, Math.min(100, (100 * Math.log(Math.max(1e-3, v))) / Math.log(8))))); }
 export function reloadPanel() { data = read(); }
+
+// Dev pages (the fountain) open only after the right code in this browser session.
+const DEV_KEY = 'csgambler.dev';
+let devOn = false;
+export function devUnlocked(): boolean {
+  if (devOn) return true;
+  try { return sessionStorage.getItem(DEV_KEY) === '1'; } catch { return false; }
+}
+export function unlockDev() { devOn = true; try { sessionStorage.setItem(DEV_KEY, '1'); } catch { /* blocked: memory only */ } }

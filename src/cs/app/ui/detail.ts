@@ -1,7 +1,7 @@
 // The item detail: big render, name, wear, float, value, and the 3D inspect.
 
 import { wearOf, type ItemInstance } from '../../contract';
-import { isRareSeed, itemValue, casesWithSkin } from '../lib/economy';
+import { insiderLabel, isRareSeed, itemValue, casesWithSkin, lowFloatBonus } from '../lib/economy';
 import { findItem, sellItems } from '../lib/state';
 import { sfx } from '../lib/sound';
 import { esc, fmt } from '../lib/util';
@@ -22,7 +22,7 @@ export function itemInfo(item: ItemInstance, big = true): HTMLElement {
   box.innerHTML = `
     <div class="ii-stage"><div class="ii-glow"></div><div class="ii-art"></div></div>
     <div class="ii-text">
-      <div class="ii-rar">${esc(rName(s.rarity))}${item.statTrak ? ' · <span class="st">StatTrak™</span>' : ''}${isRareSeed(item.seed) ? ' · <span class="seed">Seltenes Muster</span>' : ''}</div>
+      <div class="ii-rar">${esc(rName(s.rarity))}${item.statTrak ? ' · <span class="st">StatTrak™</span>' : ''}${isRareSeed(item.seed) ? ` · <span class="seed">${insiderLabel(item.seed)} #${item.seed}</span>` : ''}${lowFloatBonus(item.float, false, s) >= 1.4 ? ` · <span class="seed">Top-Float ×${lowFloatBonus(item.float, item.statTrak && s.rarity !== 'gold', s).toLocaleString('de-DE', { maximumFractionDigits: 1 })}</span>` : ''}</div>
       <h2 class="ii-name">${item.statTrak ? '<span class="st">StatTrak™ </span>' : ''}${esc(n.weapon)} <span class="sep">|</span> ${esc(n.skin)}</h2>
       <div class="ii-meta">
         <div><small>Zustand</small><b>${w.name}</b></div>

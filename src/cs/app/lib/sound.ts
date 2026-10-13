@@ -93,4 +93,35 @@ export const sfx = {
   boom() { noise(0.8, { freq: 300, q: 0.4, vol: 0.4, type: 'lowpass' }); tone(90, 0.6, { type: 'sine', vol: 0.3, slide: 0.4 }); },
   levelUp() { [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.4, { type: 'square', vol: 0.05, at: i * 0.1 })); },
   error() { tone(200, 0.15, { type: 'square', vol: 0.06 }); },
+  /** Electric crackle as something bursts out (rarer = brighter). Throttled for long bursts. */
+  zap(r: Rarity = 'milspec') {
+    const now = performance.now();
+    if (now - lastZap < 45) return;
+    lastZap = now;
+    const lvl = ['consumer', 'industrial', 'milspec', 'restricted', 'classified', 'covert', 'gold'].indexOf(r);
+    noise(0.05 + Math.random() * 0.03, { freq: 2600 + Math.random() * 2600, q: 2.5, vol: 0.05 + lvl * 0.006, type: 'bandpass' });
+    tone(700 + lvl * 160 + Math.random() * 300, 0.045, { type: 'square', vol: 0.022, slide: 0.35 });
+  },
+  /** A short burst of crackles. */
+  crackle(n = 5, spread = 0.3) {
+    for (let i = 0; i < n; i++) noise(0.025 + Math.random() * 0.03, { freq: 3000 + Math.random() * 4000, q: 3, vol: 0.05, at: Math.random() * spread, type: 'bandpass' });
+  },
+  splash() {
+    noise(0.55, { freq: 900, q: 0.6, vol: 0.12, type: 'lowpass' });
+    noise(0.3, { freq: 2600, q: 0.9, vol: 0.05, at: 0.04 });
+  },
+  /** The fountain winds up. */
+  surge() {
+    tone(65, 1.1, { type: 'sawtooth', vol: 0.05, slide: 3.2, attack: 0.45 });
+    noise(0.9, { freq: 500, q: 0.5, vol: 0.1, type: 'lowpass' });
+    sfx.crackle(6, 0.7);
+  },
+  /** Gold out of the fountain: thunder crack plus a bell. */
+  goldChime() {
+    noise(0.7, { freq: 220, q: 0.5, vol: 0.32, type: 'lowpass' });
+    noise(0.12, { freq: 5000, q: 1.5, vol: 0.12 });
+    [1318, 1976, 2637, 3951].forEach((f, i) => tone(f, 1.4 - i * 0.2, { type: 'sine', vol: 0.07 - i * 0.012, at: 0.05 + i * 0.07, attack: 0.006 }));
+    [1568, 2093].forEach((f, i) => tone(f, 0.9, { type: 'triangle', vol: 0.05, at: 0.35 + i * 0.12 }));
+  },
 };
+let lastZap = 0;
