@@ -19,21 +19,23 @@ export function plainMaterials(): { mats: Omit<PartMaterials, 'skin'>; textures:
  * Skin material. `wear` is optional: a canvas where white = paint gone (bare metal).
  * Worn areas get metalness high and lower roughness, paint gets clearcoat that fades with float.
  */
-export function skinMaterial(map: THREE.Texture, wear: HTMLCanvasElement | null, float: number): { mat: THREE.MeshPhysicalMaterial; textures: THREE.Texture[] } {
+export function skinMaterial(map: THREE.Texture, wear: HTMLCanvasElement | null, float: number, fabric = false): { mat: THREE.MeshPhysicalMaterial; textures: THREE.Texture[] } {
   const f = Math.min(1, Math.max(0, float));
-  const paintRough = 0.32 + f * 0.38;
-  const coat = 0.85 - f * 0.75;
+  // Gloves: leather/fabric, matte, no clearcoat; wear shows as scuffed (rougher), never bare metal.
+  const paintRough = fabric ? 0.62 + f * 0.25 : 0.32 + f * 0.38;
+  const coat = fabric ? 0.12 : 0.85 - f * 0.75;
   const mat = new THREE.MeshPhysicalMaterial({
     map,
-    metalness: 0.08,
+    metalness: fabric ? 0 : 0.08,
     roughness: paintRough,
     clearcoat: coat,
-    clearcoatRoughness: 0.08 + f * 0.45,
+    clearcoatRoughness: fabric ? 0.6 : 0.08 + f * 0.45,
     envMapIntensity: 1.0,
+    ...(fabric ? { sheen: 0.5, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x888888) } : {}),
   });
   const textures: THREE.Texture[] = [];
   if (wear) {
-    const orm = ormFromWear(wear, f);
+    const orm = ormFromWear(wear, f, fabric);
     const t = new THREE.CanvasTexture(orm);
     t.colorSpace = THREE.NoColorSpace;
     t.anisotropy = map.anisotropy;
@@ -49,7 +51,7 @@ export function skinMaterial(map: THREE.Texture, wear: HTMLCanvasElement | null,
 }
 
 /** Packs clearcoat (R), roughness (G), metalness (B) from a wear mask. Runs at mask size (≤ 512 for speed). */
-function ormFromWear(wear: HTMLCanvasElement, f: number): HTMLCanvasElement {
+function ormFromWear(wear: HTMLCanvasElement, f: number, fabric: boolean): HTMLCanvasElement {
   const size = Math.min(512, wear.width);
   const c = document.createElement('canvas');
   c.width = c.height = size;
@@ -57,14 +59,15 @@ function ormFromWear(wear: HTMLCanvasElement, f: number): HTMLCanvasElement {
   g.drawImage(wear, 0, 0, size, size);
   const img = g.getImageData(0, 0, size, size);
   const d = img.data;
-  const paintRough = (0.32 + f * 0.38) * 255;
-  const metalRough = (0.26 + f * 0.2) * 255;
-  const coat = (0.85 - f * 0.75) * 255;
+  const paintRough = (fabric ? 0.62 + f * 0.25 : 0.32 + f * 0.38) * 255;
+  const metalRough = (fabric ? 0.95 : 0.26 + f * 0.2) * 255;
+  const coat = (fabric ? 0.12 : 0.85 - f * 0.75) * 255;
+  const metalWorn = fabric ? 0 : 0.92 * 255, metalPaint = fabric ? 0 : 0.08 * 255;
   for (let i = 0; i < d.length; i += 4) {
     const w = d[i] / 255; // white = worn
     d[i] = coat * (1 - w);
     d[i + 1] = paintRough + (metalRough - paintRough) * w;
-    d[i + 2] = 0.08 * 255 + (0.92 - 0.08) * 255 * w;
+    d[i + 2] = metalPaint + (metalWorn - metalPaint) * w;
     d[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);

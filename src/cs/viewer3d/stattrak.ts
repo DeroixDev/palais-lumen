@@ -28,14 +28,51 @@ export function addStatTrak(modelRoot: THREE.Object3D, kills = 0): () => void {
   const screen = new THREE.Mesh(screenGeo, screenMat);
   screen.position.z = 1.21;
   box.add(screen);
-  // Lower right of the receiver, in front of the face.
-  box.position.set(bb.min.x + w * 0.66, bb.min.y + h * 0.32, front + 1.0);
+  // Lower right of the receiver, in front of the face; on odd outlines (curved blades) search for
+  // the nearest spot where the whole module sits on the part.
+  const spot = findSpot(host, bb, mw, mh);
+  if (!spot) {
+    caseGeo.dispose(); caseMat.dispose(); screenGeo.dispose(); screenMat.dispose(); tex.dispose();
+    return () => {};
+  }
+  box.position.set(spot.x, spot.y, front + 1.0);
   box.name = 'stattrak';
   host.parent.add(box);
   return () => {
     box.removeFromParent();
     caseGeo.dispose(); caseMat.dispose(); screenGeo.dispose(); screenMat.dispose(); tex.dispose();
   };
+}
+
+function findSpot(host: THREE.Mesh, bb: THREE.Box3, mw: number, mh: number): THREE.Vector2 | null {
+  const shapes = ((host.geometry as THREE.ExtrudeGeometry).parameters?.shapes ?? []) as THREE.Shape | THREE.Shape[];
+  const shape = Array.isArray(shapes) ? shapes[0] : shapes;
+  if (!shape) return null;
+  const { shape: outer, holes } = shape.extractPoints(1);
+  const inside = (x: number, y: number) => inPoly(outer, x, y) && !holes.some((h) => inPoly(h, x, y));
+  const fits = (x: number, y: number) => {
+    const ax = mw * 0.5 + 3, ay = mh * 0.5 + 3;
+    for (const [dx, dy] of [[0, 0], [-1, -1], [1, -1], [1, 1], [-1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]]) if (!inside(x + dx * ax, y + dy * ay)) return false;
+    return true;
+  };
+  const w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y;
+  const px = bb.min.x + w * 0.66, py = bb.min.y + h * 0.32;
+  let best: THREE.Vector2 | null = null, bestD = Infinity;
+  for (let i = 0; i <= 24; i++) for (let j = 0; j <= 16; j++) {
+    const x = bb.min.x + (w * i) / 24, y = bb.min.y + (h * j) / 16;
+    const d = (x - px) ** 2 + (y - py) ** 2;
+    if (d < bestD && fits(x, y)) { bestD = d; best = new THREE.Vector2(x, y); }
+  }
+  return best;
+}
+
+function inPoly(pts: THREE.Vector2[], x: number, y: number): boolean {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
 }
 
 function largest(ms: THREE.Mesh[]): THREE.Mesh | undefined {

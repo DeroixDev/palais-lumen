@@ -97,7 +97,7 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
     } catch {
       wear = null;
     }
-    const { mat, textures } = skinMaterial(map, wear, it.float);
+    const { mat, textures } = skinMaterial(map, wear, it.float, art.weaponOf(it.skin)?.kind === 'gloves');
     skinTextures = [map, ...textures];
     skinMat = mat;
     return mat;

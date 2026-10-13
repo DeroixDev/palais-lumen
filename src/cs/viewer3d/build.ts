@@ -34,12 +34,25 @@ export function buildModel(model: WeaponModel, kind: WeaponKind, mats: PartMater
     const rings = part.rings.map(cleanRing).filter((r) => r.length >= 3);
     if (!rings.length) return;
     const outer = rings[0];
-    const shape = new THREE.Shape(outer.map(([x, y]) => new THREE.Vector2(x, -y)));
-    for (const hole of rings.slice(1)) shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, -y))));
+    // Contract: ring 0 outer, the rest holes. Be lenient: a ring that lies outside every outer ring
+    // so far is another outer piece (e.g. a row of separate wraps), not a hole.
+    const outers: [number, number][][] = [outer];
+    const holesOf = new Map<[number, number][], [number, number][][]>([[outer, []]]);
+    for (const r of rings.slice(1)) {
+      const host = outers.find((o) => inRing(o, r[0][0], r[0][1]) && inRing(o, r[(r.length / 2) | 0][0], r[(r.length / 2) | 0][1]));
+      if (host) holesOf.get(host)!.push(r);
+      else { outers.push(r); holesOf.set(r, []); }
+    }
+    const toV = (r: [number, number][]) => r.map(([x, y]) => new THREE.Vector2(x, -y));
+    const shapes = outers.map((o) => {
+      const sh = new THREE.Shape(toV(o));
+      for (const h of holesOf.get(o)!) sh.holes.push(new THREE.Path(toV(h)));
+      return sh;
+    });
 
     // Parts drawn later sit a hair thicker so coplanar overlaps don't z-fight.
     const depth = Math.max(0.5, part.depth) * (1 + i * 0.006) + i * 0.02;
-    const minDim = Math.min(minExtent(outer), ...rings.slice(1).map((h) => minExtent(h) * 0.8));
+    const minDim = Math.min(...outers.map(minExtent), ...[...holesOf.values()].flat().map((h) => minExtent(h) * 0.8));
     const bt = Math.min(depth * (padded ? 0.42 : 0.3), padded ? 14 : 4.5);
     const bs = Math.min(minDim * (padded ? 0.22 : 0.16), padded ? 9 : soft ? 2.6 : 3.2, bt * 1.4);
     const core = Math.max(0.01, depth - 2 * bt);
@@ -55,7 +68,7 @@ export function buildModel(model: WeaponModel, kind: WeaponKind, mats: PartMater
       },
     };
 
-    const geo = new THREE.ExtrudeGeometry(shape, {
+    const geo = new THREE.ExtrudeGeometry(shapes, {
       depth: core,
       bevelEnabled: true,
       bevelThickness: bt,
@@ -99,6 +112,15 @@ function cleanRing(r: [number, number][]): [number, number][] {
     if (Math.abs(a[0] - b[0]) < 1e-4 && Math.abs(a[1] - b[1]) < 1e-4) out.pop();
   }
   return out;
+}
+
+function inRing(r: [number, number][], x: number, y: number): boolean {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [ax, ay] = r[i], [bx, by] = r[j];
+    if ((ay > y) !== (by > y) && x < ((bx - ax) * (y - ay)) / (by - ay) + ax) c = !c;
+  }
+  return c;
 }
 
 function minExtent(r: [number, number][]): number {
