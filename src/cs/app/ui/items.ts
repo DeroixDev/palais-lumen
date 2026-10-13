@@ -2,7 +2,7 @@
 
 import { wearOf, type ItemInstance, type Rarity, type SkinDef } from '../../contract';
 import { rarityColor, rarityName, renderSkin, skinById, skinURL, skinURLNow, weaponById } from '../lib/assets';
-import { isRareSeed, itemValue } from '../lib/economy';
+import { insiderLabel, isRareSeed, itemValue } from '../lib/economy';
 import { esc, fmt } from '../lib/util';
 
 export const rColor = (r: Rarity) => { try { return rarityColor(r); } catch { return '#888'; } };
@@ -102,7 +102,7 @@ export function itemCard(item: ItemInstance, o: CardOpts = {}): HTMLElement {
   if (o.selectable) (card as HTMLButtonElement).type = 'button';
   if (o.disabled && o.selectable) (card as HTMLButtonElement).disabled = true;
   card.innerHTML = `
-    <div class="ic-top"><span class="ic-wear">${w.short}</span>${item.statTrak ? '<span class="ic-st">ST</span>' : ''}${isRareSeed(item.seed) ? '<span class="ic-seed" title="Seltenes Muster">◆</span>' : ''}</div>
+    <div class="ic-top"><span class="ic-wear">${w.short}</span>${item.statTrak ? '<span class="ic-st">ST</span>' : ''}${isRareSeed(item.seed) ? `<span class="ic-seed" title="${insiderLabel(item.seed)} #${item.seed}">◆</span>` : ''}</div>
     <div class="ic-art"></div>
     <div class="ic-name"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></div>
     ${o.showValue !== false ? `<div class="ic-val"><span class="coin"></span>${fmt(itemValue(item))}</div>` : ''}

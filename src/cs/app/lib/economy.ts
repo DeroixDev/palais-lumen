@@ -95,14 +95,66 @@ export const wearFactor = (f: number) => rawWear(f) / WEAR_NORM;
 const ST_MULT: Record<Rarity, number> = { consumer: 1.6, industrial: 1.6, milspec: 1.6, restricted: 1.7, classified: 1.8, covert: 2, gold: 1 };
 export const statTrakMult = (r: Rarity) => ST_MULT[r];
 
-const RARE_SEEDS = new Set([1, 69, 151, 321, 387, 555, 661, 777, 888, 999]);
-export const isRareSeed = (seed: number) => RARE_SEEDS.has(seed);
-export const seedBonus = (seed: number) => (RARE_SEEDS.has(seed) ? 1.25 : 1 + ((seed * 37) % 101) / 101 * 0.03);
-let SEED_MEAN = 0;
-for (let s = 0; s < 1000; s++) SEED_MEAN += seedBonus(s) / 1000;
+// Insider patterns: a few paint seeds are famous and worth far more. 661 is the big one.
+// Case-hardened 661 is the "Blaues Juwel"; shiny finishes (doppler, fade, marble, galaxy, holo) pay well too.
+type SeedTier = { mult: number; shiny: number; hardened: number; label: string };
+const INSIDER: Record<number, SeedTier> = {
+  661: { mult: 8, shiny: 12, hardened: 40, label: 'Legendäres Insider-Muster' },
+  387: { mult: 2.5, shiny: 3.5, hardened: 6, label: 'Insider-Muster' },
+  555: { mult: 2.5, shiny: 3.5, hardened: 6, label: 'Insider-Muster' },
+  151: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
+  321: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
+  69: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
+  777: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
+  1: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
+  888: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
+  999: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
+};
+const SHINY = new Set(['doppler', 'fade', 'marble', 'galaxy', 'holo']);
+function patternKind(skin?: Pick<SkinDef, 'pattern'> | null): string { return skin?.pattern?.kind ?? ''; }
+/** The insider bonus of a seed on this skin (1 when the seed is ordinary). */
+export function insiderMult(seed: number, skin?: Pick<SkinDef, 'pattern'> | null): number {
+  const t = INSIDER[seed];
+  if (!t) return 1;
+  const k = patternKind(skin);
+  return k === 'casehardened' ? t.hardened : SHINY.has(k) ? t.shiny : t.mult;
+}
+/** Label for a special seed, or '' for an ordinary one. */
+export function insiderLabel(seed: number): string { return INSIDER[seed]?.label ?? ''; }
+export const isRareSeed = (seed: number) => seed in INSIDER;
+export const seedBonus = (seed: number, skin?: Pick<SkinDef, 'pattern'> | null) =>
+  INSIDER[seed] ? insiderMult(seed, skin) : 1 + ((seed * 37) % 101) / 101 * 0.03;
+const seedMeanCache = new Map<string, number>();
+function seedMean(skin: SkinDef): number {
+  const k = patternKind(skin);
+  let m = seedMeanCache.get(k);
+  if (m === undefined) {
+    m = 0;
+    for (let sd = 0; sd < 1000; sd++) m += seedBonus(sd, skin) / 1000;
+    seedMeanCache.set(k, m);
+  }
+  return m;
+}
+
+// Near-perfect floats are worth exponentially more, and more still with StatTrak on top.
+// Measured against the skin's own float range (0 = its best possible float), so every skin has the
+// same small chance of a near-perfect roll. d counts decades below 3 % of the range:
+// 1 % → ×1.5, 0.5 % → ×2.2, 0.1 % → ×6.7, 0.01 % → ×50, capped at ×100 (×300 with StatTrak).
+const LOW_FLOAT_START = 0.03;
+const LOW_FLOAT_CAP = 100;
+const LOW_FLOAT_ST_POW = 1.35;
+export function lowFloatBonus(float: number, statTrak = false, skin?: Pick<SkinDef, 'floatMin' | 'floatMax'> | null): number {
+  const lo = skin?.floatMin ?? 0, hi = skin?.floatMax ?? 1;
+  const p = hi > lo ? (float - lo) / (hi - lo) : 1;
+  if (p >= LOW_FLOAT_START) return 1;
+  const d = Math.log10(LOW_FLOAT_START / Math.max(p, 1e-9));
+  const b = Math.min(LOW_FLOAT_CAP, Math.exp(1.1 * d ** 1.4));
+  return statTrak ? Math.min(LOW_FLOAT_CAP * 3, b ** LOW_FLOAT_ST_POW) : b;
+}
 
 export function valueOf(skin: SkinDef, float: number, seed: number, statTrak: boolean): number {
-  const v = skin.basePrice * wearFactor(float) * (statTrak ? ST_MULT[skin.rarity] : 1) * seedBonus(seed) * M.valMult(skin.rarity);
+  const st = statTrak && skin.rarity !== 'gold';
+  const v = skin.basePrice * wearFactor(float) * lowFloatBonus(float, st, skin) * (st ? ST_MULT[skin.rarity] : 1) * seedBonus(seed, skin) * M.valMult(skin.rarity);
   return Math.max(0.01, Math.round(v * 100) / 100);
 }
 export function itemValue(it: Pick<ItemInstance, 'skin' | 'float' | 'seed' | 'statTrak'> & { uid?: string }): number {
@@ -115,19 +167,27 @@ const evCache = new Map<string, number>();
 export function skinEV(s: SkinDef): number {
   let v = evCache.get(s.id);
   if (v !== undefined) return v;
-  const N = 48;
-  let w = 0;
-  for (let i = 0; i < N; i++) w += wearFactor(s.floatMin + ((i + 0.5) / N) * (s.floatMax - s.floatMin));
-  w /= N;
-  const st = s.rarity === 'gold' ? 1 : 0.9 + 0.1 * ST_MULT[s.rarity];
-  v = s.basePrice * w * st * SEED_MEAN;
+  // Midpoint rule; fine steps so the steep low-float premium is integrated exactly enough.
+  const N = 4000;
+  const gold = s.rarity === 'gold';
+  let plain = 0, withST = 0;
+  for (let i = 0; i < N; i++) {
+    const f = s.floatMin + ((i + 0.5) / N) * (s.floatMax - s.floatMin);
+    const w = wearFactor(f);
+    plain += w * lowFloatBonus(f, false, s);
+    if (!gold) withST += w * lowFloatBonus(f, true, s);
+  }
+  plain /= N; withST /= N;
+  const mixed = gold ? plain : 0.9 * plain + 0.1 * ST_MULT[s.rarity] * withST;
+  v = s.basePrice * mixed * seedMean(s);
   evCache.set(s.id, v);
   return v;
 }
 /** Lowest and highest possible value of a skin (for the contents grid). */
 export function skinRange(s: SkinDef): [number, number] {
-  const lo = s.basePrice * wearFactor(s.floatMax - 1e-6) * seedBonus(0);
-  const hi = s.basePrice * wearFactor(s.floatMin) * (s.rarity === 'gold' ? 1 : ST_MULT[s.rarity]) * 1.25;
+  const lo = s.basePrice * wearFactor(s.floatMax - 1e-6) * seedBonus(0, s);
+  const gold = s.rarity === 'gold';
+  const hi = s.basePrice * wearFactor(s.floatMin) * lowFloatBonus(s.floatMin, !gold, s) * (gold ? 1 : ST_MULT[s.rarity]) * insiderMult(661, s);
   return [lo, hi];
 }
 
