@@ -28,7 +28,7 @@ class Lru<V> {
 }
 
 // ---------------------------------------------------------------- pattern textures
-const texCache = new Lru<HTMLCanvasElement>(90);
+const texCache = new Lru<HTMLCanvasElement>(160);
 /** Window of the full texture that maps onto a model box: TW texture-px wide. */
 const WINDOW = 0.62;
 
@@ -95,7 +95,7 @@ function lossAt(f: number, edge: number, scratch: number, fine: number, big: num
   let e = 0;
   if (edge > 0) {
     const thrE = 1.08 - Math.min(f, 0.5) * 1.25;
-    e = smooth(thrE, thrE + 0.07, edge * 0.6 + fine * 0.62 - 0.08);
+    e = smooth(thrE, thrE + 0.07, edge * 0.5 + fine * 0.8 - 0.14);
   }
   // interior blotches for well-worn / battle-scarred
   const thrB = 1.0 - Math.max(0, f - 0.3) * 0.8;
@@ -250,25 +250,41 @@ export function drawWeapon(
     tex = patternTexture(skin, S);
     win = seedWindow(seed, bh / bw, skin.pattern.kind);
   }
+  // the seed window of the texture, resampled once to device pixels over the model box
+  let skinFill: CanvasPattern | null = null;
+  if (tex) {
+    const LW = Math.max(1, Math.ceil(bw * m)), LH = Math.max(1, Math.ceil(bh * m));
+    const layer = document.createElement('canvas');
+    layer.width = LW; layer.height = LH;
+    const lc = layer.getContext('2d')!;
+    lc.imageSmoothingEnabled = true;
+    lc.imageSmoothingQuality = 'medium';
+    const S = tex.width;
+    lc.drawImage(tex, win.x * S, win.y * S, win.w * S, win.h * S, 0, 0, LW, LH);
+    skinFill = ctx.createPattern(layer, 'no-repeat');
+    skinFill?.setTransform(new DOMMatrix().translate(ox, oy));
+  }
 
   model.parts.forEach((p, idx) => {
     const pi = partPath(p, m, ox, oy);
     // base fill with soft contact shadow onto what is already drawn (ambient occlusion)
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 3.5 * px;
-    ctx.shadowOffsetY = 1.2 * px;
+    // (cheap: stacked translucent strokes instead of a blur; parts below get darkened near this one)
+    if (idx > 0) {
+      ctx.save();
+      ctx.translate(0, 0.9 * px);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+      for (const lw of [5, 3.2, 1.8]) { ctx.lineWidth = lw * px; ctx.stroke(pi.path); }
+      ctx.restore();
+    }
     ctx.fillStyle = p.material === 'skin' ? '#555' : materialStyle(ctx, p.material, pi.by, pi.by + pi.bh);
     ctx.fill(pi.path, 'evenodd');
-    ctx.restore();
 
     ctx.save();
     ctx.clip(pi.path, 'evenodd');
-    if (p.material === 'skin' && tex) {
-      const S = tex.width;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(tex, win.x * S, win.y * S, win.w * S, win.h * S, ox, oy, bw * m, bh * m);
+    if (p.material === 'skin' && skinFill) {
+      ctx.fillStyle = skinFill;
+      ctx.fill(pi.path, 'evenodd');
       ctx.restore();
       applyWear(ctx, pi, idx, f, seed, m, ox, oy, wearScale);
       ctx.save();
@@ -373,15 +389,17 @@ export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
   const bctx = big.getContext('2d')!;
   drawWeapon(bctx, skin, model, fb / 100, o.seed, W, H, 0.06, 1 / ss);
 
-  let out = big;
-  if (ss > 1) {
-    out = document.createElement('canvas');
-    out.width = outW; out.height = outH;
-    const c = out.getContext('2d')!;
-    c.imageSmoothingEnabled = true;
-    c.imageSmoothingQuality = 'high';
-    c.drawImage(big, 0, 0, outW, outH);
-  }
+  // downscale (anti-aliasing) with a soft cast shadow under the whole weapon
+  const out = document.createElement('canvas');
+  out.width = outW; out.height = outH;
+  const c = out.getContext('2d')!;
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = 'high';
+  const sh = Math.max(1, Math.min(outW, outH) / 60);
+  c.shadowColor = 'rgba(0,0,0,0.5)';
+  c.shadowBlur = sh * 2.2;
+  c.shadowOffsetY = sh * 1.3;
+  c.drawImage(big, 0, 0, outW, outH);
   renderCache.set(key, out);
   return copyCanvas(out, o.width, o.height);
 }
@@ -418,6 +436,32 @@ function textureWear(f: number, seed: number, size: number): Float32Array {
 }
 
 const texOutCache = new Lru<HTMLCanvasElement>(24);
+
+/**
+ * Pre-generate pattern textures in idle time (e.g. all skins of a case before the reel spins).
+ * Resolves when done. Cheap to call repeatedly: cached textures are skipped.
+ */
+export function warmSkinsImpl(ids: string[], sizes: number[] = [dpr() >= 1.5 ? 512 : 256]): Promise<void> {
+  const jobs: [SkinDef, number][] = [];
+  for (const id of ids) {
+    const s = skinById(id);
+    if (!s) continue;
+    for (const S of sizes) if (!texCache.get(s.id + '|' + S)) jobs.push([s, S]);
+  }
+  return new Promise((resolve) => {
+    const idle: (cb: () => void) => void = (cb) =>
+      typeof (window as any).requestIdleCallback === 'function' ? (window as any).requestIdleCallback(cb, { timeout: 200 }) : setTimeout(cb, 16);
+    const step = () => {
+      const t0 = performance.now();
+      while (jobs.length && performance.now() - t0 < 12) {
+        const [s, S] = jobs.shift()!;
+        patternTexture(s, S);
+      }
+      if (jobs.length) idle(step); else resolve();
+    };
+    idle(step);
+  });
+}
 
 export function renderSkinTextureImpl(skinId: string, float: number, seed: number, size: number): HTMLCanvasElement {
   const fb = Math.round(clamp(float) * 100);

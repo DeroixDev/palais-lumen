@@ -9,7 +9,7 @@
 import type { CaseDef, Rarity, RenderOpts, WeaponModel } from '../contract';
 import { weaponById } from '../data/catalog';
 import { buildModel } from './models';
-import { renderSkinImpl, renderSkinTextureImpl, renderWearMaskImpl } from './render';
+import { renderSkinImpl, renderSkinTextureImpl, renderWearMaskImpl, warmSkinsImpl } from './render';
 import { renderCaseImpl } from './case';
 
 export function renderSkin(opts: RenderOpts): HTMLCanvasElement {
@@ -23,6 +23,14 @@ export function renderSkinTexture(skin: string, float: number, seed: number, siz
 /** Extra for the 3D viewer: wear mask in the same UV space (white = paint worn off). */
 export function renderWearMask(skin: string, float: number, seed: number, size: number): HTMLCanvasElement {
   return renderWearMaskImpl(skin, float, seed, size);
+}
+
+/**
+ * Optional: pre-generate the pattern textures of these skins in idle time (call when a case page
+ * opens, before the reel spins) so the first renderSkin of each is fast. Resolves when done.
+ */
+export function warmSkins(skinIds: string[]): Promise<void> {
+  return warmSkinsImpl(skinIds);
 }
 
 export function weaponModel(weaponId: string): WeaponModel {

@@ -72,6 +72,9 @@ const KIND_MUL: Record<string, number> = { rifle: 0.85, sniper: 0.85, pistol: 0.
 /** Premium finishes push the price within the band. */
 const KIND_BONUS: Record<string, number> = { doppler: 0.3, fade: 0.2, marble: 0.22, casehardened: 0.15, galaxy: 0.15, dragon: 0.18, holo: 0.1, damascus: 0.05, web: 0.08 };
 
+/** Premium collections are worth more, so their (pricier) cases keep a fair EV. */
+const COLLECTION_MUL: Record<string, number> = { Drache: 3.5, Galaxie: 3.5, Kaiser: 5, Gift: 2.5, Ozean: 1.3 };
+
 const FLOATS: [number, number][] = [[0, 1], [0, 0.8], [0.06, 0.8], [0, 0.5], [0.1, 1], [0, 0.38], [0, 0.7], [0.02, 0.6]];
 const FLOATS_GOLD: [number, number][] = [[0, 0.8], [0.06, 0.8], [0, 0.5], [0, 1], [0.1, 0.65]];
 const CLEAN = new Set(['fade', 'doppler', 'marble']);
@@ -88,7 +91,7 @@ function make(collection: string, rows: Row[]): SkinDef[] {
     const wk = WEAPONS.find((w) => w.id === weapon)?.kind ?? 'rifle';
     const [lo, hi] = PRICE[rarity];
     const t = Math.min(1, frac(id) * (KIND_MUL[wk] ?? 0.5) + (KIND_BONUS[kind] ?? 0) + (rarity === 'gold' ? 0.08 : 0.05));
-    const raw = lo * Math.pow(hi / lo, t);
+    const raw = Math.min(hi * 1.6, lo * Math.pow(hi / lo, t) * (rarity === 'gold' ? 1 : COLLECTION_MUL[collection] ?? 1));
     const basePrice = raw < 1 ? Math.round(raw * 100) / 100 : raw < 20 ? Math.round(raw * 10) / 10 : Math.round(raw);
     let fr: [number, number];
     if (CLEAN.has(kind)) fr = [0, 0.08];
