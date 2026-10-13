@@ -1,5 +1,25 @@
 [
  {
+  "v": "23",
+  "date": "2026-10-13",
+  "kind": "Großes Update",
+  "title": "CS Gambler",
+  "intro": "Neben dem Palais gibt es jetzt ein zweites Spiel: CS Gambler, eine Kisten-Plattform mit Karriere.",
+  "sections": [
+   {
+    "h": "Neu",
+    "items": [
+     "Im Startmenü führt ein Link zu CS Gambler, von dort geht es zurück ins Palais.",
+     "38 gezeichnete Waffen, Messer und Handschuhe mit 271 eigenen Skins in 21 Kisten.",
+     "Bis zu fünf Kisten gleichzeitig öffnen, mit eigenem Gold-Moment für Messer und Handschuhe.",
+     "Jeder Skin lässt sich in 3D drehen und von nahem anschauen, mit Abnutzung und StatTrak.",
+     "Battles gegen Bots, Upgrader, Verträge, Coinflip und Crash.",
+     "Karriere mit 50 Stufen, Tageskiste, Tagesbonus, Missionen und Erfolgen."
+    ]
+   }
+  ]
+ },
+ {
   "v": "22",
   "date": "2026-10-13",
   "kind": "Großes Update",
