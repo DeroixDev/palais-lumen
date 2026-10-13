@@ -6,7 +6,7 @@ import { itemValue, makeItem, valueOf } from '../lib/economy';
 import * as M from '../lib/mods';
 import { addItem, commit, save } from '../lib/state';
 import { esc, fmt, uid } from '../lib/util';
-import { names, rColor, rName, skinCanvas } from './items';
+import { names, rColor, rName, skinArt, skinCanvas } from './items';
 import { actions, block, group, refreshAll, type Row } from './modctl';
 
 const skinName = (s: SkinDef) => names({ skin: s.id, statTrak: false }).full;
@@ -30,7 +30,7 @@ export function skinPicker(host: HTMLElement, onPick: (s: SkinDef) => void, curr
       b.className = `mm-sk${current?.() === s.id ? ' on' : ''}`;
       b.style.setProperty('--rc', rColor(s.rarity));
       b.dataset.id = s.id;
-      b.appendChild(skinCanvas({ skin: s.id, float: 0.1, seed: 7, statTrak: false }, 92, 40));
+      b.appendChild(skinArt({ skin: s.id, float: 0.1, seed: 7, statTrak: false }, 92, 40));
       b.insertAdjacentHTML('beforeend', `<span><b>${esc(skinName(s))}</b><small>${esc(rName(s.rarity))} · ${fmt(s.basePrice)}</small></span>`);
       return b;
     }));
@@ -146,7 +146,7 @@ function invBlock(): Row {
       d.style.setProperty('--rc', rColor(s?.rarity ?? 'milspec'));
       const ovr = M.itemOverride(it.uid);
       d.innerHTML = `<button type="button" class="mm-it-h"><span class="mm-it-c"></span><span class="mm-it-n"><b>${it.statTrak ? '<em>ST</em> ' : ''}${esc(names(it).full)}</b><small class="mono">${it.float.toFixed(6)} · ${wearOf(it.float).short} · #${it.seed}</small></span><span class="mono mm-it-v">${fmt(itemValue(it))}${ovr !== undefined ? ' *' : ''}</span></button>`;
-      d.querySelector('.mm-it-c')!.appendChild(skinCanvas(it, 76, 32));
+      d.querySelector('.mm-it-c')!.appendChild(skinArt(it, 76, 32));
       if (open === it.uid && s) d.appendChild(editor(it, s));
       return d;
     };

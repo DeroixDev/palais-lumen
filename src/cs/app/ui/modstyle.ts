@@ -76,7 +76,7 @@ export const MOD_CSS = `
 .mm-sk { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-2); text-align: left; min-width: 0; box-shadow: inset 3px 0 0 var(--rc); }
 .mm-sk:hover { border-color: var(--line-2); background: var(--panel-2); }
 .mm-sk.on { border-color: var(--hot); background: rgba(255,138,31,.1); }
-.mm-sk canvas { flex: none; }
+.mm-sk canvas, .mm-sk .art { flex: none; }
 .mm-sk span { display: grid; min-width: 0; }
 .mm-sk b { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mm-sk small { font-size: .72rem; color: var(--dim); }
