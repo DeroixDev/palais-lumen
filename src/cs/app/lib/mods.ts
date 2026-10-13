@@ -274,6 +274,14 @@ export function rigBattle<P extends { seat: number; value: number }>(rounds: P[]
   }
 }
 
+/** Ties after rigging go to the rigged side. */
+export function rigLeaders(leaders: number[], myTeam: number | undefined): number[] {
+  const mode = str('bt.rig');
+  if (mode === 'off' || myTeam === undefined || leaders.length < 2) return leaders;
+  if (mode === 'bot') return leaders.filter((t) => t !== myTeam).length ? leaders.filter((t) => t !== myTeam) : leaders;
+  return leaders.includes(myTeam) ? [myTeam] : leaders;
+}
+
 // ---------- bots ----------
 
 /** Applies added/removed bot names to the shared name list in place. */

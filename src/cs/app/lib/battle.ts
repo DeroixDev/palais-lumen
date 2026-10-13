@@ -79,7 +79,7 @@ export function rollBattle(b: Battle) {
   M.rigBattle(b.rounds, modeOf(b.mode).teams, b.seats.findIndex((s) => s?.kind === 'you'));
   const totals = teamTotals(b);
   const best = Math.max(...totals.values());
-  const leaders = [...totals.entries()].filter(([, v]) => v === best).map(([t]) => t);
+  const leaders = M.rigLeaders([...totals.entries()].filter(([, v]) => v === best).map(([t]) => t), modeOf(b.mode).teams[b.seats.findIndex((s) => s?.kind === 'you')]);
   b.winnerTeam = leaders[Math.floor(Math.random() * leaders.length)];
   // The winning team shares all items: biggest first to whoever holds less so far.
   const m = modeOf(b.mode);
