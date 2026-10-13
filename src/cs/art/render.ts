@@ -11,11 +11,12 @@ import { skinById, weaponById } from '../data/catalog';
 import { buildModel } from './models';
 import { paintPattern } from './patterns';
 import { Noise, rng, hashStr, clamp, smooth } from './noise';
+import { mkCanvas, dpr, cssSize } from './canvas';
 
 // ---------------------------------------------------------------- small LRU
 class Lru<V> {
   private m = new Map<string, V>();
-  constructor(private max: number) {}
+  constructor(public max: number) {}
   get(k: string): V | undefined {
     const v = this.m.get(k);
     if (v !== undefined) { this.m.delete(k); this.m.set(k, v); }
@@ -28,7 +29,8 @@ class Lru<V> {
 }
 
 // ---------------------------------------------------------------- pattern textures
-const texCache = new Lru<HTMLCanvasElement>(160);
+// 512px textures are 1 MB each: keep the cache bounded (worker pools split skins between workers)
+const texCache = new Lru<HTMLCanvasElement>(96);
 /** Window of the full texture that maps onto a model box: TW texture-px wide. */
 const WINDOW = 0.62;
 
@@ -141,7 +143,7 @@ function partPath(p: WeaponPart, m: number, ox: number, oy: number): PathInfo {
 // ---------------------------------------------------------------- wear on one part
 let scratchCanvas: HTMLCanvasElement | null = null;
 function scratchCtx(w: number, h: number): CanvasRenderingContext2D {
-  if (!scratchCanvas) scratchCanvas = document.createElement('canvas');
+  if (!scratchCanvas) scratchCanvas = mkCanvas(1, 1);
   if (scratchCanvas.width < w || scratchCanvas.height < h) {
     scratchCanvas.width = Math.max(scratchCanvas.width, w);
     scratchCanvas.height = Math.max(scratchCanvas.height, h);
@@ -254,8 +256,7 @@ export function drawWeapon(
   let skinFill: CanvasPattern | null = null;
   if (tex) {
     const LW = Math.max(1, Math.ceil(bw * m)), LH = Math.max(1, Math.ceil(bh * m));
-    const layer = document.createElement('canvas');
-    layer.width = LW; layer.height = LH;
+    const layer = mkCanvas(LW, LH);
     const lc = layer.getContext('2d')!;
     lc.imageSmoothingEnabled = true;
     lc.imageSmoothingQuality = 'medium';
@@ -357,26 +358,33 @@ function woodGrain(ctx: CanvasRenderingContext2D, pi: PathInfo, m: number) {
 
 // ---------------------------------------------------------------- public renderers
 const renderCache = new Lru<HTMLCanvasElement>(400);
-
-function dpr(): number {
-  return Math.min(3, Math.max(1, (typeof window !== 'undefined' && window.devicePixelRatio) || 1));
-}
+/** Inside a worker the page caches the encoded results, so the worker keeps few canvases. */
+export function setRenderCacheSize(n: number) { renderCache.max = n; }
 
 function copyCanvas(src: HTMLCanvasElement, cssW: number, cssH: number): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = src.width; c.height = src.height;
+  const c = mkCanvas(src.width, src.height);
   c.getContext('2d')!.drawImage(src, 0, 0);
-  c.style.width = cssW + 'px';
-  c.style.height = cssH + 'px';
+  cssSize(c, cssW, cssH);
   return c;
 }
 
+/** Cache key of a 2D render (float in 0.01 buckets, like the renderer itself). */
+export function skinKey(o: RenderOpts, d = dpr()): string {
+  const fb = Math.round(clamp(o.float) * 100);
+  return `${o.skin}|${fb}|${o.seed}|${o.width}x${o.height}|${d}|${o.statTrak ? 1 : 0}`;
+}
+
 export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
+  return copyCanvas(renderSkinShared(o), o.width, o.height);
+}
+
+/** The cached render itself (callers must not draw into it). */
+export function renderSkinShared(o: RenderOpts): HTMLCanvasElement {
   const d = dpr();
   const fb = Math.round(clamp(o.float) * 100);
-  const key = `${o.skin}|${fb}|${o.seed}|${o.width}x${o.height}|${d}|${o.statTrak ? 1 : 0}`;
+  const key = skinKey(o, d);
   const hit = renderCache.get(key);
-  if (hit) return copyCanvas(hit, o.width, o.height);
+  if (hit) return hit;
 
   const skin = skinById(o.skin) ?? null;
   const model = skin ? modelOf(skin) : buildModel('ar7');
@@ -384,14 +392,12 @@ export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
   // supersample small/1x renders for smoother pattern edges; cap the work for big ones
   const ss = d < 2 && outW * outH < 900 * 600 ? 2 : 1;
   const W = outW * ss, H = outH * ss;
-  const big = document.createElement('canvas');
-  big.width = W; big.height = H;
+  const big = mkCanvas(W, H);
   const bctx = big.getContext('2d')!;
   drawWeapon(bctx, skin, model, fb / 100, o.seed, W, H, 0.06, 1 / ss);
 
   // downscale (anti-aliasing) with a soft cast shadow under the whole weapon
-  const out = document.createElement('canvas');
-  out.width = outW; out.height = outH;
+  const out = mkCanvas(outW, outH);
   const c = out.getContext('2d')!;
   c.imageSmoothingEnabled = true;
   c.imageSmoothingQuality = 'high';
@@ -401,7 +407,7 @@ export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
   c.shadowOffsetY = sh * 1.3;
   c.drawImage(big, 0, 0, outW, outH);
   renderCache.set(key, out);
-  return copyCanvas(out, o.width, o.height);
+  return out;
 }
 
 /** Wear alpha for a flat square texture (no part edges: noise + scratches only). */
@@ -410,8 +416,7 @@ function textureWear(f: number, seed: number, size: number): Float32Array {
   const out = new Float32Array(size * size);
   if (f < 0.03) return out;
   // scratches rasterised on a small canvas
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
+  const c = mkCanvas(size, size);
   const cx = c.getContext('2d', { willReadFrequently: true })!;
   const r = rng(seed * 13 + 5);
   cx.strokeStyle = '#0f0';
@@ -463,14 +468,21 @@ export function warmSkinsImpl(ids: string[], sizes: number[] = [dpr() >= 1.5 ? 5
   });
 }
 
+/** Synchronously paints the pattern textures a 2D render of these skins will need. */
+export function warmTextures(ids: string[], sizes: number[] = [dpr() >= 1.5 ? 512 : 256]) {
+  for (const id of ids) {
+    const s = skinById(id);
+    if (s) for (const S of sizes) patternTexture(s, S);
+  }
+}
+
 export function renderSkinTextureImpl(skinId: string, float: number, seed: number, size: number): HTMLCanvasElement {
   const fb = Math.round(clamp(float) * 100);
   const key = `${skinId}|${fb}|${seed}|${size}`;
   const hit = texOutCache.get(key);
   if (hit) return copyCanvas(hit, size, size);
   const skin = skinById(skinId);
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
+  const c = mkCanvas(size, size);
   const ctx = c.getContext('2d')!;
   if (!skin) { ctx.fillStyle = '#555'; ctx.fillRect(0, 0, size, size); return c; }
   const model = modelOf(skin);
@@ -502,8 +514,7 @@ export function renderWearMaskImpl(skinId: string, float: number, seed: number, 
   void skinId;
   const fb = Math.round(clamp(float) * 100);
   const wear = textureWear(fb / 100, seed, size);
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
+  const c = mkCanvas(size, size);
   const ctx = c.getContext('2d')!;
   const img = ctx.createImageData(size, size);
   for (let i = 0; i < wear.length; i++) {

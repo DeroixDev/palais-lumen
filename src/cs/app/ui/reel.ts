@@ -6,7 +6,7 @@ import { rollFiller } from '../lib/economy';
 import { sfx } from '../lib/sound';
 import * as M from '../lib/mods';
 import { hash01, reducedMotion, sleep } from '../lib/util';
-import { rColor, skinCanvas } from './items';
+import { rColor, skinArt } from './items';
 
 const TILES = 56;
 const WIN_AT = 48;
@@ -38,7 +38,7 @@ export class Reel {
       d.classList.add('mystery');
       d.innerHTML = '<span class="rt-star">★</span>';
     } else {
-      d.appendChild(skinCanvas(it, this.vertical ? 104 : 128, this.vertical ? 62 : 76));
+      d.appendChild(skinArt(it, this.vertical ? 104 : 128, this.vertical ? 62 : 76));
       if (!this.vertical && s) d.insertAdjacentHTML('beforeend', `<span class="rt-name">${s.name}</span>`);
     }
     return d;

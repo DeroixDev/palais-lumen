@@ -9,6 +9,7 @@
  */
 import type { PatternRecipe } from '../contract';
 import { Noise, Rng, rng, hex, rgb, ramp, mix, clamp, smooth } from './noise';
+import { mkCanvas } from './canvas';
 
 type RGB = [number, number, number];
 
@@ -35,8 +36,7 @@ const fract = (v: number) => v - Math.floor(v);
 /** Per-pixel field, resolution given for a 1024 texture (scaled with S), upscaled smoothly. fn gets units 0..1000. */
 function field(g: PatternCtx, res: number, fn: (x: number, y: number) => RGB | number[], alpha = false) {
   const R = Math.max(32, Math.round((res * g.S) / 1024));
-  const c = document.createElement('canvas');
-  c.width = c.height = R;
+  const c = mkCanvas(R, R);
   const cx = c.getContext('2d')!;
   const img = cx.createImageData(R, R);
   const d = img.data;
@@ -65,8 +65,7 @@ let grainTile: HTMLCanvasElement | null = null;
 /** Fine grain so flat areas look like paint, not vector. */
 function grain(g: PatternCtx, amt = 0.06) {
   if (!grainTile) {
-    grainTile = document.createElement('canvas');
-    grainTile.width = grainTile.height = 128;
+    grainTile = mkCanvas(128, 128);
     const cx = grainTile.getContext('2d')!;
     const img = cx.createImageData(128, 128);
     const r = rng(77);
@@ -819,8 +818,7 @@ export const PATTERN_KINDS = () => Object.keys(PATTERNS);
 
 /** Paint `recipe` into a fresh S x S canvas. */
 export function paintPattern(recipe: PatternRecipe, S: number, seed: number): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = c.height = S;
+  const c = mkCanvas(S, S);
   const ctx = c.getContext('2d')!;
   ctx.scale(S / 1000, S / 1000);
   const colors = recipe.colors.length ? recipe.colors : ['#888888'];

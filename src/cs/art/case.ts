@@ -1,10 +1,7 @@
 /** Case box art: a lit, bevelled crate with an emblem, per CaseDef.look. */
 import type { CaseDef } from '../contract';
 import { hex, rgb, mix, rng, hashStr } from './noise';
-
-function dpr(): number {
-  return Math.min(3, Math.max(1, (typeof window !== 'undefined' && window.devicePixelRatio) || 1));
-}
+import { mkCanvas, dpr, cssSize } from './canvas';
 
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -141,9 +138,8 @@ export const EMBLEM_KEYS = () => Object.keys(EMBLEMS);
 export function renderCaseImpl(cd: CaseDef, width: number, height: number): HTMLCanvasElement {
   const d = dpr();
   const W = Math.round(width * d), H = Math.round(height * d);
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  c.style.width = width + 'px'; c.style.height = height + 'px';
+  const c = mkCanvas(W, H);
+  cssSize(c, width, height);
   const ctx = c.getContext('2d')!;
   const A = hex(cd.look.a), B = hex(cd.look.b);
   const r = rng(hashStr(cd.id));

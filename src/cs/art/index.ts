@@ -66,3 +66,6 @@ export function rarityName(r: Rarity): string {
 export function renderCase(c: CaseDef, width: number, height: number): HTMLCanvasElement {
   return renderCaseImpl(c, width, height);
 }
+
+// ---------- off-main-thread variants (used by the platform for everything it displays) ----------
+export { skinURL, skinURLNow, caseURL, caseURLNow, warmSkinsAsync } from './async';
