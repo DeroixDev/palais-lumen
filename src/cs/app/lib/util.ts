@@ -1,5 +1,7 @@
 // Small helpers shared by every page: formatting, DOM, randomness, count-ups.
 
+import * as M from './mods';
+
 export const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
 export const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => Array.from(root.querySelectorAll(sel)) as T[];
 
@@ -41,7 +43,7 @@ export function hash01(s: string): number {
   return ((h >>> 0) % 100000) / 100000;
 }
 
-export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reducedMotion = () => M.on('fx.reduced') || matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Animates the number shown in `node` from its last value to `to`. */

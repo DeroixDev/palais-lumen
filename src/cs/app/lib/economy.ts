@@ -8,6 +8,7 @@
 import { RARITIES, type CaseDef, type ItemInstance, type Rarity, type SkinDef } from '../../contract';
 import { CASES, skinById } from './assets';
 import { hash01, uid } from './util';
+import * as M from './mods';
 
 export const TIER_ORDER: Rarity[] = RARITIES;
 export const rarityIndex = (r: Rarity) => TIER_ORDER.indexOf(r);
@@ -101,12 +102,12 @@ let SEED_MEAN = 0;
 for (let s = 0; s < 1000; s++) SEED_MEAN += seedBonus(s) / 1000;
 
 export function valueOf(skin: SkinDef, float: number, seed: number, statTrak: boolean): number {
-  const v = skin.basePrice * wearFactor(float) * (statTrak ? ST_MULT[skin.rarity] : 1) * seedBonus(seed);
+  const v = skin.basePrice * wearFactor(float) * (statTrak ? ST_MULT[skin.rarity] : 1) * seedBonus(seed) * M.valMult(skin.rarity);
   return Math.max(0.01, Math.round(v * 100) / 100);
 }
-export function itemValue(it: Pick<ItemInstance, 'skin' | 'float' | 'seed' | 'statTrak'>): number {
+export function itemValue(it: Pick<ItemInstance, 'skin' | 'float' | 'seed' | 'statTrak'> & { uid?: string }): number {
   const s = skinById(it.skin);
-  return s ? valueOf(s, it.float, it.seed, it.statTrak) : 0;
+  return s ? M.itemVal(it, valueOf(s, it.float, it.seed, it.statTrak)) : 0;
 }
 
 const evCache = new Map<string, number>();
@@ -146,14 +147,14 @@ const priceCache = new Map<string, number>();
 /** Price the platform charges: EV / target return, rounded to a "shop" price. */
 export function casePrice(c: CaseDef): number {
   let p = priceCache.get(c.id);
-  if (p !== undefined) return p;
+  if (p !== undefined) return M.price(c, p, () => caseEV(c));
   const target = (TARGET[c.category] ?? 0.89) + (hash01(c.id) - 0.5) * 0.02;
   const ev = caseEV(c);
   p = ev > 0 ? ev / target : c.price;
   // Shop rounding: two decimals below 10, .49/.99 steps above.
   p = p < 10 ? Math.ceil(p * 100) / 100 : Math.ceil(p * 2) / 2 - 0.01;
   priceCache.set(c.id, p);
-  return p;
+  return M.price(c, p, () => caseEV(c));
 }
 export const caseRTP = (c: CaseDef) => caseEV(c) / casePrice(c);
 /** Multiplier applied to art's catalog price (for the report). */
@@ -180,11 +181,12 @@ export function makeItem(skin: SkinDef, source?: string, float?: number): ItemIn
 }
 
 /** One real drop from a case. */
-export function rollCase(c: CaseDef, luck = 1, source = c.name): ItemInstance {
-  const r = pickTier(tierOdds(c, luck));
+export function rollCase(c: CaseDef, luck = 1, source = c.name, who = ''): ItemInstance {
+  const fs = M.force(c, who);
+  const r = pickTier(M.odds(c, tierOdds(c, luck * M.whoLuck(who)), who));
   const ids = c.contents[r]!;
-  const skin = skinById(ids[Math.floor(Math.random() * ids.length)])!;
-  return makeItem(skin, source);
+  const skin = (fs && skinById(fs.skin)) || skinById(ids[Math.floor(Math.random() * ids.length)])!;
+  return M.drop(c, makeItem(skin, source), skin, who, fs);
 }
 
 /** A tile for the reel around the real drop: shows a bit more colour than the true odds. */

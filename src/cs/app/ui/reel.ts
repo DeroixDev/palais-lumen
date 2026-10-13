@@ -4,8 +4,9 @@ import type { CaseDef, ItemInstance } from '../../contract';
 import { skinById } from '../lib/assets';
 import { rollFiller } from '../lib/economy';
 import { sfx } from '../lib/sound';
+import * as M from '../lib/mods';
 import { hash01, reducedMotion, sleep } from '../lib/util';
-import { rColor, skinCanvas } from './items';
+import { rColor, skinArt } from './items';
 
 const TILES = 56;
 const WIN_AT = 48;
@@ -37,7 +38,7 @@ export class Reel {
       d.classList.add('mystery');
       d.innerHTML = '<span class="rt-star">★</span>';
     } else {
-      d.appendChild(skinCanvas(it, this.vertical ? 104 : 128, this.vertical ? 62 : 76));
+      d.appendChild(skinArt(it, this.vertical ? 104 : 128, this.vertical ? 62 : 76));
       if (!this.vertical && s) d.insertAdjacentHTML('beforeend', `<span class="rt-name">${s.name}</span>`);
     }
     return d;
@@ -52,9 +53,9 @@ export class Reel {
     return f;
   }
 
-  private build(c: CaseDef, win?: ItemInstance) {
+  private build(c: CaseDef, win?: ItemInstance, n = TILES) {
     this.tiles = [];
-    for (let i = 0; i < TILES; i++) this.tiles.push(i === WIN_AT && win ? win : this.filler(c));
+    for (let i = 0; i < n; i++) this.tiles.push(i === WIN_AT && win ? win : this.filler(c));
     // A near miss next to the real drop now and then: the reel feels alive.
     if (win && Math.random() < 0.35) {
       const ids = c.contents.gold?.length ? c.contents.gold : c.contents.covert;
@@ -87,7 +88,8 @@ export class Reel {
   }
 
   idle(c: CaseDef) {
-    this.build(c);
+    // At rest only the first dozen tiles can be seen: build those (spin() builds the full strip).
+    this.build(c, undefined, 16);
     this.el.classList.remove('done', 'gold-win', 'suspense');
     requestAnimationFrame(() => this.place(this.offsetFor(6)));
   }
@@ -101,7 +103,7 @@ export class Reel {
     const jitter = (Math.random() - 0.5) * (m.tile * 0.8);
     const end = this.offsetFor(WIN_AT, jitter);
     const gold = skinById(win.skin)?.rarity === 'gold';
-    const dur = reducedMotion() ? Math.min(o.duration, 900) : o.duration;
+    const dur = (reducedMotion() ? Math.min(o.duration, 900) : o.duration) * M.num('fx.reel') / M.anim();
     this.place(start);
     const tickCenter = m.view / 2;
     let lastIdx = -1;
@@ -119,7 +121,7 @@ export class Reel {
           lastIdx = idx;
           if (o.sound) sfx.tick(1 - t);
         }
-        if (gold && !suspense && t > 0.72 && dur > 1500) {
+        if (gold && !suspense && t > 0.72 && dur > 1500 && M.on('cs.suspense')) {
           suspense = true;
           this.el.classList.add('suspense');
           if (o.sound) sfx.suspense();

@@ -1,10 +1,11 @@
 // One case: art, opener with 1–5 stacked reels, result, and the "Inhalt" grid.
 
 import type { CaseDef, ItemInstance, SkinDef } from '../../contract';
-import { skinById, warmSkins } from '../lib/assets';
+import { skinById, warmSkinsAsync } from '../lib/assets';
 import { caseRTP, itemValue, rarityIndex, rollCase, skinRange, tierOdds } from '../lib/economy';
 import { DAILY_ID, addXP, dailyReadyIn, getCase, level, priceOf, xpFor, checkAchievements } from '../lib/career';
 import { luck } from '../lib/panel';
+import * as M from '../lib/mods';
 import { commit, emit, save, sellItems, spend, findItem } from '../lib/state';
 import { pushMine } from '../lib/feed';
 import { sfx } from '../lib/sound';
@@ -92,7 +93,7 @@ export const casePage: Page = (root, args) => {
   </section>`;
 
   caseArt(root.querySelector('.ct-art') as HTMLElement, c, 300, 225);
-  try { void warmSkins(Object.values(c.contents).flat().filter(Boolean) as string[]); } catch { /* optional */ }
+  try { void warmSkinsAsync(Object.values(c.contents).flat().filter(Boolean) as string[]); } catch { /* optional */ }
   root.querySelector('.info-btn')!.addEventListener('click', () => infoModal(c));
 
   // ----- contents -----
@@ -127,7 +128,7 @@ export const casePage: Page = (root, args) => {
   const countsBox = root.querySelector('.counts') as HTMLElement;
   const openBtn = root.querySelector('.open-btn') as HTMLButtonElement;
   const free = () => (daily ? (dailyReadyIn() === 0 ? 1 : 0) : save.freeOpens[c.id] ?? 0);
-  const locked = c.level > level();
+  const locked = c.level > level() && !M.on('cs.unlock');
   const drawControls = () => {
     countsBox.innerHTML = daily ? '' : [1, 2, 3, 4, 5].map((n) => `<button type="button" class="cnt${n === count ? ' on' : ''}" data-n="${n}" ${busy ? 'disabled' : ''}>×${n}</button>`).join('');
     const f = free();
@@ -169,13 +170,13 @@ export const casePage: Page = (root, args) => {
     commit();
     drawControls();
     sfx.open();
-    const wins = Array.from({ length: n }, () => rollCase(c, luck(), daily ? 'Tageskiste' : c.name));
+    const wins = Array.from({ length: n }, () => rollCase(c, luck(), daily ? 'Tageskiste' : c.name, 'you'));
     // Into the inventory now (the save keeps them even if the page is left mid-spin); shown after the reveal.
     for (const w of wins.slice().reverse()) { save.inv.unshift(w); pending.push(w.uid); }
     if (reels.length !== n) buildReels();
     const anyGold = wins.some((w) => skinById(w.skin)?.rarity === 'gold');
     const fast = save.settings.fast;
-    const base = fast ? 1400 : anyGold ? 7600 : 5600;
+    const base = (fast ? 1400 : anyGold ? 7600 : 5600) / Math.max(0.05, M.num('cs.speed'));
     const tiles = await Promise.all(reels.map((r, i) => r.spin(c, wins[i], { duration: base + (fast ? i * 80 : i * 260), sound: i === 0 && save.settings.sound })));
     if (!alive) return;
     const per = useFree ? 0 : price;

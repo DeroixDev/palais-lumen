@@ -5,6 +5,7 @@ import { SKINS } from '../lib/assets';
 import { itemValue, makeItem, valueOf } from '../lib/economy';
 import { addItem, addCoins, commit, emit, findItem, removeItems, save, spend } from '../lib/state';
 import { addXP, xpFor, checkAchievements } from '../lib/career';
+import * as M from '../lib/mods';
 import { avatarSVG, randomBots } from '../lib/bots';
 import { pushMine } from '../lib/feed';
 import { sfx } from '../lib/sound';
@@ -130,13 +131,13 @@ export const coinflipPage: Page = (root) => {
     root.querySelector('.fl-result')!.textContent = '';
     draw();
     await sleep(500);
-    const result: Side = Math.random() < 0.5 ? 't' : 'ct';
+    const result: Side = M.flip<Side>(side, Math.random() < 0.5 ? 't' : 'ct', side === 't' ? 'ct' : 't');
     const won = result === side;
     // Spin: many half turns, land on the result face (T = front, CT = back).
     const turns = reducedMotion() ? 0 : 8 + Math.floor(Math.random() * 3);
     const baseTurn = Math.ceil(rot / 360) * 360 + turns * 360;
     rot = baseTurn + (result === 'ct' ? 180 : 0);
-    const dur = save.settings.fast || reducedMotion() ? 900 : 2600;
+    const dur = (save.settings.fast || reducedMotion() ? 900 : 2600) / M.anim();
     coin.style.transition = `transform ${dur}ms cubic-bezier(.2,.75,.25,1)`;
     coin.classList.add('flying');
     coin.style.transform = `rotateY(${rot}deg)`;

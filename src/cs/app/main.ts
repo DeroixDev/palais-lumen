@@ -8,7 +8,7 @@ import { skinById } from './lib/assets';
 import { countUp, el, esc, fmt, reducedMotion } from './lib/util';
 import { avatarSVG } from './lib/bots';
 import { icon } from './ui/icons';
-import { rColor, skinCanvas, names } from './ui/items';
+import { rColor, skinArt, names } from './ui/items';
 import { closeAllModals } from './ui/modal';
 import { sfx } from './lib/sound';
 import { openPanelPad } from './ui/admin';
@@ -117,15 +117,29 @@ function feedTile(e: FeedEntry): HTMLElement {
   const t = el<HTMLAnchorElement>(`<a class="ftile r-${r}${e.you ? ' you' : ''}" href="#/case/${e.caseId ?? ''}" title="${esc(`${e.who}: ${n.full} · ${fmt(e.value)} Coins · ${e.via}`)}"><span class="ft-art"></span><span class="ft-txt"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></span><span class="ft-who">${avatarSVG(e.avatar, e.who)}<span>${esc(e.who)}</span></span></a>`);
   t.style.setProperty('--rc', rColor(r));
   if (!e.caseId) t.removeAttribute('href');
-  t.querySelector('.ft-art')!.appendChild(skinCanvas(e.item, 84, 50));
+  t.querySelector('.ft-art')!.appendChild(skinArt(e.item, 84, 50));
   return t;
 }
-function drawFeed() { track.replaceChildren(...feed.slice(0, 24).map(feedTile)); }
+function drawFeed() { track.replaceChildren(...feed.slice(0, feedMax()).map(feedTile)); }
+// Only as many tiles as fit (plus one to slide in); the track never grows.
+let feedVW = innerWidth;
+let feedTileW = 0;
+addEventListener('resize', () => { feedVW = innerWidth; feedTileW = 0; });
+const feedMax = () => Math.min(24, Math.ceil(feedVW / 140) + 2);
+let slide: Animation | null = null;
 onFeed((e) => {
   const t = feedTile(e);
-  if (!reducedMotion()) t.classList.add('new');
+  const anim = !reducedMotion() && document.visibilityState === 'visible';
+  if (anim) t.classList.add('new');
   track.prepend(t);
-  while (track.children.length > 24) track.lastElementChild!.remove();
+  while (track.children.length > feedMax()) track.lastElementChild!.remove();
+  if (anim && typeof track.animate === 'function') {
+    // slide the whole strip by one tile with a transform (compositor only, no relayout per frame)
+    // (tile width read once per viewport size: offsetWidth forces a layout)
+    const w = (feedTileW ||= t.offsetWidth) + 6;
+    slide?.cancel();
+    slide = track.animate([{ transform: `translateX(${-w}px)` }, { transform: 'none' }], { duration: 550, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
 });
 
 // ---------- router ----------
@@ -146,6 +160,14 @@ function route() {
     a.classList.toggle('on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  // Scroll up while the old page's layout is still clean: doing it after the new page is in forced
+  // a synchronous layout of the whole new page inside this task. The nav is centred in the next
+  // frame, where the layout happens anyway.
+  if (scrollY) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  requestAnimationFrame(() => {
+    const navLink = app.querySelector('.mainnav .on') as HTMLElement | null;
+    if (navLink) { const nv = navLink.parentElement!; nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
+  });
   const fresh = document.createElement('div');
   fresh.className = 'page page-in';
   pageEl.replaceChildren(fresh);
@@ -155,9 +177,6 @@ function route() {
     console.error(err);
     fresh.innerHTML = '<div class="empty-state"><b>Hier ist etwas schiefgelaufen.</b><a class="btn primary" href="#/cases">Zu den Kisten</a></div>';
   }
-  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  const navLink = app.querySelector('.mainnav .on') as HTMLElement | null;
-  if (navLink) { const nv = navLink.parentElement!; nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
   const label = nav?.label ?? extra?.label ?? '';
   document.title = label ? `${label} · CS Gambler` : 'CS Gambler';
 }

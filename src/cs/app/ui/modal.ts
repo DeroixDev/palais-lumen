@@ -28,6 +28,7 @@ export function openModal(content: HTMLElement | string, opts: { cls?: string; o
       closed = true;
       const i = stack.indexOf(h);
       if (i >= 0) stack.splice(i, 1);
+      document.body.classList.toggle('modal-open', stack.length > 0);
       root.classList.remove('in');
       root.classList.add('out');
       setTimeout(() => root.remove(), 220);
@@ -41,6 +42,7 @@ export function openModal(content: HTMLElement | string, opts: { cls?: string; o
   x.addEventListener('click', () => h.close());
   document.body.appendChild(root);
   stack.push(h);
+  document.body.classList.add('modal-open');
   requestAnimationFrame(() => { root.classList.add('in'); (root.querySelector('.modal') as HTMLElement).focus({ preventScroll: true }); });
   return h;
 }

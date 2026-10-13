@@ -6,7 +6,7 @@ import { CASES } from './assets';
 import { casePrice, itemValue, rollCase } from './economy';
 import { randomBots, type Player } from './bots';
 import { getCase, level } from './career';
-import { luck } from './panel';
+import * as M from './mods';
 import { save } from './state';
 import { uid } from './util';
 
@@ -71,13 +71,15 @@ export function rollBattle(b: Battle) {
   b.rounds = b.cases.map((cid) => {
     const c = getCase(cid)!;
     return b.seats.map((s, seat) => {
-      const item = rollCase(c, s?.kind === 'you' ? luck() : 1, `Battle: ${c.name}`);
+      const who = s?.kind === 'you' ? 'you' : s?.name ?? '-';
+      const item = rollCase(c, M.luckMult(who), `Battle: ${c.name}`, who);
       return { seat, item, value: itemValue(item) };
     });
   });
+  M.rigBattle(b.rounds, modeOf(b.mode).teams, b.seats.findIndex((s) => s?.kind === 'you'));
   const totals = teamTotals(b);
   const best = Math.max(...totals.values());
-  const leaders = [...totals.entries()].filter(([, v]) => v === best).map(([t]) => t);
+  const leaders = M.rigLeaders([...totals.entries()].filter(([, v]) => v === best).map(([t]) => t), modeOf(b.mode).teams[b.seats.findIndex((s) => s?.kind === 'you')]);
   b.winnerTeam = leaders[Math.floor(Math.random() * leaders.length)];
   // The winning team shares all items: biggest first to whoever holds less so far.
   const m = modeOf(b.mode);

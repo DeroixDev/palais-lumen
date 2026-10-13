@@ -17,6 +17,7 @@ import { burstAt, flash } from '../ui/fx';
 import { toast } from '../ui/toast';
 import { caseArt } from './cases';
 import { pageHead, type Page } from './page';
+import * as M from '../lib/mods';
 
 const MAX_ROUNDS = 4;
 const draft: { mode: BattleMode; cases: string[] } = { mode: '1v1', cases: [] };
@@ -281,7 +282,7 @@ export const battlePage: Page = (root, args) => {
     for (let n = 3; n > 0; n--) {
       roundLbl.innerHTML = `Start in <b class="mono">${n}</b>`;
       sfx.tick();
-      await sleep(save.settings.fast ? 250 : 650);
+      await sleep((save.settings.fast ? 250 : 650) / M.anim());
       if (!alive) return;
     }
     const fast = save.settings.fast;

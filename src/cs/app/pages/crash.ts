@@ -1,6 +1,7 @@
 // Crash: the multiplier climbs until it crashes. Cash out in time. P(reach x) = 0.96 / x.
 
 import { addCoins, commit, emit, save, spend } from '../lib/state';
+import * as M from '../lib/mods';
 import { addXP, xpFor, checkAchievements } from '../lib/career';
 import { avatarSVG, randomBots, type Player } from '../lib/bots';
 import { sfx } from '../lib/sound';
@@ -15,8 +16,7 @@ const AFTER_MS = 3000;
 const multAt = (ms: number) => Math.exp(GROWTH * (ms / 1000));
 const timeFor = (m: number) => (Math.log(m) / GROWTH) * 1000;
 export function crashPoint(): number {
-  const u = Math.random();
-  return Math.max(1, Math.floor((0.96 / Math.max(u, 1e-9)) * 100) / 100);
+  return M.crash((keep, u) => Math.max(1, Math.floor((keep / Math.max(u, 1e-9)) * 100) / 100));
 }
 const fmtX = (m: number) => `${m.toFixed(2).replace('.', ',')}×`;
 
@@ -25,7 +25,7 @@ interface BotBet { p: Player; stake: number; target: number; out?: number }
 export const crashPage: Page = (root) => {
   let phase: 'wait' | 'run' | 'crash' = 'wait';
   let phaseT0 = performance.now();
-  let point = crashPoint();
+  let point = 1; // drawn when a round starts
   let mult = 1;
   let myBet = 0, myAuto = 0, myOut = 0;
   let queued: { stake: number; auto: number } | null = null;
@@ -161,7 +161,7 @@ export const crashPage: Page = (root) => {
       multEl.className = 'cr-mult mono wait';
       subEl.innerHTML = `Nächste Runde in <b class="mono">${Math.max(0, (WAIT_MS - el) / 1000).toFixed(1).replace('.', ',')} s</b>`;
       if (el >= WAIT_MS) {
-        phase = 'run'; phaseT0 = now; mult = 1;
+        phase = 'run'; phaseT0 = now; mult = 1; point = crashPoint();
         if (queued) {
           if (spend(queued.stake)) { myBet = queued.stake; myAuto = queued.auto; myOut = 0; save.stats.crash++; addXP(xpFor(myBet) * 0.6); commit(); }
           queued = null;
@@ -195,7 +195,7 @@ export const crashPage: Page = (root) => {
       multEl.className = 'cr-mult mono crashed';
       subEl.innerHTML = 'Abgestürzt';
       if (el >= AFTER_MS) {
-        phase = 'wait'; phaseT0 = now; point = crashPoint();
+        phase = 'wait'; phaseT0 = now;
         myBet = 0; myOut = 0; myAuto = 0;
         newBots();
         drawBtn(); drawPlayers();

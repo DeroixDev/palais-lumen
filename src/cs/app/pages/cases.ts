@@ -1,13 +1,14 @@
 // Kisten: the shop front. Featured banner, daily case, grouped grid with filters, sort and search.
 
 import type { CaseDef } from '../../contract';
-import { CASES, renderCase } from '../lib/assets';
+import { CASES, caseURL, caseURLNow } from '../lib/assets';
 import { casePrice, tierOdds } from '../lib/economy';
 import { dailyCase, dailyReadyIn, level, bonusReadyIn, bonusAmount, claimBonus, isBroke, claimRescue, rescueReadyIn } from '../lib/career';
 import { save } from '../lib/state';
+import * as M from '../lib/mods';
 import { esc, fmt, hms } from '../lib/util';
 import { icon } from '../ui/icons';
-import { rColor } from '../ui/items';
+import { artImg, loadInto, rColor } from '../ui/items';
 import { toast } from '../ui/toast';
 import { sfx } from '../lib/sound';
 import type { Page } from './page';
@@ -17,25 +18,22 @@ const CAT_ORDER: CaseDef['category'][] = ['starter', 'standard', 'premium', 'gol
 
 let ui = { q: '', cat: 'all', sort: 'rec', unlocked: false };
 
-/** Case art into a holder, after a frame so the skeleton shows first. */
+/** Case art into a holder: an <img> drawn in the art worker; the skeleton shows until it is ready. */
 export function caseArt(holder: HTMLElement, c: CaseDef, w: number, h: number) {
+  const img = artImg(w, h);
+  img.classList.remove('skin-cv');
+  img.style.width = '100%';
+  img.style.height = 'auto';
+  img.style.aspectRatio = `${w} / ${h}`;
+  const now = caseURLNow(c, w, h);
+  if (now) { img.src = now; holder.replaceChildren(img); return; }
   holder.classList.add('skel');
-  const go = () => {
-    try {
-      const cv = renderCase(c, w, h);
-      cv.style.width = '100%';
-      cv.style.height = 'auto';
-      cv.style.aspectRatio = `${w} / ${h}`;
-      holder.replaceChildren(cv);
-    } catch { /* keep the skeleton */ }
-    holder.classList.remove('skel');
-  };
-  if ('requestIdleCallback' in window) (window as unknown as { requestIdleCallback(f: () => void, o?: object): void }).requestIdleCallback(go, { timeout: 300 });
-  else setTimeout(go, 16);
+  holder.replaceChildren(img);
+  loadInto(img, () => caseURL(c, w, h).finally(() => holder.classList.remove('skel')));
 }
 
 function caseCard(c: CaseDef, lvl: number): HTMLElement {
-  const locked = c.level > lvl;
+  const locked = c.level > lvl && !M.on('cs.unlock');
   const free = save.freeOpens[c.id] ?? 0;
   const a = document.createElement('a');
   a.className = `ccard${locked ? ' locked' : ''}`;

@@ -5,7 +5,7 @@ import { isRareSeed, itemValue, casesWithSkin } from '../lib/economy';
 import { findItem, sellItems } from '../lib/state';
 import { sfx } from '../lib/sound';
 import { esc, fmt } from '../lib/util';
-import { floatBar, names, rColor, rName, skinCanvas, skinOf } from './items';
+import { floatBar, names, rColor, rName, skinArt, skinOf } from './items';
 import { openModal, type ModalHandle } from './modal';
 import { toast } from './toast';
 
@@ -34,7 +34,7 @@ export function itemInfo(item: ItemInstance, big = true): HTMLElement {
       <div class="ii-wearscale"><span>FN</span><span>MW</span><span>FT</span><span>WW</span><span>BS</span></div>
       <div class="ii-src">${item.source ? `Herkunft: ${esc(item.source)}` : ''}${s.collection ? `${item.source ? ' · ' : ''}Sammlung: ${esc(s.collection)}` : ''}</div>
     </div>`;
-  box.querySelector('.ii-art')!.appendChild(skinCanvas(item, big ? 440 : 300, big ? 240 : 170));
+  box.querySelector('.ii-art')!.appendChild(skinArt(item, big ? 440 : 300, big ? 240 : 170));
   return box;
 }
 
