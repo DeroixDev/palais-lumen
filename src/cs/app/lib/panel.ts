@@ -1,4 +1,7 @@
 // Settings kept apart from the save (own key). Only a hash of the code is stored.
+// The luck value now lives in mods.ts; an old stored multiplier moves over once.
+
+import * as M from './mods';
 
 const KEY = 'csgambler.panel';
 
@@ -29,10 +32,12 @@ function read(): PanelData {
 }
 let data = read();
 function write() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* ignore */ } }
+if (data.luck !== 1) { if (!M.isSet('luck.you')) setLuck(data.luck); data.luck = 1; write(); }
 
 export const checkCode = (code: string) => digest(code) === data.h;
 export function setCode(code: string) { data.h = digest(code); write(); }
-/** Multiplier on gold/covert odds and upgrade chances. 1 = fair. */
-export const luck = () => data.luck;
-export function setLuck(v: number) { data.luck = Math.max(0.2, Math.min(8, v)); write(); }
+/** Your multiplier on gold/covert case odds. 1 = fair. */
+export const luck = () => M.luckMult('you');
+/** Sets your luck from a multiplier (0.125..8 maps to -100..100). */
+export function setLuck(v: number) { M.set('luck.you', Math.round(Math.max(-100, Math.min(100, (100 * Math.log(Math.max(1e-3, v))) / Math.log(8))))); }
 export function reloadPanel() { data = read(); }

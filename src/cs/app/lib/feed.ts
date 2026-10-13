@@ -5,6 +5,7 @@ import { CASES, skinById } from './assets';
 import { casePrice, itemValue, rarityIndex, rollCase } from './economy';
 import { botPlayer, BOT_NAMES } from './bots';
 import { save } from './state';
+import * as M from './mods';
 
 export interface FeedEntry { item: ItemInstance; value: number; who: string; avatar: number; you: boolean; caseId?: string; via: string; ts: number }
 
@@ -38,8 +39,8 @@ let timer = 0;
 export function startFeed() {
   for (let i = 0; i < 18; i++) { const e = botDrop(); e.ts -= (18 - i) * 9000; feed.unshift(e); }
   const next = () => {
-    if (document.visibilityState === 'visible') pushFeed(botDrop());
-    timer = window.setTimeout(next, 1800 + Math.random() * 3800);
+    if (document.visibilityState === 'visible' && !M.on('feed.pause')) pushFeed(botDrop());
+    timer = window.setTimeout(next, (1800 + Math.random() * 3800) / Math.max(0.05, M.num('feed.speed')));
   };
   timer = window.setTimeout(next, 2000);
 }

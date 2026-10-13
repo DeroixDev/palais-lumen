@@ -1,5 +1,6 @@
 // Screen effects: particle bursts and flashes on one fixed canvas.
 import { reducedMotion } from '../lib/util';
+import * as M from '../lib/mods';
 
 interface P { x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; color: string; spin: number; rot: number; star: boolean }
 let cv: HTMLCanvasElement | null = null;
@@ -43,7 +44,8 @@ function loop() {
 }
 
 export function burst(x: number, y: number, colors: string[], count = 80, power = 9) {
-  if (reducedMotion()) return;
+  count = Math.round(count * M.num('fx.particles'));
+  if (reducedMotion() || count <= 0) return;
   ensure();
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2;

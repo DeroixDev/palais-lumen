@@ -2,6 +2,7 @@
 
 import type { ItemInstance } from '../../contract';
 import { itemValue } from './economy';
+import * as M from './mods';
 
 export const START_BALANCE = 50;
 const KEY = 'csgambler.save';
@@ -134,7 +135,7 @@ export const invValue = () => save.inv.reduce((a, i) => a + itemValue(i), 0);
 export function sellItems(uids: string[]): number {
   const set = new Set(uids);
   const items = save.inv.filter((i) => set.has(i.uid));
-  const v = items.reduce((a, i) => a + itemValue(i), 0);
+  const v = M.sell(items.reduce((a, i) => a + itemValue(i), 0));
   removeItems(uids);
   save.balance += v;
   save.stats.sold += v;

@@ -4,6 +4,7 @@ import type { CaseDef, ItemInstance } from '../../contract';
 import { skinById } from '../lib/assets';
 import { rollFiller } from '../lib/economy';
 import { sfx } from '../lib/sound';
+import * as M from '../lib/mods';
 import { hash01, reducedMotion, sleep } from '../lib/util';
 import { rColor, skinCanvas } from './items';
 
@@ -101,7 +102,7 @@ export class Reel {
     const jitter = (Math.random() - 0.5) * (m.tile * 0.8);
     const end = this.offsetFor(WIN_AT, jitter);
     const gold = skinById(win.skin)?.rarity === 'gold';
-    const dur = reducedMotion() ? Math.min(o.duration, 900) : o.duration;
+    const dur = (reducedMotion() ? Math.min(o.duration, 900) : o.duration) * M.num('fx.reel') / M.anim();
     this.place(start);
     const tickCenter = m.view / 2;
     let lastIdx = -1;
@@ -119,7 +120,7 @@ export class Reel {
           lastIdx = idx;
           if (o.sound) sfx.tick(1 - t);
         }
-        if (gold && !suspense && t > 0.72 && dur > 1500) {
+        if (gold && !suspense && t > 0.72 && dur > 1500 && M.on('cs.suspense')) {
           suspense = true;
           this.el.classList.add('suspense');
           if (o.sound) sfx.suspense();

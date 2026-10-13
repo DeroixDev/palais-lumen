@@ -5,6 +5,7 @@ import { CASES, renderCase } from '../lib/assets';
 import { casePrice, tierOdds } from '../lib/economy';
 import { dailyCase, dailyReadyIn, level, bonusReadyIn, bonusAmount, claimBonus, isBroke, claimRescue, rescueReadyIn } from '../lib/career';
 import { save } from '../lib/state';
+import * as M from '../lib/mods';
 import { esc, fmt, hms } from '../lib/util';
 import { icon } from '../ui/icons';
 import { rColor } from '../ui/items';
@@ -35,7 +36,7 @@ export function caseArt(holder: HTMLElement, c: CaseDef, w: number, h: number) {
 }
 
 function caseCard(c: CaseDef, lvl: number): HTMLElement {
-  const locked = c.level > lvl;
+  const locked = c.level > lvl && !M.on('cs.unlock');
   const free = save.freeOpens[c.id] ?? 0;
   const a = document.createElement('a');
   a.className = `ccard${locked ? ' locked' : ''}`;

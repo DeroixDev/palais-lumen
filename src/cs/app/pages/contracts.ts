@@ -17,6 +17,7 @@ import { openModal } from '../ui/modal';
 import { burstAt, flash } from '../ui/fx';
 import { toast } from '../ui/toast';
 import { pageHead, type Page } from './page';
+import * as M from '../lib/mods';
 
 const MIN = 3, MAX = 10;
 const PAYBACK = 0.9;
@@ -168,7 +169,7 @@ export const contractsPage: Page = (root) => {
     if (busy || st.n < MIN || !st.up.length) return;
     busy = true;
     const its = items();
-    const up = Math.random() < st.ch;
+    const up = M.contractUp(st.ch);
     const pool = up ? st.up : st.same.length ? st.same : st.up;
     let x = Math.random(), pickS = pool[0].s;
     for (const o of pool) { x -= o.p; if (x <= 0) { pickS = o.s; break; } }
@@ -182,7 +183,7 @@ export const contractsPage: Page = (root) => {
     sfx.open();
     commit();
     draw();
-    await sleep(save.settings.fast ? 500 : 1500);
+    await sleep((save.settings.fast ? 500 : 1500) / M.anim());
     paper.classList.remove('signing');
     addItem(out);
     save.stats.contracts++;

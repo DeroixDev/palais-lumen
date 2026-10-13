@@ -7,6 +7,7 @@ import { addCoins, commit, invValue, onGame, save, type GameEvent } from './stat
 import { sfx } from './sound';
 import { toast } from '../ui/toast';
 import { hash01 } from './util';
+import * as M from './mods';
 
 export const MAX_LEVEL = 50;
 export const xpToNext = (lvl: number) => Math.round(100 + 40 * Math.pow(lvl, 1.5));
@@ -75,7 +76,7 @@ export const priceOf = (c: CaseDef) => (c.id === DAILY_ID ? 0 : casePrice(c));
 
 export function addXP(n: number) {
   const before = level();
-  save.xp += Math.round(n);
+  save.xp += Math.round(n * M.num('eco.xp'));
   const after = level();
   for (let l = Math.max(before, save.rewardedLevel) + 1; l <= after; l++) levelReward(l);
   if (after > save.rewardedLevel) save.rewardedLevel = after;
@@ -109,7 +110,7 @@ function newlyUnlocked(lvl: number) {
 
 // ---------- daily bonus / rescue ----------
 
-export const bonusAmount = () => 10 + level() * 2;
+export const bonusAmount = () => M.ov('eco.bonus', 10 + level() * 2);
 export const bonusReadyIn = () => Math.max(0, save.daily.bonusAt + DAY_MS - Date.now());
 export function claimBonus(): number {
   if (bonusReadyIn() > 0) return 0;
@@ -124,7 +125,7 @@ export const isBroke = () => save.balance < cheapestCase() && invValue() < cheap
 export const rescueReadyIn = () => Math.max(0, save.daily.rescueAt + RESCUE_MS - Date.now());
 export function claimRescue(): number {
   if (!isBroke() || rescueReadyIn() > 0) return 0;
-  const n = Math.max(15, Math.ceil(cheapestCase() * 3));
+  const n = M.ov('eco.rescue', Math.max(15, Math.ceil(cheapestCase() * 3)));
   addCoins(n); save.stats.bonus += n; save.daily.rescueAt = Date.now();
   commit();
   return n;

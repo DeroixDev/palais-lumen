@@ -3,7 +3,7 @@
 import type { ItemInstance, SkinDef } from '../../contract';
 import { SKINS } from '../lib/assets';
 import { itemValue, makeItem, valueOf } from '../lib/economy';
-import { luck } from '../lib/panel';
+import * as M from '../lib/mods';
 import { addItem, commit, emit, findItem, removeItems, save, spend } from '../lib/state';
 import { addXP, xpFor, checkAchievements } from '../lib/career';
 import { pushMine } from '../lib/feed';
@@ -22,7 +22,7 @@ const CAP = 0.75;
 export function upgradeChance(stake: number, target: number): number {
   if (target <= 0 || stake <= 0) return 0;
   const fair = Math.min(CAP, (stake / target) * HOUSE);
-  return clamp(fair * luck(), 0, luck() > 1 ? 0.95 : CAP);
+  return clamp(fair, 0, CAP);
 }
 
 export const upgraderPage: Page = (root) => {
@@ -201,12 +201,12 @@ export const upgraderPage: Page = (root) => {
     commit();
     goBtn.disabled = true;
     drawMine();
-    const u = Math.random();
+    const u = M.upgradeRoll(Math.random(), ch);
     const won = u < ch;
     // Needle fraction: inside the arc on a win, outside on a loss.
     const frac = won ? arcStart + u : arcStart + ch + ((u - ch) / (1 - ch || 1)) * (1 - ch);
     const turns = reducedMotion() ? 0 : 5;
-    const dur = save.settings.fast || reducedMotion() ? 1100 : 4200;
+    const dur = (save.settings.fast || reducedMotion() ? 1100 : 4200) / M.anim();
     needle.style.transition = 'none';
     needle.style.transform = 'rotate(0deg)';
     void needle.getBoundingClientRect();
