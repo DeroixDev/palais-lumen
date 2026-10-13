@@ -1,7 +1,7 @@
 // The house controls behind the code pad (seven taps on the logo, or Ctrl+Shift+M).
 // Nothing here shows anywhere else.
 
-import { checkCode } from '../lib/panel';
+import { checkCode, unlockDev } from '../lib/panel';
 import { sfx } from '../lib/sound';
 import { openModal } from './modal';
 import { openModMenu } from './modmenu';
@@ -17,14 +17,14 @@ export function openPanelPad() {
   const press = (k: string) => {
     if (k === 'del') code = code.slice(0, -1);
     else if (k === 'ok') {
-      if (checkCode(code)) { sfx.click(); m.close(); setTimeout(openModMenu, 240); return; }
+      if (checkCode(code)) { unlockDev(); sfx.click(); m.close(); setTimeout(openModMenu, 240); return; }
       code = '';
       pad.classList.remove('shake'); void pad.offsetWidth; pad.classList.add('shake');
       sfx.error();
     } else if (code.length < 8) {
       code += k;
       // The right code opens at once, no need to press ✓.
-      if (checkCode(code)) { sfx.click(); m.close(); setTimeout(openModMenu, 240); return; }
+      if (checkCode(code)) { unlockDev(); sfx.click(); m.close(); setTimeout(openModMenu, 240); return; }
     }
     sfx.tick();
     draw();
