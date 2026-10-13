@@ -135,9 +135,9 @@ export class Reel {
       await sleep(360);
       this.strip.style.transition = '';
     }
-    const tile = this.strip.children[WIN_AT] as HTMLElement;
+    let tile = this.strip.children[WIN_AT] as HTMLElement;
     this.el.classList.remove('suspense');
-    if (o.reveal !== false) this.revealWin();
+    if (o.reveal !== false) tile = this.revealWin();
     this.el.classList.add('done');
     if (gold) this.el.classList.add('gold-win');
     return tile;
