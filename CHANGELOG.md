@@ -2,6 +2,25 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v22: Gemeinsam spielen
+
+*Großes Update · 13.10.2026*
+
+Bis zu vier Leute spielen jetzt zusammen im Palais, jeder an seinem eigenen Gerät.
+
+**Neu**
+
+- An der Rezeption öffnet der Gastgeber eine Gruppe und bekommt einen fünfstelligen Code und einen Link zum Teilen.
+- Freunde treten über den Link oder mit „Beitreten“ auf dem Startbildschirm bei.
+- Alle spielen mit einem gemeinsamen Konto auf dasselbe Tagesziel. Der Spielstand bleibt beim Gastgeber.
+- Ihr seht euch gegenseitig durch die Räume laufen, mit Namen über dem Kopf und einem Schild, wer gerade an welchem Automaten sitzt.
+- Reaktionen und kurze Sprüche erscheinen als Sprechblase bei der Figur, große Gewinne der anderen als Meldung.
+- Der Gastgeber beendet den Tag für alle. Der Tagesabschluss hat die neue Seite „Eure Runde“ mit Runden und Gewinn pro Spieler.
+
+**Behoben**
+
+- Die Ziffern der Geldanzeige rasten wieder genau ein.
+
 ## v21.2: Spiele in Nachtblau
 
 *Patch · 12.10.2026*

@@ -13,8 +13,6 @@ Die Browser verbinden sich direkt miteinander (WebRTC über PeerJS). Ein kleiner
 
 Nur der Gastgeber kann den Tag beenden. Beim **Feierabend** spielen alle ihre laufende Runde zu Ende. Danach sehen alle gemeinsam den Tagesabschluss mit der Seite **„Eure Runde“**: Runden und Gewinn pro Spieler und wer den Abend gerettet hat.
 
-Das Haustablet bleibt beim Gastgeber. Dort gibt es unter dem Glücksregler die Auswahl **„Glück pro Spieler“**: Damit gilt der Regler für alle oder nur für einen bestimmten Gast. Beim Gast selbst ist davon nichts zu sehen.
-
 **„Gruppe schließen“** an der Rezeption beendet die Runde. Die Gäste bekommen einen kurzen Hinweis und landen wieder auf ihrem Startbildschirm.
 
 ## Beitreten (Gast)
