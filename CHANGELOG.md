@@ -2,6 +2,21 @@
 
 Alle Versionen, neueste zuerst. Im Spiel unter „Neuigkeiten“ (Titelbildschirm und Hilfe).
 
+## v23: CS Gambler
+
+*Großes Update · 13.10.2026*
+
+Neben dem Palais gibt es jetzt ein zweites Spiel: CS Gambler, eine Kisten-Plattform mit Karriere.
+
+**Neu**
+
+- Im Startmenü führt ein Link zu CS Gambler, von dort geht es zurück ins Palais.
+- 38 gezeichnete Waffen, Messer und Handschuhe mit 271 eigenen Skins in 21 Kisten.
+- Bis zu fünf Kisten gleichzeitig öffnen, mit eigenem Gold-Moment für Messer und Handschuhe.
+- Jeder Skin lässt sich in 3D drehen und von nahem anschauen, mit Abnutzung und StatTrak.
+- Battles gegen Bots, Upgrader, Verträge, Coinflip und Crash.
+- Karriere mit 50 Stufen, Tageskiste, Tagesbonus, Missionen und Erfolgen.
+
 ## v22: Gemeinsam spielen
 
 *Großes Update · 13.10.2026*
