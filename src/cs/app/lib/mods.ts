@@ -74,7 +74,7 @@ export const version = () => ver;
 
 // ---------- raw access ----------
 
-export const def = (k: string): Val => (k in DEFAULTS ? DEFAULTS[k] : null);
+export const def = (k: string): Val => (k in DEFAULTS ? DEFAULTS[k] : k.startsWith('luck.bot.') ? 0 : null);
 export const get = (k: string): Val => (k in data.v ? data.v[k] : def(k));
 export const num = (k: string): number => { const v = get(k); return typeof v === 'number' && isFinite(v) ? v : Number(def(k) ?? 0); };
 export const opt = (k: string): number | null => { const v = get(k); return typeof v === 'number' && isFinite(v) ? v : null; };
