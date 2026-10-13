@@ -204,13 +204,15 @@ export function renderCaseImpl(cd: CaseDef, width: number, height: number): HTML
   ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y + bh * 0.22 + d * 1.5, bw, Math.max(1, d));
   ctx.restore();
 
-  // corner guards (metal)
+  // corner guards (metal; gold for gold cases)
+  const goldish = cd.category === 'gold';
   const cg = bw * 0.09;
   const corners: [number, number][] = [[x, y], [x + bw - cg, y], [x, y + bh - cg], [x + bw - cg, y + bh - cg]];
   corners.forEach(([cx, cy]) => {
     rr(ctx, cx, cy, cg, cg, rad);
     const mg = ctx.createLinearGradient(cx, cy, cx, cy + cg);
-    mg.addColorStop(0, '#d9dde3'); mg.addColorStop(0.5, '#8a9099'); mg.addColorStop(1, '#4a4f57');
+    if (goldish) { mg.addColorStop(0, '#fff1b8'); mg.addColorStop(0.5, '#d9a43a'); mg.addColorStop(1, '#6e4a10'); }
+    else { mg.addColorStop(0, '#d9dde3'); mg.addColorStop(0.5, '#8a9099'); mg.addColorStop(1, '#4a4f57'); }
     ctx.fillStyle = mg; ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = d * 0.8; ctx.stroke();
     ctx.fillStyle = '#2a2d33';
@@ -243,9 +245,26 @@ export function renderCaseImpl(cd: CaseDef, width: number, height: number): HTML
   em(ctx);
   ctx.restore();
 
-  // outer outline
+  // outer outline (gold/premium get a bright rim)
   rr(ctx, x, y, bw, bh, rad);
   ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = d * 1.2; ctx.stroke();
+  if (cd.category === 'gold' || cd.category === 'premium') {
+    rr(ctx, x + d * 1.5, y + d * 1.5, bw - d * 3, bh - d * 3, rad * 0.8);
+    ctx.strokeStyle = cd.category === 'gold' ? 'rgba(255,214,120,0.75)' : rgb(mix(B, [255, 255, 255], 0.5), 0.55);
+    ctx.lineWidth = d * 1.2; ctx.stroke();
+  }
+  // sparkles for gold / event cases
+  if (cd.category === 'gold' || cd.category === 'event') {
+    const n = cd.category === 'gold' ? 7 : 4;
+    for (let i = 0; i < n; i++) {
+      const sx = x + r() * bw, sy = y - top + r() * (bh + top), L = (3 + r() * 6) * d;
+      const sg2 = ctx.createRadialGradient(sx, sy, 0, sx, sy, L);
+      sg2.addColorStop(0, 'rgba(255,255,255,0.95)'); sg2.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sg2; ctx.beginPath(); ctx.arc(sx, sy, L, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(sx - L, sy - d * 0.4, L * 2, d * 0.8); ctx.fillRect(sx - d * 0.4, sy - L, d * 0.8, L * 2);
+    }
+  }
   return c;
 }
 
