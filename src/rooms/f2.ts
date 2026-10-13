@@ -1,0 +1,95 @@
+import type { RoomDefinition } from '../core/registry';
+
+import { FLOOR_NAMES, GAME_NAMES } from '../core/brand';
+/**
+ * Floor 2: a wide night garden you stroll through from left to right. Flagstone paths lead
+ * from the elevator past a hedged rose court with the wishing fountain, over the wooden bridge
+ * of the moon pond, to a lantern pavilion; the glasshouse opens off the east wall.
+ */
+export const f2: RoomDefinition = {
+  id: 'f2',
+  name: FLOOR_NAMES.f2,
+  tagline: 'Ein Nachtgarten unter dem Mond',
+  floor: 2,
+  elevatorX: 170,
+  sign: FLOOR_NAMES.f2.toLocaleUpperCase('de-DE'),
+  width: 2000,
+  height: 900,
+  theme: {
+    style: 'garden',
+    carpet: 0x1f3a24,
+    carpetPattern: 0x2a4a2e,
+    carpetAccent: 0xd9c6a0,
+    wall: 0x0d1a33,
+    wallTrim: 0xcfd6e0,
+    neon: 0x9fe8ff,
+    light: 0xbfe0ff,
+    accent: 0x2a3a2a,
+    sofa: 0x2a4a5a,
+    bare: true,
+  },
+  spawn: { x: 170, y: 200 },
+  doors: [{ x: 2000, y: 520, side: 'right', to: 'f2b', label: 'Gewächshaus' }],
+  stations: [
+    // Rose court (west).
+    { game: 'slots', x: 290, y: 250, label: 'Mondschein', options: { theme: 'diamond' } },
+    { game: 'slots', x: 370, y: 250, label: 'Mondschein', options: { theme: 'diamond' } },
+    { game: 'slots', x: 450, y: 250, label: 'Mondschein', options: { theme: 'diamond' } },
+    { game: 'roulette', x: 120, y: 560, label: 'Gartentisch', options: { minBet: 20 } },
+    // By the pond (middle).
+    { game: 'crash', x: 640, y: 690, label: 'Mondflug' },
+    { game: 'plinko', x: 1270, y: 260, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 1350, y: 260, label: GAME_NAMES.plinko },
+    // Pavilion (east).
+    { game: 'roulette', x: 1575, y: 470, label: 'Pavillon', options: { minBet: 20 } },
+    { game: 'plinko', x: 1700, y: 760, label: GAME_NAMES.plinko },
+    { game: 'plinko', x: 1780, y: 760, label: GAME_NAMES.plinko },
+  ],
+  decor: [
+    // Paths: elevator → rose court → bridge → pavilion → glasshouse.
+    { kind: 'path', x: 170, y: 300, w: 70, h: 200 },
+    { kind: 'path', x: 560, y: 420, w: 860, h: 64 },
+    { kind: 'path', x: 1000, y: 330, w: 70, h: 130 },
+    { kind: 'path', x: 1000, y: 830, w: 380, h: 56 },
+    { kind: 'path', x: 1330, y: 520, w: 280, h: 64 },
+    { kind: 'path', x: 1880, y: 520, w: 180, h: 64 },
+    { kind: 'pond', x: 1000, y: 580, w: 500, h: 290 },
+    { kind: 'pavilion', x: 1650, y: 510, w: 175 },
+    // Rose court: hedges, the fountain on a mosaic.
+    { kind: 'mosaic', x: 440, y: 600, w: 120 },
+    { kind: 'fountain', x: 440, y: 600, w: 70 },
+    { kind: 'hedge', x: 300, y: 610, w: 30, h: 150 },
+    { kind: 'hedge', x: 580, y: 600, w: 30, h: 130 },
+    { kind: 'hedge', x: 440, y: 840, w: 300, h: 32 },
+    { kind: 'trophyShelf', x: 1000, y: 215, w: 230 },
+    { kind: 'lanternPost', x: 300, y: 470 },
+    { kind: 'lanternPost', x: 700, y: 470 },
+    { kind: 'lanternPost', x: 900, y: 380 },
+    { kind: 'lanternPost', x: 1100, y: 380 },
+    { kind: 'lanternPost', x: 1180, y: 800 },
+    { kind: 'lanternPost', x: 1470, y: 380 },
+    { kind: 'lanternPost', x: 1470, y: 660 },
+    { kind: 'bench', x: 800, y: 790, w: 120 },
+    { kind: 'bench', x: 1240, y: 690, w: 110 },
+    { kind: 'tree', x: 70, y: 830 },
+    { kind: 'tree', x: 1940, y: 840, w: 50 },
+    { kind: 'flowerbed', x: 700, y: 230, w: 120 },
+    { kind: 'flowerbed', x: 1160, y: 220, w: 120 },
+    { kind: 'flowerbed', x: 1960, y: 260, w: 34, h: 120 },
+    { kind: 'flowerbed', x: 1960, y: 720, w: 34, h: 130 },
+    { kind: 'flowerbed', x: 40, y: 400, w: 34, h: 120 },
+    { kind: 'palm', x: 60, y: 200 },
+    { kind: 'palm', x: 1860, y: 200 },
+    { kind: 'statue', x: 1650, y: 230 },
+    { kind: 'moonPool', x: 1500, y: 790, w: 60 },
+    { kind: 'window', x: 330, y: 0, w: 66 },
+    { kind: 'ivy', x: 450, y: 0, w: 200 },
+    { kind: 'window', x: 560, y: 0, w: 66 },
+    { kind: 'window', x: 1440, y: 0, w: 66 },
+    { kind: 'ivy', x: 1550, y: 0, w: 200 },
+    { kind: 'window', x: 1660, y: 0, w: 66 },
+    { kind: 'window', x: 1800, y: 0, w: 60 },
+    { kind: 'ivy', x: 1920, y: 0, w: 140 },
+    { kind: 'ivy', x: 60, y: 0, w: 80 },
+  ],
+};
