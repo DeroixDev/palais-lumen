@@ -145,7 +145,7 @@ export class Quips {
     state.onRound((r) => {
       if (r.stake > 0 && r.win >= r.stake * 20) this.stage();
       this.engine.round(r);
-    });
+    }, 'view');
     state.onDayStart(() => this.engine.day());
     // A tap anywhere sends a game bubble away early; so does the day board opening over the game.
     window.addEventListener('pointerdown', () => this.gameBubble.showing && this.gameBubble.hide());

@@ -586,7 +586,7 @@ export class ChapterPanel extends Panel {
       }
       let p: Chibi;
       if (m.who === 'you') {
-        const host = this.state.data.players.host;
+        const host = this.state.data.players[this.state.selfId];
         p = new Chibi(host?.color ?? COLORS.lamp, { skin: host?.skin, ...this.state.look });
       } else {
         const r = REGULARS.find((x) => x.id === m.who)!;

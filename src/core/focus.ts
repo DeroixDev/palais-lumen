@@ -448,7 +448,7 @@ function announceRounds(state: GameState) {
     const crash = t.includes('bust') ? 'Abgestürzt. ' : '';
     const res = r.win > 0 ? `Gewinn ${formatChips(r.win)} ${CURRENCY_PLURAL}${r.stake > 0 ? `, ${(r.win / r.stake).toLocaleString('de-DE', { maximumFractionDigits: 2 })}-fach` : ''}.` : 'Kein Gewinn.';
     announce(`${name}: ${pocket}${crash}${res} Kontostand ${formatChips(state.balance)} ${CURRENCY_PLURAL}.`);
-  });
+  }, 'view');
 }
 
 /** Wire up once: the ring sits just below `below` (the fade), the mirror right after the canvas. */

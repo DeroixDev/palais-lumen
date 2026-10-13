@@ -93,7 +93,7 @@ export class Bag {
     document.body.appendChild(this.offerEl);
 
     state.onChange(() => this.refresh());
-    state.onRound((r) => this.lastRtp.set(r.game, r.rtp));
+    state.onRound((r) => this.lastRtp.set(r.game, r.rtp), 'view');
     onItemEvent((e) => {
       if (e.type === 'note') host.toast(e.text);
       else if (e.type === 'stones') this.floatStones(e.n, e.why);

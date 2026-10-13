@@ -185,7 +185,7 @@ export class MinibossDirector {
       this.explain();
     });
     host.layer.addChild(this.plate);
-    state.onRound((r) => this.round(r));
+    state.onRound((r) => this.round(r), 'view');
     state.onChange(() => this.check());
     minibossDebug = this;
   }

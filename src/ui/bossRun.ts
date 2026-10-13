@@ -90,7 +90,7 @@ export class BossRun {
     private host: RunHost,
   ) {
     installBossRun(state);
-    state.onRound(() => this.round());
+    state.onRound(() => this.round(), 'view');
     this.bar = new QueenBar(state);
     this.stripText = new Text({ text: '', style: { fontFamily: FONT_DISPLAY, fontSize: 15, fill: 0xfff1c4, letterSpacing: 1, stroke: { color: 0x14060f, width: 4 } } });
     this.stripText.anchor.set(0.5, 0);

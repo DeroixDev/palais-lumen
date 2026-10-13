@@ -243,7 +243,7 @@ export class WardrobePanel extends Panel {
     halo.alpha = 0.22;
     halo.blendMode = 'add';
     this.panel.addChild(halo);
-    const host = this.state.data.players.host;
+    const host = this.state.data.players[this.state.selfId];
     const p = new Chibi(host?.color ?? COLORS.lamp, { ...this.draft, skin: host?.skin });
     const floor = my + mirrorH * (n ? 0.86 : 0.84);
     p.view.scale.set(n ? 1.75 : 2.6);
@@ -355,7 +355,7 @@ export class WardrobePanel extends Panel {
         c.addChild(gl, m);
       }
     } else {
-      const host = this.state.data.players.host;
+      const host = this.state.data.players[this.state.selfId];
       const p = new Chibi(host?.color ?? COLORS.lamp, { ...this.draft, ...o.set, skin: host?.skin });
       p.view.scale.set((floor - 8) / (o.slot === 'hat' ? 104 : 80));
       p.view.position.set(cx, floor + 2);
