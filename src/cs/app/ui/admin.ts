@@ -21,7 +21,11 @@ export function openPanelPad() {
       code = '';
       pad.classList.remove('shake'); void pad.offsetWidth; pad.classList.add('shake');
       sfx.error();
-    } else if (code.length < 8) code += k;
+    } else if (code.length < 8) {
+      code += k;
+      // The right code opens at once, no need to press ✓.
+      if (checkCode(code)) { sfx.click(); m.close(); setTimeout(openModMenu, 240); return; }
+    }
     sfx.tick();
     draw();
   };
