@@ -293,11 +293,20 @@ export const MEDAL_LABEL: Record<Medal, string> = {
 };
 
 type Listener = () => void;
+export type RoundListenerKind = 'data' | 'view';
 
 export class GameState {
   data: SaveData;
   private listeners = new Set<Listener>();
-  private roundListeners = new Set<(r: RoundReport) => void>();
+  private roundListeners = new Map<(r: RoundReport) => void, RoundListenerKind>();
+  /**
+   * Which round listeners `report` runs. 'all' outside a group (and for the host's own rounds);
+   * the host applies a friend's round with 'data' (the friend's screen shows the rest), and a
+   * friend's own client runs 'view' (its money and progress come back from the host).
+   */
+  roundScope: 'all' | RoundListenerKind = 'all';
+  /** Whose game this is: 'host' alone and for the host of a group, the player id on a friend's client. */
+  selfId = 'host';
   private dayStartHooks: ((data: SaveData) => void)[] = [];
   /** Extra factors on today's goal (events, perks, moon level, boss). Multiplied together. */
   quotaFactors: ((data: SaveData) => number)[] = [];
@@ -378,13 +387,17 @@ export class GameState {
     this.emit();
   }
 
+  /** This player's profile (the host's, or a friend's in a group). */
+  get me(): PlayerProfile {
+    return this.data.players[this.selfId] ?? (this.data.players[this.selfId] = { name: this.selfId === 'host' ? 'Du' : 'Gast', color: 0xffcf7a });
+  }
+
   get look(): Outfitting {
-    return { ...DEFAULT_OUTFITTING, ...this.data.players.host?.look };
+    return { ...DEFAULT_OUTFITTING, ...this.data.players[this.selfId]?.look };
   }
 
   setLook(look: Outfitting) {
-    const host = this.data.players.host ?? (this.data.players.host = { name: 'Du', color: 0xffcf7a });
-    host.look = look;
+    this.me.look = look;
     this.count('outfit');
   }
 
@@ -452,12 +465,16 @@ export class GameState {
     this.data.houseExpected += r.stake * Math.max(0, 1 - r.rtp);
     if (r.stake > 0 && r.win >= r.stake * 10 && !r.tags.includes('win10')) r.tags.push('win10');
     if (r.stake > 0 && r.win >= r.stake * 50 && !r.tags.includes('win50')) r.tags.push('win50');
-    for (const l of this.roundListeners) l(r);
+    for (const [l, kind] of this.roundListeners) if (this.roundScope === 'all' || this.roundScope === kind) l(r);
     this.emit();
   }
 
-  onRound(fn: (r: RoundReport) => void) {
-    this.roundListeners.add(fn);
+  /**
+   * Runs after every finished round. 'data' listeners change the save (tasks, stamps, perks,
+   * items); 'view' listeners only show or play something for the player who played the round.
+   */
+  onRound(fn: (r: RoundReport) => void, kind: RoundListenerKind = 'data') {
+    this.roundListeners.set(fn, kind);
     return () => this.roundListeners.delete(fn);
   }
 

@@ -12,6 +12,7 @@ import { stoneDataUrl } from './stone';
 import { installHudArt } from './hudArt';
 import { TABLET_TITLE, openTablet } from './tablet';
 import './fit.css';
+import { actor } from '../net/actor';
 
 import { BOSS_FULL, BOSS_GEN, BOSS_NAME, CURRENCY_PLURAL, DOME, HOUSE } from '../core/brand';
 const ICON: Record<AchievementIcon, string> = { spin: '🎰', medal: '🏅', floor: '🛗', crown: '👑', star: '⭐', coin: '🪙', bag: '💰', heart: '❤️', note: '🎵', fountain: '⛲', moth: '💡', camera: '📷' };
@@ -335,6 +336,8 @@ export class Hud {
    * within 3 s becomes one strip with a counter. Tap to dismiss.
    */
   toast(text: string, cls = '', urgent = false) {
+    // A friend's round in a group: what it causes (a task done, a perk paying) shows on their screen.
+    if (actor.id && actor.toast) return actor.toast(actor.id, text, cls);
     // The house tablet is open: what it changes stays quiet (no toasts now, none queued for later).
     if (this.quiet) return;
     const now = performance.now();

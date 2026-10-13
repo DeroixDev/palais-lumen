@@ -438,6 +438,69 @@
   .season { margin-top: 14px; color: var(--cream-2); font-size: 1.1rem; text-align: center; font-variant-numeric: tabular-nums; }
   #skip-hint { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); left: 50%; transform: translateX(-50%); text-align: center; color: var(--cream-2); font-size: .98rem; pointer-events: none; padding: 8px 16px; border-radius: 4px; background: rgba(6,8,20,.72); box-shadow: inset 0 0 0 1px rgba(224,178,90,.45); white-space: nowrap; }
 
+  /* ---- Playing with friends: group cluster in the HUD, the group strip on the party card, the join card. ---- */
+  .mp-hud { position: relative; display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .mp-hud:not([hidden]) + #btn-back { margin-left: 0; }
+  .mp-hud:not([hidden]) ~ .hud-btns { margin-left: 0; }
+  #hud .mp-dots { display: inline-flex; align-items: center; gap: 5px; min-height: 0; height: 32px; padding: 0 10px; border-radius: 16px; background: rgba(4,6,18,.5); box-shadow: inset 0 0 0 1px rgba(224,178,90,.45), 0 0 0 1.5px var(--shade); }
+  .mp-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: inset 0 2px 2px rgba(255,255,255,.35), inset 0 -2px 2px rgba(0,0,0,.35), 0 0 0 1.5px var(--shade), 0 0 7px color-mix(in srgb, var(--c) 60%, transparent); }
+  .mp-dots i.self { box-shadow: inset 0 2px 2px rgba(255,255,255,.35), inset 0 -2px 2px rgba(0,0,0,.35), 0 0 0 1.5px var(--shade), 0 0 0 3px rgba(255,217,138,.9); }
+  .mp-pal { position: absolute; top: calc(100% + 10px); right: 0; z-index: 4; width: 250px; padding: 12px; box-sizing: border-box; display: grid; gap: 10px; border-radius: 6px; background: var(--panel-grad); box-shadow: var(--frame), 0 0 0 1.5px var(--shade), 0 12px 24px rgba(0,0,0,.6); animation: panelin .2s cubic-bezier(.3,1.25,.55,1) both; }
+  .mp-emos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mp-emos button { min-height: 50px; padding: 0; font: 400 1.6rem/1 "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif; }
+  .mp-lines { display: grid; gap: 6px; }
+  .mp-lines button { min-height: 40px; font-size: 1rem; text-align: left; justify-content: flex-start; padding: 0 12px; }
+  .mp-group { display: grid; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 6px; background: var(--well); box-shadow: inset 0 2px 6px rgba(0,0,0,.5), inset 0 0 0 1px rgba(224,178,90,.3); }
+  .mp-group p { margin: 0; font-size: 1.05rem; line-height: 1.35; color: var(--cream-2); }
+  .mp-group p strong { color: var(--lamp); }
+  .mp-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+  .mp-row p { flex: 1 1 18em; }
+  .mp-group > .mp-leave, .mp-row > button { justify-self: start; }
+  .mp-code { display: flex; align-items: baseline; justify-content: center; gap: 14px; padding: 4px 0 2px; }
+  .mp-code small { font: 600 .8rem/1 var(--body); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .mp-code strong { font: 700 2.3rem/1 var(--display); letter-spacing: .32em; margin-right: -.32em; color: var(--lamp); text-shadow: 0 2px 0 #2a1404, 0 0 18px rgba(255,207,122,.45); font-variant-numeric: lining-nums; user-select: all; -webkit-user-select: all; }
+  .mp-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .mp-btns button { min-height: 44px; font-size: 1rem; }
+  .mp-btns .mp-close { color: #ffc4cf; }
+  .mp-group p.mp-note { font-size: .98rem; color: var(--muted); text-align: center; }
+  .mp-status { margin: 0; min-height: 1.3em; font-size: 1.02rem; line-height: 1.35; color: var(--cream-2); }
+  .mp-status.err { color: #ffb4c2; }
+  .mp-join .mp-status:empty { min-height: 0; margin-top: -12px; }
+  .mp-adv { font-size: .95rem; color: var(--muted); }
+  .mp-adv summary { cursor: pointer; min-height: 36px; display: flex; align-items: center; color: var(--muted); letter-spacing: .04em; }
+  .mp-adv summary { list-style: none; gap: 8px; }
+  .mp-adv summary::-webkit-details-marker { display: none; }
+  .mp-adv summary::before { content: ''; width: 0; height: 0; border: 5px solid transparent; border-left: 7px solid var(--brass); border-right: 0; transition: transform .15s; }
+  .mp-adv[open] summary::before { transform: rotate(90deg); }
+  .mp-adv input { width: 100%; min-height: 42px; box-sizing: border-box; margin: 2px 0 6px; padding: 0 10px; font: 600 1rem var(--body); color: var(--cream); background: rgba(4,6,18,.6); border: 0; border-radius: 4px; box-shadow: inset 0 2px 4px rgba(0,0,0,.6), inset 0 0 0 1px rgba(224,178,90,.4); }
+  .mp-adv small { display: block; line-height: 1.3; }
+  .mp-join { display: grid; gap: 12px; }
+  .mp-join > p:first-child { margin: 0; }
+  .mp-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .mp-fields label { display: grid; gap: 6px; font: 600 .82rem/1 var(--body); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .mp-fields input { min-height: 52px; box-sizing: border-box; width: 100%; padding: 0 12px; border: 0; border-radius: 3px; font: 700 1.2rem var(--body); color: #2a1406; background: var(--brass-grad); box-shadow: 0 0 0 2px var(--shade), inset 0 1px 0 rgba(255,248,220,.7); }
+  .mp-fields input::placeholder { color: rgba(42,20,6,.55); }
+  .mp-fields input:focus-visible { outline: 3px solid var(--lamp); outline-offset: 3px; }
+  .mp-fields .mp-code-in { font: 700 1.6rem var(--display); letter-spacing: .3em; text-transform: uppercase; text-align: center; }
+  .mp-join.busy .mp-status { animation: mpwait 1.2s ease-in-out infinite; }
+  @keyframes mpwait { 50% { opacity: .55; } }
+  .seat.friend canvas { width: 120px; height: 150px; }
+  .seat.friend strong { font-size: 1.15rem; color: var(--cream); overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
+  .tab-locked .tab-why { margin: 0; max-width: 18em; text-align: center; color: #aebbdc; font-size: 1.05rem; line-height: 1.35; }
+  /* A friend in a group: the host settles the day and keeps the saves, the bag of items stays with the host. */
+  body.mp-guest #btn-end, body.mp-guest #btn-save, body.mp-guest #btn-bag { display: none !important; }
+  @media (max-width: 1100px) {
+    .mp-hud { margin-left: auto; }
+    #hud .mp-dots { height: 30px; padding: 0 8px; }
+    .mp-hud:not([hidden]) ~ #hud-more { margin-left: 0 !important; }
+    .mp-key .lbl { display: none; }
+    .seat.friend canvas { width: 96px; height: 120px; }
+  }
+  @media (max-width: 520px) {
+    .mp-fields { grid-template-columns: 1fr; }
+    .mp-code strong { font-size: 1.9rem; }
+  }
+
   /* ---- Phones: two slim rows, the rarely used keys live in a drop-down. ---- */
   @media (max-width: 1100px) {
     #hud { flex-wrap: wrap; gap: 6px 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 6px); padding-bottom: 6px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
@@ -562,19 +625,17 @@
   </div>
   <div class="card lobby" id="menu-lobby" hidden>
     <h2 id="lobby-title">Lobby</h2>
-    <div class="seats">
+    <div class="seats" id="lobby-seats">
       <div class="seat you">
         <canvas id="lobby-avatar" width="120" height="150" aria-hidden="true"></canvas>
         <label class="sr" for="lobby-name">Dein Name</label>
         <input id="lobby-name" maxlength="14" autocomplete="off" spellcheck="false">
         <div class="swatches" id="sw-color" aria-label="Farbe"></div>
         <div class="swatches" id="sw-skin" aria-label="Hautton"></div>
-        <span class="tag">Gastgeber</span>
+        <span class="tag" id="lobby-you-tag">Gastgeber</span>
       </div>
-      <div class="seat empty"><div class="ghost">+</div><strong>Freier Platz</strong><small>Mit Freunden spielen kommt mit der Online-Version.</small></div>
-      <div class="seat empty"><div class="ghost">+</div><strong>Freier Platz</strong><small>&nbsp;</small></div>
-      <div class="seat empty"><div class="ghost">+</div><strong>Freier Platz</strong><small>&nbsp;</small></div>
     </div>
+    <div id="lobby-group"></div>
     <div class="season" id="lobby-info"></div>
     <div class="actions"><button id="lobby-back">Zurück</button><button id="lobby-go" class="primary">Losfahren</button></div>
   </div>

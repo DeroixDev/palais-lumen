@@ -1,7 +1,10 @@
 // Start menu (HTML over the street scene) and the group card at the foyer reception, where
 // players gather: for now it has your seat, the other three are kept for coop.
 
-import { formatChips, type GameState, type SaveData } from '../core/state';
+import { formatChips, type GameState, type PlayerProfile, type SaveData } from '../core/state';
+import { DEFAULT_OUTFITTING } from '../core/items';
+import { net } from '../net/session';
+import { renderGroupStrip, type GroupStripHost } from './party';
 import { dailyLine, showDailyBoard, type DailyStart } from './dailyBoard';
 import { sfx } from '../core/audio';
 import { dark, ellipse, fillInk, glowAt, light, rgb, rim, rrect, shadow, vgrad } from '../world/painted/brush';
@@ -10,8 +13,8 @@ import { markButton } from './devlog';
 import { CURRENCY_PLURAL } from '../core/brand';
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-export const PLAYER_COLORS = [0xffcf7a, 0xff5fa2, 0x5fe3ff, 0x7bd47b, 0xc9a0ff, 0xffa94a];
-export const SKINS = [0xf1c9a5, 0xe8b48a, 0xc68a5e, 0x8d5a3b, 0x6b4127];
+import { PLAYER_COLORS, SKINS } from '../core/items';
+export { PLAYER_COLORS, SKINS };
 
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 
@@ -24,6 +27,10 @@ export interface LobbyActions {
   daily(kind: DailyStart): void;
   /** The update log (src/ui/devlog.ts). */
   news(): void;
+  /** "Mit Freunden": join a group by code (src/ui/party.ts). */
+  join(code?: string): void;
+  /** Opening, sharing and closing a group from the party card. */
+  group: Omit<GroupStripHost, 'rerender'>;
 }
 
 export class Lobby {
@@ -61,6 +68,16 @@ export class Lobby {
       sfx.click();
       this.actions.news();
     });
+    // "Mit Freunden": join a friend's group with a code.
+    const friends = document.createElement('button');
+    friends.id = 'm-join';
+    friends.textContent = 'Mit Freunden';
+    news.after(friends);
+    friends.addEventListener('click', () => {
+      sfx.unlock();
+      sfx.click();
+      this.actions.join();
+    });
     // "Neues Spiel" next to "Spielstände" while a game is running.
     const fresh = document.createElement('button');
     fresh.id = 'm-new';
@@ -88,7 +105,7 @@ export class Lobby {
     });
     const name = $<HTMLInputElement>('#lobby-name');
     name.addEventListener('input', () => {
-      this.host.name = name.value.trim() || 'Du';
+      this.host.name = name.value.trim() || (net.isGuest ? 'Gast' : 'Du');
     });
     this.buildSwatches('#sw-color', PLAYER_COLORS, () => this.host.color, (c) => (this.host.color = c));
     this.buildSwatches('#sw-skin', SKINS, () => this.host.skin ?? SKINS[1], (c) => (this.host.skin = c));
@@ -121,10 +138,28 @@ export class Lobby {
     return this.onPartyDone !== null;
   }
 
+  /** Closes the party card as if "Fertig" was pressed. */
+  closeParty() {
+    if (!this.partyOpen) return;
+    const done = this.onPartyDone;
+    this.onPartyDone = null;
+    this.hideParty();
+    done?.();
+  }
+
+  /** The join card, e.g. from a join link. */
+  openJoin(code: string) {
+    this.actions.join(code);
+  }
+
+  /** This player's own seat (the host's alone; a friend's own in a group). */
   private get host() {
-    const p = this.state.data.players;
-    if (!p.host) p.host = { name: 'Du', color: PLAYER_COLORS[0] };
-    return p.host;
+    return this.state.me;
+  }
+
+  /** Redraws the party card while it is open (someone joined or left, a group opened). */
+  refreshParty() {
+    if (this.partyOpen) this.refresh();
   }
 
   private buildSwatches(sel: string, colors: number[], get: () => number, set: (c: number) => void) {
@@ -174,7 +209,7 @@ export class Lobby {
   showLobby() {
     $('#menu-main').hidden = true;
     $('#menu-lobby').hidden = false;
-    $<HTMLInputElement>('#lobby-name').value = this.host.name === 'Du' ? '' : this.host.name;
+    $<HTMLInputElement>('#lobby-name').value = this.host.name === 'Du' || this.host.name === 'Gast' ? '' : this.host.name;
     $<HTMLInputElement>('#lobby-name').placeholder = 'Dein Name';
     this.refresh();
     $('#lobby-go').focus();
@@ -187,28 +222,58 @@ export class Lobby {
       const colors = (box.dataset.colors ?? '').split(',').map(Number);
       [...box.children].forEach((b, i) => b.setAttribute('aria-pressed', String(colors[i] === value)));
     }
-    this.drawAvatar();
+    this.drawAvatar($<HTMLCanvasElement>('#lobby-avatar'), this.host, 120, 150);
+    this.renderSeats();
+    renderGroupStrip($('#lobby-group'), { ...this.actions.group, rerender: () => this.refresh() });
     const d = this.state.data;
     const rec = d.records.bestEvening > 0 ? ` · Rekord: ${d.records.bestEvening} ${d.records.bestEvening === 1 ? 'Tag' : 'Tage'}` : '';
     $('#lobby-info').textContent = `Saison ${d.season.number} · Tag ${d.evening.number} · Ziel heute ${formatChips(d.evening.startBalance + d.evening.quota)} ${CURRENCY_PLURAL} (+${formatChips(d.evening.quota)})${rec}`;
   }
 
-  /** The host as a little painted figure in a spotlight: ink outlines, light from the upper left. */
-  private drawAvatar() {
-    const cv = $<HTMLCanvasElement>('#lobby-avatar');
+  /** The other three seats: friends at the table in a group, else free places. */
+  private renderSeats() {
+    const box = $('#lobby-seats');
+    box.querySelectorAll('.seat:not(.you)').forEach((x) => x.remove());
+    $('#lobby-you-tag').textContent = net.isGuest ? 'Gast' : 'Gastgeber';
+    const others = net.roster().filter((r) => !r.self);
+    for (let i = 0; i < 3; i++) {
+      const o = others[i];
+      const seat = document.createElement('div');
+      if (o) {
+        seat.className = 'seat friend';
+        const cv = document.createElement('canvas');
+        cv.setAttribute('aria-hidden', 'true');
+        this.drawAvatar(cv, o.profile, 120, 150);
+        const name = document.createElement('strong');
+        name.textContent = o.name;
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = o.host ? 'Gastgeber' : 'Gast';
+        seat.append(cv, name, tag);
+      } else {
+        seat.className = 'seat empty';
+        const note = net.isHost ? (i === others.length ? 'Wartet auf deinen Code.' : '\u00a0') : net.isGuest ? '\u00a0' : i === 0 ? 'Öffne unten eine Gruppe, dann kommen Freunde dazu.' : '\u00a0';
+        seat.innerHTML = '<div class="ghost">+</div><strong>Freier Platz</strong><small></small>';
+        seat.querySelector('small')!.textContent = note;
+      }
+      box.appendChild(seat);
+    }
+  }
+
+  /** A player as a little painted figure in a spotlight: ink outlines, light from the upper left. */
+  private drawAvatar(cv: HTMLCanvasElement, h: PlayerProfile, cw: number, ch: number) {
     const res = 2;
-    if (cv.width !== 120 * res) {
-      cv.width = 120 * res;
-      cv.height = 150 * res;
-      cv.style.width = '120px';
-      cv.style.height = '150px';
+    if (cv.width !== cw * res) {
+      cv.width = cw * res;
+      cv.height = ch * res;
+      cv.style.width = `${cw}px`;
+      cv.style.height = `${ch}px`;
     }
     const c = cv.getContext('2d')!;
     c.setTransform(res, 0, 0, res, 0, 0);
     c.lineJoin = 'round';
     c.lineCap = 'round';
-    const h = this.host;
-    const look = this.state.look;
+    const look = { ...DEFAULT_OUTFITTING, ...h.look };
     const skin = h.skin ?? SKINS[1];
     c.clearRect(0, 0, 120, 150);
     // Spotlight and contact shadow.

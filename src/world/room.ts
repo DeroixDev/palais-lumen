@@ -696,7 +696,7 @@ export class RoomScene {
   }
 
   private makePlayer() {
-    const host = this.state.data.players.host;
+    const host = this.state.data.players[this.state.selfId];
     const look = this.state.look;
     const opts = { skin: host?.skin, ...look };
     return this.painted ? new Chibi(host?.color ?? COLORS.lamp, opts) : new Player(host?.color ?? COLORS.lamp, opts);
@@ -1463,6 +1463,16 @@ export class RoomScene {
     const free = this.screenH - top - (this.def.corridor ? CORRIDOR_BOTTOM : 0);
     const cy = H <= free ? top + (free - H) / 2 : Math.min(top, Math.max(this.screenH - H, top + free / 2 - py));
     this.world.position.set(cx, cy);
+  }
+
+  /** Other players' figures in a group stand among the people (src/world/remotes.ts) … */
+  get figureLayer() {
+    return this.entities;
+  }
+
+  /** … and their name tags and bubbles float above everything. */
+  get labelLayer() {
+    return this.fxLayer;
   }
 
   /** Screen position of a world point (used to zoom into a machine). */

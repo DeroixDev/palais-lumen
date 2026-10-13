@@ -58,7 +58,7 @@ export const haptics = {
       if (r.stake <= 0) return;
       if (r.win >= r.stake * 50) haptics.win50();
       else if (r.win >= r.stake * 10) haptics.win10();
-    });
+    }, 'view');
     let goal = state.goalReached;
     let phase = state.data.bossPhase;
     let day = state.data.evening.number;

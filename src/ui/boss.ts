@@ -67,7 +67,7 @@ export class BossDirector {
     this.dim.alpha = 0;
     this.dim.eventMode = 'none';
     state.onChange(() => this.check());
-    state.onRound((r) => this.round(r));
+    state.onRound((r) => this.round(r), 'view');
   }
 
   /** Called every frame: keeps the queen on a freshly built boss floor in her phase, and the HUD in sync. */

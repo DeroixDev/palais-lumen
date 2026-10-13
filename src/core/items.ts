@@ -142,3 +142,7 @@ export const COMPANION_COLOR: Record<Exclude<Companion, 'none'>, number> = {
 export function wardrobeOption(id: string) {
   return WARDROBE.find((o) => o.id === id);
 }
+
+/** Accent colours a player can pick at the reception (one per player in a group). */
+export const PLAYER_COLORS = [0xffcf7a, 0xff5fa2, 0x5fe3ff, 0x7bd47b, 0xc9a0ff, 0xffa94a];
+export const SKINS = [0xf1c9a5, 0xe8b48a, 0xc68a5e, 0x8d5a3b, 0x6b4127];

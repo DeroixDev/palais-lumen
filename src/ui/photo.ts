@@ -481,7 +481,7 @@ export class PhotoMode {
     if (p === 'none') return;
     this.poseBase = { y: pv.y, rot: pv.rotation };
     this.room.player.faceTowards(Math.PI / 2);
-    const skin = this.host.state.data.players.host?.skin ?? 0xe8b48a;
+    const skin = this.host.state.data.players[this.host.state.selfId]?.skin ?? 0xe8b48a;
     if (p === 'wave' || p === 'cheer') {
       const tex = armTexture(skin, this.host.state.look.jacket ?? 0x2a1630);
       for (const side of p === 'wave' ? [1] : [-1, 1]) {

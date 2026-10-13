@@ -253,7 +253,7 @@ export class ShopPanel extends Panel {
         halo.y = m.y;
       });
     } else {
-      const host = this.state.data.players.host;
+      const host = this.state.data.players[this.state.selfId];
       const p = new Chibi(host?.color ?? COLORS.lamp, { ...this.state.look, ...it.set, skin: host?.skin });
       const sc = (floorY - 14) / (it.slot === 'hat' ? 100 : 82);
       p.view.scale.set(sc);

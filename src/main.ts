@@ -41,6 +41,14 @@ import { AlbumFeature } from './ui/album';
 import { installStory } from './core/story';
 import { showChapterIfDue } from './ui/chapter';
 import { installDebugLuck } from './core/debugLuck';
+import { net } from './net/session';
+import { asLocal } from './net/actor';
+import { LINES, type Pose } from './net/protocol';
+import type { TeamLine } from './net/protocol';
+import type { EveningResult } from './core/state';
+import { ACHIEVEMENTS } from './core/achievements';
+import { Remotes } from './world/remotes';
+import { MpHud, showJoinCard } from './ui/party';
 
 import { CURRENCY, CURRENCY_PLURAL, HOUSE, HOUSE_TAGLINE } from './core/brand';
 type Mode = 'title' | 'room' | 'game' | 'overlay' | 'transition';
@@ -129,6 +137,10 @@ async function boot() {
   // House-tablet cheats (Gewinnchance, stake/goal factors, speed); neutral unless set on the tablet.
   installDebugLuck(state);
   let mode: Mode = 'title';
+  /** Other players of a group in the current room (src/world/remotes.ts). */
+  const remotes = new Remotes(state, () => net.online());
+  /** The game this player sits at (told to the others in a group). */
+  let playingGame: string | null = null;
   let room!: RoomScene;
   let game: GameInstance | null = null;
   let overlay: Overlay | null = null;
@@ -140,6 +152,8 @@ async function boot() {
 
   let saveTimer = 0;
   const autosave = () => {
+    // A friend's game in a group plays on the host's save: nothing is written here.
+    if (net.isGuest || net.wasGuest) return;
     room?.savePosition();
     // The daily challenge saves under its own key, never over the normal run.
     writeSlot(state.data.dailySeed ? 'daily' : 'auto', state.data);
@@ -147,7 +161,8 @@ async function boot() {
   // Boss day: every Lumen won is a hit on the Selene.
   let bossProfit = 0;
   let goalShown = state.goalReached;
-  state.onChange(() => {
+  // Runs as this screen's own player, even while the host applies a friend's round (src/net/actor.ts).
+  state.onChange(() => asLocal(() => {
     const p = state.eveningProfit;
     if (state.data.evening.number >= BOSS_DAY && room?.def.floor === 5 && p > bossProfit) room.bossHit();
     bossProfit = p;
@@ -161,14 +176,15 @@ async function boot() {
     clearTimeout(saveTimer);
     saveTimer = window.setTimeout(autosave, 1200);
     checkRescue();
-    if (mode !== 'title') {
+    // In a group the host unlocks achievements; friends hear about them with the next state.
+    if (mode !== 'title' && !net.isGuest) {
       for (const a of state.checkAchievements()) {
         hud.achievementToast(a);
         sfx.medal();
         room?.refreshAchievements();
       }
     }
-  });
+  }));
   window.addEventListener('beforeunload', autosave);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && autosave());
 
@@ -178,7 +194,17 @@ async function boot() {
    * Out of Lumen: the day can only be settled, and that ends the season. Checked again
    * when the timer fires, and only once no round is running, so an all-in can still win.
    */
+  let brokeTold = false;
   function checkRescue() {
+    if (net.isGuest) {
+      // The host settles an empty account; friends only hear about it.
+      if (state.balance >= 10) brokeTold = false;
+      else if (!brokeTold && mode !== 'title') {
+        brokeTold = true;
+        hud.toast(`Das gemeinsame Konto ist leer. Der Gastgeber rechnet den Tag ab.`);
+      }
+      return;
+    }
     if (brokeOpen || brokeTimer || state.balance >= 10) return;
     brokeTimer = window.setTimeout(brokeCheck, 900);
   }
@@ -235,6 +261,7 @@ async function boot() {
   // ---- Rooms ------------------------------------------------------------
 
   function enterRoom(id: string) {
+    remotes.detach();
     room?.destroy();
     const def = getRoom(id);
     state.data.roomId = def.id;
@@ -244,6 +271,7 @@ async function boot() {
     room.topInset = TOP || 64;
     roomLayer.addChild(room.view);
     room.resize(app.screen.width, app.screen.height);
+    remotes.attach(room);
   }
   if (import.meta.env.DEV) (window as unknown as { __nfRoom: unknown }).__nfRoom = { enterRoom: (id: string) => (enterRoom(id), layout()), room: () => room };
 
@@ -354,8 +382,11 @@ async function boot() {
       if (state.balance < 11) return hud.toast(`Für einen Wunsch brauchst du ein paar ${CURRENCY_PLURAL} mehr.`);
       if (!room.use(i, false)) return;
       // The wish costs a Lumen, but it doesn't count against today's goal.
-      state.data.balance -= 1;
-      state.data.evening.startBalance -= 1;
+      if (net.isGuest) net.wish();
+      else {
+        state.data.balance -= 1;
+        state.data.evening.startBalance -= 1;
+      }
       void room.tossCoin(i.cx + (Math.random() - 0.5) * 30, i.cy + (Math.random() - 0.5) * 20).then(() => {
         i.poke?.();
         sfx.wish();
@@ -381,6 +412,7 @@ async function boot() {
             closeOverlay();
             if (!changed) return;
             room.refreshLook();
+            remotes.sync();
             const p = room.toScreen(room.player.view.x, room.player.view.y - 20);
             particles.sparkle(p.x, p.y, 30, 0xff9ac0, 200);
             hud.toast('Neuer Look!');
@@ -392,14 +424,7 @@ async function boot() {
         break;
       case 'reception':
         sfx.deskBell();
-        mode = 'overlay';
-        room.frozen = true;
-        lobby.showParty(() => {
-          mode = 'room';
-          room.frozen = false;
-          room.refreshLook();
-          autosave();
-        });
+        openPartyCard();
         break;
       case 'piano':
         showOverlay(
@@ -470,6 +495,7 @@ async function boot() {
 
   async function openGame(st: StationPlacement) {
     mode = 'transition';
+    playingGame = st.game;
     room.frozen = true;
     room.savePosition();
     const def = getGame(st.game);
@@ -528,6 +554,7 @@ async function boot() {
       return;
     }
     mode = 'transition';
+    playingGame = null;
     hud.setInGame(false);
     bag.setGame(null);
     feel.gameOpened(null);
@@ -647,6 +674,8 @@ async function boot() {
   }
 
   async function endEvening() {
+    // A friend's game never settles the day itself: the host does, for everybody.
+    if (net.isGuest) return net.askEndDay();
     if (mode === 'game') {
       if (game?.busy()) {
         hud.toast('Warte kurz, die Runde läuft noch.');
@@ -655,9 +684,20 @@ async function boot() {
       await closeGame();
     }
     if (mode !== 'room') return;
+    if (net.isHost && net.online().length > 1) {
+      // Everybody finishes their round first, then the whole group goes to the recap.
+      mode = 'transition';
+      room.frozen = true;
+      hud.toast('Feierabend! Alle spielen noch ihre Runde zu Ende …');
+      await net.prepareDayEnd(state.data.evening.number);
+      mode = 'room';
+      if (game || overlay) return void (room.frozen = false);
+    }
+    const team = net.team();
     const result = state.endEvening();
     season.dayEnded(result);
     autosave();
+    net.sendRecap(result, team);
     showOverlay(
       new Recap(result, sfx, particles, () => {
         closeOverlay();
@@ -670,7 +710,7 @@ async function boot() {
         else if (result.seasonWon && showChapterIfDue(state, showOverlay, () => { closeOverlay(); void arrival('clear'); })) return;
         else if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
         else season.afterRecap(() => void toFoyer(result.newFloor, result.bonus));
-      }),
+      }, team),
     );
   }
 
@@ -736,13 +776,18 @@ async function boot() {
 
   const hud = new Hud(state, {
     save: (slot) => {
+      if (net.isGuest || net.wasGuest) return;
       room.savePosition();
       writeSlot(slot, state.data);
     },
-    load: loadSave,
+    load: (data) => {
+      if (net.on) return hud.toast('Solange eine Gruppe offen ist, bleibt dieser Spielstand geladen. Schließ zuerst die Gruppe am Empfang.');
+      loadSave(data);
+    },
     endEvening: () => void endEvening(),
     leaveGame: () => void closeGame(),
     newGame: () => {
+      if (net.on) return hud.toast('Solange eine Gruppe offen ist, geht kein neues Spiel. Schließ zuerst die Gruppe am Empfang.');
       loadSave(newSave());
       state.beginDay();
       if (mode !== 'title') hud.toast('Neues Spiel gestartet. Viel Glück!');
@@ -853,6 +898,7 @@ async function boot() {
     // Test hooks for automated browser checks (not in the production build).
     (window as any).__nf = {
       state,
+      net,
       openStation: (roomIdx: number) => openGame(room.def.stations[roomIdx]),
       // Opens any registered game directly (for testing new games without the rotation).
       openGame: (id: string, options: Record<string, unknown> = {}) => openGame({ game: id, x: 0, y: 0, label: getGame(id).name, options }),
@@ -913,6 +959,10 @@ async function boot() {
     feel.update(dt);
     season.update();
     mini.update(t.deltaMS);
+    if (net.on) {
+      sendPose(t.deltaMS);
+      remotes.update(t.deltaMS);
+    }
   });
 
   // ---- Start screen, lobby and arrival -----------------------------------
@@ -949,7 +999,7 @@ async function boot() {
     const titleEl = document.getElementById('title')!;
     titleEl.addEventListener('pointerdown', skip);
     window.addEventListener('keydown', skip);
-    const host = state.data.players.host;
+    const host = state.data.players[state.selfId];
     await st.arrive({ ...state.look, color: host?.color ?? COLORS.lamp, skin: host?.skin });
     titleEl.removeEventListener('pointerdown', skip);
     window.removeEventListener('keydown', skip);
@@ -971,9 +1021,11 @@ async function boot() {
     await room.enterThroughDoor();
     showFloorTitle();
     autosave();
-    setTimeout(() => season.resume(), 1400);
+    // A friend in a group: the host picks perks and the moon level.
+    if (!net.isGuest) setTimeout(() => season.resume(), 1400);
     dayCardFor = -1;
-    setTimeout(() => hud.toast(`Willkommen im Foyer! Tag ${state.data.evening.number} wartet auf Etage ${state.topFloor}. Der Aufzug ist hinten rechts.`), 1600);
+    const welcome = net.isGuest ? `Willkommen im Palais von ${net.nameOf('host')}! Ihr spielt auf ein gemeinsames Konto. Tag ${state.data.evening.number} wartet auf Etage ${state.topFloor}.` : `Willkommen im Foyer! Tag ${state.data.evening.number} wartet auf Etage ${state.topFloor}. Der Aufzug ist hinten rechts.`;
+    setTimeout(() => hud.toast(welcome), 1600);
     if (state.data.stats.rounds === 0 && state.data.season.number === 1) setTimeout(() => mode === 'room' && !hud.modalOpen && hud.help(), 3600);
   }
 
@@ -1021,17 +1073,259 @@ async function boot() {
     void arrival();
   }
 
+  // ---- Playing with friends (src/net/*, src/world/remotes.ts, src/ui/party.ts) ----------------
+
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  let poseAcc = 0;
+  let poseIdle = 0;
+  let lastPose = '';
+  /** Where this player stands, ~12 times a second (and once a second while nothing changes). */
+  function sendPose(dtMs: number) {
+    poseAcc += dtMs;
+    if (poseAcc < 80) return;
+    poseAcc = 0;
+    if (!room || mode === 'title' || !roomLayer.visible) return;
+    const pv = room.player.view;
+    const p: Pose = { r: room.def.id, x: Math.round(pv.x), y: Math.round(pv.y), a: Math.round(pv.alpha * 100) / 100, at: playingGame };
+    const key = JSON.stringify(p);
+    if (key === lastPose && ++poseIdle < 12) return;
+    poseIdle = 0;
+    lastPose = key;
+    net.sendPose(p);
+  }
+
+  /** The party card of the reception (also from the dots in the HUD while in a group). */
+  function openPartyCard() {
+    if (mode !== 'room' || lobby.partyOpen) return;
+    mode = 'overlay';
+    room.frozen = true;
+    lobby.showParty(() => {
+      mode = 'room';
+      room.frozen = false;
+      room.refreshLook();
+      remotes.sync();
+      // A changed name or colour goes to the others with the next state.
+      state.emit();
+      autosave();
+    });
+  }
+
+  const gameName = (id: string) => {
+    try {
+      return getGame(id).name;
+    } catch {
+      return id;
+    }
+  };
+
+  /** A reaction: a bubble over the figure, or a toast where the figure can't be seen. */
+  function showEmote(id: string, e: string) {
+    const line = (LINES as readonly string[]).includes(e);
+    const self = id === state.selfId;
+    if ((mode === 'room' || mode === 'transition') && remotes.visible(id)) {
+      remotes.emote(id, e, line);
+      if (!self) sfx.tick();
+    } else if (!self) hud.toast(line ? `${net.nameOf(id)}: „${e}“` : `${net.nameOf(id)}: ${e}`);
+  }
+
+  function groupChanged() {
+    remotes.active = net.on;
+    if (!net.on) remotes.clear();
+    remotes.sync();
+    mpHud.render();
+    lobby.refreshParty();
+  }
+
+  /** A friend: out of the game and any panel, standing in the room (before the recap). */
+  async function guestToRoom() {
+    for (let i = 0; i < 60 && mode === 'transition'; i++) await sleep(100);
+    if (mode === 'game' && game) {
+      for (let i = 0; i < 150 && game?.busy(); i++) await sleep(100);
+      if (game && !game.busy()) await closeGame();
+      else if (game) {
+        // A round that never ends (should not happen): close it the hard way.
+        game.destroy();
+        game = null;
+        playingGame = null;
+        hud.setInGame(false);
+        bag.setGame(null);
+        backdrop.alpha = 0;
+        room.resize(app.screen.width, app.screen.height);
+        mode = 'room';
+      }
+    }
+    for (let i = 0; i < 60 && mode === 'transition'; i++) await sleep(100);
+    if (lobby.partyOpen) lobby.closeParty();
+    if (hud.modalOpen) hud.closeModal();
+    if (mode === 'overlay' && overlay) closeOverlay();
+  }
+
+  /** A friend: the host settled the day; everybody sees the same recap, then the foyer. */
+  async function guestRecap(result: EveningResult, team: TeamLine[]) {
+    await guestToRoom();
+    if (!net.isGuest || !room) return;
+    showOverlay(
+      new Recap(result, sfx, particles, () => {
+        closeOverlay();
+        room.refreshShelf();
+        if (result.seasonWon || (!result.passed && !result.rescued)) void arrival(result.seasonWon ? 'clear' : 'rain');
+        else void toFoyer(result.newFloor, result.bonus);
+      }, team),
+    );
+  }
+
+  /** The group is over for this friend: a calm note, then back to their own start screen. */
+  function groupOver(text: string) {
+    hud.modal('Die Runde ist vorbei', text, [{ label: 'Zum Startbildschirm', primary: true, onClick: () => backToTitle() }]);
+  }
+
+  /** Reloads without ?join, so the friend's own save comes back on the start screen. */
+  function backToTitle(note = '') {
+    try {
+      if (note) sessionStorage.setItem('nachtfalter.mp.note', note);
+    } catch {
+      /* no note then */
+    }
+    const u = new URL(location.href);
+    u.searchParams.delete('join');
+    void tween(fade, { alpha: 1 }, 300).then(() => location.replace(u.toString()));
+  }
+
+  /** "Mit Freunden" on the start screen: joins a group, then walks into the host's foyer. */
+  async function joinGroup(code: string, name: string) {
+    const own = { ...state.me, look: state.look };
+    if (name) own.name = name;
+    // Keep this browser's own run safe first (on the title nothing has changed since loading).
+    if (mode !== 'title') autosave();
+    await net.join(state, code, own);
+    groupChanged();
+    sfx.unlock();
+    dayCardFor = -1;
+    void arrival();
+  }
+
+  const mpHud = new MpHud({
+    openGroup: () => (mode === 'room' ? openPartyCard() : hud.toast('Die Gruppe siehst du, sobald du wieder im Raum stehst.')),
+    emote: (e) => {
+      showEmote(state.selfId, e);
+      net.sendEmote(e);
+    },
+  });
+
+  net.hooks = {
+    roster: groupChanged,
+    joined: (id) => {
+      if (id === state.selfId) return;
+      hud.toast(`${net.nameOf(id)} ist da.`);
+      sfx.deskBell();
+    },
+    left: (id) => {
+      remotes.forget(id);
+      hud.toast(`${net.nameOf(id)} hat die Gruppe verlassen.`);
+    },
+    pose: (id, p) => remotes.pose(id, p),
+    emote: (id, e) => showEmote(id, e),
+    feed: (id, g, win, mult) => hud.toast(`🎉 Großer Gewinn für ${net.nameOf(id)}: +${formatChips(win)} ${CURRENCY_PLURAL} (${Math.round(mult)}×, ${gameName(g)})`),
+    toast: (text, cls) => hud.toast(text, cls ?? ''),
+    denied: () => hud.toast('Das gemeinsame Konto war schon leerer als gedacht: Dieser Einsatz zählt nicht.'),
+    dayEnd: async () => {
+      hud.toast('Der Gastgeber macht Feierabend. Deine Runde wird noch zu Ende gespielt.');
+      await guestToRoom();
+      if (room && mode === 'room') {
+        room.frozen = true;
+        // If the recap doesn't come (the host changed their mind), walking goes on.
+        setTimeout(() => mode === 'room' && room && (room.frozen = false), 15000);
+      }
+    },
+    recap: (result, team) => void guestRecap(result, team),
+    closed: (why) => {
+      groupChanged();
+      groupOver(why === 'host' ? 'Der Gastgeber hat die Gruppe geschlossen. Danke fürs Mitspielen! Euer gemeinsamer Spielstand liegt sicher beim Gastgeber.' : 'Die Verbindung zum Gastgeber ist abgerissen. Euer gemeinsamer Spielstand liegt sicher beim Gastgeber; tretet einfach wieder bei, sobald die Gruppe wieder offen ist.');
+    },
+    synced: (prev) => {
+      // Achievements the group unlocked, at the host.
+      for (const a of ACHIEVEMENTS) if (state.data.achievements[a.id] && !prev.achievements[a.id]) {
+        hud.achievementToast(a);
+        sfx.medal();
+        room?.refreshAchievements();
+      }
+      if (prev.trophies.length !== state.data.trophies.length) room?.refreshShelf();
+      if (JSON.stringify(prev.players) !== JSON.stringify(state.data.players)) groupChanged();
+    },
+    endDayAsked: () => {
+      if (mode === 'room' || mode === 'game') void endEvening();
+    },
+  };
+
   const lobby = new Lobby(state, {
     openSaves: () => hud.openSaves(),
     go: lobbyGo,
     newGame: () => hud.confirmNewGame(lobbyGo),
     daily: startDaily,
     news: () => showDevlog(hud),
+    join: (code = '') =>
+      showJoinCard(
+        {
+          modal: (t, b, btns) => hud.modal(t, b, btns),
+          closeModal: () => hud.closeModal(),
+          join: joinGroup,
+          name: () => state.data.players.host?.name ?? 'Du',
+        },
+        code,
+      ),
+    group: {
+      openGroup: async () => {
+        await net.openGroup(state);
+        groupChanged();
+        hud.toast(`Die Gruppe ist offen. Code: ${net.code}`);
+      },
+      closeGroup: () =>
+        hud.modal('Gruppe schließen?', 'Deine Freunde kehren dann zu ihrem Startbildschirm zurück. Der gemeinsame Spielstand bleibt bei dir.', [
+          { label: 'Offen lassen', onClick: () => hud.closeModal() },
+          {
+            label: 'Schließen',
+            primary: true,
+            onClick: () => {
+              hud.closeModal();
+              net.closeGroup();
+              groupChanged();
+              hud.toast('Die Gruppe ist geschlossen.');
+            },
+          },
+        ]),
+      leaveGroup: () =>
+        hud.modal('Gruppe verlassen?', 'Du kehrst zu deinem eigenen Startbildschirm zurück. Die anderen spielen weiter, und du kannst jederzeit wieder beitreten.', [
+          { label: 'Bleiben', onClick: () => hud.closeModal() },
+          {
+            label: 'Verlassen',
+            primary: true,
+            onClick: () => {
+              hud.closeModal();
+              net.leave();
+              backToTitle('Du hast die Gruppe verlassen.');
+            },
+          },
+        ]),
+      toast: (t) => hud.toast(t),
+      blocked: () => (state.data.dailySeed ? 'In der Tagesherausforderung spielst du allein. Für eine Gruppe beende sie zuerst.' : ''),
+    },
   });
   roomLayer.visible = false;
   showStreet();
   lobby.showMain();
   sfx.setScene('menu');
+  // Back from a group, or a join link (?join=CODE).
+  try {
+    const note = sessionStorage.getItem('nachtfalter.mp.note');
+    if (note) {
+      sessionStorage.removeItem('nachtfalter.mp.note');
+      setTimeout(() => hud.toast(note), 600);
+    }
+  } catch {
+    /* no note */
+  }
+  const joinCode = new URLSearchParams(location.search).get('join');
+  if (joinCode) lobby.openJoin(joinCode);
   document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 }
 

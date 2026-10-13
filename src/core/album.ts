@@ -334,7 +334,7 @@ export function installAlbum(state: GameState, busy: () => boolean) {
     if (!m) return;
     lastFlight = now;
     for (const l of listeners) l(m, mult);
-  });
+  }, 'view');
 }
 
 /** Debug: a lamp now, as if after a huge win where you stand (any lamp if none fits). */

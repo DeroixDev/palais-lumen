@@ -10,6 +10,7 @@
 // Rounds of active items are used up here, from every finished round (state.onRound), for the
 // odds items of the games too. Day items end when the next day begins.
 
+import { actor } from '../net/actor';
 import { ACHIEVEMENTS } from './achievements';
 import { activeItems, allItems, bagCount, getItemRtp, itemDef, registerItem, type ItemDef } from './modifiers';
 import { LOSS_SHARE } from './lossShare';
@@ -546,9 +547,15 @@ function onRound(state: GameState, r: RoundReport) {
   const streak = x >= 2 ? ctr(d, 'it:streak') + 1 : 0;
   setCtr(d, 'it:streak', streak);
   setCtr(d, 'it:streakBest', Math.max(ctr(d, 'it:streakBest'), streak));
-  bigWin = x >= ITEM_K.kameraMult ? { seq, profit, paid: false } : null;
+  bigWin = x >= ITEM_K.kameraMult && !actor.id ? { seq, profit, paid: false } : null;
 
-  // Reaction items: offered right after the result.
+  // Reaction items: offered right after the result, to whoever played it (a friend's round in a
+  // group offers nothing on the host's screen).
+  if (actor.id) {
+    pending = null;
+    emit({ type: 'change' });
+    return;
+  }
   if (net < 0) setCtr(d, 'it:lastLoss', -net);
   const ids = net < 0 ? ['engel', 'zeitmaschine'] : net > 0 && profit > 0 ? ['teufel'] : [];
   const have = ids.filter((id) => bagCount(d, id) > 0);

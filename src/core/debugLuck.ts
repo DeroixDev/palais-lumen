@@ -58,9 +58,41 @@ export function luckOn() {
   return bias !== 0;
 }
 
-/** Sets the slider (−100 … 100) and stores it in the save. */
-export function setLuck(state: GameState, pct: number) {
-  setCheat(state, LUCK_KEY, Math.max(-100, Math.min(100, Math.round(pct))), 0);
+/**
+ * "Glück pro Spieler" in a group: a player's own Gewinnchance, stored next to the shared one
+ * as 'dbg:luck:<player id>'. It travels to that player's game with the host's save and applies
+ * there (every client draws its own rounds); 0 is stored too, so "normal" can override the rest.
+ */
+export const luckKeyFor = (playerId: string) => `${LUCK_KEY}:${playerId}`;
+const isLuckKey = (k: string) => k.startsWith(`${LUCK_KEY}:`);
+
+/** Player ids with their own Gewinnchance right now. */
+export function luckTargets(state: GameState) {
+  return Object.keys(state.data.counters)
+    .filter(isLuckKey)
+    .map((k) => k.slice(LUCK_KEY.length + 1));
+}
+
+/** The slider value for everyone (`target` empty) or for one player (that player's own value, else the shared one). */
+export function luckFor(state: GameState, target = '') {
+  const own = target ? state.data.counters[luckKeyFor(target)] : undefined;
+  return typeof own === 'number' && Number.isFinite(own) ? own : cheat(state, LUCK_KEY, 0);
+}
+
+/**
+ * Sets the slider (−100 … 100) and stores it in the save. Without a target it is the value for
+ * everyone and replaces every player's own value; with one, only that player's.
+ */
+export function setLuck(state: GameState, pct: number, target = '') {
+  const v = Math.max(-100, Math.min(100, Math.round(pct)));
+  if (target) {
+    state.data.counters[luckKeyFor(target)] = v;
+    sync(state);
+    state.emit();
+    return;
+  }
+  for (const k of Object.keys(state.data.counters)) if (isLuckKey(k)) delete state.data.counters[k];
+  setCheat(state, LUCK_KEY, v, 0);
 }
 
 /** Stores a 'dbg:*' value; the neutral value removes it from the save. */
@@ -78,7 +110,8 @@ export function cheat(state: GameState, key: string, neutral: number) {
 }
 
 function sync(state: GameState) {
-  const v = cheat(state, LUCK_KEY, 0) / 100;
+  // This game's own value in a group (see luckKeyFor), else the shared one.
+  const v = luckFor(state, state.selfId) / 100;
   const nb = Math.max(-1, Math.min(1, v));
   setTweenSpeed(Math.max(10, Math.min(800, cheat(state, SPEED_KEY, 100))) / 100);
   if (nb !== bias) {
@@ -103,7 +136,7 @@ export function installDebugLuck(state: GameState) {
     if (r.win > r.stake) s.wins++;
     stats.set(r.game, s);
     for (const l of listeners) l();
-  });
+  }, 'view');
 }
 
 export function onLuckChange(fn: () => void) {
@@ -135,7 +168,9 @@ const x = (v: number) => `×${(v / 100).toLocaleString('de-DE', { maximumFractio
 /** Short names of the cheats that are on right now (for the menu's status line). */
 export function activeCheats(state: GameState): string[] {
   const out: string[] = [];
-  if (bias) out.push(`Gewinnchance ${luckLabel()}`);
+  const all = cheat(state, LUCK_KEY, 0);
+  if (all) out.push(`Gewinnchance ${luckLabel(all)}`);
+  for (const id of luckTargets(state)) out.push(`Gewinnchance ${state.data.players[id]?.name ?? id}: ${luckLabel(luckFor(state, id))}`);
   const st = cheat(state, STAKE_KEY, 100);
   if (st !== 100) out.push(`Einsätze ${x(st)}`);
   const g = cheat(state, GOAL_KEY, 100);
