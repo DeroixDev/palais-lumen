@@ -1,7 +1,7 @@
 // One case: art, opener with 1–5 stacked reels, result, and the "Inhalt" grid.
 
 import type { CaseDef, ItemInstance, SkinDef } from '../../contract';
-import { skinById, warmSkins } from '../lib/assets';
+import { skinById, warmSkinsAsync } from '../lib/assets';
 import { caseRTP, itemValue, rarityIndex, rollCase, skinRange, tierOdds } from '../lib/economy';
 import { DAILY_ID, addXP, dailyReadyIn, getCase, level, priceOf, xpFor, checkAchievements } from '../lib/career';
 import { luck } from '../lib/panel';
@@ -93,7 +93,7 @@ export const casePage: Page = (root, args) => {
   </section>`;
 
   caseArt(root.querySelector('.ct-art') as HTMLElement, c, 300, 225);
-  try { void warmSkins(Object.values(c.contents).flat().filter(Boolean) as string[]); } catch { /* optional */ }
+  try { void warmSkinsAsync(Object.values(c.contents).flat().filter(Boolean) as string[]); } catch { /* optional */ }
   root.querySelector('.info-btn')!.addEventListener('click', () => infoModal(c));
 
   // ----- contents -----

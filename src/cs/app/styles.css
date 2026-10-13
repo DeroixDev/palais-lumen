@@ -35,14 +35,16 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-height: 100vh; overflow-x: hidden;
-  background:
-    radial-gradient(900px 500px at 85% -10%, rgba(255,138,31,.10), transparent 60%),
-    radial-gradient(800px 600px at -10% 10%, rgba(75,105,255,.08), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--ink); font: 500 16px/1.45 var(--body);
   -webkit-font-smoothing: antialiased;
 }
+/* The glow behind everything sits on its own fixed layer: background-attachment: fixed forced a
+   full-page repaint on the main thread for every scrolled frame. */
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(255,138,31,.10), transparent 60%),
+    radial-gradient(800px 600px at -10% 10%, rgba(75,105,255,.08), transparent 60%); }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -75,7 +77,7 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 .coin.big::after { inset: 6px; }
 
 /* ---------- top bar ---------- */
-.topbar { position: sticky; top: 0; z-index: 30; background: rgba(11,14,18,.86); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-bottom: 1px solid var(--line); }
+.topbar { position: sticky; top: 0; z-index: 30; background: linear-gradient(180deg, rgba(13,16,21,.97), rgba(11,14,18,.95)); border-bottom: 1px solid var(--line); }
 .tb-inner { max-width: 1480px; margin: 0 auto; padding: 0 var(--gutter); height: 64px; display: flex; align-items: center; gap: 18px; }
 .logo { display: flex; align-items: center; gap: 9px; flex: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .logo-mark svg { width: 32px; height: 32px; display: block; filter: drop-shadow(0 0 10px rgba(255,138,31,.45)); transition: transform .3s var(--ease); }
@@ -134,11 +136,11 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 .ftile .ft-who span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ftile.you { box-shadow: inset 0 0 0 1px rgba(255,138,31,.6); }
 .ftile.r-gold { background: linear-gradient(90deg, rgba(255,209,74,.35), #1d1a10 80%); box-shadow: 0 0 18px rgba(255,209,74,.35), inset 0 0 0 1px rgba(255,209,74,.6); }
-.ftile.r-gold::before { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); background-size: 250% 100%; animation: shine 2.4s linear infinite; pointer-events: none; }
+.ftile.r-gold::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 250%; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); animation: shine 2.4s linear infinite; pointer-events: none; }
 .ftile.r-covert { box-shadow: 0 0 12px rgba(235,75,75,.25); }
-@keyframes shine { 0% { background-position: 150% 0; } 100% { background-position: -100% 0; } }
+@keyframes shine { 0% { transform: translateX(-70%); } 100% { transform: translateX(10%); } }
 .ftile.new { animation: feedIn .55s var(--ease); }
-@keyframes feedIn { from { transform: translateX(-60px) scale(.9); opacity: 0; margin-left: -174px; } to { transform: none; opacity: 1; margin-left: 0; } }
+@keyframes feedIn { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- page frame ---------- */
 #page { display: block; max-width: 1480px; margin: 0 auto; padding: 22px var(--gutter) 60px; outline: none; min-height: 70vh; }
@@ -258,8 +260,9 @@ div.icard .ic-check, .res-grid .ic-check, .showcase .ic-check, .upg-slots .ic-ch
 .ii-wearscale { display: grid; grid-template-columns: 7% 8% 23% 7% 55%; font: 600 .62rem/1 var(--mono); color: var(--dim); margin-top: 5px; }
 
 /* ---------- skeleton ---------- */
-.skel { position: relative; background: linear-gradient(100deg, #161b22 30%, #1f2630 50%, #161b22 70%); background-size: 300% 100%; animation: skel 1.2s linear infinite; border-radius: 8px; min-height: 60px; }
-@keyframes skel { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+.skel { position: relative; overflow: hidden; background: #161b22; border-radius: 8px; min-height: 60px; }
+.skel::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 300%; background: linear-gradient(100deg, transparent 30%, #1f2630 50%, transparent 70%); animation: skel 1.2s linear infinite; pointer-events: none; }
+@keyframes skel { from { transform: translateX(-33.3%); } to { transform: translateX(16.7%); } }
 
 /* ---------- cases page ---------- */
 .hero { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(260px, 1fr); gap: 16px; }
@@ -339,9 +342,12 @@ div.icard .ic-check, .res-grid .ic-check, .showcase .ic-check, .upg-slots .ic-ch
 .reels.n3 .rt-name, .reels.n4 .rt-name, .reels.n5 .rt-name { display: none; }
 .rtile.mystery { background: radial-gradient(80% 80% at 50% 50%, rgba(255,209,74,.35), transparent 70%), linear-gradient(180deg, #2a2310, #15130b); }
 .rt-star { font: 700 3.6rem/1 var(--display); color: var(--gold); text-shadow: 0 0 18px rgba(255,209,74,.8), 0 0 40px rgba(255,170,40,.4); }
-.rtile.win { box-shadow: inset 0 0 0 2px var(--rc), 0 0 30px color-mix(in srgb, var(--rc) 70%, transparent); z-index: 1; animation: winTile 1s var(--ease) forwards; }
+.rtile.win { box-shadow: inset 0 0 0 2px var(--rc), 0 0 30px color-mix(in srgb, var(--rc) 70%, transparent); z-index: 2; animation: winTile 1s var(--ease) forwards; }
 @keyframes winTile { 0% { transform: scale(1); } 30% { transform: scale(1.1); } 100% { transform: scale(1.04); } }
-.reel-win.done .rtile:not(.win) { filter: brightness(.45) saturate(.6); transition: filter .4s; }
+/* Dimming the losers: one fading overlay inside the strip (the winner sits above it) instead of a
+   filter transition on every tile, which repainted ~280 tiles per frame with five reels. */
+.reel-strip::before { content: ''; position: absolute; inset: -12px; z-index: 1; background: rgba(6,8,11,.58); opacity: 0; transition: opacity .4s; pointer-events: none; }
+.reel-win.done .reel-strip::before { opacity: 1; }
 .rtile.flip-in { animation: flipIn .6s var(--ease); }
 @keyframes flipIn { from { transform: rotateY(90deg) scale(.8); filter: brightness(3); } }
 .reel-win.gold-win { box-shadow: inset 0 0 60px rgba(255,209,74,.25); }
@@ -361,6 +367,8 @@ div.icard .ic-check, .res-grid .ic-check, .showcase .ic-check, .upg-slots .ic-ch
 
 /* ---------- modals ---------- */
 .modal-wrap { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; }
+/* (only the looping animations: a broad `.modal-open *` rule would restyle the whole page on open) */
+.modal-open .feed-live i, .modal-open .ftile.r-gold::before, .modal-open .hero-art .art, .modal-open .ct-art .art, .modal-open #page .skel::after, .modal-open .live-dot { animation-play-state: paused; }
 .modal-back { position: absolute; inset: 0; background: rgba(4,6,9,.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); opacity: 0; transition: opacity .22s; }
 .modal { position: relative; width: min(640px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; background: linear-gradient(180deg, #19202a, #12161c); border: 1px solid var(--line-2); border-radius: 16px; padding: 24px; box-shadow: 0 40px 80px -20px rgba(0,0,0,.8); transform: translateY(20px) scale(.96); opacity: 0; transition: transform .28s var(--ease), opacity .22s; outline: none; }
 .modal-wrap.in .modal-back { opacity: 1; }
@@ -453,7 +461,7 @@ div.icard .ic-check, .res-grid .ic-check, .showcase .ic-check, .upg-slots .ic-ch
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
 .more-wrap { display: grid; place-items: center; }
 .more-wrap:empty { display: none; }
-.selbar { position: sticky; bottom: 14px; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; padding: 12px 16px; border-radius: 12px; background: rgba(26,32,41,.95); border: 1px solid var(--hot-lo); box-shadow: 0 20px 40px -10px rgba(0,0,0,.8); backdrop-filter: blur(10px); animation: pageIn .25s var(--ease); }
+.selbar { position: sticky; bottom: 14px; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; padding: 12px 16px; border-radius: 12px; background: rgba(26,32,41,.95); border: 1px solid var(--hot-lo); box-shadow: 0 20px 40px -10px rgba(0,0,0,.8); animation: pageIn .25s var(--ease); }
 .selbar[hidden] { display: none; }
 .selbar .sb-txt { margin-right: auto; }
 
@@ -910,6 +918,10 @@ a.rw:hover { border-color: var(--hot-lo); transform: translateY(-2px); }
 }
 @media (max-width: 380px) {
   .lvl { display: none; }
+}
+/* Phones: the rotating blurred glow is a full-size filter pass per frame; keep it still there. */
+@media (pointer: coarse) {
+  .ii-glow { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
