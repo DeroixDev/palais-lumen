@@ -53,9 +53,9 @@ export class Reel {
     return f;
   }
 
-  private build(c: CaseDef, win?: ItemInstance) {
+  private build(c: CaseDef, win?: ItemInstance, n = TILES) {
     this.tiles = [];
-    for (let i = 0; i < TILES; i++) this.tiles.push(i === WIN_AT && win ? win : this.filler(c));
+    for (let i = 0; i < n; i++) this.tiles.push(i === WIN_AT && win ? win : this.filler(c));
     // A near miss next to the real drop now and then: the reel feels alive.
     if (win && Math.random() < 0.35) {
       const ids = c.contents.gold?.length ? c.contents.gold : c.contents.covert;
@@ -88,7 +88,8 @@ export class Reel {
   }
 
   idle(c: CaseDef) {
-    this.build(c);
+    // At rest only the first dozen tiles can be seen: build those (spin() builds the full strip).
+    this.build(c, undefined, 16);
     this.el.classList.remove('done', 'gold-win', 'suspense');
     requestAnimationFrame(() => this.place(this.offsetFor(6)));
   }

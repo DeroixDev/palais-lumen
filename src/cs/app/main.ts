@@ -160,6 +160,14 @@ function route() {
     a.classList.toggle('on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  // Scroll up while the old page's layout is still clean: doing it after the new page is in forced
+  // a synchronous layout of the whole new page inside this task. The nav is centred in the next
+  // frame, where the layout happens anyway.
+  if (scrollY) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  requestAnimationFrame(() => {
+    const navLink = app.querySelector('.mainnav .on') as HTMLElement | null;
+    if (navLink) { const nv = navLink.parentElement!; nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
+  });
   const fresh = document.createElement('div');
   fresh.className = 'page page-in';
   pageEl.replaceChildren(fresh);
@@ -169,9 +177,6 @@ function route() {
     console.error(err);
     fresh.innerHTML = '<div class="empty-state"><b>Hier ist etwas schiefgelaufen.</b><a class="btn primary" href="#/cases">Zu den Kisten</a></div>';
   }
-  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  const navLink = app.querySelector('.mainnav .on') as HTMLElement | null;
-  if (navLink) { const nv = navLink.parentElement!; nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
   const label = nav?.label ?? extra?.label ?? '';
   document.title = label ? `${label} · CS Gambler` : 'CS Gambler';
 }
