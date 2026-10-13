@@ -417,6 +417,8 @@
   #daily-line { color: var(--cream-2); font-size: 1rem; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; }
   #daily-line:empty { display: none; }
   .pledge { margin: 0; font-size: .95rem; color: var(--muted); text-shadow: 0 1px 2px #000; max-width: 640px; }
+  .other-game { align-self: center; font: 600 .95rem/1 var(--body); letter-spacing: .06em; color: var(--brass); text-decoration: none; padding: 8px 12px; border-radius: 4px; text-shadow: 0 1px 2px #000; }
+  .other-game:hover, .other-game:focus-visible { color: var(--lamp); text-decoration: underline; text-underline-offset: 4px; }
   .logo { font: 400 clamp(2.4rem, 9vw, 5rem)/.95 var(--logo); letter-spacing: .1em; margin: 0; color: var(--lamp); text-shadow: 0 0 22px rgba(255,207,122,.35); }
   .logo span { display: block; font: 700 .32em/1 var(--display); letter-spacing: .3em; color: var(--muted); }
 
@@ -622,6 +624,7 @@
       </div>
     </div>
     <p class="pledge">In den Regeln jedes Spiels steht offen, wie viel das Haus im Schnitt behält.</p>
+    <a class="other-game" href="./cs.html">Zweites Spiel: CS Gambler →</a>
   </div>
   <div class="card lobby" id="menu-lobby" hidden>
     <h2 id="lobby-title">Lobby</h2>
