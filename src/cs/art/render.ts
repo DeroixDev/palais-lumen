@@ -43,11 +43,15 @@ export function patternTexture(skin: SkinDef, S: number): HTMLCanvasElement {
 }
 
 /** Seed -> window inside the texture (fractions 0..1 of S). Deterministic. */
-export function seedWindow(seed: number, aspect: number): { x: number; y: number; w: number; h: number; flip: boolean } {
+export function seedWindow(seed: number, aspect: number, kind = ''): { x: number; y: number; w: number; h: number; flip: boolean } {
   const r = rng(seed * 2654435761 + 11);
-  const w = WINDOW, h = WINDOW * aspect;
-  return { x: r() * (1 - w), y: r() * (1 - h), w, h, flip: false };
+  const w = WINDOW, h = Math.min(0.98, WINDOW * aspect);
+  const x = r() * (1 - w);
+  // hero patterns (one big motif along the middle) only jitter a little vertically
+  const y = CENTERED.has(kind) ? (1 - h) / 2 + (r() - 0.5) * Math.min(0.12, 1 - h) : r() * (1 - h);
+  return { x, y, w, h, flip: false };
 }
+const CENTERED = new Set(['dragon']);
 
 function modelOf(skin: SkinDef): WeaponModel {
   const w = weaponById(skin.weapon);
@@ -55,30 +59,29 @@ function modelOf(skin: SkinDef): WeaponModel {
 }
 
 // ---------------------------------------------------------------- wear noise
-/** Per seed: two noise grids over model space (256 cells), fine chips + big blotches. */
-const wearNoiseCache = new Lru<{ fine: Float32Array; big: Float32Array }>(64);
-const WN = 256;
+/**
+ * Two shared noise grids over model space (fine chips 512 cells, big blotches 256 cells, 2 model
+ * units per cell). The seed only picks an offset into them, so a new seed costs nothing.
+ */
+const FN = 512, BN = 256;
+let grids: { fine: Float32Array; big: Float32Array } | null = null;
 function wearNoise(seed: number) {
-  const k = String(seed);
-  let w = wearNoiseCache.get(k);
-  if (w) return w;
-  const n = new Noise(seed * 31 + 7), n2 = new Noise(seed * 17 + 101);
-  const fine = new Float32Array(WN * WN), big = new Float32Array(WN * WN);
-  for (let y = 0; y < WN; y++) {
-    for (let x = 0; x < WN; x++) {
-      fine[y * WN + x] = n.fbm(x / 7, y / 7, 4);
-      big[y * WN + x] = n2.fbm(x / 34, y / 34, 4) * 0.8 + n.v(x / 5 + 50, y / 5) * 0.2;
-    }
+  if (!grids) {
+    const n = new Noise(9173), n2 = new Noise(5521);
+    const fine = new Float32Array(FN * FN), big = new Float32Array(BN * BN);
+    for (let y = 0; y < FN; y++) for (let x = 0; x < FN; x++) fine[y * FN + x] = n.fbm(x / 7, y / 7, 4);
+    for (let y = 0; y < BN; y++) for (let x = 0; x < BN; x++) big[y * BN + x] = n2.fbm(x / 17, y / 17, 4) * 0.8 + n.v(x / 2.5 + 50, y / 2.5) * 0.2;
+    grids = { fine, big };
   }
-  w = { fine, big };
-  wearNoiseCache.set(k, w);
-  return w;
+  const r = rng(seed * 7919 + 13);
+  return { fine: grids.fine, big: grids.big, fx: Math.floor(r() * 180), fy: Math.floor(r() * 180), bx: Math.floor(r() * 90), by: Math.floor(r() * 90) };
 }
 /** Bilinear lookup, x/y in grid cells (wraps). */
-function sample(g: Float32Array, x: number, y: number): number {
+function sample(g: Float32Array, N: number, x: number, y: number): number {
   const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
-  const x0 = xi & 255, y0 = yi & 255, x1 = (x0 + 1) & 255, y1 = (y0 + 1) & 255;
-  const a = g[y0 * WN + x0], b = g[y0 * WN + x1], c = g[y1 * WN + x0], d = g[y1 * WN + x1];
+  const M = N - 1;
+  const x0 = xi & M, y0 = yi & M, x1 = (x0 + 1) & M, y1 = (y0 + 1) & M;
+  const a = g[y0 * N + x0], b = g[y0 * N + x1], c = g[y1 * N + x0], d = g[y1 * N + x1];
   return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
 }
 
@@ -89,12 +92,15 @@ function sample(g: Float32Array, x: number, y: number): number {
 function lossAt(f: number, edge: number, scratch: number, fine: number, big: number): number {
   if (f < 0.02) return 0;
   // edge chips: grow with float, jagged by fine noise
-  const thrE = 1.02 - f * 1.55;
-  const e = smooth(thrE, thrE + 0.12, edge * (0.45 + fine * 0.9));
-  // interior blotches for battle-scarred
-  const thrB = 1.0 - Math.max(0, f - 0.2) * 0.9;
-  const b = smooth(thrB, thrB + 0.05, big * 0.75 + fine * 0.3);
-  const s = scratch * smooth(0.08, 0.3, f) * (0.6 + fine * 0.6);
+  let e = 0;
+  if (edge > 0) {
+    const thrE = 1.08 - Math.min(f, 0.5) * 1.25;
+    e = smooth(thrE, thrE + 0.07, edge * 0.6 + fine * 0.62 - 0.08);
+  }
+  // interior blotches for well-worn / battle-scarred
+  const thrB = 1.0 - Math.max(0, f - 0.3) * 0.8;
+  const b = smooth(thrB, thrB + 0.04, big * 0.78 + fine * 0.3);
+  const s = scratch * smooth(0.1, 0.45, f) * (0.35 + fine * 0.4);
   return clamp(Math.max(e, b, s));
 }
 
@@ -148,22 +154,24 @@ function scratchCtx(w: number, h: number): CanvasRenderingContext2D {
 }
 
 function applyWear(
-  ctx: CanvasRenderingContext2D, pi: PathInfo, partIdx: number, f: number, seed: number, m: number, ox: number, oy: number,
+  ctx: CanvasRenderingContext2D, pi: PathInfo, partIdx: number, f: number, seed: number, m: number, ox: number, oy: number, ws: number,
 ) {
   if (f < 0.03) return;
   const X = Math.max(0, Math.floor(pi.bx) - 2), Y = Math.max(0, Math.floor(pi.by) - 2);
   const W = Math.min(ctx.canvas.width - X, Math.ceil(pi.bw) + 4), H = Math.min(ctx.canvas.height - Y, Math.ceil(pi.bh) + 4);
   if (W <= 0 || H <= 0) return;
-  const c = scratchCtx(W, H);
-  c.translate(-X, -Y);
+  // the mask is computed at `ws` resolution (supersampled renders don't need it at full res)
+  const w = Math.max(1, Math.ceil(W * ws)), h = Math.max(1, Math.ceil(H * ws));
+  const c = scratchCtx(w, h);
+  c.setTransform(ws, 0, 0, ws, -X * ws, -Y * ws);
   c.save();
   c.clip(pi.path, 'evenodd');
   // edge proximity in red: concentric strokes (edges wear first)
   c.globalCompositeOperation = 'lighter';
   c.lineJoin = 'round';
-  const band = (3 + f * 16) * m;
+  const band = (2 + Math.min(f, 0.5) * 10) * m;
+  c.strokeStyle = 'rgba(64,0,0,1)';
   for (let k = 1; k <= 4; k++) {
-    c.strokeStyle = 'rgba(64,0,0,1)';
     c.lineWidth = (band * 2 * k) / 4;
     c.stroke(pi.path);
   }
@@ -175,7 +183,7 @@ function applyWear(
   for (let i = 0; i < Math.min(ns, 80); i++) {
     const x = pi.bx + r() * pi.bw, y = pi.by + r() * pi.bh;
     const a = (r() - 0.5) * 0.9 + (r() < 0.3 ? Math.PI / 2 : 0), L = (6 + r() * 30) * m;
-    c.lineWidth = (0.35 + r() * 0.7) * m;
+    c.lineWidth = Math.max(0.8 / ws, (0.35 + r() * 0.7) * m);
     c.beginPath(); c.moveTo(x, y);
     c.quadraticCurveTo(x + Math.cos(a) * L * 0.5 + (r() - 0.5) * 4 * m, y + Math.sin(a) * L * 0.5, x + Math.cos(a) * L, y + Math.sin(a) * L);
     c.stroke();
@@ -186,23 +194,28 @@ function applyWear(
   c.fill(pi.path, 'evenodd');
   c.restore();
 
-  const img = c.getImageData(0, 0, W, H);
+  const img = c.getImageData(0, 0, w, h);
   const d = img.data;
-  const { fine, big } = wearNoise(seed);
-  const inv = 1 / m;
+  const { fine, big, fx: nfx, fy: nfy, bx: nbx, by: nby } = wearNoise(seed);
+  const inv = 1 / (m * ws);
   const grime = f > 0.12 ? Math.min(0.32, (f - 0.12) * 0.55) : 0;
-  for (let y = 0, i = 0; y < H; y++) {
-    const my = ((Y + y) - oy) * inv * 0.5;
-    for (let x = 0; x < W; x++, i += 4) {
+  const needBig = f > 0.3 || grime > 0;
+  const oxs = ox * ws, oys = oy * ws, Xs = X * ws, Ys = Y * ws;
+  for (let y = 0, i = 0; y < h; y++) {
+    const my = (Ys + y - oys) * inv * 0.5;
+    for (let x = 0; x < w; x++, i += 4) {
       const a0 = d[i + 3];
       if (a0 === 0) continue;
-      const mx = ((X + x) - ox) * inv * 0.5;
-      const fn = sample(fine, mx, my), bg = sample(big, mx * 0.5 + 40, my * 0.5 + 40);
-      const loss = lossAt(f, d[i] / 255, d[i + 1] / 255, fn, bg);
-      const gA = grime * smooth(0.45, 0.8, bg) * (a0 / 255);
+      const er = d[i], sg = d[i + 1];
+      if (er === 0 && sg === 0 && !needBig) { d[i + 3] = 0; continue; }
+      const mx = (Xs + x - oxs) * inv * 0.5;
+      const fn = sample(fine, FN, mx + nfx, my + nfy);
+      const bg = needBig ? sample(big, BN, mx * 0.5 + nbx, my * 0.5 + nby) : 0;
+      const loss = lossAt(f, er / 255, sg / 255, fn, bg);
+      const gA = grime ? grime * smooth(0.45, 0.8, bg) * (a0 / 255) : 0;
       if (loss > 0.01) {
-        const v = 150 + fn * 70;
-        d[i] = v; d[i + 1] = v + 3; d[i + 2] = v + 8;
+        const v = 128 + fn * 60;
+        d[i] = v; d[i + 1] = v + 3; d[i + 2] = v + 7;
         d[i + 3] = Math.max(loss, gA) * a0;
       } else if (gA > 0.01) {
         d[i] = 46; d[i + 1] = 38; d[i + 2] = 28;
@@ -211,13 +224,17 @@ function applyWear(
     }
   }
   c.putImageData(img, 0, 0);
-  ctx.drawImage(c.canvas, 0, 0, W, H, X, Y, W, H);
+  ctx.save();
+  ctx.clip(pi.path, 'evenodd');
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(c.canvas, 0, 0, w, h, X, Y, w / ws, h / ws);
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------- drawing the whole weapon
 export function drawWeapon(
   ctx: CanvasRenderingContext2D, skin: SkinDef | null, model: WeaponModel, f: number, seed: number,
-  W: number, H: number, pad = 0.06,
+  W: number, H: number, pad = 0.06, wearScale = 1,
 ) {
   const [bw, bh] = model.box;
   const m = Math.min((W * (1 - pad * 2)) / bw, (H * (1 - pad * 2)) / bh);
@@ -227,9 +244,11 @@ export function drawWeapon(
   let tex: HTMLCanvasElement | null = null;
   let win = { x: 0, y: 0, w: 1, h: 1, flip: false };
   if (skin) {
-    const S = bw * m > 700 ? 1024 : 512;
+    // texture tier by the final on-screen width of the model box
+    const tw = bw * m * wearScale;
+    const S = tw > 640 ? 1024 : tw > 300 ? 512 : 256;
     tex = patternTexture(skin, S);
-    win = seedWindow(seed, bh / bw);
+    win = seedWindow(seed, bh / bw, skin.pattern.kind);
   }
 
   model.parts.forEach((p, idx) => {
@@ -251,7 +270,7 @@ export function drawWeapon(
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(tex, win.x * S, win.y * S, win.w * S, win.h * S, ox, oy, bw * m, bh * m);
       ctx.restore();
-      applyWear(ctx, pi, idx, f, seed, m, ox, oy);
+      applyWear(ctx, pi, idx, f, seed, m, ox, oy, wearScale);
       ctx.save();
       ctx.clip(pi.path, 'evenodd');
     } else if (p.material === 'skin') {
@@ -352,7 +371,7 @@ export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
   const big = document.createElement('canvas');
   big.width = W; big.height = H;
   const bctx = big.getContext('2d')!;
-  drawWeapon(bctx, skin, model, fb / 100, o.seed, W, H);
+  drawWeapon(bctx, skin, model, fb / 100, o.seed, W, H, 0.06, 1 / ss);
 
   let out = big;
   if (ss > 1) {
@@ -369,7 +388,7 @@ export function renderSkinImpl(o: RenderOpts): HTMLCanvasElement {
 
 /** Wear alpha for a flat square texture (no part edges: noise + scratches only). */
 function textureWear(f: number, seed: number, size: number): Float32Array {
-  const { fine, big } = wearNoise(seed);
+  const { fine, big, fx: nfx, fy: nfy, bx: nbx, by: nby } = wearNoise(seed);
   const out = new Float32Array(size * size);
   if (f < 0.03) return out;
   // scratches rasterised on a small canvas
@@ -390,9 +409,9 @@ function textureWear(f: number, seed: number, size: number): Float32Array {
   for (let y = 0, i = 0; y < size; y++) {
     for (let x = 0; x < size; x++, i++) {
       const mx = x * k, my = y * k * 0.4;
-      const fn = sample(fine, mx, my), bg = sample(big, mx * 0.5 + 40, my * 0.5 + 40);
+      const fn = sample(fine, FN, mx + nfx, my + nfy), bg = sample(big, BN, mx * 0.5 + nbx, my * 0.5 + nby);
       // no geometric edges in texture space: treat the high fine-noise peaks as "edges"
-      out[i] = lossAt(f, smooth(0.55, 0.85, fn) * 0.85, sd[i * 4 + 1] / 255, fn, bg);
+      out[i] = lossAt(f, smooth(0.62, 0.9, fn) * 0.7, sd[i * 4 + 1] / 255, fn, bg);
     }
   }
   return out;
@@ -412,7 +431,7 @@ export function renderSkinTextureImpl(skinId: string, float: number, seed: numbe
   if (!skin) { ctx.fillStyle = '#555'; ctx.fillRect(0, 0, size, size); return c; }
   const model = modelOf(skin);
   const tex = patternTexture(skin, size > 600 ? 1024 : 512);
-  const win = seedWindow(seed, model.box[1] / model.box[0]);
+  const win = seedWindow(seed, model.box[1] / model.box[0], skin.pattern.kind);
   const S = tex.width;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(tex, win.x * S, win.y * S, win.w * S, win.h * S, 0, 0, size, size);
