@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildModel, MODEL_WIDTH, type BuiltModel, type PartMaterials } from './build';
+import { addStatTrak } from './stattrak';
 import { deriveWearMask, plainMaterials, skinMaterial } from './materials';
 import type { ArtSource, InspectHandle, InspectItem, InspectOptions } from './source';
 
@@ -10,7 +11,7 @@ const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 2.6;
 const IDLE_MS = 3000;
 const IDLE_SPEED = 0.22; // rad/s
-const INTRO_MS = 1150;
+const INTRO_MS = 1400;
 
 /** Mounts the inspect view into `host`. All state is local; dispose() frees everything. */
 export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtSource, opts: InspectOptions = {}): InspectHandle {
@@ -102,7 +103,11 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
     return mat;
   }
 
+  let removeStatTrak = () => {};
+
   function freeModel() {
+    removeStatTrak();
+    removeStatTrak = () => {};
     if (!built) return;
     pivot.remove(built.group);
     for (const g of built.geometries) g.dispose();
@@ -130,6 +135,8 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
       });
       pivot.add(built.group);
     }
+    removeStatTrak();
+    removeStatTrak = it.statTrak && w?.kind !== 'gloves' && built ? addStatTrak(built.group) : () => {};
     layoutShadow();
     fit();
     dirty = true;
@@ -141,8 +148,9 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
   let resetting = false;
   let lastInput = performance.now();
   let idleBlend = 0;
-  let introStart = reduced ? -1 : performance.now();
+  let introStart = reduced ? -1 : 0; // 0 = start on the next frame, -1 = off
   let dirty = true;
+  let curIy = 0, curIp = 0;
 
   function fit() {
     if (!built) return;
@@ -180,7 +188,7 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
     lastInput = performance.now();
     idleBlend = 0;
     resetting = false;
-    if (introStart >= 0) introStart = -1;
+    if (introStart >= 0) { yaw += curIy; pitch += curIp; introStart = -1; } // grab mid-swing without a jump
   }
 
   const onDown = (e: PointerEvent) => {
@@ -303,16 +311,18 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
 
     // Intro swing: the weapon comes up from below-right, turned, and settles with a little overshoot.
     let iy = 0, ip = 0, ir = 0, ipos = 0, isc = 1;
-    if (introStart >= 0) {
+    if (introStart === 0) introStart = now;
+    if (introStart > 0) {
       const t = Math.min(1, (now - introStart) / INTRO_MS);
       const e = 1 - t;
-      const swing = Math.exp(-5 * t) * Math.cos(t * 5.2); // damped
+      const swing = Math.exp(-3.6 * t) * Math.cos(t * 4.4); // damped
       iy = 1.25 * swing;
       ip = -0.25 * e * e * e;
       ir = 0.35 * swing;
       ipos = -0.9 * e * e * e;
       isc = 0.82 + 0.18 * (1 - e * e * e);
       if (t >= 1) { introStart = -1; lastInput = now; }
+      curIy = iy; curIp = ip;
       moving = true;
     }
 
@@ -344,6 +354,10 @@ export function openInspectWith(host: HTMLElement, first: InspectItem, art: ArtS
     setItem(it: InspectItem) {
       if (disposed) return;
       load(it);
+      // New item: back to the default view and swing it in again, like a fresh inspect.
+      yaw = DEFAULT_YAW; pitch = DEFAULT_PITCH; zoomTarget = 1; vYaw = vPitch = 0; resetting = false;
+      idleBlend = 0; lastInput = performance.now();
+      if (!reduced) introStart = 0;
     },
     dispose() {
       if (disposed) return;
