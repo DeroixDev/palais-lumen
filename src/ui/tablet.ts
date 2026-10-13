@@ -2,6 +2,7 @@
 // the house controls (the panel from ./debug.ts) on the same screen. Nothing it changes shows
 // anywhere else: its notes stay on its own screen. The unlock lasts until the tablet is closed.
 
+import { net } from '../net/session';
 import type { GameState } from '../core/state';
 import { sfx } from '../core/audio';
 import { checkPin } from '../core/tabletPin';
@@ -21,6 +22,16 @@ const MAX_DIGITS = 8;
 
 /** Opens the tablet on its code pad. */
 export function openTablet(state: GameState, host: TabletHost, actions: Omit<DebugActions, 'toast' | 'close'>) {
+  // In a friend's group the house belongs to the host: the panel stays dark here.
+  if (net.isGuest) {
+    const lock = document.createElement('div');
+    lock.className = 'tab-pin tab-locked';
+    lock.innerHTML =
+      '<div class="tab-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.4"/></svg></div>' +
+      '<p class="tab-ask">Gesperrt</p><p class="tab-why">Die Haustechnik bedient heute der Gastgeber.</p>';
+    host.show(lock);
+    return;
+  }
   const pad = document.createElement('div');
   pad.className = 'tab-pin';
   pad.tabIndex = -1;

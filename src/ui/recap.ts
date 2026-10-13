@@ -16,6 +16,7 @@ import { CREAM, MUTED, PANEL_PAD, bodyText, enterMotion, leaveMotion, panelTextu
 import { paintedMedal, paintedTrophy } from './trophyArt';
 import { curveCard } from './recapCurve';
 import { settlementNote } from '../core/itemsCore';
+import type { TeamLine } from '../net/protocol';
 
 import { CURRENCY_PLURAL } from '../core/brand';
 const MARKERS: [number, Medal][] = [
@@ -96,6 +97,8 @@ export class Recap {
     private sfx: Sfx,
     private particles: Particles,
     private onDone: () => void,
+    /** In a group: each player's share of the day, shown on its own page. */
+    private team: TeamLine[] = [],
   ) {
     this.stage.addChild(this.panel);
     this.view.addChild(this.dim, this.stage);
@@ -445,7 +448,10 @@ export class Recap {
     else note.destroy();
     this.skipHint?.destroy();
     this.skipHint = null;
-    const nb = curvePage
+    const teamPage = this.team.length > 1;
+    const nb = teamPage
+      ? button({ label: 'WEITER', width: n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.teamPage() })
+      : curvePage
       ? button({ label: 'WEITER', width: n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.curvePage() })
       : this.closeButton();
     nb.position.set(W / 2, H - 48);
@@ -461,19 +467,14 @@ export class Recap {
     return button({ label: r.seasonWon || (!r.passed && !r.rescued) ? 'NEUE SAISON' : 'INS FOYER', width: this.n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.close() });
   }
 
-  /** Second page: the day's balance as an inked curve, and the honest numbers. */
-  private async curvePage() {
-    if (this.view.destroyed || !this.done) return;
+  /** Page turn: everything but the panel fades out. Returns false if the recap is gone. */
+  private async turnPage() {
+    if (this.view.destroyed || !this.done) return false;
     // The tap that pressed "Weiter" must not skip the new page.
     this.startedAt = this.time;
     this.done = false;
     this.fast = false;
-    const r = this.r;
     const p = this.panel;
-    const n = this.n;
-    const W = this.W;
-    const H = this.H;
-    // Page turn: everything but the panel fades out.
     const old = p.children.slice(1);
     for (const c of old) c.eventMode = 'none';
     await this.anim(220, (k) => old.forEach((c) => (c.alpha = Math.min(c.alpha, 1 - k))));
@@ -481,6 +482,107 @@ export class Recap {
     this.spinning = this.medalFloat = this.raysSpr = null;
     this.startedAt = this.time;
     this.fast = false;
+    return true;
+  }
+
+  /** In a group: who played how much and who brought the most home ("Wer hat den Abend gerettet?"). */
+  private async teamPage() {
+    if (!(await this.turnPage())) return;
+    const r = this.r;
+    const p = this.panel;
+    const n = this.n;
+    const W = this.W;
+    const H = this.H;
+    const pl = plaque(`TAG ${r.evening} · EURE RUNDE`, { size: n ? 21 : 28, minW: n ? 300 : 420 });
+    pl.position.set(W / 2, 4);
+    p.addChild(pl);
+    const team = this.team.slice(0, 4);
+    const best = team[0] && team[0].net > 0 ? team[0] : null;
+    const sub = bodyText(best ? `Wer hat den Abend gerettet? ${best.name}!` : 'Wer hat den Abend gerettet? Heute das Haus.', n ? 19 : 23, best ? COLORS.lamp : 0xd9c6a0, { bold: true, wrap: W - 40 });
+    sub.anchor.set(0.5, 0);
+    sub.position.set(W / 2, n ? 58 : 66);
+    p.addChild(sub);
+    announce(`Tag ${r.evening}, eure Runde. ${team.map((t) => `${t.name}: ${t.rounds} Runden, ${t.net >= 0 ? 'plus' : 'minus'} ${formatChips(Math.abs(t.net))}`).join('. ')}.`);
+    const L = n ? 26 : 90;
+    const R = W - L;
+    const top = n ? 130 : 150;
+    const rowH = n ? 104 : 108;
+    const maxAbs = Math.max(1, ...team.map((t) => Math.abs(t.net)));
+    const mid = L + (R - L) / 2;
+    const half = (R - L) / 2 - 8;
+    for (let i = 0; i < team.length; i++) {
+      const t = team[i];
+      const y = top + i * rowH;
+      const row = new Container();
+      row.position.set(0, y);
+      row.alpha = 0;
+      p.addChild(row);
+      const by = n ? 50 : 52;
+      const card = new Graphics()
+        .roundRect(L - 12, -14, R - L + 24, by + 24, 10)
+        .fill({ color: 0x05060f, alpha: 0.35 })
+        .stroke({ color: t === best ? COLORS.brass : 0x3a3f6a, width: t === best ? 2.5 : 1.5, alpha: 0.9 });
+      row.addChild(card);
+      const dot = new Graphics().circle(L + 12, 16, 11).fill(t.color).stroke({ color: 0x0a0812, width: 2.5 });
+      row.addChild(dot);
+      const name = bodyText(t.name, n ? 22 : 26, CREAM, { bold: true });
+      name.anchor.set(0, 0.5);
+      name.position.set(L + 34, 16);
+      row.addChild(name);
+      let after = L + 34 + name.width + 12;
+      if (t === best) {
+        const crown = bodyText(n ? '★' : '★ Abendretter', n ? 15 : 17, COLORS.lamp, { bold: true });
+        crown.anchor.set(0, 0.5);
+        crown.position.set(after - 4, 17);
+        row.addChild(crown);
+        after += crown.width + 10;
+      }
+      const rounds = bodyText(t.rounds === 1 ? '1 Runde' : `${t.rounds} Runden`, n ? 15 : 18, MUTED);
+      rounds.anchor.set(0, 0.5);
+      rounds.position.set(after, 17);
+      row.addChild(rounds);
+      // Net result as a bar from the middle: gold to the right for a win, rose to the left for a loss.
+      const track = new Graphics().roundRect(L, by - 6, R - L, 12, 6).fill({ color: 0x000000, alpha: 0.45 }).rect(mid - 1, by - 11, 2, 22).fill({ color: COLORS.brass, alpha: 0.7 });
+      row.addChild(track);
+      const bar = new Graphics();
+      row.addChild(bar);
+      const val = this.text('0', n ? 22 : 25, t.net >= 0 ? COLORS.lamp : 0xff9aa8, true);
+      p.removeChild(val);
+      row.addChild(val);
+      val.anchor.set(1, 0.5);
+      val.position.set(R, 16);
+      await this.anim(220, (k) => (row.alpha = k));
+      const w = (Math.abs(t.net) / maxAbs) * half;
+      await this.anim(600, (k) => {
+        bar.clear();
+        const ww = Math.max(0, w * k);
+        if (ww > 0.5) bar.roundRect(t.net >= 0 ? mid : mid - ww, by - 5, ww, 10, 5).fill(t.net >= 0 ? COLORS.lamp : 0xd0708a);
+        val.text = `${t.net >= 0 ? '+' : '−'}${formatChips(Math.round(Math.abs(t.net) * k))}`;
+      });
+      this.play2(() => this.sfx.tick());
+    }
+    const note = bodyText('Alle spielen auf ein gemeinsames Konto. Gewinne und Verluste zählen für die ganze Gruppe.', n ? 15 : 17, MUTED, { wrap: W - 2 * (n ? 22 : 60) });
+    note.anchor.set(0.5, 0);
+    note.position.set(W / 2, H - (n ? 128 : 120));
+    p.addChild(note);
+    const curvePage = (r.history?.length ?? 0) > 1;
+    const nb = curvePage ? button({ label: 'WEITER', width: n ? 260 : 300, height: 60, color: COLORS.brass, fontSize: 23, onClick: () => void this.curvePage() }) : this.closeButton();
+    nb.position.set(W / 2, H - 48);
+    p.addChild(nb);
+    this.done = true;
+    nb.alpha = 0;
+    await this.anim(300, (k) => (nb.alpha = k));
+    this.fast = false;
+  }
+
+  /** Second page: the day's balance as an inked curve, and the honest numbers. */
+  private async curvePage() {
+    if (!(await this.turnPage())) return;
+    const r = this.r;
+    const p = this.panel;
+    const n = this.n;
+    const W = this.W;
+    const H = this.H;
 
     const pl = plaque(`TAG ${r.evening} · DEIN VERLAUF`, { size: n ? 21 : 28, minW: n ? 300 : 420 });
     pl.position.set(W / 2, 4);

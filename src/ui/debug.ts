@@ -18,7 +18,6 @@ import { reducedMotion, setReducedMotion } from '../core/fx';
 import {
   FLOORS_KEY,
   GOAL_KEY,
-  LUCK_KEY,
   CAM_KEY,
   CAM_NORMAL,
   WALK_KEY,
@@ -31,10 +30,12 @@ import {
   activeCheats,
   allLuckStats,
   cheat,
+  luckFor,
   luckLabel,
   setCheat,
   setLuck,
 } from '../core/debugLuck';
+import { net } from '../net/session';
 import { seasonDebug } from './season';
 import { bossRunDebug } from './bossRun';
 import { albumDebug } from './album';
@@ -56,6 +57,8 @@ export interface DebugActions {
 }
 
 const CAT_KEY = 'nf-mod-cat';
+/** "Glück pro Spieler": whose Gewinnchance the slider sets ('' = everyone); kept while the game runs. */
+let luckTarget = '';
 const DAY_KEY_SALT = 'rotSalt';
 
 /** Factor steps for the stake, goal and speed sliders (×100). */
@@ -126,7 +129,8 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   allOff.className = 'mod-mini';
   allOff.addEventListener('click', () =>
     apply(() => {
-      for (const [k, n] of [[LUCK_KEY, 0], [STAKE_KEY, 100], [GOAL_KEY, 100], [SPEED_KEY, 100], [FLOORS_KEY, 0], [PLINKO_SPEED_KEY, 100], [PLINKO_MAX_KEY, PLINKO_MAX_NORMAL], [CAM_KEY, CAM_NORMAL], [WALK_KEY, WALK_NORMAL]] as const) setCheat(state, k, n, n);
+      setLuck(state, 0);
+      for (const [k, n] of [[STAKE_KEY, 100], [GOAL_KEY, 100], [SPEED_KEY, 100], [FLOORS_KEY, 0], [PLINKO_SPEED_KEY, 100], [PLINKO_MAX_KEY, PLINKO_MAX_NORMAL], [CAM_KEY, CAM_NORMAL], [WALK_KEY, WALK_NORMAL]] as const) setCheat(state, k, n, n);
       d().evening.quota = state.quotaToday(d().evening.number);
       return 'Alle Cheats aus: Gewinnchance normal, Einsätze, Ziel und Tempo wie im echten Spiel.';
     }),
@@ -390,12 +394,29 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   // Glück & Gewinnchance
   cat('luck', 'Glück & Gewinnchance', 'Regler für Gewinne');
   group('Gewinnchance', true);
-  slider('Gewinnchance', [-100, 100, 5], () => cheat(state, LUCK_KEY, 0), (v) => setLuck(state, v), (v) => luckLabel(v), 'glück luck gewinn verlieren', false);
+  // In a group the slider can aim at everyone or at one player; it then works on that player's game.
+  live(
+    () => (net.on ? net.roster().map((p) => `${p.id}:${p.name}`).join('|') : ''),
+    () => {
+      const ps = net.on ? net.roster() : [];
+      if (luckTarget && !ps.some((p) => p.id === luckTarget)) luckTarget = '';
+      if (!ps.length) return;
+      select(
+        'Glück pro Spieler',
+        [['', 'Alle Spieler'], ...ps.map((p): [string, string] => [p.id, p.id === state.selfId ? `${p.name} (du)` : p.name])],
+        () => luckTarget,
+        (v) => void (luckTarget = v),
+        'glück spieler gruppe freunde einzeln',
+      );
+    },
+  );
+  const who = () => (luckTarget ? ` für ${state.data.players[luckTarget]?.name ?? 'diesen Spieler'}` : '');
+  slider('Gewinnchance', [-100, 100, 5], () => luckFor(state, luckTarget), (v) => setLuck(state, v, luckTarget), (v) => luckLabel(v), 'glück luck gewinn verlieren', false);
   const presets = row('Schnellwahl', 'gewinnchance immer gewinnen verlieren normal');
   for (const [v, t] of [[-100, 'Immer verlieren'], [-50, '−50 %'], [0, 'Normal'], [50, '+50 %'], [100, 'Immer gewinnen']] as const) {
     btn(presets, t, () => {
-      setLuck(state, v);
-      return v ? `Gewinnchance: ${luckLabel(v)}. Wirkt still, an den Spielen steht nichts davon.` : 'Gewinnchance normal: alle Spiele mit ihren echten Quoten.';
+      setLuck(state, v, luckTarget);
+      return v ? `Gewinnchance${who()}: ${luckLabel(v)}. Wirkt still, an den Spielen steht nichts davon.` : `Gewinnchance${who()} normal: alle Spiele mit ihren echten Quoten.`;
     });
   }
   note(
@@ -403,10 +424,10 @@ export function debugPanel(state: GameState, a: DebugActions): HTMLElement {
   );
   group('Gemessen seit dem Verstellen', true);
   live(
-    () => JSON.stringify(allLuckStats()) + cheat(state, LUCK_KEY, 0),
+    () => JSON.stringify(allLuckStats()) + luckFor(state, state.selfId),
     () => {
       const st = allLuckStats();
-      if (!cheat(state, LUCK_KEY, 0)) note('Regler auf normal: Es wird nichts gemessen.');
+      if (!luckFor(state, state.selfId)) note('Regler auf normal: Es wird nichts gemessen.');
       else if (!st.length) note('Noch keine Runde mit verstelltem Regler gespielt.');
       for (const s of st) note(`${gameName(s.game)}: ${s.rounds} ${s.rounds === 1 ? 'Runde' : 'Runden'}, ${pct(s.winRate)} gewonnen, Auszahlungsquote ${pct(s.rtp)}`);
     },
