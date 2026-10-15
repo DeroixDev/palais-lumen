@@ -205,7 +205,7 @@ const tiger: Gen = (g) => {
 /** Doppler: dark galaxy base with swirling metallic colour clouds and sparkles. Phases = palettes. */
 const doppler: Gen = (g) => {
   const P = g.pal;
-  const dark = mix(P[0], [0, 0, 0], 0.72);
+  const dark = mix(P[0], [0, 0, 0], num(g, 'dark', 0.72));
   const swirl = num(g, 'swirl', 4.5);
   field(g, 640, (x, y) => {
     const qx = g.n.fbm(x / 280, y / 280, 4), qy = g.n.fbm(x / 280 + 5.2, y / 280 + 1.3, 4);
@@ -245,13 +245,30 @@ const marble: Gen = (g) => {
 const casehardened: Gen = (g) => {
   const P = g.pal.length >= 3 ? g.pal : [hex('#24508f'), hex('#c8a24a'), hex('#8b8f94'), hex('#5a3c74')];
   const steel = P[2];
-  field(g, 640, (x, y) => {
+  const V = (x: number, y: number) => {
     const w1 = g.n.fbm(x / 150, y / 150, 4), w2 = g.n.fbm(x / 150 + 9, y / 150 + 4, 4);
-    const v = g.n2.fbm(x / 210 + w1 * 2.2, y / 210 + w2 * 2.2, 5);
-    const blue = smooth(0.48, 0.66, v);
-    const gold = smooth(0.42, 0.6, g.n.fbm(x / 170 + 31, y / 170 - 11, 4));
-    let c: RGB = mix(steel, P[1], gold * 0.95);
-    c = mix(c, P[3] ?? mix(P[0], [120, 60, 140], 0.5), smooth(0.4, 0.5, v) * (1 - blue) * 0.5);
+    return g.n2.fbm(x / 210 + w1 * 2.2, y / 210 + w2 * 2.2, 5);
+  };
+  // Special seeds (see data/specials.ts): `blue` = share of the motif area painted blue (blue gem),
+  // `goldgem` = almost all gold. The blue threshold is the matching quantile of the field around the
+  // texture centre, which the renderer puts onto the weapon's biggest painted part.
+  const target = num(g, 'blue', -1), goldgem = num(g, 'goldgem', 0) > 0;
+  let b0 = 0.48, b1 = 0.66;
+  if (target >= 0) {
+    const vs: number[] = [];
+    const mw = num(g, 'mw', 500), mh = num(g, 'mh', 160);
+    for (let i = 0; i < 48; i++) for (let j = 0; j < 24; j++) vs.push(V(500 + ((i + 0.5) / 48 - 0.5) * mw, 500 + ((j + 0.5) / 24 - 0.5) * mh));
+    vs.sort((a, b) => a - b);
+    const thr = vs[Math.min(vs.length - 1, Math.max(0, Math.floor((1 - target) * vs.length)))];
+    b0 = thr - 0.024; b1 = thr;
+  } else if (goldgem) { b0 = 2; b1 = 3; }
+  const goldC: RGB = goldgem ? mix(P[1], [255, 214, 92], 0.3) : P[1];
+  field(g, 640, (x, y) => {
+    const v = V(x, y);
+    const blue = smooth(b0, b1, v);
+    const gold = goldgem ? 1 - smooth(0.66, 0.74, g.n.fbm(x / 170 + 31, y / 170 - 11, 4)) * 0.18 : smooth(0.42, 0.6, g.n.fbm(x / 170 + 31, y / 170 - 11, 4));
+    let c: RGB = mix(steel, goldC, gold * 0.95);
+    c = mix(c, P[3] ?? mix(P[0], [120, 60, 140], 0.5), smooth(0.4, 0.5, v) * (1 - blue) * (goldgem ? 0.08 : 0.5));
     c = mix(c, P[0], blue);
     const mott = (g.n.v(x / 6, y / 6) - 0.5) * 26;
     return [c[0] + mott, c[1] + mott, c[2] + mott];
@@ -315,25 +332,35 @@ const damascus: Gen = (g) => {
     const s = (g.n2.v(x / 3, y / 3) - 0.5) * 14;
     return [c[0] + s, c[1] + s, c[2] + s];
   });
+  if (num(g, 'stripe', 0)) {
+    // night stripe: a dark band along the length through the motif centre
+    const mh = num(g, 'mh', 160);
+    const half = Math.max(18, mh * 0.3);
+    field(g, 384, (x, y) => {
+      const d = Math.abs(y - 500 - Math.sin(x / 70) * half * 0.25);
+      const a = 1 - smooth(half * 0.75, half, d);
+      return [12, 13, 16, a * 225];
+    }, true);
+  }
   sheen(g, 0.2);
 };
 
-/** Crimson web: dark base with spider webs. */
+/** Crimson web: dark base with spider webs. `hero` 1 = one big centred web, 3 = three in a row. */
 const web: Gen = (g) => {
   const ctx = g.ctx;
   const base = pc(g, 0), line = g.pal[1] ?? [10, 10, 10];
   field(g, 256, (x, y) => mix(base, mix(base, [0, 0, 0], 0.4), smooth(0.35, 0.7, g.n.fbm(x / 250, y / 250, 3))));
-  const webs = num(g, 'webs', 5);
+  const hero = num(g, 'hero', 0);
+  const mw = num(g, 'mw', 500), mh = num(g, 'mh', 160);
   ctx.strokeStyle = rgb(line);
   ctx.lineCap = 'round';
-  for (let k = 0; k < webs; k++) {
-    const cx = g.r() * 1000, cy = g.r() * 1000, R = 260 + g.r() * 260;
+  const one = (cx: number, cy: number, R: number, k = 1) => {
     const spokes = 9 + Math.floor(g.r() * 5);
     const angs: number[] = [];
     for (let i = 0; i < spokes; i++) angs.push(((i + g.r() * 0.4) / spokes) * TAU);
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 3.2 * k;
     angs.forEach((a) => { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke(); });
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2.2 * k;
     for (let rI = 1; rI < 9; rI++) {
       const rr = (rI / 9) * R * (0.9 + g.r() * 0.1);
       ctx.beginPath();
@@ -347,6 +374,21 @@ const web: Gen = (g) => {
       }
       ctx.stroke();
     }
+  };
+  if (!hero) {
+    const webs = num(g, 'webs', 5);
+    for (let k = 0; k < webs; k++) one(g.r() * 1000, g.r() * 1000, 260 + g.r() * 260);
+  } else {
+    // background webs thin and away from the middle, so the hero webs read clearly
+    for (let k = 0; k < 4; k++) {
+      const cx = g.r() * 1000, cy = (g.r() < 0.5 ? 0.15 : 0.85) * 1000 + (g.r() - 0.5) * 100;
+      one(cx, cy, 200 + g.r() * 160, 0.7);
+    }
+    const n = hero >= 3 ? 3 : 1;
+    const wh = num(g, 'wh', 220);
+    const R = n === 1 ? Math.max(mh * 0.6, wh * 0.5) : Math.min(mw / 6.3, Math.max(mh * 0.5, wh * 0.4));
+    const k = Math.max(1.2, Math.min(2.2, R / 90));
+    for (let i = 0; i < n; i++) one(500 + (i - (n - 1) / 2) * R * 2.05, 500, R, k);
   }
   sheen(g, 0.12);
   grain(g, 0.06);
@@ -365,8 +407,43 @@ const blotch: Gen = (g) => {
     if (edge > 0) c = mix(c, [0, 0, 0], clamp(edge) * 0.3);
     return c;
   });
+  const shape = g.p.shape;
+  if (typeof shape === 'string') motifShape(g, shape, P[2] ?? mix(P[0], [255, 255, 255], 0.5));
   sheen(g, 0.16);
 };
+
+/** A clean shape (slaughter-style special) on the motif centre, sized to the painted part. */
+function motifShape(g: PatternCtx, shape: string, col: RGB) {
+  const ctx = g.ctx;
+  const H = Math.max(40, num(g, 'mh', 160) * 0.92);
+  const p = new Path2D();
+  const cx = 500, cy = 500;
+  if (shape === 'herz') {
+    const w = H * 0.62;
+    p.moveTo(cx, cy + H * 0.48);
+    p.bezierCurveTo(cx - w * 1.1, cy - H * 0.05, cx - w * 0.85, cy - H * 0.62, cx, cy - H * 0.22);
+    p.bezierCurveTo(cx + w * 0.85, cy - H * 0.62, cx + w * 1.1, cy - H * 0.05, cx, cy + H * 0.48);
+  } else if (shape === 'diamant') {
+    p.moveTo(cx, cy - H * 0.5); p.lineTo(cx + H * 0.62, cy); p.lineTo(cx, cy + H * 0.5); p.lineTo(cx - H * 0.62, cy); p.closePath();
+  } else {
+    // engel: two swept wings and a head
+    for (const sgn of [-1, 1]) {
+      p.moveTo(cx + sgn * H * 0.08, cy - H * 0.05);
+      p.bezierCurveTo(cx + sgn * H * 0.5, cy - H * 0.55, cx + sgn * H * 1.15, cy - H * 0.5, cx + sgn * H * 1.25, cy - H * 0.32);
+      p.bezierCurveTo(cx + sgn * H * 0.95, cy - H * 0.2, cx + sgn * H * 0.9, cy + H * 0.05, cx + sgn * H * 1.0, cy + H * 0.12);
+      p.bezierCurveTo(cx + sgn * H * 0.6, cy + H * 0.1, cx + sgn * H * 0.45, cy + H * 0.42, cx + sgn * H * 0.1, cy + H * 0.3);
+      p.closePath();
+    }
+    p.moveTo(cx + H * 0.13, cy - H * 0.28); p.arc(cx, cy - H * 0.28, H * 0.13, 0, TAU);
+  }
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = Math.max(3, H * 0.08); ctx.stroke(p);
+  const gr = ctx.createLinearGradient(cx, cy - H * 0.5, cx, cy + H * 0.5);
+  gr.addColorStop(0, rgb(mix(col, [255, 255, 255], 0.6))); gr.addColorStop(1, rgb(mix(col, [255, 255, 255], 0.3)));
+  ctx.fillStyle = gr; ctx.fill(p);
+  ctx.restore();
+}
 
 /** Sticker bomb / graffiti: bold shapes, tags and outlines in many colours. */
 const graffiti: Gen = (g) => {
@@ -741,6 +818,20 @@ const galaxy: Gen = (g) => {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, L, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.fillRect(x - L, y - 0.7, L * 2, 1.4); ctx.fillRect(x - 0.7, y - L, 1.4, L * 2);
+  }
+  if (num(g, 'core', 0)) {
+    // supernova core: big glow plus a four-ray flare on the motif centre
+    const L = Math.max(60, num(g, 'mh', 160) * 1.1);
+    const tint = rgb(P[2] ?? [255, 255, 255]);
+    let gr = ctx.createRadialGradient(500, 500, 0, 500, 500, L * 1.6);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.12, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.35, tint); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(500, 500, L * 1.6, 0, TAU); ctx.fill(); ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    for (const [w, h] of [[L * 3.2, L * 0.07], [L * 0.07, L * 1.6]]) {
+      gr = ctx.createRadialGradient(500, 500, 0, 500, 500, Math.max(w, h) / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gr; ctx.fillRect(500 - w / 2, 500 - h / 2, w, h);
+    }
   }
   sheen(g, 0.1);
 };

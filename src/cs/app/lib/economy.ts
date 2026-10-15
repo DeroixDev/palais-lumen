@@ -9,6 +9,7 @@ import { RARITIES, type CaseDef, type ItemInstance, type Rarity, type SkinDef } 
 import { CASES, skinById } from './assets';
 import { hash01, uid } from './util';
 import * as M from './mods';
+import { patternInfo, familyOf } from '../../data/specials';
 
 export const TIER_ORDER: Rarity[] = RARITIES;
 export const rarityIndex = (r: Rarity) => TIER_ORDER.indexOf(r);
@@ -95,38 +96,34 @@ export const wearFactor = (f: number) => rawWear(f) / WEAR_NORM;
 const ST_MULT: Record<Rarity, number> = { consumer: 1.6, industrial: 1.6, milspec: 1.6, restricted: 1.7, classified: 1.8, covert: 2, gold: 1 };
 export const statTrakMult = (r: Rarity) => ST_MULT[r];
 
-// Insider patterns: a few paint seeds are famous and worth far more. 661 is the big one.
-// Case-hardened 661 is the "Blaues Juwel"; shiny finishes (doppler, fade, marble, galaxy, holo) pay well too.
-type SeedTier = { mult: number; shiny: number; hardened: number; label: string };
-const INSIDER: Record<number, SeedTier> = {
-  661: { mult: 8, shiny: 12, hardened: 40, label: 'Legendäres Insider-Muster' },
-  387: { mult: 2.5, shiny: 3.5, hardened: 6, label: 'Insider-Muster' },
-  555: { mult: 2.5, shiny: 3.5, hardened: 6, label: 'Insider-Muster' },
-  151: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
-  321: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
-  69: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
-  777: { mult: 2, shiny: 2.5, hardened: 3, label: 'Insider-Muster' },
-  1: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
-  888: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
-  999: { mult: 1.5, shiny: 1.5, hardened: 1.5, label: 'Seltenes Muster' },
-};
-const SHINY = new Set(['doppler', 'fade', 'marble', 'galaxy', 'holo']);
-function patternKind(skin?: Pick<SkinDef, 'pattern'> | null): string { return skin?.pattern?.kind ?? ''; }
-/** The insider bonus of a seed on this skin (1 when the seed is ordinary). */
-export function insiderMult(seed: number, skin?: Pick<SkinDef, 'pattern'> | null): number {
-  const t = INSIDER[seed];
-  if (!t) return 1;
-  const k = patternKind(skin);
-  return k === 'casehardened' ? t.hardened : SHINY.has(k) ? t.shiny : t.mult;
+// Special patterns (blue gems, Doppler phases and gems, fade %, fire & ice, webs, shapes,
+// collector numbers): see data/specials.ts. The renderer draws exactly what the label says.
+// Ordinary seeds keep a tiny 0–3 % spread so two items of a skin rarely share a value.
+/** The pattern bonus of a seed on this skin (1 when the seed is ordinary). */
+export function insiderMult(seed: number, skin?: SkinDef | null): number {
+  return patternInfo(skin, seed).mult;
 }
-/** Label for a special seed, or '' for an ordinary one. */
-export function insiderLabel(seed: number): string { return INSIDER[seed]?.label ?? ''; }
-export const isRareSeed = (seed: number) => seed in INSIDER;
-export const seedBonus = (seed: number, skin?: Pick<SkinDef, 'pattern'> | null) =>
-  INSIDER[seed] ? insiderMult(seed, skin) : 1 + ((seed * 37) % 101) / 101 * 0.03;
+/** Name of the seed's special, or '' for an ordinary one. */
+export function insiderLabel(seed: number, skin?: SkinDef | null): string { return patternInfo(skin, seed).special?.name ?? ''; }
+export const isRareSeed = (seed: number, skin?: SkinDef | null) => !!patternInfo(skin, seed).special;
+export const seedBonus = (seed: number, skin?: SkinDef | null) => {
+  const pi = patternInfo(skin, seed);
+  return pi.special ? pi.mult : pi.mult * (1 + ((seed * 37) % 101) / 101 * 0.03);
+};
+/** Best possible pattern bonus of a skin (for the value range). */
+const bestCache = new Map<string, number>();
+export function bestSeedMult(skin: SkinDef): number {
+  let m = bestCache.get(skin.id);
+  if (m !== undefined) return m;
+  m = 1;
+  for (let sd = 0; sd < 1000; sd++) m = Math.max(m, seedBonus(sd, skin));
+  bestCache.set(skin.id, m);
+  return m;
+}
 const seedMeanCache = new Map<string, number>();
 function seedMean(skin: SkinDef): number {
-  const k = patternKind(skin);
+  // seed tables are per family; the gold-gem and kult rules can differ per skin, so key by both
+  const k = familyOf(skin) + '|' + (familyOf(skin) === 'ch' ? skin.pattern.colors[1] : '');
   let m = seedMeanCache.get(k);
   if (m === undefined) {
     m = 0;
@@ -187,7 +184,7 @@ export function skinEV(s: SkinDef): number {
 export function skinRange(s: SkinDef): [number, number] {
   const lo = s.basePrice * wearFactor(s.floatMax - 1e-6) * seedBonus(0, s);
   const gold = s.rarity === 'gold';
-  const hi = s.basePrice * wearFactor(s.floatMin) * lowFloatBonus(s.floatMin, !gold, s) * (gold ? 1 : ST_MULT[s.rarity]) * insiderMult(661, s);
+  const hi = s.basePrice * wearFactor(s.floatMin) * lowFloatBonus(s.floatMin, !gold, s) * (gold ? 1 : ST_MULT[s.rarity]) * bestSeedMult(s);
   return [lo, hi];
 }
 

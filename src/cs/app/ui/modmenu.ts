@@ -147,6 +147,7 @@ function kistenPane(): HTMLElement[] {
   const fFloat = slider('Float des Drops', modBind('force.float'), { min: 0, max: 1, step: 0.0001, fmt: (v) => v.toFixed(4), nullText: 'Zufall', nullAt: 0, keys: 'force float' });
   const fSeed = numField('Muster des Drops', modBind('force.seed'), { min: 0, max: 999, step: 1, nullText: 'Zufall', keys: 'force seed muster' });
   const fSt = toggle('StatTrak™ beim Drop', modBind('force.st'), { keys: 'force stattrak' });
+  const fSp = select('Spezialmuster erzwingen', modBind('force.special'), [['', 'Aus'], ['any', 'Zufälliges Spezialmuster'], ['best', 'Bestes Spezialmuster']], { help: 'Jeder deiner Drops bekommt ein besonderes Muster, falls der Skin eins hat (Blaues Juwel, Rubin, Voller Verlauf …).', keys: 'spezialmuster muster seed blue gem juwel rubin saphir smaragd perle verlauf feuer eis netz force' });
 
   // one case
   const one = block('Werte einer Kiste', (host) => {
@@ -180,7 +181,7 @@ function kistenPane(): HTMLElement[] {
   return [
     group('Alle Kisten · Ziehung', global, 'Gilt für deine Öffnungen. Die angezeigten Chancen auf den Seiten bleiben unverändert.'),
     group('Alle Kisten · Laden', shop),
-    group('Nächster Drop', [fMode, fCase, fSkin, fFloat, fSeed, fSt]),
+    group('Nächster Drop', [fMode, fCase, fSkin, fFloat, fSeed, fSt, fSp]),
     group('Einzelne Kiste', [one]),
   ];
 }

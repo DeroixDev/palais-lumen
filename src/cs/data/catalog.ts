@@ -1039,6 +1039,9 @@ const CASES_V2: CaseDef[] = [
 
 export const CASES: CaseDef[] = [...CASES_V1, ...CASES_V2];
 CASES.forEach((c, i) => { c.added ??= i < CASES_V1.length ? i : 100 + i; });
+// The plain knife Doppler shows its phase by seed now (data/specials.ts: Phase 1–4, Rubin, Saphir,
+// Schwarze Perle), so it is just "Doppler". The id keeps the old name, saves stay valid.
+for (const s of SKINS) if (s.name === 'Doppler Phase 2') s.name = 'Doppler';
 
 // ------------------------------------------------------------------ lookups
 const skinMap = new Map<string, SkinDef>();

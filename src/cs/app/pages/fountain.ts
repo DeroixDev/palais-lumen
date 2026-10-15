@@ -9,12 +9,13 @@
 import './fountain.css';
 import { RARITIES, wearOf, type ItemInstance, type Rarity, type SkinDef } from '../../contract';
 import { SKINS, skinById, skinURL, skinURLNow } from '../lib/assets';
-import { insiderLabel, isRareSeed, itemValue, lowFloatBonus, makeItem } from '../lib/economy';
+import { insiderLabel, itemValue, lowFloatBonus, makeItem } from '../lib/economy';
+import { specialSeeds } from '../../data/specials';
 import * as M from '../lib/mods';
 import { sfx } from '../lib/sound';
 import { addItem, commit, save, sellItems, sellValue } from '../lib/state';
 import { clamp, esc, fmt, reducedMotion } from '../lib/util';
-import { artImg, names, rColor, rName } from '../ui/items';
+import { artImg, names, patternChip, rColor, rName } from '../ui/items';
 import { toast } from '../ui/toast';
 import type { Cleanup } from './page';
 
@@ -22,9 +23,9 @@ import type { Cleanup } from './page';
 
 type Mode = 'all' | 'tier' | 'real' | 'gold';
 type FloatMode = 'range' | 'fn' | 'fix';
-interface Cfg { n: number; mode: Mode; rar: Rarity[]; fmode: FloatMode; fix: number; st: number; inv: boolean; instant: boolean }
+interface Cfg { n: number; mode: Mode; rar: Rarity[]; fmode: FloatMode; fix: number; st: number; sp: number; inv: boolean; instant: boolean }
 const CFG_KEY = 'csgambler.brunnen';
-const DEF: Cfg = { n: 50, mode: 'all', rar: [...RARITIES], fmode: 'range', fix: 0.01, st: 10, inv: true, instant: false };
+const DEF: Cfg = { n: 50, mode: 'all', rar: [...RARITIES], fmode: 'range', fix: 0.01, st: 10, sp: 0, inv: true, instant: false };
 function loadCfg(): Cfg {
   try {
     const o = JSON.parse(sessionStorage.getItem(CFG_KEY) ?? 'null') as Partial<Cfg> | null;
@@ -36,6 +37,7 @@ function loadCfg(): Cfg {
         fmode: (['range', 'fn', 'fix'] as FloatMode[]).includes(o.fmode as FloatMode) ? (o.fmode as FloatMode) : DEF.fmode,
         fix: clamp(Number(o.fix) || 0, 0, 1),
         st: clamp(Number(o.st) || 0, 0, 100),
+        sp: clamp(Number(o.sp) || 0, 0, 100),
         inv: o.inv !== false,
         instant: o.instant === true,
       };
@@ -93,6 +95,10 @@ function rollItem(c: Cfg, ch: Map<Rarity, number>): ItemInstance {
   else if (c.fmode === 'fix') f = clamp(c.fix, skin.floatMin, skin.floatMax);
   const it = makeItem(skin, 'Zauberbrunnen', f);
   it.statTrak = skin.rarity !== 'gold' && Math.random() * 100 < c.st;
+  if (c.sp > 0 && Math.random() * 100 < c.sp) {
+    const sps = specialSeeds(skin);
+    if (sps.length) it.seed = sps[Math.floor(Math.random() * sps.length)].seed;
+  }
   return it;
 }
 
@@ -228,6 +234,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
       <div class="seg fb-fmode" role="radiogroup" aria-label="Float">${([['range', 'Zufällig'], ['fn', 'Nur FN'], ['fix', 'Fest']] as [FloatMode, string][]).map(([v, t]) => `<button type="button" class="seg-b" role="radio" data-f="${v}">${t}</button>`).join('')}</div>
       <input class="inp mono fb-fix" type="number" min="0" max="1" step="0.0001" aria-label="Fester Float">
       <label class="fb-st"><span class="lbl">StatTrak-Chance</span><input class="fb-range fb-stv" type="range" min="0" max="100" step="1" aria-label="StatTrak-Chance"><output class="mono"></output></label>
+      <label class="fb-st fb-sp"><span class="lbl">Spezialmuster-Chance</span><input class="fb-range fb-spv" type="range" min="0" max="100" step="1" aria-label="Spezialmuster-Chance"><output class="mono"></output></label>
       <div class="fb-tg">
         <label class="fb-sw"><input type="checkbox" class="fb-inv"><span></span>Ins Inventar legen</label>
         <label class="fb-sw"><input type="checkbox" class="fb-inst"><span></span>Sofort</label>
@@ -248,7 +255,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
   const hud = $('.fb-hud');
   const hint = $('.fb-hint');
   const nIn = $<HTMLInputElement>('.fb-n'), nRg = $<HTMLInputElement>('.fb-nr');
-  const fixIn = $<HTMLInputElement>('.fb-fix'), stRg = $<HTMLInputElement>('.fb-stv');
+  const fixIn = $<HTMLInputElement>('.fb-fix'), stRg = $<HTMLInputElement>('.fb-stv'), spRg = $<HTMLInputElement>('.fb-spv');
   const invCb = $<HTMLInputElement>('.fb-inv'), instCb = $<HTMLInputElement>('.fb-inst');
   const startBtn = $<HTMLButtonElement>('.fb-start'), startT = $('.fb-start-t'), skipBtn = $<HTMLButtonElement>('.fb-skip');
   const loot = $('.fb-loot'), grid = $('.fb-grid'), tiers = $('.fb-tiers'), totV = $('.fb-totv'), bestEl = $('.fb-best b');
@@ -273,6 +280,8 @@ export function fountainPage(root: HTMLElement): Cleanup {
     if (document.activeElement !== fixIn) fixIn.value = String(cfg.fix);
     stRg.value = String(cfg.st);
     (root.querySelector('.fb-st output') as HTMLElement).textContent = `${cfg.st} %`;
+    spRg.value = String(cfg.sp);
+    (root.querySelector('.fb-sp output') as HTMLElement).textContent = `${cfg.sp} %`;
     invCb.checked = cfg.inv; instCb.checked = cfg.instant;
     startBtn.disabled = !!run?.going || ch.size === 0;
     saveCfg(cfg);
@@ -294,6 +303,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
   });
   fixIn.addEventListener('change', () => { cfg.fix = clamp(Number(fixIn.value.replace(',', '.')) || 0, 0, 1); drawCtl(); });
   stRg.addEventListener('input', () => { cfg.st = Number(stRg.value); drawCtl(); });
+  spRg.addEventListener('input', () => { cfg.sp = Number(spRg.value); drawCtl(); });
   invCb.addEventListener('change', () => { cfg.inv = invCb.checked; drawCtl(); });
   instCb.addEventListener('change', () => { cfg.instant = instCb.checked; drawCtl(); });
 
@@ -682,7 +692,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
     c.style.setProperty('--rc', rColor(r));
     c.dataset.uid = it.uid;
     c.title = `${it.statTrak ? 'StatTrak™ ' : ''}${n.full} · ${wearOf(it.float).name} · Float ${it.float.toFixed(6)} · Seed ${it.seed}`;
-    c.innerHTML = `<div class="ic-top"><span class="ic-wear">${wearOf(it.float).short}</span>${it.statTrak ? '<span class="ic-st">ST</span>' : ''}${isRareSeed(it.seed) ? '<span class="ic-seed" title="Seltenes Muster">◆</span>' : ''}</div><div class="ic-art"></div><div class="ic-name"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></div><div class="ic-val"><span class="coin"></span>${fmt(run?.vals.get(it.uid) ?? itemValue(it))}</div><div class="fb-fl mono">${it.float.toFixed(6)}</div>`;
+    c.innerHTML = `<div class="ic-top"><span class="ic-wear">${wearOf(it.float).short}</span>${it.statTrak ? '<span class="ic-st">ST</span>' : ''}${patternChip(it)}</div><div class="ic-art"></div><div class="ic-name"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></div><div class="ic-val"><span class="coin"></span>${fmt(run?.vals.get(it.uid) ?? itemValue(it))}</div><div class="fb-fl mono">${it.float.toFixed(6)}</div>`;
     const img = artImg(104, 62);
     img.classList.add('loading');
     c.querySelector('.ic-art')!.appendChild(img);
@@ -702,7 +712,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
     if (R.best) {
       const r = rarOf(R.best);
       const b = R.best;
-      const extra = [insiderLabel(b.seed), lowFloatBonus(b.float, b.statTrak, skinById(b.skin)) > 1.05 ? `Top-Float ${b.float.toFixed(6)}` : ''].filter(Boolean).join(' · ');
+      const extra = [insiderLabel(b.seed, skinById(b.skin)), lowFloatBonus(b.float, b.statTrak, skinById(b.skin)) > 1.05 ? `Top-Float ${b.float.toFixed(6)}` : ''].filter(Boolean).join(' · ');
       bestEl.innerHTML = `<span style="color:${rColor(r)}">${b.statTrak ? 'StatTrak™ ' : ''}${esc(names(b).full)}</span> <span class="mono">${fmt(R.vals.get(b.uid) ?? 0)}</span>${extra ? `<small>${esc(extra)}</small>` : ''}`;
     } else bestEl.textContent = '–';
     hud.textContent = R.going ? `${R.landed} / ${R.items.length}` : '';
