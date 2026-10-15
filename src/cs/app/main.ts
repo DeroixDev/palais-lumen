@@ -27,15 +27,15 @@ import { crashPage } from './pages/crash';
 import { careerPage } from './pages/career';
 import { settingsPage } from './pages/settings';
 
-const NAV: { id: string; label: string; icon: string; page: Page }[] = [
+const NAV: { id: string; label: string; icon: string; page: Page; group?: 'me' }[] = [
   { id: 'cases', label: 'Kisten', icon: 'cases', page: casesPage },
   { id: 'battles', label: 'Battles', icon: 'battles', page: battlesPage },
   { id: 'upgrader', label: 'Upgrader', icon: 'upgrader', page: upgraderPage },
   { id: 'contracts', label: 'Verträge', icon: 'contracts', page: contractsPage },
   { id: 'coinflip', label: 'Coinflip', icon: 'coinflip', page: coinflipPage },
   { id: 'crash', label: 'Crash', icon: 'crash', page: crashPage },
-  { id: 'inventory', label: 'Inventar', icon: 'inventory', page: inventoryPage },
-  { id: 'career', label: 'Karriere', icon: 'career', page: careerPage },
+  { id: 'inventory', label: 'Inventar', icon: 'inventory', page: inventoryPage, group: 'me' },
+  { id: 'career', label: 'Karriere', icon: 'career', page: careerPage, group: 'me' },
 ];
 // The fountain loads on demand (its own chunk), only behind the code pad.
 const brunnenPage: Page = (root) => {
@@ -51,13 +51,13 @@ const EXTRA: Record<string, { page: Page; nav: string; label: string }> = {
   brunnen: { page: brunnenPage, nav: '', label: 'Zauberbrunnen' },
 };
 
+const navLink = (n: (typeof NAV)[number]) => `<a href="#/${n.id}" data-nav="${n.id}" title="${n.label}">${icon(n.icon)}<span>${n.label}</span></a>`;
 const app = document.getElementById('app')!;
 app.innerHTML = `
 <a class="skip" href="#page">Zum Inhalt</a>
 <header class="topbar">
   <div class="tb-inner">
     <a class="logo" href="#/cases" aria-label="CS Gambler, Startseite"><span class="logo-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 11l11-6 11 6v11l-11 6-11-6z" fill="#ff8a1f"/><path d="M5 11l11 6 11-6M16 17v11" stroke="#1a0d02" stroke-width="2.2" fill="none"/><path d="M16 5l11 6-11 6-11-6z" fill="#ffb15e"/></svg></span><span class="logo-txt">CS<b>Gambler</b></span></a>
-    <nav class="mainnav" aria-label="Hauptmenü">${NAV.map((n) => `<a href="#/${n.id}" data-nav="${n.id}">${icon(n.icon)}<span>${n.label}</span></a>`).join('')}</nav>
     <div class="tb-right">
       <a class="tb-gift" href="#/career" aria-label="Belohnungen">${icon('gift')}<i class="dot" hidden></i></a>
       <a class="wallet" href="#/inventory" aria-label="Kontostand"><span class="coin big"></span><span class="w-col"><span class="w-num mono">0,00</span><span class="w-inv mono"><span class="w-invv">0,00</span> im Inventar</span></span></a>
@@ -67,6 +67,11 @@ app.innerHTML = `
     </div>
   </div>
 </header>
+<nav class="sidenav" aria-label="Spiele">
+  <div class="sn-group">${NAV.filter((n) => !n.group).map(navLink).join('')}</div>
+  <div class="sn-group sn-me">${NAV.filter((n) => n.group).map(navLink).join('')}</div>
+  <a class="sn-palais" href="./index.html" title="Palais Lumen">${icon('palace')}<span>Palais</span></a>
+</nav>
 <div class="feed" aria-label="Live-Drops"><div class="feed-live"><i></i>LIVE</div><div class="feed-track"></div></div>
 <main id="page" tabindex="-1"></main>
 <footer class="foot">
@@ -207,8 +212,8 @@ function route() {
   // frame, where the layout happens anyway.
   if (scrollY) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   requestAnimationFrame(() => {
-    const navLink = app.querySelector('.mainnav .on') as HTMLElement | null;
-    if (navLink) { const nv = navLink.parentElement!; nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
+    const navLink = app.querySelector('.sidenav .on') as HTMLElement | null;
+    if (navLink) { const nv = app.querySelector('.sidenav') as HTMLElement; if (nv.scrollWidth > nv.clientWidth) nv.scrollLeft = navLink.offsetLeft - nv.clientWidth / 2 + navLink.clientWidth / 2; }
   });
   const fresh = document.createElement('div');
   fresh.className = 'page page-in';
