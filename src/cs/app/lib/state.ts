@@ -20,6 +20,8 @@ export interface Stats {
   crash: number; crashWon: number; crashBest: number;
   bonus: number;
   best?: DropLog;
+  /** Biggest pallet opened at once (Die Palette). */
+  paletteMax?: number;
 }
 
 export interface Mission { id: string; progress: number; claimed: boolean }

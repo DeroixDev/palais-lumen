@@ -21,7 +21,7 @@ import { caseArt, sectionLabel } from './cases';
 import type { Page } from './page';
 
 /** Records one opened item everywhere (stats, XP, missions, feed). Item must already be in the inventory. */
-export function recordDrop(c: CaseDef, it: ItemInstance, price: number, via = c.name) {
+export function recordDrop(c: CaseDef, it: ItemInstance, price: number, via = c.name, toFeed = true) {
   const v = itemValue(it);
   const s = skinById(it.skin)!;
   save.stats.opened++;
@@ -33,7 +33,7 @@ export function recordDrop(c: CaseDef, it: ItemInstance, price: number, via = c.
   if (save.recent.length > 30) save.recent.pop();
   addXP(xpFor(price));
   emit({ t: 'open', caseId: c.id, item: it, value: v, price });
-  pushMine(it, via, c.id === DAILY_ID ? undefined : c.id);
+  if (toFeed) pushMine(it, via, c.id === DAILY_ID ? undefined : c.id);
 }
 
 function infoModal(c: CaseDef) {
@@ -80,6 +80,7 @@ export const casePage: Page = (root, args) => {
     <div class="reels"></div>
     <div class="op-controls">
       <div class="counts" role="group" aria-label="Anzahl"></div>
+      ${daily || (c.level > level() && !M.on('cs.unlock')) ? '' : `<a class="pl-entry" href="#/palette/${esc(c.id)}" title="Die Palette: 10 bis 100 Kisten auf einmal">${icon('cases')}Palette<small>×10–100</small></a>`}
       <button class="btn primary xl open-btn" type="button"></button>
       <div class="op-toggles">
         <button class="toggle fast-btn" type="button" aria-pressed="${save.settings.fast}">${icon('bolt')} Schnell</button>

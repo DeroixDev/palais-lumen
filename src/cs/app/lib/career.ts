@@ -284,6 +284,7 @@ export const ACHIEVEMENTS: AchDef[] = [
   { id: 'covert', name: 'Rote Linie', text: 'Ziehe einen verdeckten Skin', icon: '🟥', test: () => save.stats.coverts >= 1 },
   { id: 'gold', name: 'Goldjunge', text: 'Ziehe ein ★ Messer oder Handschuhe', icon: '★', test: () => save.stats.golds >= 1 },
   { id: 'gold5', name: 'Messersammlung', text: 'Ziehe 5 ★ Gegenstände', icon: '🔪', test: () => save.stats.golds >= 5 },
+  { id: 'palette50', name: 'Gabelstapler', text: 'Öffne eine Palette mit 50 Kisten', icon: '🏗', test: () => (save.stats.paletteMax ?? 0) >= 50 },
   { id: 'battle1', name: 'Arena', text: 'Gewinne ein Battle', icon: '⚔', test: () => save.stats.battlesWon >= 1 },
   { id: 'battle10', name: 'Champion', text: 'Gewinne 10 Battles', icon: '🏆', test: () => save.stats.battlesWon >= 10 },
   { id: 'up1', name: 'Höher hinaus', text: 'Gewinne ein Upgrade', icon: '⬆', test: () => save.stats.upgradesWon >= 1 },

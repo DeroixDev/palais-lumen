@@ -163,6 +163,10 @@ export const casesPage: Page = (root) => {
       </div>
     </div>
   </section>
+  <a class="pl-promo" href="#/palette">
+    <div class="pl-promo-t"><span class="eyebrow">Spezial</span><b>Die Palette</b><span>10 bis 100 Kisten auf einmal. Der Kran liefert, die Kisten platzen in einer Kettenreaktion auf, und dein bester Drop kommt ins Rampenlicht.</span></div>
+    <div class="pl-promo-r"><div class="pl-promo-stack" aria-hidden="true"></div><span class="btn primary">Zur Palette</span></div>
+  </a>
   <div class="broke-bar" hidden></div>
   <div class="cs-filters">
     <div class="filters">
@@ -179,6 +183,9 @@ export const casesPage: Page = (root) => {
   </div>`;
   (root.querySelector('.sort') as HTMLSelectElement).value = ui.sort;
   caseArt(root.querySelector('.dc-art') as HTMLElement, daily, 140, 105);
+  // the pallet teaser: one case render, stacked eight times
+  const stack = root.querySelector('.pl-promo-stack') as HTMLElement;
+  void caseURL(featured[0], 88, 66).then((u) => { stack.innerHTML = Array.from({ length: 8 }, () => `<img src="${u}" alt="" width="44" height="33" decoding="async">`).join(''); }, () => undefined);
   const stopCarousel = carousel(root, featured);
 
   const groups = root.querySelector('.case-groups') as HTMLElement;

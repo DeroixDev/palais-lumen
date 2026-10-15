@@ -18,6 +18,7 @@ import type { Page, Cleanup } from './pages/page';
 
 import { casesPage } from './pages/cases';
 import { casePage } from './pages/case';
+import { palettePage } from './pages/palette';
 import { inventoryPage } from './pages/inventory';
 import { upgraderPage } from './pages/upgrader';
 import { contractsPage } from './pages/contracts';
@@ -46,6 +47,7 @@ const brunnenPage: Page = (root) => {
 };
 const EXTRA: Record<string, { page: Page; nav: string; label: string }> = {
   case: { page: casePage, nav: 'cases', label: 'Kiste' },
+  palette: { page: palettePage, nav: 'cases', label: 'Die Palette' },
   battle: { page: battlePage, nav: 'battles', label: 'Battle' },
   settings: { page: settingsPage, nav: '', label: 'Einstellungen' },
   brunnen: { page: brunnenPage, nav: '', label: 'Zauberbrunnen' },
