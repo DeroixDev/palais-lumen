@@ -73,14 +73,14 @@ app.innerHTML = `
   <div class="sn-group">${NAV.filter((n) => !n.group).map(navLink).join('')}</div>
   <div class="sn-group sn-me">${NAV.filter((n) => n.group).map(navLink).join('')}</div>
   <a class="sn-all" href="./index.html" title="Alle Spiele">${icon('games')}<span>Alle Spiele</span></a>
-  <a class="sn-palais" href="./casino.html" title="Palais Lumen">${icon('palace')}<span>Palais</span></a>
+  <a class="sn-palais" href="./casino.html" title="Unser Casino Spiel">${icon('palace')}<span>Casino</span></a>
 </nav>
 <div class="feed" aria-label="Live-Drops"><div class="feed-live"><i></i>LIVE</div><div class="feed-track"></div></div>
 <main id="page" tabindex="-1"></main>
 <footer class="foot">
   <div class="foot-inner">
     <div class="foot-brand"><span class="logo-txt">CS<b>Gambler</b></span><span>Kisten, Battles und Karriere für dich und deine Freunde.</span></div>
-    <div class="foot-links"><a href="./index.html" class="to-all">${icon('games')} Alle Spiele</a><a href="./casino.html" class="to-palais">${icon('palace')} Palais Lumen</a><a href="#/career">Karriere</a><a href="#/settings">Einstellungen</a></div>
+    <div class="foot-links"><a href="./index.html" class="to-all">${icon('games')} Alle Spiele</a><a href="./casino.html" class="to-palais">${icon('palace')} Unser Casino Spiel</a><a href="#/career">Karriere</a><a href="#/settings">Einstellungen</a></div>
   </div>
 </footer>`;
 
@@ -229,7 +229,7 @@ function route() {
     fresh.innerHTML = '<div class="empty-state"><b>Hier ist etwas schiefgelaufen.</b><a class="btn primary" href="#/cases">Zu den Kisten</a></div>';
   }
   const label = nav?.label ?? extra?.label ?? '';
-  document.title = label ? `${label} · CS Gambler` : 'CS Gambler';
+  document.title = label ? `${label} · Unser Gamble Spiel` : 'Unser Gamble Spiel';
 }
 addEventListener('hashchange', route);
 

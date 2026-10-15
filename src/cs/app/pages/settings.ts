@@ -35,7 +35,7 @@ export const settingsPage: Page = (root) => {
     </section>
     <section class="panel">
       <h3 class="panel-h">Mehr Spiele</h3>
-      <a class="game-link" href="./casino.html">${icon('palace')}<span><b>Palais Lumen</b><small>Das Casino-Hotel. Gleicher Link, anderes Spiel.</small></span></a>
+      <a class="game-link" href="./casino.html">${icon('palace')}<span><b>Unser Casino Spiel</b><small>Das Palais Lumen, unser Casino-Hotel. Gleicher Link, anderes Spiel.</small></span></a>
       <a class="game-link all" href="./index.html">${icon('games')}<span><b>Alle Spiele</b><small>Zurück zum Launcher.</small></span></a>
     </section>
   </div>`;
