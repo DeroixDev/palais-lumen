@@ -5,8 +5,9 @@ import { RARITIES, type CaseDef } from '../../contract';
 import { CASES, skinById } from '../lib/assets';
 import { caseRTP, casePrice, tierOdds } from '../lib/economy';
 import {
-  ACHIEVEMENTS, DAILY_ID, MAX_LEVEL, TITLES, cheapestCase, dailyCase, ensureMissions, levelInfo, missionDef, titleOf, xpToNext,
+  ACHIEVEMENTS, DAILY_ID, MAX_LEVEL, STAGES, addXP, cheapestCase, dailyCase, ensureMissions, levelInfo, missionDef, rankName, stageOf, xpAtLevel,
 } from '../lib/career';
+import { stageCeremony } from './rank';
 import { BOT_NAMES } from '../lib/bots';
 import * as M from '../lib/mods';
 import { setCode } from '../lib/panel';
@@ -31,7 +32,6 @@ const allCases = (): CaseDef[] => [...CASES, dailyCase()];
 function saveBind<T>(get: () => T, setV: (v: T) => void, def: T): Bind<T> {
   return { get, set: (v) => { setV(v); commit(); }, def };
 }
-const xpForLevel = (lvl: number) => { let x = 0; for (let l = 1; l < lvl; l++) x += xpToNext(l); return x; };
 
 let say: (t: string) => void = () => {};
 
@@ -50,8 +50,13 @@ function kontoPane(): HTMLElement[] {
     ['+10.000', () => { addCoins(10000); commit(); }], ['×2', () => { save.balance = Math.round(save.balance * 200) / 100; commit(); }], ['Auf 0!', () => { save.balance = 0; commit(); }, 'danger'],
   ], { keys: 'coins geld add', info: () => `${fmt(save.balance)} Coins` });
   const xp = numField('XP gesamt', saveBind(() => save.xp, (v) => { save.xp = Math.max(0, Math.round(v ?? 0)); save.rewardedLevel = Math.max(save.rewardedLevel, levelInfo().level); }, 0), { min: 0, step: 1, keys: 'erfahrung' });
-  const lvl = numField('Stufe', saveBind(() => levelInfo().level, (v) => { const l = Math.max(1, Math.min(MAX_LEVEL, Math.round(v ?? 1))); save.xp = xpForLevel(l); save.rewardedLevel = Math.max(save.rewardedLevel, l); }, 1), { min: 1, max: MAX_LEVEL, step: 1, help: 'Setzt die XP auf den Anfang der Stufe. Ohne Stufen-Belohnungen.', keys: 'level' });
-  const title = select('Karriere-Titel', saveBind(() => titleOf().name, (v) => { const t = TITLES.find((x) => x.name === v); if (t) { save.xp = xpForLevel(t.from); save.rewardedLevel = Math.max(save.rewardedLevel, t.from); } }, TITLES[0].name), TITLES.map((t) => [t.name, `${t.name} (ab Stufe ${t.from})`]), { keys: 'titel rang' });
+  const lvl = slider('Stufe', saveBind(() => levelInfo().level, (v) => { const l = Math.max(1, Math.min(MAX_LEVEL, Math.round(v ?? 1))); save.xp = xpAtLevel(l); save.rewardedLevel = Math.max(save.rewardedLevel, l); }, 1), { min: 1, max: MAX_LEVEL, step: 1, fmt: (v) => `${v} · ${rankName(v)}`, help: 'Setzt die XP auf den Anfang der Stufe. Ohne Stufen-Belohnungen.', keys: 'level rang' });
+  const title = select('Rang', saveBind(() => stageOf().name, (v) => { const t = STAGES.find((x) => x.name === v); if (t) { save.xp = xpAtLevel(t.from); save.rewardedLevel = Math.max(save.rewardedLevel, t.from); } }, STAGES[0].name), STAGES.map((t) => [t.name, `${t.name} (ab Stufe ${t.from})`]), { keys: 'titel rang stufe' });
+  const lvlUp = actions('Aufstieg', [
+    ['+1 Stufe', () => { const li = levelInfo(); const f = M.num('eco.xp'); if (li.need && f > 0) { addXP((li.need - li.into) / f + 1); commit(); } }],
+    ['Bis nächster Rang', () => { const li = levelInfo(); const f = M.num('eco.xp'); const nx = STAGES.find((x) => x.from > li.level); if (nx && f > 0) { addXP((xpAtLevel(nx.from) - save.xp) / f + 1); commit(); } }],
+  ], { help: 'Echte Aufstiege, mit Belohnungen und Effekten.', keys: 'level up xp rang aufstieg', info: () => `${Math.round(save.xp).toLocaleString('de-DE')} XP` });
+  const cer = select('Zeremonie ansehen', { get: () => '', set: (v) => { const t = STAGES.find((x) => x.name === v); if (t) stageCeremony(t, true); }, def: '' }, [['', 'Rang wählen …'], ...STAGES.map((t): [string, string] => [t.name, t.name])], { help: 'Nur Vorschau, ändert nichts.', keys: 'zeremonie rang animation vorschau' });
   const name = textField('Name', saveBind(() => save.name, (v) => { save.name = v.trim().slice(0, 18) || 'Du'; }, 'Du'), { max: 18 });
   const avatar = numField('Avatar', saveBind(() => save.avatar, (v) => { save.avatar = Math.max(0, Math.min(11, Math.round(v ?? 0))); }, 0), { min: 0, max: 11, step: 1, help: '0 bis 11' });
 
@@ -98,7 +103,7 @@ function kontoPane(): HTMLElement[] {
 
   return [
     group('Konto', [coins, add, name, avatar]),
-    group('Karriere', [lvl, xp, title]),
+    group('Karriere', [lvl, xp, title, lvlUp, cer]),
     group('Abklingzeiten', [cool, rescue]),
     group('Missionen', [missions, missionAll]),
     group('Erfolge', [achAll, ...achs]),

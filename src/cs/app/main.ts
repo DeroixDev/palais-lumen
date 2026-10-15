@@ -2,7 +2,7 @@
 
 import './styles.css';
 import { save, onChange, commit, invValue } from './lib/state';
-import { levelInfo, titleOf, ensureMissions, checkAchievements, bonusReadyIn, dailyReadyIn, missionDef } from './lib/career';
+import { levelInfo, ensureMissions, checkAchievements, bonusReadyIn, dailyReadyIn, missionDef, migrateCareer, onLevelUp, rankName, stageOf } from './lib/career';
 import { feed, onFeed, startFeed, type FeedEntry } from './lib/feed';
 import { skinById } from './lib/assets';
 import { countUp, el, esc, fmt, reducedMotion } from './lib/util';
@@ -10,6 +10,7 @@ import { avatarSVG } from './lib/bots';
 import { icon } from './ui/icons';
 import { rColor, skinArt, names } from './ui/items';
 import { closeAllModals } from './ui/modal';
+import { armLive, pulseBadge, rankBadge, stageCeremony } from './ui/rank';
 import { sfx } from './lib/sound';
 import { openPanelPad } from './ui/admin';
 import { devUnlocked, setLuck } from './lib/panel';
@@ -60,7 +61,7 @@ app.innerHTML = `
     <div class="tb-right">
       <a class="tb-gift" href="#/career" aria-label="Belohnungen">${icon('gift')}<i class="dot" hidden></i></a>
       <a class="wallet" href="#/inventory" aria-label="Kontostand"><span class="coin big"></span><span class="w-col"><span class="w-num mono">0,00</span><span class="w-inv mono"><span class="w-invv">0,00</span> im Inventar</span></span></a>
-      <a class="lvl" href="#/career" aria-label="Karriere"><span class="lvl-badge mono">1</span><span class="lvl-info"><small class="lvl-title">Neuling</small><span class="lvl-bar"><i></i></span></span></a>
+      <a class="lvl" href="#/career" aria-label="Karriere"><span class="lvl-rank"><span class="lvl-b"></span><span class="lvl-mini"><i></i></span></span><span class="lvl-info"><small class="lvl-title"></small><span class="lvl-bar"><i></i></span></span></a>
       <button class="tb-sound" type="button" aria-label="Ton an/aus"></button>
       <a class="tb-avatar" href="#/settings" aria-label="Profil und Einstellungen"></a>
     </div>
@@ -82,10 +83,7 @@ const $h = (s: string) => app.querySelector(s) as HTMLElement;
 function drawTop() {
   countUp($h('.w-num'), save.balance);
   countUp($h('.w-invv'), invValue());
-  const li = levelInfo();
-  $h('.lvl-badge').textContent = String(li.level);
-  $h('.lvl-title').textContent = `${titleOf(li.level).name} · ${li.need ? `${Math.floor(li.into)}/${li.need} XP` : 'Max'}`;
-  $h('.lvl-bar i').style.width = `${li.frac * 100}%`;
+  drawRank();
   $h('.tb-sound').innerHTML = icon(save.settings.sound ? 'sound' : 'mute');
   $h('.tb-sound').setAttribute('aria-pressed', String(save.settings.sound));
   $h('.tb-avatar').innerHTML = avatarSVG(save.avatar, save.name);
@@ -94,8 +92,41 @@ function drawTop() {
   $h('.tb-gift .dot').hidden = !(bonusReadyIn() === 0 || dailyReadyIn() === 0 || missionReady);
 }
 
+// The rank badge only changes its picture on a new level; the XP bars move by transform only.
+let shownLvl = 0;
+let barTimer = 0;
+function drawRank() {
+  const li = levelInfo();
+  const st = stageOf(li.level);
+  const lvlEl = $h('.lvl');
+  lvlEl.style.setProperty('--nc', st.color);
+  lvlEl.setAttribute('aria-label', `Karriere: ${rankName(li.level)}, Stufe ${li.level}`);
+  $h('.lvl-title').innerHTML = `<b>${rankName(li.level)}</b> · ${li.need ? `${Math.floor(li.into).toLocaleString('de-DE')}/${li.need.toLocaleString('de-DE')} XP` : 'Höchste Stufe'}`;
+  const bars = [$h('.lvl-bar i'), $h('.lvl-mini i')];
+  const up = shownLvl > 0 && li.level > shownLvl;
+  if (li.level !== shownLvl) {
+    const b = $h('.lvl-b');
+    b.innerHTML = rankBadge(li.level, 52, { live: true, title: false });
+    armLive(b);
+  }
+  clearTimeout(barTimer);
+  if (up && !reducedMotion()) {
+    // fill to the end, snap back, then fill to the new progress
+    pulseBadge($h('.lvl-rank'), st.color);
+    bars.forEach((i) => (i.style.transform = 'scaleX(1)'));
+    barTimer = window.setTimeout(() => {
+      bars.forEach((i) => { i.style.transition = 'none'; i.style.transform = 'scaleX(0)'; });
+      void bars[0].offsetWidth;
+      bars.forEach((i) => { i.style.transition = ''; i.style.transform = `scaleX(${li.frac})`; });
+    }, 720);
+  } else bars.forEach((i) => (i.style.transform = `scaleX(${li.frac})`));
+  shownLvl = li.level;
+}
+onLevelUp((e) => { if (e.stage) stageCeremony(e.stage); });
+
 let lastBal = save.balance;
 onChange(() => {
+  if ((save.careerV ?? 1) < 2) { migrateCareer(); return; }
   const w = $h('.wallet');
   if (Math.abs(save.balance - lastBal) > 0.001) {
     w.classList.remove('up', 'down');
@@ -122,7 +153,7 @@ function feedTile(e: FeedEntry): HTMLElement {
   const s = skinById(e.item.skin);
   const r = s?.rarity ?? 'milspec';
   const n = names(e.item);
-  const t = el<HTMLAnchorElement>(`<a class="ftile r-${r}${e.you ? ' you' : ''}" href="#/case/${e.caseId ?? ''}" title="${esc(`${e.who}: ${n.full} · ${fmt(e.value)} Coins · ${e.via}`)}"><span class="ft-art"></span><span class="ft-txt"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></span><span class="ft-who">${avatarSVG(e.avatar, e.who)}<span>${esc(e.who)}</span></span></a>`);
+  const t = el<HTMLAnchorElement>(`<a class="ftile r-${r}${e.you ? ' you' : ''}" href="#/case/${e.caseId ?? ''}" title="${esc(`${e.who} (${rankName(e.lvl)}, Stufe ${e.lvl}): ${n.full} · ${fmt(e.value)} Coins · ${e.via}`)}"><span class="ft-art"></span><span class="ft-txt"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></span><span class="ft-who">${rankBadge(e.lvl, 16, { title: false })}<span class="ft-n" style="--nc:${stageOf(e.lvl).color}">${esc(e.who)}</span></span></a>`);
   t.style.setProperty('--rc', rColor(r));
   if (!e.caseId) t.removeAttribute('href');
   t.querySelector('.ft-art')!.appendChild(skinArt(e.item, 84, 50));
@@ -196,6 +227,7 @@ addEventListener('hashchange', route);
 // ---------- boot ----------
 // Dev-only hook for the walkthrough scripts in devpages/.
 if (import.meta.env.DEV) (window as unknown as { __csg: object }).__csg = { save, commit, setLuck };
+migrateCareer();
 ensureMissions();
 checkAchievements();
 startFeed();

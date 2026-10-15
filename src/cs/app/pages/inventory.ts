@@ -3,7 +3,7 @@
 import type { ItemInstance, Rarity, WeaponKind } from '../../contract';
 import { weaponById } from '../lib/assets';
 import { itemValue, rarityIndex, TIER_ORDER } from '../lib/economy';
-import { findItem, onChange, save, sellItems, invValue } from '../lib/state';
+import { findItem, onChange, save, sellItems, sellValue, invValue } from '../lib/state';
 import { sfx } from '../lib/sound';
 import { esc, fmt } from '../lib/util';
 import { itemCard, rColor, rName, skinOf, names } from '../ui/items';
@@ -133,7 +133,7 @@ export const inventoryPage: Page = (root) => {
   });
   root.querySelector('.sell-all')!.addEventListener('click', () => {
     if (!save.inv.length) return;
-    const v = invValue();
+    const v = sellValue(invValue());
     const m = openModal(`<div class="confirm"><h2>Alles verkaufen?</h2><p>${save.inv.length} Skins für <b class="mono">${fmt(v)}</b> Coins. Das lässt sich nicht rückgängig machen.</p><div class="actions"><button class="btn danger yes" type="button">Alles verkaufen</button><button class="btn ghost no" type="button">Abbrechen</button></div></div>`, { label: 'Alles verkaufen' });
     m.body.querySelector('.yes')!.addEventListener('click', () => {
       const n = save.inv.length;

@@ -47,7 +47,7 @@ function infoModal(c: CaseDef) {
       <li>Der Float (Abnutzung) liegt gleichverteilt im Bereich des Skins. Niedriger Float = mehr Wert.</li>
       <li>10 % aller Drops sind StatTrak™ (×1,6 bis ×2 Wert). ★ Gegenstände gibt es nicht als StatTrak™.</li>
       <li>Seltene Muster (bestimmte Muster-Nummern) bringen +25 % Wert.</li>
-      ${c.id === DAILY_ID ? '<li>Die Tageskiste ist alle 24 Stunden gratis. Mit jedem Karriere-Titel wird ihr Inhalt besser.</li>' : `<li>Erwartete Auszahlung dieser Kiste: <b class="mono">${pct(caseRTP(c), 1)}</b> des Preises.</li>`}
+      ${c.id === DAILY_ID ? '<li>Die Tageskiste ist alle 24 Stunden gratis. Mit jedem neuen Rang wird ihr Inhalt besser.</li>' : `<li>Erwartete Auszahlung dieser Kiste: <b class="mono">${pct(caseRTP(c), 1)}</b> des Preises.</li>`}
     </ul></div>`, { label: 'Regeln' });
 }
 

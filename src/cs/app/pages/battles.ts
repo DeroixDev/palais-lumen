@@ -4,7 +4,8 @@ import type { CaseDef } from '../../contract';
 import { CASES } from '../lib/assets';
 import { casePrice } from '../lib/economy';
 import { MODES, YOU_ID, battleCost, fillBots, getBattle, lobbyBattles, modeOf, newBattle, putBattle, refreshLobby, rollBattle, seatTotals, seatYou, youSeat, type Battle, type BattleMode } from '../lib/battle';
-import { addXP, checkAchievements, getCase, level, xpFor } from '../lib/career';
+import { addXP, botLevel, checkAchievements, getCase, level, rankName, stageOf, xpFor } from '../lib/career';
+import { rankBadge } from '../ui/rank';
 import { avatarSVG } from '../lib/bots';
 import { addItem, commit, emit, save, spend } from '../lib/state';
 import { pushMine } from '../lib/feed';
@@ -211,7 +212,7 @@ export const battlePage: Page = (root, args) => {
     const col = cols[i].el;
     const head = col.querySelector('.bs-head') as HTMLElement;
     head.innerHTML = s
-      ? `${avatarSVG(s.avatar, s.name)}<span class="bs-name">${esc(s.name)}${s.kind === 'you' && s.name !== 'Du' ? ' <em>(Du)</em>' : ''}</span>`
+      ? (() => { const l = s.kind === 'you' ? level() : botLevel(s.name); return `<span class="bs-av">${avatarSVG(s.avatar, s.name)}${rankBadge(l, 26)}</span><span class="bs-nm" style="--nc:${stageOf(l).color}"><span class="bs-name">${esc(s.name)}${s.kind === 'you' && s.name !== 'Du' ? ' <em>(Du)</em>' : ''}</span><small class="bs-rank">${rankName(l)}</small></span>`; })()
       : `<span class="avatar empty"><span class="spinner sm"></span></span><span class="bs-name dim">Wartet …</span>`;
     col.classList.toggle('me', s?.kind === 'you');
     col.classList.toggle('waiting', !s);

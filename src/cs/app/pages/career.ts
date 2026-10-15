@@ -1,6 +1,7 @@
-// Karriere: profile, title ladder, rewards, daily missions, stats, showcase, achievements.
+// Karriere: rank hero, the rank road, what comes next, rewards, daily missions, stats, showcase, achievements.
 
-import { ACHIEVEMENTS, DAILY_ID, getCase as _gc, MAX_LEVEL, TITLES, bonusAmount, bonusReadyIn, claimBonus, claimMission, dailyCase, dailyReadyIn, ensureMissions, levelCaseFor, levelInfo, missionDef, msToMidnight, titleOf } from '../lib/career';
+import { ACHIEVEMENTS, DAILY_ID, getCase as _gc, MAX_LEVEL, STAGES, bonusAmount, bonusReadyIn, claimBonus, claimMission, dailyCase, dailyReadyIn, ensureMissions, levelInfo, missionDef, msToMidnight, nextStage, rankName, rewardsAt, sellBonus, stageOf, subOf, titleOf, xpAtLevel } from '../lib/career';
+import { BANNERS, armLive, rankBadge, stagePerks } from '../ui/rank';
 import { itemValue } from '../lib/economy';
 import { avatarSVG } from '../lib/bots';
 import { START_BALANCE, invValue, save } from '../lib/state';
@@ -13,31 +14,67 @@ import { toast } from '../ui/toast';
 import { caseArt } from './cases';
 import type { Page } from './page';
 
+/** The next few things the road brings (always including the next rank). */
+function upcoming(lvl: number): string {
+  const rows: string[] = [];
+  let hasStage = false;
+  for (let l = lvl + 1; l <= MAX_LEVEL && (rows.length < 5 || !hasStage); l++) {
+    const r = rewardsAt(l);
+    const bits: string[] = [];
+    if (r.freeCase) bits.push(`Gratis ${esc(r.freeCase.name)}`);
+    if (r.coins) bits.push(`+${r.coins} Coins`);
+    if (r.title) bits.push(`Titel ${r.title}`);
+    if (r.cases.length) bits.push(`Neue Kisten: ${r.cases.map((c) => esc(c.name)).join(', ')}`);
+    if (r.stage) {
+      hasStage = true;
+      rows.push(`<div class="rn big" style="--c:${r.stage.color}">${rankBadge(l, 44, { title: false })}<div><b>Rang ${r.stage.name}</b><small>${stagePerks(r.stage).join(' · ')}</small></div><span class="rn-l">Stufe ${l}</span></div>`);
+    } else if (bits.length && rows.length < 5) {
+      rows.push(`<div class="rn" style="--c:${stageOf(l).color}">${rankBadge(l, 44, { title: false })}<div><b>${rankName(l)}</b><small>${bits.join(' · ')}</small></div><span class="rn-l">Stufe ${l}</span></div>`);
+    }
+  }
+  return rows.join('') || '<div class="empty-state small"><b>Alles erreicht.</b><span>Du trägst die Krone.</span></div>';
+}
+
 export const careerPage: Page = (root) => {
   const draw = () => {
     ensureMissions();
     const li = levelInfo();
     const t = titleOf(li.level);
-    const ti = TITLES.indexOf(t);
-    const next = TITLES[ti + 1];
+    const st = stageOf(li.level);
+    const nx = nextStage(li.level);
     const s = save.stats;
     const balanceNet = save.balance + invValue() - START_BALANCE - s.bonus;
     const showcase = save.inv.slice().sort((a, b) => itemValue(b) - itemValue(a)).slice(0, 5);
-    const nextCase = levelCaseFor(Math.min(MAX_LEVEL, li.level + 1));
     const frees = Object.entries(save.freeOpens).filter(([, n]) => n > 0);
+    const stFrac = nx ? (save.xp - xpAtLevel(st.from)) / (xpAtLevel(nx.from) - xpAtLevel(st.from)) : 1;
     root.innerHTML = `
-    <section class="profile">
-      <div class="pf-av">${avatarSVG(save.avatar, save.name)}<span class="pf-lvl mono">${li.level}</span></div>
-      <div class="pf-main">
-        <span class="eyebrow">Karriere · Stufe ${li.level} von ${MAX_LEVEL}</span>
-        <h1>${esc(save.name)} <span class="pf-title">${t.name}</span></h1>
-        <p class="pf-blurb">${t.blurb}</p>
-        <div class="pf-xp"><div class="xpbar"><i style="width:${li.frac * 100}%"></i></div><span class="mono">${li.need ? `${fmtInt(li.into)} / ${fmtInt(li.need)} XP` : 'Höchste Stufe erreicht'}</span></div>
-        <div class="pf-next">${li.need ? `Nächste Stufe: ${nextCase ? `Gratis <b>${esc(nextCase.name)}</b>` : ''}${(li.level + 1) % 5 === 0 ? ` + <b>${(li.level + 1) * 4} Coins</b>` : ''}${next ? ` · Titel <b>${next.name}</b> ab Stufe ${next.from}` : ''}` : ''}</div>
+    <section class="rk-hero" style="--rc:${st.color};--banner:${BANNERS[st.i]}">
+      <div class="rk-big">${rankBadge(li.level, 200, { live: true })}</div>
+      <div class="rh-main">
+        <div class="rh-who">${avatarSVG(save.avatar, save.name)}<b>${esc(save.name)}</b><span class="pf-title">${t.name}</span></div>
+        <h1 class="rh-name">${rankName(li.level)}<small>Stufe ${li.level}/${MAX_LEVEL}</small></h1>
+        <p class="rh-sub">${st.blurb} <span class="dim">${t.blurb}</span></p>
+        <div class="rh-bars">
+          <div class="rh-bar"><span class="lbl"><span>${li.need ? `Bis Stufe <b>${li.level + 1}</b>` : 'Höchste Stufe erreicht'}</span><span class="mono">${li.need ? `${fmtInt(li.into)} / ${fmtInt(li.need)} XP` : `${fmtInt(save.xp)} XP`}</span></span><div class="xpbar"><i style="transform:scaleX(${li.frac})"></i></div></div>
+          ${nx ? `<div class="rh-bar stage"><span class="lbl"><span>Bis Rang <b>${nx.name}</b> (Stufe ${nx.from})</span><span class="mono">${Math.floor(stFrac * 100)} %</span></span><div class="xpbar"><i style="transform:scaleX(${stFrac})"></i></div></div>` : ''}
+        </div>
+        <div class="rh-perks"><span>Verkauf <b>+${Math.round(sellBonus(li.level) * 100)} %</b></span><span>Tageskiste <b>${st.name}</b></span><span>Tagesbonus <b>${bonusAmount()} Coins</b></span><span>Rahmen <b>${st.name}</b></span></div>
       </div>
-      <a class="btn ghost sm pf-edit" href="#/settings">${icon('settings')} Profil</a>
+      <a class="btn ghost sm rh-edit" href="#/settings">${icon('settings')} Profil</a>
     </section>
-    <section class="ladder">${TITLES.map((x, i) => `<div class="rung${i < ti ? ' done' : i === ti ? ' on' : ''}"><span class="rg-n mono">${i + 1}</span><b>${x.name}</b><small>ab Stufe ${x.from}</small></div>`).join('')}</section>
+    <section class="panel">
+      <h3 class="panel-h">Rangstraße <small>11 Ränge · alle 25 Stufen ein neuer Rahmen</small></h3>
+      <div class="rk-road">${STAGES.map((x) => {
+        const got = li.level >= x.from, on = st.i === x.i;
+        const show = on ? li.level : x.from;
+        const subs = x.i === 10 ? '' : `<span class="rr-subs">${[0, 1, 2, 3, 4].map((k) => `<i class="${got && (!on || subOf(li.level) >= k) ? 'got' : ''}"></i>`).join('')}</span>`;
+        return `<div class="rr-st${got ? ' got' : ' locked'}${on ? ' on' : ''}" style="--c:${x.color}">${rankBadge(show, on ? 88 : 76, { live: on, locked: !got, title: false })}<b>${x.name}</b><small>${x.i === 10 ? 'Stufe 250' : `ab Stufe ${x.from}`}</small>${subs}</div>`;
+      }).join('')}</div>
+    </section>
+    <section class="panel">
+      <h3 class="panel-h">Als Nächstes</h3>
+      <div class="rk-next">${upcoming(li.level)}</div>
+    </section>
     <div class="career-grid">
       <section class="panel rewards">
         <h3 class="panel-h">Belohnungen</h3>
@@ -74,6 +111,10 @@ export const careerPage: Page = (root) => {
       <h3 class="panel-h">Erfolge <small class="mono">${Object.keys(save.achievements).length}/${ACHIEVEMENTS.length}</small></h3>
       <div class="achs">${ACHIEVEMENTS.map((a) => `<div class="ach${save.achievements[a.id] ? ' got' : ''}"><span class="ach-i">${a.icon}</span><b>${esc(a.name)}</b><small>${esc(a.text)}</small></div>`).join('')}</div>
     </section>`;
+    armLive(root);
+    // centre the current rank in the road without scrolling the page
+    const road = root.querySelector('.rk-road') as HTMLElement, onSt = road.querySelector('.on') as HTMLElement | null;
+    if (onSt && road.scrollWidth > road.clientWidth) requestAnimationFrame(() => { road.scrollLeft = onSt.offsetLeft - road.clientWidth / 2 + onSt.offsetWidth / 2; });
     caseArt(root.querySelector('.rw.daily .rw-art') as HTMLElement, dailyCase(), 96, 72);
     root.querySelectorAll<HTMLElement>('.rw.lvlcase').forEach((a) => { const c = _gc(a.dataset.case!); if (c) caseArt(a.querySelector('.rw-art') as HTMLElement, c, 96, 72); });
     const sc = root.querySelector('.showcase') as HTMLElement;
