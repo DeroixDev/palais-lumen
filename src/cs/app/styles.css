@@ -99,7 +99,8 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 .sidenav a.on { color: var(--hot); background: rgba(255,138,31,.10); }
 .sidenav a.on .ico { opacity: 1; }
 .sidenav a.on::before { content: ''; position: absolute; left: -8px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--hot); box-shadow: 0 0 10px var(--hot); }
-.sidenav .sn-palais { margin-top: auto; color: var(--dim); }
+.sidenav .sn-all { margin-top: auto; color: var(--dim); }
+.sidenav .sn-palais { color: var(--dim); }
 .feed, .foot { margin-left: var(--side); }
 #page > .page { max-width: 1480px; margin: 0 auto; }
 .tb-right { display: flex; align-items: center; gap: 10px; flex: none; }
@@ -803,7 +804,10 @@ a.rw:hover { border-color: var(--hot-lo); transform: translateY(-2px); }
 .foot-links { display: flex; gap: 16px; flex-wrap: wrap; }
 .foot-links a:hover { color: var(--ink); }
 .to-palais { display: inline-flex; align-items: center; gap: 6px; color: #e0b25a; }
-.to-palais .ico { width: 16px; height: 16px; }
+.to-palais .ico, .to-all .ico { width: 16px; height: 16px; }
+.to-all { display: inline-flex; align-items: center; gap: 6px; }
+.game-link.all { margin-top: 10px; background: linear-gradient(90deg, rgba(255,61,154,.12), var(--panel-2)); border-color: rgba(255,61,154,.35); }
+.game-link.all .ico { color: #ff3d9a; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 1460px) {
@@ -827,7 +831,7 @@ a.rw:hover { border-color: var(--hot-lo); transform: translateY(-2px); }
   .sidenav a { flex: none; min-width: 62px; padding: 6px 4px; font-size: .66rem; }
   .sidenav a .ico { width: 20px; height: 20px; }
   .sidenav a.on::before { left: 12px; right: 12px; top: auto; bottom: -6px; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
-  .sidenav .sn-palais { margin: 0 0 0 auto; }
+  .sidenav .sn-all { margin: 0 0 0 auto; }
   .hero { grid-template-columns: 1fr; }
   .hero-side { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .contract, .upg-lists, .career-grid, .set-grid, .crash { grid-template-columns: 1fr; }

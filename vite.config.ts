@@ -7,8 +7,8 @@ const tauri = !!process.env.TAURI_ENV_PLATFORM;
 // Relative base so the build also works from a subfolder or as a packaged desktop app.
 export default defineConfig({
   base: './',
-  // Two games in one build: the casino (index.html) and CS Gambler (cs.html).
-  build: { chunkSizeWarningLimit: 2000, rollupOptions: { input: { main: resolve(__dirname, 'index.html'), cs: resolve(__dirname, 'cs.html') } } },
+  // The launcher "Unsere Spiele" (index.html) and the games: the casino (casino.html) and CS Gambler (cs.html).
+  build: { chunkSizeWarningLimit: 2000, rollupOptions: { input: { main: resolve(__dirname, 'index.html'), casino: resolve(__dirname, 'casino.html'), cs: resolve(__dirname, 'cs.html') } } },
   // tauri.conf.json points devUrl at 5173, so don't silently fall back to another port.
   server: tauri ? { port: 5173, strictPort: true } : undefined,
   clearScreen: !tauri,

@@ -1,7 +1,7 @@
 /*
  * Small-screen fit: where toasts, game quips and the in-game day chip sit on phones, a single
  * HUD row on landscape phones, and dialogs that always scroll instead of spilling off screen.
- * Loaded after the main sheet in index.html, so equal selectors here win.
+ * Loaded after the main sheet in casino.html, so equal selectors here win.
  */
 
 /* ---- Toasts on phones: a slim brass strip over the HUD's day bar, never over a game. ---- */

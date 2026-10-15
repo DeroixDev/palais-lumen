@@ -113,6 +113,8 @@ function guestId() {
 /** The link friends open: this page with ?join=CODE (and the broker, if it isn't the public one). */
 export function joinLink(code: string) {
   const u = new URL(location.href);
+  // Invites always open the casino page, even if this page was reached some other way.
+  if (!/casino\.html$/.test(u.pathname)) u.pathname = u.pathname.replace(/[^/]*$/, 'casino.html');
   u.search = '';
   u.hash = '';
   u.searchParams.set('join', code);
