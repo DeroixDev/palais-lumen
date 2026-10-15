@@ -1,0 +1,76 @@
+/* Kisten page: featured carousel, shelf chips, case cards. Loaded after styles.css, scoped to .cases-page.
+   Motion is transform/opacity only; nothing animates filters or box-shadows on many elements. */
+
+.cases-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; }
+
+/* ---------- featured carousel ---------- */
+.cases-page .hero-carousel { position: relative; min-width: 0; min-height: 270px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #10141a; isolation: isolate; contain: layout paint; }
+.cases-page .hc-track { position: absolute; inset: 0; }
+.cases-page .hc-slide { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; isolation: isolate;
+  opacity: 0; transform: translateX(24px) scale(.985); transition: opacity .6s var(--ease), transform .7s var(--ease); pointer-events: none; }
+.cases-page .hc-slide.on { opacity: 1; transform: none; pointer-events: auto; }
+.cases-page .hc-slide .hero-art { padding: 10px 18px 30px; align-self: stretch; display: grid; place-items: center; }
+.cases-page .hc-slide .hero-art .art { max-width: 100%; filter: none; animation: none; transform: translateY(0); }
+.cases-page .hc-slide.on .hero-art .art { animation: hcFloat 5s ease-in-out infinite; }
+.cases-page .hero-carousel.paused .hero-art .art { animation-play-state: paused; }
+@keyframes hcFloat { 50% { transform: translateY(-8px) rotate(-1deg); } }
+.cases-page .hc-slide .hero-text { padding: 26px 30px 52px; min-width: 0; }
+.cases-page .hc-slide .hero-text h1 { font-size: clamp(1.7rem, 3.6vw, 2.8rem); }
+.cases-page .hc-ctl { position: absolute; left: 30px; bottom: 14px; z-index: 2; display: flex; align-items: center; gap: 10px; }
+.cases-page .hc-dots { display: flex; gap: 6px; }
+.cases-page .hc-dot { width: 22px; height: 6px; border-radius: 3px; border: 0; padding: 0; background: rgba(255,255,255,.22); cursor: pointer; transition: background .2s, transform .2s; }
+.cases-page .hc-dot.on { background: var(--hot); }
+.cases-page .hc-dot:hover { transform: scaleY(1.4); }
+.cases-page .hc-pause { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.35); color: var(--ink-2); font-size: .62rem; line-height: 1; cursor: pointer; }
+.cases-page .hc-pause:hover { color: #fff; border-color: rgba(255,255,255,.45); }
+
+/* ---------- filters ---------- */
+.cs-filters { display: grid; gap: 10px; }
+.cases-page .sec-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.cases-page .sec-chips::-webkit-scrollbar { display: none; }
+.cases-page .sec-chips .chip small { font: 600 .72rem/1 var(--body); color: var(--dim); padding: 2px 6px; border-radius: 999px; background: rgba(255,255,255,.06); }
+.cases-page .sec-chips .chip.on small { color: var(--hot-2); background: rgba(255,138,31,.16); }
+
+/* ---------- shelves ---------- */
+.cases-page .case-groups { gap: 30px; grid-template-columns: minmax(0, 1fr); }
+.cases-page .cgroup { content-visibility: auto; contain-intrinsic-size: auto 560px; }
+.cases-page .cgroup .sec-h { flex-wrap: wrap; row-gap: 2px; }
+.cases-page .cgroup .sec-h em { flex-basis: 100%; font: 400 .85rem var(--body); color: var(--dim); text-transform: none; letter-spacing: 0; font-style: normal; padding-left: 14px; }
+
+/* ---------- case cards ---------- */
+.cases-page .case-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.cases-page .ccard { --rx: 0deg; --ry: 0deg; --lift: 0px; padding: 10px 10px 14px; transform: perspective(700px) translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .25s var(--ease), border-color .25s; box-shadow: none; }
+.cases-page .ccard::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .25s;
+  box-shadow: 0 18px 36px -16px color-mix(in srgb, var(--cb) 75%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--cb) 35%, transparent); }
+.cases-page .ccard:hover { --lift: -6px; transform: perspective(700px) translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry)); box-shadow: none; border-color: color-mix(in srgb, var(--cb) 50%, var(--line)); }
+.cases-page .ccard:hover::after { opacity: 1; }
+.cases-page .cc-glow { background: radial-gradient(closest-side, color-mix(in srgb, var(--cb) 38%, transparent), transparent); opacity: .5; }
+.cases-page .cc-art .art { filter: none; transition: transform .3s var(--ease), opacity .25s; }
+.cases-page .ccard:hover .cc-art .art { transform: translateY(-3px) scale(1.04); }
+.cases-page .cc-name { margin-top: -2px; }
+.cases-page .cc-badge { position: absolute; top: 10px; left: 10px; z-index: 2; padding: 4px 7px; border-radius: 5px; font: 700 .66rem/1 var(--display); letter-spacing: .08em;
+  background: var(--hot); color: #1a0d00; }
+.cases-page .cc-badge.b-neu { background: #39d98a; color: #04210f; }
+.cases-page .cc-badge.b-hot { background: #ff4a4a; color: #fff; }
+.cases-page .cc-badge.b-risiko { background: #1a1a1a; color: #ffd400; box-shadow: inset 0 0 0 1px #ffd400; }
+.cases-page .cc-badge.b-limitiert, .cases-page .cc-badge.b-prestige { background: linear-gradient(135deg, #fff1b8, #e8b84a); color: #3a2400; }
+.cases-page .cc-badge.b-saison { background: #ff8ab8; color: #3a0a20; }
+
+@media (max-width: 640px) {
+  .cases-page .hero-carousel { min-height: 0; aspect-ratio: auto; }
+  .cases-page .hc-track { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .cases-page .hc-slide { position: relative; grid-area: 1 / 1; grid-template-columns: minmax(0, 1fr); }
+  .cases-page .hc-slide .hero-art { grid-row: 1; padding: 10px 0 0; width: min(100%, 300px); justify-self: center; }
+  .cases-page .hc-slide .hero-text { padding: 2px 18px 44px; }
+  .cases-page .hc-slide .hero-text p { display: none; }
+  .cases-page .hc-ctl { left: 18px; }
+  .cases-page .case-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .cases-page .ccard { padding: 8px 6px 12px; }
+  .cases-page .cgroup .sec-h em { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cases-page .hc-slide, .cases-page .ccard { transition: opacity .2s; transform: none !important; }
+  .cases-page .hc-slide.on .hero-art .art { animation: none; }
+}

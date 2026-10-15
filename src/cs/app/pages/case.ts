@@ -17,7 +17,7 @@ import { burstAt, flash, shake } from '../ui/fx';
 import { openModal, type ModalHandle } from '../ui/modal';
 import { itemInfo, open3D, openItemDetail } from '../ui/detail';
 import { toast } from '../ui/toast';
-import { caseArt, CAT_LABEL } from './cases';
+import { caseArt, sectionLabel } from './cases';
 import type { Page } from './page';
 
 /** Records one opened item everywhere (stats, XP, missions, feed). Item must already be in the inventory. */
@@ -71,7 +71,7 @@ export const casePage: Page = (root, args) => {
     <div class="ct-bg"></div>
     <div class="ct-art"></div>
     <div class="ct-info">
-      <span class="eyebrow">${daily ? 'Gratis alle 24 Stunden' : CAT_LABEL[c.category]}</span>
+      <span class="eyebrow">${daily ? 'Gratis alle 24 Stunden' : esc(sectionLabel(c))}</span>
       <h1>${esc(c.name)}</h1>
       <div class="ct-meta">${daily ? '' : `<span class="pricetag"><span class="coin"></span><span class="mono">${fmt(price)}</span></span>`}<button class="btn ghost sm info-btn" type="button">Info</button></div>
     </div>
