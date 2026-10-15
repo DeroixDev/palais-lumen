@@ -6,6 +6,7 @@
 // means "default"; per-case keys default to null = use the global value.
 
 import type { CaseDef, ItemInstance, Rarity, SkinDef } from '../../contract';
+import { specialSeeds } from '../../data/specials';
 
 export type Val = number | boolean | string | null;
 const KEY = 'csgambler.mods';
@@ -24,7 +25,7 @@ export const DEFAULTS: Record<string, Val> = {
   'cs.gold': null, 'cs.st': null, 'cs.wear': 'normal', 'cs.fmin': 0, 'cs.fmax': 1, 'cs.fbias': 0,
   'cs.price': 1, 'cs.unlock': false, 'cs.speed': 1, 'cs.suspense': true,
   // next drop
-  'force.mode': 'off', 'force.skin': '', 'force.float': null, 'force.seed': null, 'force.st': false, 'force.case': '',
+  'force.mode': 'off', 'force.skin': '', 'force.float': null, 'force.seed': null, 'force.st': false, 'force.case': '', 'force.special': '',
   // economy
   'eco.sell': 1, 'eco.val': 1, 'eco.bonus': null, 'eco.rescue': null, 'eco.xp': 1,
   // feed
@@ -186,6 +187,12 @@ export function drop(c: CaseDef, it: ItemInstance, skin: SkinDef, who: string, f
     if (fs.float !== null) it.float = Math.max(skin.floatMin, Math.min(skin.floatMax, fs.float));
     if (fs.seed !== null) it.seed = Math.max(0, Math.min(999, Math.round(fs.seed)));
     it.statTrak = fs.st && skin.rarity !== 'gold';
+  }
+  // special pattern on every own drop while set (only where the skin has specials, never over a forced seed)
+  const sp = who === 'you' ? str('force.special') : '';
+  if (sp && !(fs && fs.seed !== null)) {
+    const all = specialSeeds(skin);
+    if (all.length) it.seed = sp === 'best' ? all[0].seed : all[Math.floor(Math.random() * all.length)].seed;
   }
   return it;
 }

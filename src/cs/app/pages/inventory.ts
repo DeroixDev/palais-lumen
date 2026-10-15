@@ -6,14 +6,14 @@ import { itemValue, rarityIndex, TIER_ORDER } from '../lib/economy';
 import { findItem, onChange, save, sellItems, sellValue, invValue } from '../lib/state';
 import { sfx } from '../lib/sound';
 import { esc, fmt } from '../lib/util';
-import { itemCard, rColor, rName, skinOf, names } from '../ui/items';
+import { itemCard, rColor, rName, skinOf, names, patternOf } from '../ui/items';
 import { openItemDetail } from '../ui/detail';
 import { openModal } from '../ui/modal';
 import { toast } from '../ui/toast';
 import { pageHead, type Page } from './page';
 
 const KIND_LABEL: Record<WeaponKind, string> = { pistol: 'Pistolen', smg: 'MPs', rifle: 'Gewehre', sniper: 'Scharfschützen', shotgun: 'Schrotflinten', heavy: 'Schwere Waffen', knife: 'Messer', gloves: 'Handschuhe' };
-const ui = { rar: 'all', kind: 'all', sort: 'value', q: '', select: false };
+const ui = { rar: 'all', kind: 'all', sort: 'value', q: '', select: false, special: false };
 const PAGE = 90;
 
 export const inventoryPage: Page = (root) => {
@@ -25,7 +25,8 @@ export const inventoryPage: Page = (root) => {
     <label class="search"><input type="search" placeholder="Skin suchen" aria-label="Skin suchen" value="${esc(ui.q)}"></label>
     <div class="chips rar-chips" role="group" aria-label="Seltenheit"></div>
     <select class="sel kind" aria-label="Waffentyp"><option value="all">Alle Waffen</option>${(Object.keys(KIND_LABEL) as WeaponKind[]).map((k) => `<option value="${k}">${KIND_LABEL[k]}</option>`).join('')}</select>
-    <select class="sel sort" aria-label="Sortieren"><option value="value">Wert absteigend</option><option value="valueAsc">Wert aufsteigend</option><option value="new">Neueste</option><option value="rar">Seltenheit</option><option value="float">Float</option></select>
+    <select class="sel sort" aria-label="Sortieren"><option value="value">Wert absteigend</option><option value="valueAsc">Wert aufsteigend</option><option value="new">Neueste</option><option value="rar">Seltenheit</option><option value="float">Float</option><option value="pattern">Muster-Bonus</option></select>
+    <button class="toggle sp-only" type="button" aria-pressed="${ui.special}" title="Blaues Juwel, Rubin, Saphir, Voller Verlauf, Feuer &amp; Eis …">◆ Nur besondere Muster</button>
   </div>
   <div class="inv-tools">
     <button class="toggle sel-mode" type="button" aria-pressed="${ui.select}">Mehrfachauswahl</button>
@@ -51,7 +52,9 @@ export const inventoryPage: Page = (root) => {
       const s = skinOf(i);
       if (ui.rar !== 'all' && s.rarity !== ui.rar) return false;
       if (ui.kind !== 'all' && weaponById(s.weapon)?.kind !== ui.kind) return false;
-      if (q && !names(i).full.toLowerCase().includes(q)) return false;
+      const sp = patternOf(i).special;
+      if (ui.special && !sp) return false;
+      if (q && !names(i).full.toLowerCase().includes(q) && !(sp && sp.name.toLowerCase().includes(q))) return false;
       return true;
     });
     const idx = new Map(save.inv.map((x, n) => [x.uid, n]));
@@ -61,6 +64,7 @@ export const inventoryPage: Page = (root) => {
       new: (a, b) => idx.get(a.uid)! - idx.get(b.uid)!,
       rar: (a, b) => rarityIndex(skinOf(b).rarity as Rarity) - rarityIndex(skinOf(a).rarity as Rarity) || itemValue(b) - itemValue(a),
       float: (a, b) => a.float - b.float,
+      pattern: (a, b) => patternOf(b).mult - patternOf(a).mult || itemValue(b) - itemValue(a),
     };
     return list.sort(sorters[ui.sort]);
   };
@@ -111,6 +115,8 @@ export const inventoryPage: Page = (root) => {
   });
   root.querySelector('.kind')!.addEventListener('change', (e) => { ui.kind = (e.target as HTMLSelectElement).value; shown = PAGE; draw(); });
   root.querySelector('.sort')!.addEventListener('change', (e) => { ui.sort = (e.target as HTMLSelectElement).value; draw(); });
+  const spOnly = root.querySelector('.sp-only') as HTMLButtonElement;
+  spOnly.addEventListener('click', () => { ui.special = !ui.special; spOnly.setAttribute('aria-pressed', String(ui.special)); shown = PAGE; draw(); });
   root.querySelector('.search input')!.addEventListener('input', (e) => { ui.q = (e.target as HTMLInputElement).value; shown = PAGE; draw(); });
   const selMode = root.querySelector('.sel-mode') as HTMLButtonElement;
   selMode.addEventListener('click', () => { ui.select = !ui.select; selMode.setAttribute('aria-pressed', String(ui.select)); if (!ui.select) { selected.clear(); drawSel(); } });

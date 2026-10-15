@@ -6,7 +6,8 @@ import { rollFiller } from '../lib/economy';
 import { sfx } from '../lib/sound';
 import * as M from '../lib/mods';
 import { hash01, reducedMotion, sleep } from '../lib/util';
-import { rColor, skinArt } from './items';
+import { patternChip, patternOf, rColor, skinArt } from './items';
+import { burstAt } from './fx';
 
 const TILES = 56;
 const WIN_AT = 48;
@@ -48,6 +49,7 @@ export class Reel {
   private filler(c: CaseDef): ItemInstance {
     const f = rollFiller(c);
     f.seed = Math.floor(hash01(f.skin) * 5) * 100 + 7;
+    while (patternOf(f).special) f.seed = (f.seed + 1) % 1000; // only the real drop may carry a chip-worthy pattern
     f.float = 0.12;
     f.statTrak = false;
     return f;
@@ -147,17 +149,27 @@ export class Reel {
 
   /** Swaps the ★ placeholder for the real item and lights the winning tile. */
   revealWin() {
-    const tile = this.strip.children[WIN_AT] as HTMLElement;
+    let tile = this.strip.children[WIN_AT] as HTMLElement;
     const it = this.tiles[WIN_AT];
     if (tile.classList.contains('mystery')) {
       const fresh = this.tileFor(it, false);
       fresh.classList.add('flip-in');
       tile.replaceWith(fresh);
-      fresh.classList.add('win');
-      return fresh;
+      tile = fresh;
     }
     tile.classList.add('win');
+    this.markSpecial(tile, it);
     return tile;
+  }
+
+  /** A special pattern (blue gem, ruby, full fade …) shows its chip on the winning tile, with a spark. */
+  private markSpecial(tile: HTMLElement, it: ItemInstance) {
+    const sp = patternOf(it).special;
+    if (!sp || tile.querySelector('.rt-sp')) return;
+    tile.insertAdjacentHTML('beforeend', patternChip(it, 'rt-sp'));
+    tile.classList.add('spx', `t${sp.tier}`);
+    const cols = sp.tier >= 3 ? ['#ffd24a', '#fff2c0', '#5ad1ff', '#ff5ad1'] : sp.tier === 2 ? ['#ff5ad1', '#ffc2ef', '#b98aff'] : ['#5ad1ff', '#c8f2ff'];
+    setTimeout(() => { if (tile.isConnected) burstAt(tile, cols, sp.tier >= 2 ? 40 : 20, 6); }, 160);
   }
   get winTile() { return this.strip.children[WIN_AT] as HTMLElement; }
   get offset() { return this.pos; }

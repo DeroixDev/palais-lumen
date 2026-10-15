@@ -7,6 +7,7 @@ import * as M from '../lib/mods';
 import { addItem, commit, save } from '../lib/state';
 import { esc, fmt, uid } from '../lib/util';
 import { names, rColor, rName, skinArt, skinCanvas } from './items';
+import { patternInfo, specialSeeds } from '../../data/specials';
 import { actions, block, group, refreshAll, type Row } from './modctl';
 
 const skinName = (s: SkinDef) => names({ skin: s.id, statTrak: false }).full;
@@ -84,6 +85,7 @@ function giveBlock(): Row {
       <div class="mm-fields">
         <div class="mm-f"><span>Float</span><div class="mm-fl"></div></div>
         <div class="mm-f"><span>Muster</span><div class="mm-inl"><input class="inp mm-in g-seed" type="number" min="0" max="999" step="1"><button type="button" class="btn ghost sm g-rs">Zufall</button></div></div>
+        <div class="mm-f"><span>Spezialmuster</span><select class="sel mm-sel g-sp" aria-label="Spezialmuster"></select></div>
         <div class="mm-f"><span>StatTrak™</span><label class="mm-sw"><input type="checkbox" class="g-st"><i></i><span></span></label></div>
         <div class="mm-f"><span>Anzahl</span><input class="inp mm-in g-q" type="number" min="1" max="100" step="1" value="1"></div>
         <div class="mm-inl"><b class="mono g-val"></b><button type="button" class="btn primary sm g-go">Ins Inventar</button></div>
@@ -96,7 +98,20 @@ function giveBlock(): Row {
       prev.replaceChildren(skinCanvas({ skin: sk.id, float: f, seed, statTrak: st }, 220, 92));
       prev.insertAdjacentHTML('beforeend', `<b style="color:${rColor(sk.rarity)}">${esc(skinName(sk))}</b>`);
     };
+    const spSel = host.querySelector('.g-sp') as HTMLSelectElement;
+    let spFor = '';
+    const drawSp = () => {
+      if (spFor !== sk.id) {
+        spFor = sk.id;
+        const seen = new Set<string>();
+        const opts = specialSeeds(sk).filter((x) => !seen.has(x.tag.id) && seen.add(x.tag.id));
+        spSel.innerHTML = `<option value="">${opts.length ? 'Keins gewählt' : 'Keine für diesen Skin'}</option>` + opts.map((x) => `<option value="${x.seed}">${esc(x.tag.name)} · #${x.seed} · ×${x.tag.mult}</option>`).join('');
+      }
+      spSel.value = patternInfo(sk, seed).special && [...spSel.options].some((o) => o.value === String(seed)) ? String(seed) : '';
+    };
+    spSel.addEventListener('change', () => { if (spSel.value) { seed = Number(spSel.value); drawVals(); drawPrev(); } });
     const drawVals = () => {
+      drawSp();
       seedIn.value = String(seed);
       stIn.checked = st; stIn.disabled = sk.rarity === 'gold';
       (stIn.nextElementSibling!.nextElementSibling as HTMLElement).textContent = st ? 'An' : 'Aus';
@@ -145,7 +160,7 @@ function invBlock(): Row {
       d.dataset.uid = it.uid;
       d.style.setProperty('--rc', rColor(s?.rarity ?? 'milspec'));
       const ovr = M.itemOverride(it.uid);
-      d.innerHTML = `<button type="button" class="mm-it-h"><span class="mm-it-c"></span><span class="mm-it-n"><b>${it.statTrak ? '<em>ST</em> ' : ''}${esc(names(it).full)}</b><small class="mono">${it.float.toFixed(6)} · ${wearOf(it.float).short} · #${it.seed}</small></span><span class="mono mm-it-v">${fmt(itemValue(it))}${ovr !== undefined ? ' *' : ''}</span></button>`;
+      d.innerHTML = `<button type="button" class="mm-it-h"><span class="mm-it-c"></span><span class="mm-it-n"><b>${it.statTrak ? '<em>ST</em> ' : ''}${esc(names(it).full)}</b><small class="mono">${it.float.toFixed(6)} · ${wearOf(it.float).short} · #${it.seed}${(() => { const n = patternInfo(skinById(it.skin), it.seed).special?.name; return n ? ` · ${esc(n)}` : ''; })()}</small></span><span class="mono mm-it-v">${fmt(itemValue(it))}${ovr !== undefined ? ' *' : ''}</span></button>`;
       d.querySelector('.mm-it-c')!.appendChild(skinArt(it, 76, 32));
       if (open === it.uid && s) d.appendChild(editor(it, s));
       return d;

@@ -8,7 +8,7 @@ import { skinById } from './lib/assets';
 import { countUp, el, esc, fmt, reducedMotion } from './lib/util';
 import { avatarSVG } from './lib/bots';
 import { icon } from './ui/icons';
-import { rColor, skinArt, names } from './ui/items';
+import { rColor, skinArt, names, patternOf } from './ui/items';
 import { closeAllModals } from './ui/modal';
 import { armLive, pulseBadge, rankBadge, stageCeremony } from './ui/rank';
 import { sfx } from './lib/sound';
@@ -160,7 +160,8 @@ function feedTile(e: FeedEntry): HTMLElement {
   const s = skinById(e.item.skin);
   const r = s?.rarity ?? 'milspec';
   const n = names(e.item);
-  const t = el<HTMLAnchorElement>(`<a class="ftile r-${r}${e.you ? ' you' : ''}" href="#/case/${e.caseId ?? ''}" title="${esc(`${e.who} (${rankName(e.lvl)}, Stufe ${e.lvl}): ${n.full} · ${fmt(e.value)} Coins · ${e.via}`)}"><span class="ft-art"></span><span class="ft-txt"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></span><span class="ft-who">${rankBadge(e.lvl, 16, { title: false })}<span class="ft-n" style="--nc:${stageOf(e.lvl).color}">${esc(e.who)}</span></span></a>`);
+  const sp = patternOf(e.item).special;
+  const t = el<HTMLAnchorElement>(`<a class="ftile r-${r}${e.you ? ' you' : ''}" href="#/case/${e.caseId ?? ''}" title="${esc(`${e.who} (${rankName(e.lvl)}, Stufe ${e.lvl}): ${n.full}${sp ? ` · ◆ ${sp.name}` : ''} · ${fmt(e.value)} Coins · ${e.via}`)}"><span class="ft-art"></span>${sp ? `<i class="ft-sp t${sp.tier}" aria-hidden="true">◆</i>` : ''}<span class="ft-txt"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></span><span class="ft-who">${rankBadge(e.lvl, 16, { title: false })}<span class="ft-n" style="--nc:${stageOf(e.lvl).color}">${esc(e.who)}</span></span></a>`);
   t.style.setProperty('--rc', rColor(r));
   if (!e.caseId) t.removeAttribute('href');
   t.querySelector('.ft-art')!.appendChild(skinArt(e.item, 84, 50));

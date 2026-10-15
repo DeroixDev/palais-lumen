@@ -2,7 +2,8 @@
 
 import { wearOf, type ItemInstance, type Rarity, type SkinDef } from '../../contract';
 import { rarityColor, rarityName, renderSkin, skinById, skinURL, skinURLNow, weaponById } from '../lib/assets';
-import { insiderLabel, isRareSeed, itemValue } from '../lib/economy';
+import { itemValue } from '../lib/economy';
+import { patternInfo, type PatternInfo } from '../../data/specials';
 import { esc, fmt } from '../lib/util';
 
 export const rColor = (r: Rarity) => { try { return rarityColor(r); } catch { return '#888'; } };
@@ -11,6 +12,16 @@ export const rName = (r: Rarity) => { try { return rarityName(r); } catch { retu
 export function skinOf(item: Pick<ItemInstance, 'skin'>): SkinDef {
   return skinById(item.skin) ?? { id: item.skin, weapon: '?', name: 'Unbekannt', rarity: 'milspec', pattern: { kind: 'fade', colors: ['#555', '#222'] }, floatMin: 0, floatMax: 1, basePrice: 0, collection: '' };
 }
+/** What the item's seed means (special pattern, Doppler phase, fade %). */
+export function patternOf(item: Pick<ItemInstance, 'skin' | 'seed'>): PatternInfo { return patternInfo(skinById(item.skin), item.seed); }
+
+/** Small "Kennzeichnung" chip for tiles ('' for ordinary seeds). */
+export function patternChip(item: Pick<ItemInstance, 'skin' | 'seed'>, cls = 'ic-sp'): string {
+  const sp = patternOf(item).special;
+  if (!sp) return '';
+  return `<span class="${cls} t${sp.tier}" title="${esc(`${sp.name} · Muster #${item.seed}: ${sp.info}`)}">◆ ${esc(sp.short)}</span>`;
+}
+
 export function weaponName(s: SkinDef): string { return weaponById(s.weapon)?.name ?? s.weapon; }
 export function names(item: Pick<ItemInstance, 'skin' | 'statTrak'>) {
   const s = skinOf(item);
@@ -96,13 +107,14 @@ export function itemCard(item: ItemInstance, o: CardOpts = {}): HTMLElement {
   const n = names(item);
   const w = wearOf(item.float);
   const card = document.createElement(o.selectable ? 'button' : 'div');
-  card.className = `icard r-${s.rarity}${o.selected ? ' sel' : ''}${o.size === 'sm' ? ' sm' : ''}${o.disabled ? ' off' : ''}`;
+  const sp = patternOf(item).special;
+  card.className = `icard r-${s.rarity}${o.selected ? ' sel' : ''}${o.size === 'sm' ? ' sm' : ''}${o.disabled ? ' off' : ''}${sp ? ` spx t${sp.tier}` : ''}`;
   card.style.setProperty('--rc', rColor(s.rarity));
   card.dataset.uid = item.uid;
   if (o.selectable) (card as HTMLButtonElement).type = 'button';
   if (o.disabled && o.selectable) (card as HTMLButtonElement).disabled = true;
   card.innerHTML = `
-    <div class="ic-top"><span class="ic-wear">${w.short}</span>${item.statTrak ? '<span class="ic-st">ST</span>' : ''}${isRareSeed(item.seed) ? `<span class="ic-seed" title="${insiderLabel(item.seed)} #${item.seed}">◆</span>` : ''}</div>
+    <div class="ic-top"><span class="ic-wear">${w.short}</span>${item.statTrak ? '<span class="ic-st">ST</span>' : ''}${patternChip(item)}</div>
     <div class="ic-art"></div>
     <div class="ic-name"><small>${esc(n.weapon)}</small><b>${esc(n.skin)}</b></div>
     ${o.showValue !== false ? `<div class="ic-val"><span class="coin"></span>${fmt(itemValue(item))}</div>` : ''}

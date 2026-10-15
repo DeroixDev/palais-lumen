@@ -10,6 +10,7 @@ import type { RenderOpts, SkinDef, WeaponModel, WeaponPart } from '../contract';
 import { skinById, weaponById } from '../data/catalog';
 import { buildModel } from './models';
 import { paintPattern } from './patterns';
+import { patternInfo, type ArtVariant } from '../data/specials';
 import { Noise, rng, hashStr, clamp, smooth } from './noise';
 import { mkCanvas, dpr, cssSize } from './canvas';
 
@@ -34,14 +35,108 @@ const texCache = new Lru<HTMLCanvasElement>(96);
 /** Window of the full texture that maps onto a model box: TW texture-px wide. */
 const WINDOW = 0.62;
 
-export function patternTexture(skin: SkinDef, S: number): HTMLCanvasElement {
-  const key = skin.id + '|' + S;
+export function patternTexture(skin: SkinDef, S: number, v: ArtVariant | null = null, model?: WeaponModel): HTMLCanvasElement {
+  const motif = (v?.win === 'motif' || v?.win === 'paint') && model ? motifParams(model, v.win) : null;
+  const key = skin.id + '|' + S + (v?.key ? '|' + v.key : '');
   let t = texCache.get(key);
   if (!t) {
-    t = paintPattern(skin.pattern, S, hashStr(skin.id) % 100000);
+    const recipe = v?.key ? { kind: skin.pattern.kind, colors: v.colors ?? skin.pattern.colors, params: { ...skin.pattern.params, ...v.params, ...motif } } : skin.pattern;
+    t = paintPattern(recipe, S, hashStr(skin.id) % 100000);
     texCache.set(key, t);
   }
   return t;
+}
+
+/**
+ * Where specials go, as fractions of the model box. 'motif': the biggest painted part, preferring
+ * central ones (receiver over stock). 'paint': the bounding box of everything painted.
+ */
+type Rect = { cx: number; cy: number; w: number; h: number };
+const motifCache = new Map<string, Rect>();
+export function motifPart(model: WeaponModel, mode: 'motif' | 'paint' = 'motif'): Rect {
+  const ck = mode + '|' + model.box.join('x') + '|' + model.parts.length + '|' + (model.parts[0]?.rings[0]?.[0]?.join(',') ?? '');
+  let m = motifCache.get(ck);
+  if (m) return m;
+  const [bw, bh] = model.box;
+  let best: Rect = { cx: 0.5, cy: 0.5, w: 0.4, h: 0.3 }, score = 0;
+  let ux0 = 1e9, uy0 = 1e9, ux1 = -1e9, uy1 = -1e9;
+  for (const p of model.parts) {
+    if (p.material !== 'skin' || !p.rings[0]?.length) continue;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const [x, y] of p.rings[0]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    ux0 = Math.min(ux0, x0); uy0 = Math.min(uy0, y0); ux1 = Math.max(ux1, x1); uy1 = Math.max(uy1, y1);
+    const cx = (x0 + x1) / 2 / bw;
+    // the part that fits the biggest motif, preferring central parts
+    const sc = Math.min(x1 - x0, (y1 - y0) * 1.5) * (1 - Math.abs(cx - 0.5));
+    if (sc > score) { score = sc; best = { cx, cy: (y0 + y1) / 2 / bh, w: (x1 - x0) / bw, h: (y1 - y0) / bh }; }
+  }
+  m = mode === 'paint' && ux1 > ux0 ? { cx: (ux0 + ux1) / 2 / bw, cy: (uy0 + uy1) / 2 / bh, w: (ux1 - ux0) / bw, h: (uy1 - uy0) / bh } : best;
+  motifCache.set(ck, m);
+  return m;
+}
+/** Motif sizes in texture units (1000 = texture): biggest part (mw, mh) and window (ww, wh). */
+function motifParams(model: WeaponModel, mode: 'motif' | 'paint') {
+  const mp = motifPart(model, mode);
+  const w = WINDOW, h = Math.min(0.98, WINDOW * (model.box[1] / model.box[0]));
+  return { mw: Math.round(mp.w * w * 1000), mh: Math.round(mp.h * h * 1000), ww: Math.round(w * 1000), wh: Math.round(h * 1000) };
+}
+
+/** The window of this item: seed placement, or the special's placement (motif centred, fade %). */
+export function itemWindow(skin: SkinDef, seed: number, model: WeaponModel, v: ArtVariant | null) {
+  const aspect = model.box[1] / model.box[0];
+  const win = v?.win;
+  if (win === 'motif' || win === 'paint') {
+    const mp = motifPart(model, win);
+    const w = WINDOW, h = Math.min(0.98, WINDOW * aspect);
+    const x = Math.max(0, Math.min(1 - w, 0.5 - mp.cx * w)), y = Math.max(0, Math.min(1 - h, 0.5 - mp.cy * h));
+    return { x, y, w, h, flip: false };
+  }
+  if (win && typeof win === 'object') {
+    // the painted area shows texture x range span[0]..span[1] (may reach outside the texture over
+    // unpainted parts such as a knife handle; drawImage clips the source rect)
+    const mp = motifPart(model, 'paint');
+    const px0 = mp.cx - mp.w / 2;
+    const w = (win.span[1] - win.span[0]) / Math.max(0.05, mp.w);
+    const h = Math.min(0.98, w * aspect);
+    return { x: win.span[0] - px0 * w, y: (1 - h) / 2, w, h, flip: false };
+  }
+  const sw = seedWindow(seed, aspect, skin.pattern.kind);
+  if (skin.pattern.kind !== 'casehardened') return sw;
+  // Ordinary case-hardened seeds must not look like a blue gem: if the seed's window would put a
+  // mostly blue patch on the main part, the next candidate windows of the same seed are tried.
+  // Judged on the 256 px texture only, so every render size picks the same window.
+  const grid = blueGrid(skin);
+  const mp = motifPart(model, 'paint');
+  const share = (wn: { x: number; y: number; w: number; h: number }) => {
+    let b = 0, n = 0;
+    const x0 = wn.x + (mp.cx - mp.w / 2) * wn.w, x1 = wn.x + (mp.cx + mp.w / 2) * wn.w;
+    const y0 = wn.y + (mp.cy - mp.h / 2) * wn.h, y1 = wn.y + (mp.cy + mp.h / 2) * wn.h;
+    for (let gy = Math.floor(y0 * BG); gy < Math.ceil(y1 * BG); gy++) for (let gx = Math.floor(x0 * BG); gx < Math.ceil(x1 * BG); gx++) { n++; b += grid[gy * BG + gx] ?? 0; }
+    return n ? b / n : 0;
+  };
+  let best = sw, bs = share(sw);
+  for (let k = 1; k < 24 && bs > 0.35; k++) {
+    const c = seedWindow(seed + k * 1000, aspect, skin.pattern.kind);
+    const v = share(c);
+    if (v < bs) { best = c; bs = v; }
+  }
+  return best;
+}
+const BG = 64;
+const blueCache = new Map<string, Uint8Array>();
+/** 64x64 grid of the skin's base texture: 1 where the paint is clearly blue. */
+function blueGrid(skin: SkinDef): Uint8Array {
+  let g = blueCache.get(skin.id);
+  if (g) return g;
+  const c = mkCanvas(BG, BG);
+  const cx = c.getContext('2d', { willReadFrequently: true })!;
+  cx.imageSmoothingEnabled = true;
+  cx.drawImage(patternTexture(skin, 256), 0, 0, BG, BG);
+  const d = cx.getImageData(0, 0, BG, BG).data;
+  g = new Uint8Array(BG * BG);
+  for (let i = 0; i < g.length; i++) g[i] = d[i * 4 + 2] > d[i * 4] + 25 && d[i * 4 + 2] > d[i * 4 + 1] ? 1 : 0;
+  blueCache.set(skin.id, g);
+  return g;
 }
 
 /** Seed -> window inside the texture (fractions 0..1 of S). Deterministic. */
@@ -249,8 +344,9 @@ export function drawWeapon(
     // texture tier by the final on-screen width of the model box
     const tw = bw * m * wearScale;
     const S = tw > 640 ? 1024 : tw > 300 ? 512 : 256;
-    tex = patternTexture(skin, S);
-    win = seedWindow(seed, bh / bw, skin.pattern.kind);
+    const v = patternInfo(skin, seed).art;
+    tex = patternTexture(skin, S, v, model);
+    win = itemWindow(skin, seed, model, v);
   }
   // the seed window of the texture, resampled once to device pixels over the model box
   let skinFill: CanvasPattern | null = null;
@@ -486,8 +582,9 @@ export function renderSkinTextureImpl(skinId: string, float: number, seed: numbe
   const ctx = c.getContext('2d')!;
   if (!skin) { ctx.fillStyle = '#555'; ctx.fillRect(0, 0, size, size); return c; }
   const model = modelOf(skin);
-  const tex = patternTexture(skin, size > 600 ? 1024 : 512);
-  const win = seedWindow(seed, model.box[1] / model.box[0], skin.pattern.kind);
+  const v = patternInfo(skin, seed).art;
+  const tex = patternTexture(skin, size > 600 ? 1024 : 512, v, model);
+  const win = itemWindow(skin, seed, model, v);
   const S = tex.width;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(tex, win.x * S, win.y * S, win.w * S, win.h * S, 0, 0, size, size);
