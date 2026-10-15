@@ -111,6 +111,26 @@ export const sfx = {
     for (let i = 0; i < 5; i++) tone(2400 + Math.random() * 2400, 0.12, { type: 'triangle', vol: 0.03, at: 0.03 + i * 0.05 });
   },
   error() { tone(200, 0.15, { type: 'square', vol: 0.06 }); },
+  /** Crane motor: a low whine that winds down as the load comes in. */
+  crane(sec = 1.4) {
+    tone(70, sec, { type: 'sawtooth', vol: 0.035, slide: 0.6, attack: 0.15 });
+    tone(140, sec * 0.9, { type: 'square', vol: 0.012, slide: 0.55, attack: 0.2 });
+    noise(sec, { freq: 380, q: 0.8, vol: 0.05, type: 'lowpass' });
+  },
+  /** A heavy pallet touching down on concrete. */
+  thud() {
+    noise(0.45, { freq: 180, q: 0.6, vol: 0.32, type: 'lowpass' });
+    tone(62, 0.4, { type: 'sine', vol: 0.26, slide: 0.55 });
+    noise(0.12, { freq: 1600, q: 0.9, vol: 0.05, at: 0.02 });
+  },
+  /** One box popping open (rarer = brighter, tiny for the commons). */
+  pop(lvl = 0) {
+    const now = performance.now();
+    if (now - lastPop < 34) return;
+    lastPop = now;
+    noise(0.04, { freq: 1200 + lvl * 500 + Math.random() * 600, q: 1.6, vol: 0.05 + lvl * 0.01 });
+    tone(320 + lvl * 140 + Math.random() * 80, 0.06, { type: 'triangle', vol: 0.03 + lvl * 0.006, slide: 1.8 });
+  },
   /** Electric crackle as something bursts out (rarer = brighter). Throttled for long bursts. */
   zap(r: Rarity = 'milspec') {
     const now = performance.now();
@@ -143,3 +163,4 @@ export const sfx = {
   },
 };
 let lastZap = 0;
+let lastPop = 0;
