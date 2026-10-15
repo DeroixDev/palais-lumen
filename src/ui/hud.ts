@@ -32,7 +32,7 @@ export interface HudActions {
 }
 
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-/** Height of one digit row in a balance reel, in em (must match `#balance .reel > span > b` in index.html). */
+/** Height of one digit row in a balance reel, in em (must match `#balance .reel > span > b` in casino.html). */
 const REEL_ROW = 1.1;
 
 /** Medal marks on the day gauge, as multiples of the day's quota. */
