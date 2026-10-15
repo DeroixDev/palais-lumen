@@ -17,7 +17,7 @@ import { burstAt, flash, shake } from '../ui/fx';
 import { openModal, type ModalHandle } from '../ui/modal';
 import { itemInfo, open3D, openItemDetail } from '../ui/detail';
 import { toast } from '../ui/toast';
-import { caseArt, CAT_LABEL } from './cases';
+import { caseArt, sectionLabel } from './cases';
 import type { Page } from './page';
 
 /** Records one opened item everywhere (stats, XP, missions, feed). Item must already be in the inventory. */
@@ -47,7 +47,7 @@ function infoModal(c: CaseDef) {
       <li>Der Float (Abnutzung) liegt gleichverteilt im Bereich des Skins. Niedriger Float = mehr Wert.</li>
       <li>10 % aller Drops sind StatTrak™ (×1,6 bis ×2 Wert). ★ Gegenstände gibt es nicht als StatTrak™.</li>
       <li>Seltene Muster (bestimmte Muster-Nummern) bringen +25 % Wert.</li>
-      ${c.id === DAILY_ID ? '<li>Die Tageskiste ist alle 24 Stunden gratis. Mit jedem Karriere-Titel wird ihr Inhalt besser.</li>' : `<li>Erwartete Auszahlung dieser Kiste: <b class="mono">${pct(caseRTP(c), 1)}</b> des Preises.</li>`}
+      ${c.id === DAILY_ID ? '<li>Die Tageskiste ist alle 24 Stunden gratis. Mit jedem neuen Rang wird ihr Inhalt besser.</li>' : `<li>Erwartete Auszahlung dieser Kiste: <b class="mono">${pct(caseRTP(c), 1)}</b> des Preises.</li>`}
     </ul></div>`, { label: 'Regeln' });
 }
 
@@ -71,7 +71,7 @@ export const casePage: Page = (root, args) => {
     <div class="ct-bg"></div>
     <div class="ct-art"></div>
     <div class="ct-info">
-      <span class="eyebrow">${daily ? 'Gratis alle 24 Stunden' : CAT_LABEL[c.category]}</span>
+      <span class="eyebrow">${daily ? 'Gratis alle 24 Stunden' : esc(sectionLabel(c))}</span>
       <h1>${esc(c.name)}</h1>
       <div class="ct-meta">${daily ? '' : `<span class="pricetag"><span class="coin"></span><span class="mono">${fmt(price)}</span></span>`}<button class="btn ghost sm info-btn" type="button">Info</button></div>
     </div>

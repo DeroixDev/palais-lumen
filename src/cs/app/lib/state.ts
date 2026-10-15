@@ -38,6 +38,8 @@ export interface Save {
   missions: { day: string; list: Mission[] };
   achievements: Record<string, number>;
   rewardedLevel: number;
+  /** 2 = the 250-level road; older saves are recomputed once (career.migrateCareer). */
+  careerV?: number;
   battles: BattleLog[];
   crashHistory: number[];
   settings: { sound: boolean; fast: boolean; volume: number };
@@ -59,6 +61,7 @@ function fresh(): Save {
     missions: { day: '', list: [] },
     achievements: {},
     rewardedLevel: 1,
+    careerV: 2,
     battles: [],
     crashHistory: [],
     settings: { sound: true, fast: false, volume: 0.7 },
@@ -72,6 +75,7 @@ function upgrade(raw: unknown): Save {
   if (!raw || typeof raw !== 'object') return base;
   const r = raw as Partial<Save>;
   const s: Save = { ...base, ...r, stats: { ...base.stats, ...(r.stats ?? {}) }, daily: { ...base.daily, ...(r.daily ?? {}) }, settings: { ...base.settings, ...(r.settings ?? {}) } } as Save;
+  if (typeof r.careerV !== 'number') s.careerV = 1;
   if (!Array.isArray(s.inv)) s.inv = [];
   s.inv = s.inv.filter((i) => i && typeof i.skin === 'string' && typeof i.float === 'number');
   if (typeof s.balance !== 'number' || !isFinite(s.balance)) s.balance = START_BALANCE;
@@ -132,10 +136,16 @@ export function removeItems(uids: string[]) {
 export function findItem(uid: string) { return save.inv.find((i) => i.uid === uid); }
 export const invValue = () => save.inv.reduce((a, i) => a + itemValue(i), 0);
 
+let sellBoost = () => 1;
+/** The career's rank perk multiplies every sale (set by career.ts, which sits above this module). */
+export function setSellBoost(fn: () => number) { sellBoost = fn; }
+/** What selling skins worth `raw` pays out (rank perk and house factor included). */
+export const sellValue = (raw: number) => M.sell(Math.round(raw * sellBoost() * 100) / 100);
+
 export function sellItems(uids: string[]): number {
   const set = new Set(uids);
   const items = save.inv.filter((i) => set.has(i.uid));
-  const v = M.sell(items.reduce((a, i) => a + itemValue(i), 0));
+  const v = sellValue(items.reduce((a, i) => a + itemValue(i), 0));
   removeItems(uids);
   save.balance += v;
   save.stats.sold += v;

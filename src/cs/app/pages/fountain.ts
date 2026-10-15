@@ -12,7 +12,7 @@ import { SKINS, skinById, skinURL, skinURLNow } from '../lib/assets';
 import { insiderLabel, isRareSeed, itemValue, lowFloatBonus, makeItem } from '../lib/economy';
 import * as M from '../lib/mods';
 import { sfx } from '../lib/sound';
-import { addItem, commit, save, sellItems } from '../lib/state';
+import { addItem, commit, save, sellItems, sellValue } from '../lib/state';
 import { clamp, esc, fmt, reducedMotion } from '../lib/util';
 import { artImg, names, rColor, rName } from '../ui/items';
 import { toast } from '../ui/toast';
@@ -710,7 +710,7 @@ export function fountainPage(root: HTMLElement): Cleanup {
     const open = R.state === 'open';
     sellBtn.disabled = !open || !R.items.length;
     keepBtn.disabled = !open || !R.items.length;
-    const sellV = M.sell(R.going ? R.total : R.items.reduce((a, it) => a + (R.vals.get(it.uid) ?? 0), 0));
+    const sellV = sellValue(R.going ? R.total : R.items.reduce((a, it) => a + (R.vals.get(it.uid) ?? 0), 0));
     sellBtn.innerHTML = R.state === 'sold' ? 'Verkauft' : `Alles verkaufen <span class="mono">${fmt(sellV)}</span>`;
     keepBtn.textContent = R.state === 'kept' ? (R.inv ? 'Im Inventar' : 'Behalten') : R.inv ? 'Alles behalten' : 'Alles behalten';
   }

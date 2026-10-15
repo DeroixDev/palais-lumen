@@ -91,7 +91,25 @@ export const sfx = {
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, { type: 'triangle', vol: 0.1, at: i * 0.08 })); },
   lose() { tone(330, 0.5, { type: 'sawtooth', vol: 0.07, slide: 0.5 }); },
   boom() { noise(0.8, { freq: 300, q: 0.4, vol: 0.4, type: 'lowpass' }); tone(90, 0.6, { type: 'sine', vol: 0.3, slide: 0.4 }); },
-  levelUp() { [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.4, { type: 'square', vol: 0.05, at: i * 0.1 })); },
+  /** Short bright rise with a soft bell on top. */
+  levelUp() {
+    [659, 880, 1175].forEach((f, i) => tone(f, 0.22, { type: 'triangle', vol: 0.09, at: i * 0.07 }));
+    tone(1760, 0.7, { type: 'sine', vol: 0.06, at: 0.2 });
+    tone(2637, 0.5, { type: 'sine', vol: 0.025, at: 0.22 });
+  },
+  /** Stage-up: low swell, then a chord that opens up. */
+  rankUp() {
+    tone(55, 1.1, { type: 'sine', vol: 0.22, slide: 2, attack: 0.5 });
+    noise(0.9, { freq: 900, q: 0.6, vol: 0.05, type: 'lowpass' });
+    [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 1.2, { type: 'triangle', vol: 0.06, at: 0.95 + i * 0.05 }));
+    [1047, 1568, 2093].forEach((f, i) => tone(f, 0.9, { type: 'sine', vol: 0.04, at: 1.05 + i * 0.12 }));
+  },
+  /** The old frame breaking. */
+  shatter() {
+    noise(0.5, { freq: 3800, q: 0.8, vol: 0.18, type: 'highpass' });
+    noise(0.25, { freq: 400, q: 0.7, vol: 0.25, type: 'lowpass' });
+    for (let i = 0; i < 5; i++) tone(2400 + Math.random() * 2400, 0.12, { type: 'triangle', vol: 0.03, at: 0.03 + i * 0.05 });
+  },
   error() { tone(200, 0.15, { type: 'square', vol: 0.06 }); },
   /** Electric crackle as something bursts out (rarer = brighter). Throttled for long bursts. */
   zap(r: Rarity = 'milspec') {

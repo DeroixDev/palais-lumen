@@ -40,17 +40,47 @@ export interface SkinDef {
   collection: string;    // collection / case family name
 }
 
+/** Shape of the case box art (art picks one from the id when a case names none). */
+export type CaseForm = 'crate' | 'briefcase' | 'chest' | 'capsule' | 'safe' | 'drum' | 'casket' | 'neon';
+/** Surface of the case box. */
+export type CaseMaterial = 'metal' | 'carbon' | 'wood' | 'leather' | 'gold' | 'paint';
+/** Shop shelf a case sits on (the cases page groups by this; falls back to the category). */
+export type CaseSection =
+  | 'einsteiger' | 'budget' | 'klassiker' | 'waffen' | 'farben' | 'muster'
+  | 'messer' | 'premium' | 'risiko' | 'event' | 'rang';
+
+export interface CaseLook {
+  a: string;                     // main body colour
+  b: string;                     // accent / glow colour
+  emblem: string;                // emblem keyword art understands
+  form?: CaseForm;
+  material?: CaseMaterial;
+  /** Trim colour (corners, rims); gold for gold/premium cases when absent. */
+  trim?: string;
+  /** Short stencil text on the box (defaults to the case name). */
+  label?: string;
+}
+
 export interface CaseDef {
   id: string;
   name: string;
   price: number;                 // coins to open (no separate keys on the platform)
   /** Skin ids by rarity tier. Gold tier lists knife/glove skins. */
   contents: Partial<Record<Rarity, string[]>>;
-  /** Look of the case box: two colours + an emblem keyword art understands. */
-  look: { a: string; b: string; emblem: string };
+  /** Look of the case box: two colours + an emblem keyword art understands, optional form/material. */
+  look: CaseLook;
+  /** Economy class: decides the target return (see app/lib/economy.ts). */
   category: 'starter' | 'standard' | 'premium' | 'gold' | 'event';
   /** Career level needed to open it. 0 = everybody. */
   level: number;
+  /** Shop shelf; optional so older/synthetic cases (daily case) still type-check. */
+  section?: CaseSection;
+  /** Popularity score 0..100 for the "Beliebt" sort. */
+  pop?: number;
+  /** Release order: higher = newer ("Neu" sort and badge). */
+  added?: number;
+  /** Small badge on the card, e.g. 'NEU', 'HOT', 'LIMITIERT'. */
+  badge?: string;
 }
 
 /** One concrete item in an inventory. */

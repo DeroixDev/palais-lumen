@@ -5,9 +5,10 @@ import { CASES, skinById } from './assets';
 import { casePrice, itemValue, rarityIndex, rollCase } from './economy';
 import { botPlayer, BOT_NAMES } from './bots';
 import { save } from './state';
+import { botLevel, level } from './career';
 import * as M from './mods';
 
-export interface FeedEntry { item: ItemInstance; value: number; who: string; avatar: number; you: boolean; caseId?: string; via: string; ts: number }
+export interface FeedEntry { item: ItemInstance; value: number; who: string; avatar: number; lvl: number; you: boolean; caseId?: string; via: string; ts: number }
 
 type L = (e: FeedEntry) => void;
 const listeners = new Set<L>();
@@ -21,7 +22,7 @@ export function pushFeed(e: FeedEntry) {
 }
 
 export function pushMine(item: ItemInstance, via: string, caseId?: string) {
-  pushFeed({ item, value: itemValue(item), who: save.name, avatar: save.avatar, you: true, caseId, via, ts: Date.now() });
+  pushFeed({ item, value: itemValue(item), who: save.name, avatar: save.avatar, lvl: level(), you: true, caseId, via, ts: Date.now() });
 }
 
 /** One simulated drop: bots favour cheaper cases, and the feed mostly shows the exciting ones. */
@@ -32,7 +33,7 @@ function botDrop(): FeedEntry {
   // Re-roll most blues so the strip stays colourful (a feed only lists the notable drops).
   for (let i = 0; i < 3 && rarityIndex(skinById(item.skin)!.rarity) <= rarityIndex('milspec') && Math.random() < 0.75; i++) item = rollCase(c, 1.6);
   const p = botPlayer(Math.floor(Math.random() * BOT_NAMES.length));
-  return { item, value: itemValue(item), who: p.name, avatar: p.avatar, you: false, caseId: c.id, via: c.name, ts: Date.now() };
+  return { item, value: itemValue(item), who: p.name, avatar: p.avatar, lvl: botLevel(p.name), you: false, caseId: c.id, via: c.name, ts: Date.now() };
 }
 
 let timer = 0;
