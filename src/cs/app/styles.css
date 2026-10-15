@@ -78,19 +78,30 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 
 /* ---------- top bar ---------- */
 .topbar { position: sticky; top: 0; z-index: 30; background: linear-gradient(180deg, rgba(13,16,21,.97), rgba(11,14,18,.95)); border-bottom: 1px solid var(--line); }
-.tb-inner { max-width: 1480px; margin: 0 auto; padding: 0 var(--gutter); height: 64px; display: flex; align-items: center; gap: 18px; }
+.tb-inner { padding: 0 var(--gutter) 0 calc(var(--gutter) + 6px); height: 64px; display: flex; align-items: center; gap: 18px; }
 .logo { display: flex; align-items: center; gap: 9px; flex: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .logo-mark svg { width: 32px; height: 32px; display: block; filter: drop-shadow(0 0 10px rgba(255,138,31,.45)); transition: transform .3s var(--ease); }
 .logo:hover .logo-mark svg { transform: rotate(-8deg) scale(1.06); }
 .logo-txt { font: 700 1.3rem/1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
 .logo-txt b { color: var(--hot); margin-left: 3px; }
-.mainnav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.mainnav::-webkit-scrollbar { display: none; }
-.mainnav a { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 8px; color: var(--ink-2); font: 600 .95rem/1 var(--display); letter-spacing: .02em; white-space: nowrap; position: relative; transition: color .15s, background .15s; }
-.mainnav a .ico { width: 18px; height: 18px; opacity: .8; flex: none; }
-.mainnav a:hover { color: var(--ink); background: rgba(255,255,255,.04); }
-.mainnav a.on { color: var(--hot); background: rgba(255,138,31,.09); box-shadow: inset 0 -2px 0 var(--hot); }
-.mainnav a.on .ico { opacity: 1; }
+.tb-right { margin-left: auto; }
+
+/* ---------- side bar (the games) ---------- */
+:root { --side: 84px; }
+.sidenav { position: fixed; z-index: 29; left: 0; top: 64px; bottom: 0; width: var(--side); display: flex; flex-direction: column; gap: 6px; padding: 10px 8px 12px; background: linear-gradient(90deg, #0c0f13, #0b0e12); border-right: 1px solid var(--line); overflow-y: auto; scrollbar-width: none; }
+.sidenav::-webkit-scrollbar { display: none; }
+.sn-group { display: flex; flex-direction: column; gap: 3px; }
+.sn-me { padding-top: 8px; border-top: 1px solid var(--line); }
+.sidenav a { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 2px 8px; border-radius: 10px; color: var(--ink-2); font: 600 .72rem/1.05 var(--display); letter-spacing: .03em; text-align: center; transition: color .15s, background .15s; -webkit-tap-highlight-color: transparent; }
+.sidenav a .ico { width: 22px; height: 22px; opacity: .78; transition: transform .2s var(--ease), opacity .15s; }
+.sidenav a:hover { color: var(--ink); background: rgba(255,255,255,.04); }
+.sidenav a:hover .ico { opacity: 1; transform: translateY(-1px) scale(1.08); }
+.sidenav a.on { color: var(--hot); background: rgba(255,138,31,.10); }
+.sidenav a.on .ico { opacity: 1; }
+.sidenav a.on::before { content: ''; position: absolute; left: -8px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--hot); box-shadow: 0 0 10px var(--hot); }
+.sidenav .sn-palais { margin-top: auto; color: var(--dim); }
+.feed, .foot { margin-left: var(--side); }
+#page > .page { max-width: 1480px; margin: 0 auto; }
 .tb-right { display: flex; align-items: center; gap: 10px; flex: none; }
 .tb-gift, .tb-sound { position: relative; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); color: var(--ink-2); transition: color .15s, border-color .15s, transform .15s; }
 .tb-gift:hover, .tb-sound:hover { color: var(--hot); border-color: var(--line-2); }
@@ -120,7 +131,7 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 /* ---------- live feed ---------- */
 .feed { display: flex; align-items: stretch; height: 66px; background: linear-gradient(180deg, #0e1217, #0b0e12); border-bottom: 1px solid var(--line); overflow: hidden; position: relative; }
 .feed::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 80px; background: linear-gradient(90deg, transparent, var(--bg)); pointer-events: none; }
-.feed-live { flex: none; display: flex; align-items: center; gap: 7px; padding: 0 14px 0 var(--gutter); font: 700 .78rem/1 var(--display); letter-spacing: .14em; color: var(--ink-2); border-right: 1px solid var(--line); background: var(--bg-2); }
+.feed-live { position: relative; z-index: 2; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 14px 0 var(--gutter); font: 700 .78rem/1 var(--display); letter-spacing: .14em; color: var(--ink-2); border-right: 1px solid var(--line); background: var(--bg-2); }
 .feed-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 10px var(--bad); animation: pulse 1.2s infinite; }
 .feed-track { display: flex; gap: 6px; padding: 6px; min-width: 0; flex: 1; overflow: hidden; }
 .ftile { --rc: #4b69ff; flex: none; width: 168px; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: 1fr auto; column-gap: 4px; padding: 4px 8px 4px 4px; border-radius: 7px; position: relative; overflow: hidden;
@@ -143,7 +154,7 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; letter-spacing: .01em; 
 @keyframes feedIn { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- page frame ---------- */
-#page { display: block; max-width: 1480px; margin: 0 auto; padding: 22px var(--gutter) 60px; outline: none; min-height: 70vh; }
+#page { display: block; margin: 0 0 0 var(--side); padding: 22px var(--gutter) 60px; outline: none; min-height: 70vh; }
 .page-in { animation: pageIn .35s var(--ease); }
 @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .page { display: grid; gap: 22px; min-width: 0; }
@@ -797,26 +808,26 @@ a.rw:hover { border-color: var(--hot-lo); transform: translateY(-2px); }
 /* ---------- responsive ---------- */
 @media (max-width: 1460px) {
   .lvl-info { display: none; }
-  .mainnav a { padding: 9px 10px; gap: 6px; }
-  .mainnav a .ico { display: none; }
   .tb-inner { gap: 12px; }
 }
 @media (max-width: 1240px) {
   .lvl-info { display: none; }
-  .mainnav a span { display: none; }
-  .mainnav a { padding: 10px; }
-  .mainnav a .ico { width: 20px; height: 20px; display: block; }
   .upg { grid-template-columns: 1fr 1fr; }
   .upg-ring { grid-column: 1 / -1; grid-row: 1; }
   .crash { grid-template-columns: minmax(0, 1fr) 280px; }
 }
 @media (max-width: 900px) {
-  .tb-inner { flex-wrap: wrap; height: auto; padding-top: 10px; gap: 10px; row-gap: 6px; }
-  .mainnav { order: 3; flex-basis: 100%; margin: 0 calc(var(--gutter) * -1); padding: 0 var(--gutter) 6px; }
-  .mainnav a span { display: inline; }
-  .mainnav a { padding: 8px 10px; }
-  .mainnav a .ico { width: 18px; height: 18px; }
-  .tb-right { margin-left: auto; gap: 7px; }
+  .tb-right { gap: 7px; }
+  /* the games become a bottom tab bar */
+  :root { --side: 0px; }
+  body { padding-bottom: 64px; }
+  .sidenav { top: auto; right: 0; width: auto; height: 62px; flex-direction: row; gap: 2px; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); background: #0b0e12; overflow-x: auto; overflow-y: hidden; }
+  .sn-group { flex-direction: row; gap: 2px; }
+  .sn-me { padding: 0 0 0 4px; margin-left: 2px; border-top: 0; border-left: 1px solid var(--line); }
+  .sidenav a { flex: none; min-width: 62px; padding: 6px 4px; font-size: .66rem; }
+  .sidenav a .ico { width: 20px; height: 20px; }
+  .sidenav a.on::before { left: 12px; right: 12px; top: auto; bottom: -6px; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
+  .sidenav .sn-palais { margin: 0 0 0 auto; }
   .hero { grid-template-columns: 1fr; }
   .hero-side { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
   .contract, .upg-lists, .career-grid, .set-grid, .crash { grid-template-columns: 1fr; }
