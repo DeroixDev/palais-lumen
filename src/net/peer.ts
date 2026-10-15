@@ -158,7 +158,11 @@ async function loadPeer() {
 }
 
 export class PeerTransport implements Transport {
-  constructor(private broker: Broker = currentBroker()) {}
+  /** `prefix` keeps each game's room codes apart on the shared broker (the casino uses the default). */
+  constructor(
+    private broker: Broker = currentBroker(),
+    private prefix: string = PREFIX,
+  ) {}
 
   private options(): PeerOptions {
     const b = this.broker;
@@ -170,7 +174,7 @@ export class PeerTransport implements Transport {
 
   async host(code: string): Promise<HostEndpoint> {
     const Peer = await loadPeer();
-    const peer = new Peer(PREFIX + code, this.options());
+    const peer = new Peer(this.prefix + code, this.options());
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new NetError('timeout')), CONNECT_MS);
       peer.once('open', () => {
@@ -220,7 +224,7 @@ export class PeerTransport implements Transport {
       const timer = setTimeout(() => fail(new NetError('timeout')), CONNECT_MS);
       peer.on('error', (e: { type?: string }) => fail(new NetError(e?.type === 'peer-unavailable' ? 'notFound' : e?.type === 'browser-incompatible' ? 'unsupported' : 'network')));
       peer.once('open', () => {
-        const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'binary' });
+        const conn = peer.connect(this.prefix + code, { reliable: true, serialization: 'binary' });
         conn.once('open', () => {
           if (done) return;
           done = true;

@@ -1,7 +1,7 @@
 // "Unsere Spiele": the launcher. Static markup lives in index.html; this paints the key art,
 // reads a light save summary per game, and runs the glitter (one canvas, paused when unseen).
 
-import { csArt, palaisArt, teaserArt } from './art';
+import { csArt, palaisArt, teaserArt, unoArt } from './art';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
@@ -10,6 +10,7 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
 const ART: Record<string, () => string> = {
   palais: palaisArt,
   cs: csArt,
+  uno: unoArt,
   board: () => teaserArt('board'),
   race: () => teaserArt('race'),
   quiz: () => teaserArt('quiz'),
@@ -69,6 +70,13 @@ function palaisSummary(): string | null {
   return best?.text ?? null;
 }
 
+function unoSummary(): string | null {
+  const s = readJSON('unounser.save');
+  if (!s || !num(s.rounds) || s.rounds <= 0) return null;
+  const wins = num(s.wins) ? s.wins : 0;
+  return `${nf0.format(wins)} ${wins === 1 ? 'Sieg' : 'Siege'} · ${nf0.format(s.rounds)} ${s.rounds === 1 ? 'Runde' : 'Runden'}`;
+}
+
 function showSave(game: string, text: string | null) {
   const el = document.querySelector<HTMLElement>(`[data-save="${game}"]`);
   if (!el || !text) return;
@@ -78,6 +86,7 @@ function showSave(game: string, text: string | null) {
 try {
   showSave('palais', palaisSummary());
   showSave('cs', csSummary());
+  showSave('uno', unoSummary());
 } catch {
   /* never let a save summary break the launcher */
 }

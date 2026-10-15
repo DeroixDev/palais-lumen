@@ -195,7 +195,7 @@ svg { display: block; }
 
 /* ---------- game cards ---------- */
 .games { background: linear-gradient(180deg, var(--void), var(--night) 70%, var(--void)); }
-.game-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(18px, 2.4vw, 36px); }
+.game-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 2.2vw, 32px); }
 .game {
   --accent: var(--acid);
   position: relative; isolation: isolate; overflow: hidden;
@@ -208,6 +208,7 @@ svg { display: block; }
 .game.tilting .holo { transition: opacity .35s, transform .12s linear; }
 .g-palais { --accent: var(--brass); }
 .g-cs { --accent: var(--orange); }
+.g-uno { --accent: var(--cyan); }
 .game::before { /* accent edge */
   content: ''; position: absolute; z-index: 3; left: 0; top: 0; bottom: 0; width: 6px; background: var(--accent);
 }
@@ -217,7 +218,7 @@ svg { display: block; }
 .game:hover .game-art svg, .game:focus-within .game-art svg { transform: scale(1.04); }
 .game-body { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: clamp(18px, 2vw, 30px) clamp(20px, 2.4vw, 36px) clamp(22px, 2.4vw, 34px); }
 .game-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -2px; }
-.game-title { margin: 2px 0 0; font-weight: 900; font-stretch: 62%; font-size: clamp(2.6rem, 4.6vw, 4.6rem); line-height: .84; }
+.game-title { margin: 2px 0 0; font-weight: 900; font-stretch: 62%; font-size: clamp(2.4rem, 3.3vw, 4.2rem); line-height: .84; }
 .game-line { margin: 0; color: var(--muted); max-width: 34rem; text-wrap: pretty; }
 .save { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 .9rem/1.3 var(--body); color: var(--dim); }
 .save-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--dim); }
@@ -314,9 +315,16 @@ svg { display: block; }
 /* ---------- responsive ---------- */
 @media (max-width: 1100px) {
   .soon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-title { font-size: clamp(2.4rem, 4.6vw, 4.2rem); }
+  /* the third game takes the full row: art beside the text */
+  .game:nth-child(3):last-child { grid-column: 1 / -1; grid-template-rows: none; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .game:nth-child(3):last-child .game-art { aspect-ratio: auto; min-height: 100%; }
 }
 @media (max-width: 860px) {
   .game-grid { grid-template-columns: 1fr; }
+  .game:nth-child(3):last-child { grid-template-columns: none; grid-template-rows: auto 1fr; }
+  .game:nth-child(3):last-child .game-art { aspect-ratio: 16 / 9; min-height: 0; }
   .hl-2 { margin-left: .2em; }
 }
 @media (max-width: 560px) {
