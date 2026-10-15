@@ -79,7 +79,7 @@ function vignetteTexture() {
 
 /** The static page (title, logo, purse label) carries the brand from src/core/brand.ts. */
 function applyBrand() {
-  document.title = HOUSE;
+  document.title = 'Unser Casino Spiel';
   const logo = document.querySelector('#title .logo');
   if (logo) logo.innerHTML = `${HOUSE}<span>${HOUSE_TAGLINE}</span>`;
   const eyebrow = document.querySelector('#title .eyebrow');
