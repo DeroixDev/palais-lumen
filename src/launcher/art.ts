@@ -162,3 +162,57 @@ ${glint(318, 70, 16, '#dcff1f')}${glint(86, 92, 10, '#f7f2ff', 0.8)}
 ${glint(80, 60, 14, '#e0b25a')}
 </svg>`;
 }
+
+/** Unser Uno Spiel: a hand of our own cards fanned out on violet, a big "UNO!" sticker, glitter. */
+export function unoArt() {
+  const r = rng(33);
+  const COL = ['#ff2e4d', '#ffcf1a', '#18c96a', '#2f7dff'];
+  let rays = '';
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    rays += `<path d="M320 210L${f(320 + Math.cos(a - 0.05) * 620)} ${f(210 + Math.sin(a - 0.05) * 620)}L${f(320 + Math.cos(a + 0.05) * 620)} ${f(210 + Math.sin(a + 0.05) * 620)}z" fill="#ff3d9a" opacity=".07"/>`;
+  }
+  // one card: colour body, slashes, dark slanted slab with the face
+  const card = (x: number, y: number, rot: number, col: string, face: string, faceCol = col) => `<g transform="rotate(${rot} ${x + 46} ${y + 140})">
+<rect x="${x}" y="${y}" width="92" height="138" rx="10" fill="${col}" stroke="#fbf8ff" stroke-width="5"/>
+<path d="M${x + 10} ${y + 120}l60-110M${x + 30} ${y + 132}l60-110" stroke="#fff" stroke-width="5" opacity=".14"/>
+<path d="M${x + 22} ${y + 30}h56l-8 78H${x + 14}z" fill="#0b0614"/>
+<path d="M${x + 24} ${y + 32}h56l-8 78H${x + 16}z" fill="none" stroke="#fff" stroke-width="2" opacity=".55" transform="translate(4 4)"/>
+<text x="${x + 47}" y="${y + 92}" text-anchor="middle" font-family="Archivo, Impact, sans-serif" font-style="italic" font-weight="900" font-stretch="62%" font-size="58" fill="${faceCol}">${face}</text>
+</g>`;
+  const wild = (x: number, y: number, rot: number) => `<g transform="rotate(${rot} ${x + 46} ${y + 140})">
+<rect x="${x}" y="${y}" width="92" height="138" rx="10" fill="#17102a" stroke="#fbf8ff" stroke-width="5"/>
+<path d="M${x + 3} ${y + 3}h30L${x + 3} ${y + 33}z" fill="${COL[0]}"/><path d="M${x + 89} ${y + 3}v30L${x + 59} ${y + 3}z" fill="${COL[3]}"/>
+<path d="M${x + 3} ${y + 135}v-30L${x + 33} ${y + 135}z" fill="${COL[1]}"/><path d="M${x + 89} ${y + 135}h-30L${x + 89} ${y + 105}z" fill="${COL[2]}"/>
+<path d="M${x + 22} ${y + 30}h56l-8 78H${x + 14}z" fill="#0b0614"/>
+<text x="${x + 47}" y="${y + 84}" text-anchor="middle" font-family="Archivo, Impact, sans-serif" font-style="italic" font-weight="900" font-size="44" fill="#fbf8ff">+4</text>
+${COL.map((c, i) => `<path d="M${x + 22 + i * 13} ${y + 92}h10l-2 9h-10z" fill="${c}"/>`).join('')}
+</g>`;
+  let sparks = '';
+  for (let i = 0; i < 26; i++) {
+    const x = 30 + r() * 580, y = 20 + r() * 300;
+    sparks += r() > 0.55 ? glint(x, y, 3 + r() * 6, r() > 0.5 ? '#dcff1f' : '#fff', 0.9) : `<circle cx="${f(x)}" cy="${f(y)}" r="${f(1 + r() * 1.5)}" fill="#ff7ac2" opacity="${f(0.4 + r() * 0.5)}"/>`;
+  }
+  return `<svg viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="un-bg" cx=".5" cy=".55" r=".75"><stop offset="0" stop-color="#5b2bd6"/><stop offset=".5" stop-color="#2a0670"/><stop offset="1" stop-color="#0b0614"/></radialGradient>
+  <radialGradient id="un-felt" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#2a0d5c"/><stop offset="1" stop-color="#2a0d5c" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="640" height="360" fill="url(#un-bg)"/>
+${rays}
+<ellipse cx="320" cy="300" rx="300" ry="80" fill="url(#un-felt)"/>
+<ellipse cx="320" cy="300" rx="280" ry="66" fill="none" stroke="#ff3d9a" stroke-width="2" opacity=".45"/>
+${card(140, 120, -34, COL[3], '7')}
+${card(196, 92, -17, COL[1], '2')}
+${card(252, 80, 0, COL[2], '+2')}
+${card(308, 92, 17, COL[0], '9')}
+${wild(364, 120, 34)}
+<g transform="rotate(-9 470 80)">
+  <rect x="402" y="40" width="190" height="78" fill="#dcff1f"/>
+  <rect x="402" y="40" width="190" height="78" fill="none" stroke="#0b0614" stroke-width="5"/>
+  <text x="497" y="106" text-anchor="middle" font-family="Archivo, Impact, sans-serif" font-style="italic" font-weight="900" font-stretch="62%" font-size="76" fill="#ff3d9a" stroke="#0b0614" stroke-width="3" paint-order="stroke">UNO!</text>
+</g>
+${sparks}
+<path d="M0 344h640" stroke="#2fe6ff" stroke-width="1.5" opacity=".35"/>
+</svg>`;
+}
