@@ -6,9 +6,23 @@ import { botJump, botMove } from './bot';
 import { act, canJump, lastSeq, newMatch, trimEvents, type ActResult, type Action, type Match, type Rules, type Seat } from './engine';
 import { makeView, type View } from './view';
 
+export interface TableClock {
+  /** Time since the round was dealt (frozen once it is over), in ms. */
+  roundMs: number;
+  /** Time since the match started (frozen at its end), in ms. */
+  matchMs: number;
+  /** Moves this round / this match: every card played and every draw (one per draw, however many cards). */
+  moves: number;
+  matchMoves: number;
+  /** The round clock is ticking. */
+  running: boolean;
+}
+
 export interface TableView extends View {
   /** Changes with every new match (rematch), so clients reset their event cursor. */
   mid: number;
+  /** Round time and move counts, measured by the host (authoritative online). */
+  clock: TableClock;
 }
 
 type Listener = (v: TableView) => void;
@@ -38,6 +52,14 @@ export class Table {
   private incident: { who: number; seq: number; catcher: number; at: number; window: number } | null = null;
   private jumpPlan: { seq: number; p: number; at: number } | null = null;
   private turnPlan: { key: string; at: number } | null = null;
+  /** Round clock and move counters (host side; see TableClock). */
+  private counted = 0;
+  private roundAt = 0;
+  private roundEnd = 0;
+  private matchAt = 0;
+  private matchEnd = 0;
+  private moves = 0;
+  private matchMoves = 0;
   /** Called after every change (the dev hook and stats use it). */
   onChange: ((m: Match) => void) | null = null;
 
@@ -46,6 +68,39 @@ export class Table {
     this.speed = opts.speed ?? 1;
     this.owner = opts.owner ?? 0;
     this.m = newMatch(this.seats, rules, opts.seed);
+    this.count();
+  }
+
+  /** Walks new events: a deal restarts the round clock, plays and draws count as moves. */
+  private count() {
+    const m = this.m;
+    const now = Date.now();
+    const from = Math.max(this.counted, m.base);
+    for (let i = from - m.base; i < m.events.length; i++) {
+      const e = m.events[i];
+      if (e.k === 'deal') {
+        this.roundAt = now;
+        this.roundEnd = 0;
+        this.moves = 0;
+        if (!this.matchAt) { this.matchAt = now; this.matchEnd = 0; this.matchMoves = 0; }
+      } else if (e.k === 'play' || e.k === 'draw') {
+        this.moves++;
+        this.matchMoves++;
+      } else if (e.k === 'round') this.roundEnd = now;
+      else if (e.k === 'match') this.matchEnd = now;
+    }
+    this.counted = lastSeq(m);
+  }
+
+  clock(): TableClock {
+    const now = Date.now();
+    return {
+      roundMs: (this.roundEnd || now) - this.roundAt,
+      matchMs: (this.matchEnd || now) - this.matchAt,
+      moves: this.moves,
+      matchMoves: this.matchMoves,
+      running: !this.roundEnd,
+    };
   }
 
   /** A seat played by a bot right now (a bot, or a person who left). */
@@ -89,6 +144,7 @@ export class Table {
   private view(seat: number): TableView {
     const v = makeView(this.m, seat, this.sent.get(seat) ?? lastSeq(this.m), (i) => this.away.has(i)) as TableView;
     v.mid = this.mid;
+    v.clock = this.clock();
     this.sent.set(seat, v.seq);
     return v;
   }
@@ -110,12 +166,16 @@ export class Table {
   rematch() {
     this.m = newMatch(this.seats, this.rules);
     this.mid++;
+    this.counted = 0;
+    this.matchAt = 0;
+    this.count();
     for (const k of this.sent.keys()) this.sent.set(k, 0);
     this.incident = this.jumpPlan = this.turnPlan = null;
     this.changed();
   }
 
   private changed() {
+    this.count();
     trimEvents(this.m);
     for (const k of this.sent.keys()) if ((this.sent.get(k) ?? 0) < this.m.base) this.sent.set(k, this.m.base);
     for (const [seat, fn] of this.listeners) fn(this.view(seat));

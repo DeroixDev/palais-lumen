@@ -1,7 +1,7 @@
 // Unser Uno Spiel: the lobby (name, colour, mode, house rules), the online room and the table.
 
 import { botMove } from './bot';
-import { cardClass, cardInner, SPRITE } from './cards';
+import { cardHTML, prepareCards, SPRITE } from './cards';
 import { DEFAULT_RULES, TARGETS, cardCount, type Action, type Card, type Rules } from './engine';
 import { cleanCode, inviteLink, makeTransport, MAX_SEATS, netText, UnoGuest, UnoHost, validCode, type LobbyInfo } from './net';
 import { BOT_NAMES, PLAYER_COLORS, cleanName, hasProfile, loadProfile, loadRules, loadStats, saveProfile, saveRules, saveStats, type Profile } from './profile';
@@ -38,7 +38,7 @@ const HOUSE: { key: keyof Omit<Rules, 'target'>; name: string; text: string }[] 
 function header() {
   return `<header class="lbar">
     <a class="back" href="./index.html"><span aria-hidden="true">←</span> Alle Spiele</a>
-    <span class="lbrand" aria-hidden="true">Unser<b>Uno</b></span>
+    <span class="lbrand" aria-hidden="true">Unser<b>Uno</b>Spiel</span>
   </header>`;
 }
 
@@ -81,7 +81,7 @@ function showLobby(opts: { code?: string; focusName?: boolean } = {}) {
       <h1 class="l-title"><span class="lt1">Unser</span><span class="lt2">Uno</span><span class="lt3">Spiel</span></h1>
       <p class="l-sub">Karten raus, Farbe ansagen, UNO rufen. Gegen Bots oder mit deinen Leuten über einen Link.</p>
     </div>
-    <div class="l-fan" aria-hidden="true">${FAN.map((c, i) => `<div class="${cardClass(c)}" style="--i:${i - 2}">${cardInner(c)}</div>`).join('')}</div>
+    <div class="l-fan" aria-hidden="true">${FAN.map((c, i) => cardHTML(c, ` style="--i:${i - 2}"`)).join('')}</div>
   </section>
   <section class="l-grid">
     <div class="panel p-me">
@@ -285,6 +285,7 @@ function showRoom(l: LobbyInfo, isHost: boolean) {
   const slots = Array.from({ length: MAX_SEATS }, (_, i) => seats[i] ?? null);
   app.innerHTML = `${SPRITE}<div class="lobby room">${header()}
   <section class="r-head">
+    <h2 class="r-brand" aria-label="Unser Uno Spiel"><span>Unser</span><b>Uno</b><span>Spiel</span></h2>
     <p class="kick"><span class="tag">${isHost ? 'Dein Raum' : 'Raum'}</span><span>${isHost ? 'Teil den Link mit deinen Leuten' : `Gastgeber: ${esc(l.seats[0]?.name ?? '')}`}</span></p>
     <h1 class="r-code" aria-label="Raumcode ${l.code.split('').join(' ')}">${l.code}</h1>
     <div class="r-link"><input readonly value="${esc(link)}" aria-label="Einladungslink"><button class="btn-line copy" type="button">Link kopieren</button></div>
@@ -369,6 +370,8 @@ if (DEV) {
 }
 
 // ---------------- boot ----------------
+
+prepareCards();
 
 const joinCode = cleanCode(params.get('join') ?? '');
 if (validCode(joinCode)) {

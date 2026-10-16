@@ -89,7 +89,9 @@ export const sfx = {
   },
   turn() {
     if (!ok()) return;
-    tone(ctx!.currentTime, 1320, 0.12, 0.08, 'sine');
+    const t = ctx!.currentTime;
+    tone(t, 988, 0.12, 0.08, 'sine');
+    tone(t + 0.09, 1480, 0.2, 0.08, 'sine');
   },
   skip() {
     if (!ok()) return;
