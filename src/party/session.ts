@@ -16,6 +16,7 @@ import type { Seat } from './types';
 import { $, AUTO, SPEED, rand, wait } from './util';
 import { openPodium } from './ui/podium';
 import { Presenter, toast } from './ui/presenter';
+import { closeScenes } from './ui/scenes';
 import { setView } from './view3d/stage';
 
 export type FullState = GameState & { step: Step; seed: number };
@@ -143,6 +144,7 @@ export class HostSession {
     });
     const who = req.seats.map((s) => (this.seats[s].kind === 'local' ? 'me' : this.seats[s].kind === 'bot' ? 'bot' : 'remote') as 'me' | 'bot' | 'remote');
     const net = this.net;
+    closeScenes();
     const res = await runMinigame({
       id: req.id, players, who, seed: req.seed, kind: req.kind,
       net: net ? { broadcast: (m) => net.broadcast(m), online: (seat) => net.isOnline(seat) } : undefined,
@@ -210,6 +212,7 @@ export class GuestSession {
           mgFromHost(m as MgToGuest);
           if (m.k === 'mgOpen') this.push(async () => {
             if (!hasGuestMinigame()) return;
+            closeScenes();
             await runGuestMinigame(this.me, (r) => this.net.send(r));
             startMusic('board');
           });

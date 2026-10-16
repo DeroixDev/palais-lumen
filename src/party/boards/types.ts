@@ -3,7 +3,7 @@
 // that decorates the 3D island. See ./README.md.
 
 import type { BoardKit, BoardDecor } from '../view3d/boardview';
-import type { GameState, GameEvent } from '../engine/state';
+import type { Answer, Ask, GameState, GameEvent } from '../engine/state';
 
 /** Space types. P Plus, M Minus, E Ereignis, L Glück, S Laden, D Duell, B Kumpel, T Bande,
  *  R Rivale, X Brett-Feld (the board's own field), G Start (counts as Plus). The star sits on top. */
@@ -38,6 +38,8 @@ export interface BoardApi {
   rng(): number;
   addCoins(p: number, d: number, text?: string): Promise<void>;
   moveStar(): Promise<void>;
+  /** Asks a seat (this browser, a bot or a friend), like the engine's own questions. */
+  ask(p: number, a: Ask): Promise<Answer>;
 }
 
 export interface BoardEvent {

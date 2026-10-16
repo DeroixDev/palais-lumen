@@ -15,6 +15,7 @@ import { BoardView } from '../view3d/boardview';
 import { hopFig } from '../view3d/figures';
 import { floatText } from '../view3d/stage';
 import { charSVG, coinSVG, starSVG } from './avatars';
+import { Scenes } from './scenes';
 
 export type BonusList = { id: BonusId; winners: number[] }[];
 
@@ -51,11 +52,14 @@ export class Presenter {
   private rollDone: (() => void) | null = null;
   private watching = false;
   private keyFn: ((e: KeyboardEvent) => void) | null = null;
+  /** Full-screen scenes for shop, star, duel and the other spaces (see ./scenes). */
+  scn: Scenes;
 
   constructor(public seats: Seat[], public me: number, boardId: string) {
     this.board = getBoard(boardId);
     this.view = new BoardView(this.board);
     this.view.setSeats(seats);
+    this.scn = new Scenes(this);
     const canvas = $<HTMLCanvasElement>('#gl');
     const onMove = (e: PointerEvent) => {
       if (!this.pathDone) return;
@@ -82,6 +86,7 @@ export class Presenter {
 
   dispose() {
     if (this.keyFn) removeEventListener('keydown', this.keyFn);
+    this.scn.dispose();
     this.view.dispose();
   }
 
@@ -198,6 +203,7 @@ export class Presenter {
   async play(ev: GameEvent, st: GameState) {
     this.st = st;
     this.clearWatch();
+    if (await this.scn.event(ev, st)) { this.quiet(ev, st); return; }
     const V = this.view, H = this.hurry;
     switch (ev.k) {
       case 'sync': this.sync(st); break;
@@ -310,6 +316,19 @@ export class Presenter {
     }
   }
 
+  /** A scene showed this event: only the board state and the panels follow. */
+  private quiet(ev: GameEvent, st: GameState) {
+    const V = this.view;
+    if (ev.k === 'land') { V.hideCounter(); sfx.land(); }
+    else if (ev.k === 'buddy') V.setBuddy(st.buddy?.kind ?? null, st.buddy?.owner ?? null, st.buddy?.at ?? null);
+    else if (ev.k === 'gimmick') V.decor.apply(st.bs);
+    else if (ev.k === 'trap') V.setTraps(st.traps);
+    else if (ev.k === 'bonus') this.bonus = ev.list;
+    else if (ev.k === 'roll') V.hideCounter();
+    this.renderRank();
+    this.renderInfo();
+  }
+
   private async wheel(options: string[], pick: number) {
     const w = $('#wheel'), t = $('#wheelTxt');
     w.hidden = false;
@@ -328,6 +347,7 @@ export class Presenter {
 
   // ---------------- watching somebody else decide ----------------
   watch(p: number, a: Ask) {
+    if (this.scn.watch(p, a)) return;
     const n = this.name(p);
     const txt: Record<Ask['q'], string> = {
       roll: `${n} würfelt gleich …`, joker: `${n} wählt eine Zahl …`, target: `${n} überlegt …`, path: `${n} wählt einen Weg …`,
@@ -355,6 +375,8 @@ export class Presenter {
     this.view.view.mode = 'follow';
     this.view.turn = this.st.turn < this.st.players.length ? this.st.turn : p;
     sfx.pop();
+    const inScene = this.scn.ask(p, a);
+    if (inScene) return inScene;
     switch (a.q) {
       case 'roll': return this.askRoll(p, a.items);
       case 'joker': {
@@ -499,6 +521,7 @@ export class Presenter {
 
   /** Close any open question (a friend's ask was answered by a bot after a timeout). */
   cancelAsk() {
+    this.scn.cancel();
     $('#ask').hidden = true;
     $('#choice').hidden = true;
     $('#dock').hidden = true;
