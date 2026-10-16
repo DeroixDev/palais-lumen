@@ -649,9 +649,11 @@ export class Game {
       seats = [...A, ...B];
       teams = [0, 0, 1, 1];
     }
+    // Koop-Boss: now and then an all-against-all round becomes everybody against a boss
+    if (type === 'ffa' && allow.koop !== false && minigamesFor(n).some((m) => m.type === 'koop' && (!st.rules.profi || m.pro)) && this.ri(6) === 0) type = 'koop';
     const id = this.pickMinigame(type, n);
     st.mgHistory.push(id);
-    const text = type === '1v3' ? `1 gegen ${n - 1}: ${this.name(seats[0])} allein` : type === '2v2' ? `2 gegen 2: ${this.name(seats[0])} & ${this.name(seats[1])} gegen ${this.name(seats[2])} & ${this.name(seats[3])}` : 'Felder gemischt: Jeder gegen jeden';
+    const text = type === '1v3' ? `1 gegen ${n - 1}: ${this.name(seats[0])} allein` : type === '2v2' ? `2 gegen 2: ${this.name(seats[0])} & ${this.name(seats[1])} gegen ${this.name(seats[2])} & ${this.name(seats[3])}` : type === 'koop' ? 'Alle zusammen: Koop-Boss!' : 'Felder gemischt: Jeder gegen jeden';
     await this.emit({ k: 'mgAnnounce', text });
     const out = await this.io.minigame({ kind: 'round', id, seats, teams, seed: (this.rng() * 2 ** 31) | 0 });
     // coins: finale rule, Bande shares 50:50
