@@ -96,8 +96,10 @@ body.in-mg .bhud, body.in-pod .bhud { display: none; }
 .roll { display: flex; align-items: center; gap: 10px; border: 0; padding: 10px 18px 9px 10px; background: var(--acid); color: var(--void); box-shadow: 5px 5px 0 var(--pink), 0 0 0 3px var(--void); text-align: left; transition: transform .12s var(--ease); }
 .roll:hover:not(:disabled) { transform: translate(-2px, -2px); }
 .roll:disabled { background: #3a2470; color: var(--muted); box-shadow: 4px 4px 0 var(--void); }
-.roll.ready { animation: rollp .9s ease-in-out infinite alternate; }
-@keyframes rollp { from { box-shadow: 5px 5px 0 var(--pink), 0 0 0 3px var(--void), 0 0 0 rgba(220, 255, 31, 0); } to { box-shadow: 5px 5px 0 var(--pink), 0 0 0 3px var(--void), 0 0 30px rgba(220, 255, 31, .8); } }
+/* the "ready" glow pulses on its own layer (opacity only): no repaint of the button each frame over the 3D board */
+.roll.ready { position: relative; }
+.roll.ready::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: 0 0 30px rgba(220, 255, 31, .8); opacity: 0; will-change: opacity; animation: rollp .9s ease-in-out infinite alternate; }
+@keyframes rollp { to { opacity: 1; } }
 .roll svg { width: 44px; height: 44px; flex: none; }
 .roll b { display: block; font: italic 900 1.9rem/.9 var(--display); font-stretch: 62%; text-transform: uppercase; }
 .roll small { display: block; font: 700 .7rem/1.2 var(--body); letter-spacing: .1em; text-transform: uppercase; opacity: .75; }

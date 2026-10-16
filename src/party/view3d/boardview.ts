@@ -1,7 +1,11 @@
 // The 3D board: spaces (instanced per type), path ribbons, star, dice blocks, junction arrows,
 // the active ring, the Kumpel orb, coin and spark particles, trap flags and the figures, plus
-// the camera (follow / junction / point / overview) with a shadow frustum that follows it.
+// the camera (follow / junction / point / overview).
 // Landmarks and gimmicks come from the board's decor (boards/<id>/view.ts).
+// Performance: the shadow map covers the whole island and is BAKED: it is drawn once and again
+// only when something that casts a shadow moved (a gimmick turning, the lift, falling crates).
+// Things that move all the time (figures, star, dice, wheels, boats …) don't cast; the figures
+// get soft blob shadows instead. The board renders at most 60 frames a second.
 
 import type { BoardDef, BoardGraph, BNode, SpaceType } from '../boards/types';
 import type { GameState } from '../engine/state';
@@ -12,8 +16,10 @@ import { E, TAU, clamp, lerp, rand, reduced, tween, wait } from '../util';
 import { faceCam, hopFig, makeFigure, squashLand, updateFigure, type Fig } from './figures';
 import {
   BOX, Batch, COIN_GEO, COIN_MAT, CONE, CYL8, FONT, GLOW, GRAD, OUT, SPH, SPH_LO, STAR_EX, STAR_GEO, THREE, VC, VC_EMI,
-  addLights, ctex, focusShadow, toon, type Lights,
+  addLights, ctex, fixShadow, toon, type Lights,
 } from './kit';
+import { quality } from './quality';
+import { curbs, tickLife } from '../boards/details';
 import { VH, VW, addLabel, clearLabels, removeLabel, type Label, type View } from './stage';
 
 export const SPACE_Y = 0.54;
@@ -55,9 +61,16 @@ function spaceTex(key: SpaceType) {
     gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr;
     g.fillRect(0, 0, 128, 128);
+    // bevel: a dark outer lip and a bright inner ring
+    g.lineWidth = 7;
+    g.strokeStyle = 'rgba(0,0,0,.22)';
+    g.beginPath(); g.arc(64, 64, 61, 0, TAU); g.stroke();
     g.lineWidth = 5;
     g.strokeStyle = 'rgba(255,255,255,.95)';
     g.beginPath(); g.arc(64, 64, 53, 0, TAU); g.stroke();
+    g.lineWidth = 1.5;
+    g.strokeStyle = 'rgba(0,0,0,.25)';
+    g.beginPath(); g.arc(64, 64, 50, 0, TAU); g.stroke();
     g.translate(64, 64);
     g.lineJoin = 'round';
     g.lineWidth = 6;
@@ -106,7 +119,7 @@ function spaceTex(key: SpaceType) {
         poly([[-24, -14], [-34, 2], [-12, 0]]);
         break;
     }
-  });
+  }, false, 4);
   texCache.set(key, tex);
   return tex;
 }
@@ -150,6 +163,20 @@ function buddyGeo(kind: BuddyId) {
   return b.geometry();
 }
 
+const RIM_GEO = new THREE.TorusGeometry(1.1, 0.075, 3, 32);
+const WHITE = new THREE.Color('#ffffff');
+let blobT: THREE.Texture | null = null;
+function blobTex() {
+  return (blobT ??= ctex(64, 64, (g) => {
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.55, 'rgba(255,255,255,.7)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+  }, false, 1));
+}
+
 const CL: [number, number][] = [[-0.75, -0.55], [0.75, -0.55], [-0.75, 0.6], [0.75, 0.6]];
 const _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _v = new THREE.Vector3();
 
@@ -182,11 +209,17 @@ export class BoardView implements View {
   private counter: Label | null = null;
   private routeLabels: Label[] = [];
   private dummy = new THREE.Object3D();
+  /** Soft round shadows under the figures (one instanced mesh). */
+  private blobs: THREE.InstancedMesh;
+  /** Shadow casters and their last world matrix: the baked shadow map is redrawn when one moves. */
+  private casters: { o: THREE.Object3D; m: Float64Array; vis: boolean; ver: number }[] = [];
+  private shadowEpoch = -1;
+  fpsCap = 60;
 
   constructor(public board: BoardDef) {
     this.g = board.graph;
     const sc = this.scene;
-    this.lights = addLights(sc, 22, 4096);
+    this.lights = addLights(sc, 40, 4096);
     const nodes = this.g.nodes, edges = this.g.edges;
     const segDist = (px: number, pz: number, A: BNode, B: BNode) => {
       const dx = B.x - A.x, dz = B.z - A.z, l2 = dx * dx + dz * dz;
@@ -200,11 +233,15 @@ export class BoardView implements View {
       follow: () => { this.view.mode = 'follow'; },
     };
     this.decor = board.decor(kit);
+    {
+      const ov = this.decor.overview;
+      fixShadow(this.lights, ov.x, ov.z, Math.hypot(ov.w, ov.d) * 0.5 + 9);
+    }
 
     // spaces: one instanced mesh per type (+ one for the dark bases)
     const dummy = this.dummy;
-    const BASE_GEO = new THREE.CylinderGeometry(1.26, 1.36, 0.3, 28);
-    const TOP_GEO = new THREE.CylinderGeometry(1.08, 1.08, 0.3, 28);
+    const BASE_GEO = new THREE.CylinderGeometry(1.26, 1.36, 0.3, 40);
+    const TOP_GEO = new THREE.CylinderGeometry(1.08, 1.08, 0.3, 40);
     const base = new THREE.InstancedMesh(BASE_GEO, toon('#2a1258'), nodes.length);
     nodes.forEach((n, i) => { dummy.position.set(n.x, 0.15, n.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); base.setMatrixAt(i, dummy.matrix); });
     base.receiveShadow = true;
@@ -219,6 +256,15 @@ export class BoardView implements View {
       im.receiveShadow = true;
       sc.add(im);
     }
+    // bevel rims: a rounded lip around every space (one instanced mesh, tinted per type)
+    const rim = new THREE.InstancedMesh(RIM_GEO, toon('#ffffff'), nodes.length);
+    const _col = new THREE.Color();
+    nodes.forEach((n, i) => {
+      dummy.position.set(n.x, 0.535, n.z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); rim.setMatrixAt(i, dummy.matrix);
+      rim.setColorAt(i, _col.set(SP[n.type].d).lerp(WHITE, 0.25));
+    });
+    rim.receiveShadow = true;
+    sc.add(rim);
     // path ribbons (bridges are drawn by the decor)
     const roadEdges = edges.filter((e) => !e.flag);
     const road = new THREE.InstancedMesh(BOX, toon('#fff1d6'), roadEdges.length);
@@ -232,11 +278,12 @@ export class BoardView implements View {
     });
     road.receiveShadow = roadB.receiveShadow = true;
     sc.add(road, roadB, dots);
+    if (roadEdges.length) curbs(sc, nodes, roadEdges, 0.95, ['#ffffff', '#ff7ad0', '#ffffff', '#35d4ff']);
 
     // star
     const starMesh = new THREE.Mesh(STAR_GEO, VC_EMI);
     starMesh.scale.setScalar(1.15);
-    starMesh.castShadow = true;
+    starMesh.castShadow = false;
     const starOut = new THREE.Mesh(STAR_EX, OUT);
     starOut.scale.setScalar(1.15 * 1.08);
     this.starSpin.add(starMesh, starOut);
@@ -252,7 +299,6 @@ export class BoardView implements View {
     for (let i = 0; i < 3; i++) {
       const grp = new THREE.Group(), cube = new THREE.Group();
       const m = new THREE.Mesh(dieGeo, dieMats('w6'));
-      m.castShadow = true;
       cube.add(m, new THREE.Mesh(dieOut, OUT));
       grp.add(cube);
       grp.visible = false;
@@ -268,7 +314,6 @@ export class BoardView implements View {
     for (let i = 0; i < 3; i++) {
       const g = new THREE.Group(), inner = new THREE.Group();
       const m = new THREE.Mesh(AGEO, toon('#dcff1f'));
-      m.castShadow = true;
       inner.add(m, new THREE.Mesh(AOUT, OUT));
       g.add(inner);
       g.visible = false;
@@ -291,14 +336,22 @@ export class BoardView implements View {
     fb.add(CYL8, '#2a1258', 0, 0.9, 0, 0, 0, 0, 0.05, 1.8, 0.05);
     fb.addM(new THREE.BoxGeometry(0.9, 0.55, 0.04), '#ff8a2e', new THREE.Matrix4().makeTranslation(0.45, 1.5, 0));
     const fgeo = fb.geometry();
-    for (let k = 0; k < 4; k++) { const grp = new THREE.Group(); const m = new THREE.Mesh(fgeo, VC); m.castShadow = true; grp.add(m); grp.visible = false; sc.add(grp); this.flags.push({ m: grp, node: -1 }); }
+    // blob shadows under the figures
+    this.blobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false, color: '#1a0b33', opacity: 0.55 }), 4);
+    this.blobs.count = 0;
+    this.blobs.frustumCulled = false;
+    this.blobs.renderOrder = 1;
+    this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    sc.add(this.blobs);
+    for (let k = 0; k < 4; k++) { const grp = new THREE.Group(); const m = new THREE.Mesh(fgeo, VC); grp.add(m); grp.visible = false; sc.add(grp); this.flags.push({ m: grp, node: -1 }); }
   }
 
   /** Builds the figures for the seats. */
   setSeats(seats: Seat[]) {
     for (const f of this.figs) this.scene.remove(f.root);
     this.seats = seats;
-    this.figs = seats.map((s) => { const f = makeFigure({ color: s.color, acc: s.acc, feat: s.feat }, 0.9); this.scene.add(f.root); return f; });
+    this.figs = seats.map((s) => { const f = makeFigure({ color: s.color, acc: s.acc, feat: s.feat }, 0.9); f.root.traverse((o) => { o.castShadow = false; }); this.scene.add(f.root); return f; });
+    this.blobs.count = this.figs.length;
   }
 
   /** Puts everything where the state says, without animation (start, resume, a friend joining). */
@@ -518,9 +571,38 @@ export class BoardView implements View {
     return null;
   }
 
+  // ---------- baked shadows ----------
+  /** True when the baked shadow map must be drawn again this frame. */
+  shadowNeeded() {
+    if (!this.casters.length) {
+      this.scene.updateMatrixWorld();
+      this.scene.traverse((o) => { if (o.castShadow) this.casters.push({ o, m: new Float64Array(o.matrixWorld.elements), vis: false, ver: -1 }); });
+    }
+    let dirty = this.shadowEpoch !== quality.shadowEpoch;
+    this.shadowEpoch = quality.shadowEpoch;
+    this.scene.updateMatrixWorld();
+    for (const c of this.casters) {
+      const o = c.o, e = o.matrixWorld.elements;
+      let vis = o.visible;
+      for (let p = o.parent; vis && p; p = p.parent) vis = p.visible;
+      const ver = (o as THREE.InstancedMesh).isInstancedMesh ? (o as THREE.InstancedMesh).instanceMatrix.version : 0;
+      if (vis !== c.vis || ver !== c.ver) { c.vis = vis; c.ver = ver; dirty = true; }
+      if (!vis) continue;
+      for (let i = 0; i < 16; i++) if (e[i] !== c.m[i]) { c.m.set(e); dirty = true; break; }
+    }
+    return dirty;
+  }
+
+  /** Materials that only appear later (other dice, blocked arrows): compiled with the scene. */
+  warm() {
+    const g = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+    return [new THREE.Mesh(g, dieMats('half')), new THREE.Mesh(g, dieMats('w6')), new THREE.Mesh(g, toon('#7d6aa8')), new THREE.Mesh(g, toon('#dcff1f'))].map((m) => { m.position.y = -50; return m; });
+  }
+
   // ---------- frame ----------
   update(dt: number, t: number) {
     this.decor.update(dt, t);
+    tickLife(this.scene, dt, t);
     this.starSpin.rotation.y = t * 1.6;
     if (this.halo.visible) { this.starSpin.position.y = 2.7 + Math.sin(t * 2.4) * 0.22; (this.halo.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 3) * 0.15; }
     for (const f of this.figs) updateFigure(f, dt, t);
@@ -570,28 +652,35 @@ export class BoardView implements View {
       q.m.scale.setScalar(0.35 * Math.min(1, q.life * 2));
       if (q.life <= 0) q.m.visible = false;
     }
+    // blob shadows follow the figures (smaller and lighter while hopping)
+    this.figs.forEach((fg, i) => {
+      const p = fg.root.position, h = fg.hop.position.y;
+      let gy = 0.13;
+      for (const n of this.g.nodes) if (Math.abs(n.x - p.x) < 1.25 && Math.abs(n.z - p.z) < 1.25) { gy = SPACE_Y + 0.02; break; }
+      const s = (1.55 - Math.min(0.7, h * 0.35)) * (fg.root.visible ? 1 : 0);
+      this.dummy.position.set(p.x, gy, p.z); this.dummy.rotation.set(0, 0, 0); this.dummy.scale.set(s, 1, s); this.dummy.updateMatrix();
+      this.blobs.setMatrixAt(i, this.dummy.matrix);
+    });
+    this.blobs.instanceMatrix.needsUpdate = true;
     this.camera(dt, f);
   }
 
   private camera(dt: number, f: Fig | undefined) {
     const V = this.view, aspect = VW / VH, ov = this.decor.overview;
-    let dist: number, elev = 0.9, az = -0.16, half = 22;
+    let dist: number, elev = 0.9, az = -0.16;
     if (V.user || V.mode === 'overview' || !f) {
       _t1.set(ov.x, 0, ov.z);
       dist = clamp(Math.max((ov.w * 0.56) / (0.364 * aspect), (ov.d * 0.6) / 0.364), 62, 170);
       elev = 1.0;
       az = 0;
-      half = Math.max(ov.w, ov.d) * 0.62;
     } else if (V.mode === 'point') {
       _t1.copy(V.pt);
       dist = 30 * (aspect < 1 ? 1.5 : 1);
-      half = 26;
     } else {
       _t1.copy(f.root.position);
       _t1.y = 0;
       elev = 0.98;
       dist = 25 * V.wide * (aspect < 1 ? 1 + (1 - aspect) * 0.9 : 1);
-      half = 20 * V.wide * (aspect < 1 ? 1.3 : 1);
     }
     _t2.set(Math.sin(az) * Math.cos(elev) * dist, Math.sin(elev) * dist, Math.cos(az) * Math.cos(elev) * dist).add(_t1);
     const k = reduced ? 1 : 1 - Math.exp(-dt * (V.mode === 'follow' && !V.user ? 3.4 : 2.4));
@@ -599,7 +688,6 @@ export class BoardView implements View {
     V.pos.lerp(_t2, k);
     this.cam.position.copy(V.pos);
     this.cam.lookAt(V.tgt);
-    focusShadow(this.lights, V.tgt, half);
   }
 
   dispose() {

@@ -97,7 +97,7 @@ export function botAnswer(st: GameState, p: number, a: Ask, level: BotLevel): An
     case 'finale':
       return { rule: P.coins < 10 ? 'catchup' : P.coins >= 15 ? 'cheapStar' : 'mgDouble' };
     case 'yesno':
-      return { yes: true };
+      return { yes: a.title === 'Jetonfeld' ? rnd() < 0.5 : true };
   }
 }
 

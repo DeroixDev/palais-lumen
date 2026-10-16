@@ -1,42 +1,60 @@
 // Quality: render sharp (full device pixel ratio up to 2, MSAA, big shadow maps) and step down
-// automatically when the frame time stays above ~20 ms: first the pixel ratio, then the
-// shadows. With headroom it steps back up, but never to a level that already failed twice.
-// The player can also pick a fixed level: Hoch, Mittel, Niedrig.
+// automatically only when frames stay slow. Order of the steps (Auto): first the shadow map
+// size, then the effects (ambient life), and only at the very end the pixel ratio, never below
+// 1. Shadows are never switched off in Auto (that would recompile every shader: a visible
+// hitch). A step down needs two 2-second windows in a row whose MEDIAN frame time is above
+// 24 ms (single spikes don't count); a step up needs two good windows (about 4 s), and never to
+// a level that already failed twice. The player can also pick a fixed level.
 
 import type { Quality } from '../types';
 import { allLights, getRenderer } from './kit';
 
-interface Level { dpr: number; shadow: number; name: string }
+interface Level { dpr: number; shadow: number; fx: boolean; name: string }
 const dev = () => window.devicePixelRatio || 1;
 const LEVELS: (() => Level)[] = [
-  () => ({ dpr: Math.min(dev(), 2), shadow: 1, name: 'hoch' }),
-  () => ({ dpr: Math.min(dev(), 1.75), shadow: 1, name: 'hoch-' }),
-  () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.5, name: 'mittel' }),
-  () => ({ dpr: Math.min(dev(), 1.25), shadow: 0.5, name: 'mittel-' }),
-  () => ({ dpr: 1, shadow: 0.25, name: 'niedrig' }),
-  () => ({ dpr: 1, shadow: 0, name: 'niedrig-' }),
-  () => ({ dpr: 0.75, shadow: 0, name: 'minimal' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 1, fx: true, name: 'hoch' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: true, name: 'hoch-' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: false, name: 'mittel' }),
+  () => ({ dpr: Math.min(dev(), 1.75), shadow: 0.5, fx: false, name: 'mittel-' }),
+  () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.25, fx: false, name: 'niedrig' }),
+  () => ({ dpr: Math.min(dev(), 1.25), shadow: 0.25, fx: false, name: 'niedrig-' }),
+  () => ({ dpr: 1, shadow: 0.25, fx: false, name: 'minimal' }),
 ];
-const FIXED: Record<Exclude<Quality, 'auto'>, number> = { hoch: 0, mittel: 2, niedrig: 4 };
+/** Fixed levels picked in the settings (Niedrig turns shadows off: one recompile, on purpose). */
+const FIXED: Record<Exclude<Quality, 'auto'>, () => Level> = {
+  hoch: LEVELS[0],
+  mittel: () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.5, fx: true, name: 'mittel' }),
+  niedrig: () => ({ dpr: 1, shadow: 0, fx: false, name: 'niedrig' }),
+};
+const WINDOW = 2;
+const SLOW = 0.024, FAST = 0.0185;
 
 export const quality = {
   mode: 'auto' as Quality,
   level: 0,
   fails: new Array(LEVELS.length).fill(0) as number[],
-  /** Frame-time window. */
+  /** Frame times of the current window (seconds). */
+  win: [] as number[],
   acc: 0,
-  frames: 0,
+  bad: 0,
   good: 0,
   changes: 0,
   last: '' as string,
+  /** Effects on (ambient life); boards read this. */
+  fx: true,
+  /** Bumped whenever shadow maps were reallocated (baked shadow maps must be drawn again). */
+  shadowEpoch: 0,
 
   set(mode: Quality) {
     this.mode = mode;
-    this.level = mode === 'auto' ? 0 : FIXED[mode];
+    this.level = 0;
+    this.bad = this.good = 0;
+    this.win.length = 0;
+    this.acc = 0;
     this.apply();
   },
 
-  current(): Level { return LEVELS[this.level](); },
+  current(): Level { return this.mode === 'auto' ? LEVELS[this.level]() : FIXED[this.mode](); },
 
   apply() {
     const r = getRenderer();
@@ -48,41 +66,46 @@ export const quality = {
     }
     for (const li of allLights()) {
       const on = L.shadow > 0;
-      if (li.sun.castShadow !== on) li.sun.castShadow = on;
-      const size = Math.max(256, Math.round(li.baseSize * (L.shadow || 0.25)));
+      if (li.sun.castShadow !== on) { li.sun.castShadow = on; this.shadowEpoch++; }
+      const size = Math.max(512, Math.round(li.baseSize * (L.shadow || 0.25)));
       if (li.sun.shadow.mapSize.x !== size) {
         li.sun.shadow.mapSize.set(size, size);
         li.sun.shadow.map?.dispose();
         li.sun.shadow.map = null as never;
+        this.shadowEpoch++;
       }
     }
+    this.fx = L.fx;
     this.last = L.name;
   },
 
-  /** Called every frame with the real frame time (seconds). */
+  /** Called once per rendered frame with the real frame time (seconds). */
   tick(dt: number) {
     if (this.mode !== 'auto' || document.hidden || dt > 0.5) return;
+    this.win.push(dt);
     this.acc += dt;
-    this.frames++;
-    if (this.acc < 2) return;
-    const avg = this.acc / this.frames;
+    if (this.acc < WINDOW) return;
+    const s = this.win.sort((a, b) => a - b), med = s[s.length >> 1];
+    this.win.length = 0;
     this.acc = 0;
-    this.frames = 0;
-    if (avg > 0.02 && this.level < LEVELS.length - 1) {
-      this.fails[this.level]++;
-      this.level++;
+    if (med > SLOW) {
       this.good = 0;
-      this.changes++;
-      this.apply();
-    } else if (avg < 0.0175 && this.level > 0) {
-      // 10 s of steady frames before trying one level up, and not to a level that failed twice
-      if (++this.good >= 5 && this.fails[this.level - 1] < 2) {
+      if (++this.bad >= 2 && this.level < LEVELS.length - 1) {
+        this.fails[this.level]++;
+        this.level++;
+        this.bad = 0;
+        this.changes++;
+        this.apply();
+      }
+    } else if (med < FAST) {
+      this.bad = 0;
+      if (this.level > 0 && ++this.good >= 2 && this.fails[this.level - 1] < 2) {
         this.level--;
         this.good = 0;
         this.changes++;
         this.apply();
       }
-    } else this.good = 0;
+    } else { this.bad = 0; this.good = 0; }
   },
 };
 

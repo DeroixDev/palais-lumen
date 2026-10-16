@@ -114,7 +114,8 @@ const palais: BoardDef = {
       await api.addCoins(p, 2, 'Trostjeton');
       return;
     }
-    const color = api.rng() < 0.5 ? 'rot' : 'schwarz';
+    const a = (await api.ask(p, { q: 'yesno', title: 'Jetonfeld', text: `Setz ${bet} Münzen: Rot oder Schwarz? Treffer zahlt doppelt, Zero den halben Jackpot.`, yes: 'Rot', no: 'Schwarz' })) as { yes?: boolean };
+    const color = a.yes === false ? 'schwarz' : 'rot';
     const n = POCKETS[Math.floor(api.rng() * 37)];
     const hit = n === 0 ? 'grün' : RED.has(n) ? 'rot' : 'schwarz';
     await api.toast(`Jetonfeld! ${name} setzt ${bet} Münzen auf ${color === 'rot' ? 'Rot' : 'Schwarz'}.`, '#f2cf74');
