@@ -194,6 +194,8 @@ svg { display: block; }
 .disc-cards .card { position: absolute; left: 0; top: 0; }
 .cur { position: absolute; left: 50%; top: 50%; width: calc(var(--cw) * 2.5); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
 .cur i { position: absolute; inset: 0; border-radius: 50%; }
+/* the colour glow around the pile is off (Alex 2026-10-16: the top card shows the colour well enough) */
+.cur-ring, .cur-pulse { display: none; }
 .cur-ring { background: radial-gradient(closest-side, var(--cur) 0%, transparent 100%); opacity: .55; }
 .cur-pulse {
   inset: 9%; border: 5px solid var(--cur);
