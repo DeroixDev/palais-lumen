@@ -1,5 +1,10 @@
 // The render loop: one renderer, one active view (board, minigame or podium) at a time.
-// Pauses while the tab is hidden. DOM labels follow 3D points of the active camera.
+// Pauses while the tab is hidden. DOM labels follow 3D points of the active camera (a label's
+// style is only written when its position really changed).
+// A view may cap its frame rate (the board renders at most ~60 times a second, also on 120 or
+// 144 Hz screens) and may bake its shadow map (drawn only when the view says something that
+// casts a shadow moved). Every scene is compiled once, all parts visible, when it is first
+// shown, so no shader is compiled in the middle of play.
 
 import { MAXDT, tickTweens } from '../util';
 import { THREE, createRenderer, getRenderer } from './kit';
@@ -9,6 +14,12 @@ export interface View {
   scene: THREE.Scene;
   cam: THREE.PerspectiveCamera;
   update(dt: number, t: number): void;
+  /** Render at most this many frames per second (whole fractions of the display rate). */
+  fpsCap?: number;
+  /** Baked shadows: the shadow map is redrawn only on frames where this returns true. */
+  shadowNeeded?(): boolean;
+  /** Extra objects to compile with the scene (materials that are swapped in later). */
+  warm?(): THREE.Object3D[];
 }
 
 let canvas: HTMLCanvasElement;
@@ -16,10 +27,13 @@ let host: HTMLElement;
 let labelsEl: HTMLElement;
 let active: View | null = null;
 export let VW = 1, VH = 1;
-let T = 0, last = 0, raf = 0;
+let T = 0, last = 0, lastRaw = 0, raf = 0, skip = 0;
+/** Estimated display refresh interval (ms). */
+let vsync = 1000 / 60;
 const cams = new Set<THREE.PerspectiveCamera>();
+const warmed = new WeakSet<THREE.Scene>();
 
-export const perf = { fps: 0, frames: 0, acc: 0, samples: [] as number[], calls: 0, tris: 0 };
+export const perf = { fps: 0, frames: 0, acc: 0, samples: [] as number[], calls: 0, tris: 0, vsync: 0, shadowDraws: 0 };
 
 export function initStage(stageEl: HTMLElement, canvasEl: HTMLCanvasElement, labels: HTMLElement) {
   host = stageEl;
@@ -30,16 +44,31 @@ export function initStage(stageEl: HTMLElement, canvasEl: HTMLCanvasElement, lab
   onPixelRatio(resize);
   new ResizeObserver(resize).observe(host);
   resize();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) last = performance.now(); });
-  raf = requestAnimationFrame((t) => { last = t; frame(t); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) last = lastRaw = performance.now(); });
+  raf = requestAnimationFrame((t) => { last = lastRaw = t; frame(t); });
 }
 
 export function setView(v: View | null) {
   active = v;
-  if (v) { cams.add(v.cam); fit(v.cam); }
+  if (v) { cams.add(v.cam); fit(v.cam); warm(v); }
+  skip = 0;
   updateLabels();
 }
 export const getView = () => active;
+
+/** Compiles every material of the scene once (hidden parts too), so nothing compiles mid-play. */
+function warm(v: View) {
+  if (warmed.has(v.scene)) return;
+  warmed.add(v.scene);
+  const r = getRenderer();
+  const extra = v.warm?.() ?? [];
+  for (const o of extra) v.scene.add(o);
+  const hidden: THREE.Object3D[] = [];
+  v.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+  try { r.compile(v.scene, v.cam); } catch { /* compile is only a warm-up */ }
+  for (const o of hidden) o.visible = false;
+  for (const o of extra) v.scene.remove(o);
+}
 
 function fit(c: THREE.PerspectiveCamera) {
   c.aspect = VW / VH;
@@ -55,14 +84,14 @@ export function resize() {
 }
 
 // ---------- labels ----------
-export interface Label { el: HTMLElement; inner: HTMLElement; get: (v: THREE.Vector3) => void; scene: THREE.Scene | null }
+export interface Label { el: HTMLElement; inner: HTMLElement; get: (v: THREE.Vector3) => void; scene: THREE.Scene | null; tx: string; shown: boolean }
 const labels = new Set<Label>();
 export function addLabel(cls: string, html: string, get: (v: THREE.Vector3) => void, scene: THREE.Scene | null) {
   const el = document.createElement('div');
   el.className = 'l3';
   el.innerHTML = `<div class="${cls}">${html}</div>`;
   labelsEl.appendChild(el);
-  const L: Label = { el, inner: el.firstElementChild as HTMLElement, get, scene };
+  const L: Label = { el, inner: el.firstElementChild as HTMLElement, get, scene, tx: '', shown: true };
   labels.add(L);
   return L;
 }
@@ -80,20 +109,35 @@ export function floatText(pos: THREE.Vector3, txt: string, col = '#ffe14a', scen
 export function clearLabels(scene: THREE.Scene) { for (const L of [...labels]) if (L.scene === scene) removeLabel(L); }
 
 const _lv = new THREE.Vector3();
+const show = (L: Label, on: boolean) => { if (L.shown !== on) { L.shown = on; L.el.style.display = on ? '' : 'none'; } };
 function updateLabels() {
   for (const L of labels) {
-    if (!active || (L.scene && L.scene !== active.scene)) { if (L.el.style.display !== 'none') L.el.style.display = 'none'; continue; }
+    if (!active || (L.scene && L.scene !== active.scene)) { show(L, false); continue; }
     L.get(_lv);
     _lv.project(active.cam);
     const vis = _lv.z < 1 && Math.abs(_lv.x) < 1.3 && Math.abs(_lv.y) < 1.3;
-    L.el.style.display = vis ? '' : 'none';
-    if (vis) L.el.style.transform = `translate3d(${((_lv.x * 0.5 + 0.5) * VW).toFixed(1)}px, ${((-_lv.y * 0.5 + 0.5) * VH).toFixed(1)}px, 0) translate(-50%, -100%)`;
+    show(L, vis);
+    if (!vis) continue;
+    // whole pixels: no sub-pixel jitter and far fewer style writes while the camera settles
+    const tx = `translate3d(${Math.round((_lv.x * 0.5 + 0.5) * VW)}px, ${Math.round((-_lv.y * 0.5 + 0.5) * VH)}px, 0) translate(-50%, -100%)`;
+    if (tx !== L.tx) { L.tx = tx; L.el.style.transform = tx; }
   }
 }
 
 function frame(now: number) {
   raf = requestAnimationFrame(frame);
   if (document.hidden) return;
+  const raw = now - lastRaw;
+  lastRaw = now;
+  if (raw > 2 && raw < 40) vsync += (raw - vsync) * 0.05;
+  perf.vsync = vsync;
+  // frame cap: render every n-th display frame (n = 2 on 120/144 Hz for a 60 fps cap)
+  const cap = active?.fpsCap ?? 0;
+  if (cap) {
+    const n = Math.max(1, Math.floor(1000 / cap / vsync + 0.15));
+    if (++skip < n) return;
+    skip = 0;
+  }
   let dt = (now - last) / 1000;
   last = now;
   perf.frames++;
@@ -114,6 +158,10 @@ function frame(now: number) {
   active.update(dt, T);
   updateLabels();
   const r = getRenderer();
+  if (active.shadowNeeded) {
+    r.shadowMap.autoUpdate = false;
+    if (active.shadowNeeded()) { r.shadowMap.needsUpdate = true; perf.shadowDraws++; }
+  } else r.shadowMap.autoUpdate = true;
   r.render(active.scene, active.cam);
   perf.calls = r.info.render.calls;
   perf.tris = r.info.render.triangles;

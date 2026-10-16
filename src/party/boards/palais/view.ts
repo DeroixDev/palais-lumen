@@ -9,15 +9,25 @@
 import type { BEdge } from '../types';
 import type { BoardDecor, BoardKit } from '../../view3d/boardview';
 import {
-  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, HEMI, SPH, SPH_LO, THREE, TOR, ctex, skyTex, toon,
+  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, HEMI, SPH, SPH_LO, THREE, TOR, VC, ctex, skyTex, toon,
 } from '../../view3d/kit';
 import { sfx } from '../../sfx';
 import { floatText } from '../../view3d/stage';
 import { E, TAU, lerp, rand, tween, wait } from '../../util';
 import { BULB, LEAF, chaseLights, inOutline, plinth, ribbons, roundRect, signMesh, signTex, starField, trim, type P2 } from '../bauteile';
 import { POCKETS, RED, WHEEL } from './data';
+import { BOAT, PERSON, PROPS, curbs, foam, groundTex, instanced, loopers, type Item } from '../details';
 
 const BRASS = '#d9a94a', BRASS_HI = '#f2cf74', NAVY = '#1b2552', NAVY_D = '#10173a', RED_C = '#a3203a', CREAM = '#f3e6c4', MAHO = '#4a2216';
+
+/** A pennant on a pole (tinted flag). */
+const FLAG = (() => {
+  const b = new Batch();
+  b.add(CYL8, '#d9a94a', 0, 1.4, 0, 0, 0, 0, 0.05, 2.8, 0.05);
+  b.add(SPH_LO, '#f2cf74', 0, 2.85, 0, 0, 0, 0, 0.09);
+  b.addM(new THREE.ConeGeometry(0.42, 1.3, 3).rotateZ(-Math.PI / 2), '#ffffff', new THREE.Matrix4().makeTranslation(0.66, 2.35, 0).multiply(new THREE.Matrix4().makeScale(1, 1, 0.12)));
+  return b.geometry();
+})();
 
 export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): BoardDecor {
   const sc = kit.scene, nodes = kit.graph.nodes, edges = kit.graph.edges;
@@ -33,19 +43,19 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
 
   // ---------- terrace (chamfered art-déco outline) ----------
   const OUTLINE: P2[] = roundRect(-37, 37, -25, 22.5, 5, 1);
-  const floorTex = ctex(256, 256, (g) => {
-    g.fillStyle = NAVY; g.fillRect(0, 0, 256, 256);
-    g.fillStyle = '#212d62';
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2 === 0) g.fillRect(i * 64, j * 64, 64, 64);
-    g.strokeStyle = 'rgba(217,169,74,.55)'; g.lineWidth = 2.5;
-    for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.stroke(); g.beginPath(); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke(); }
-    g.strokeStyle = 'rgba(242,207,116,.35)'; g.lineWidth = 2;
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-      const cx = i * 64 + 32, cy = j * 64 + 32;
+  const floorTex = groundTex({
+    a: NAVY, b: '#212d62', line: 'rgba(217,169,74,.6)', lineW: 2.5, vary: 0.07, speck: ['rgba(242,207,116,.35)', 'rgba(255,255,255,.18)'],
+    deco: (g, x, y, S, k) => {
+      const cx = x + S / 2, cy = y + S / 2;
+      g.strokeStyle = 'rgba(242,207,116,.38)'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(cx, cy - 18); g.lineTo(cx + 18, cy); g.lineTo(cx, cy + 18); g.lineTo(cx - 18, cy); g.closePath(); g.stroke();
-    }
-  }, true);
-  floorTex.repeat.set(1 / 8, 1 / 8);
+      if (k % 3 === 0) { g.fillStyle = 'rgba(242,207,116,.3)'; g.beginPath(); g.moveTo(cx, cy - 7); g.lineTo(cx + 7, cy); g.lineTo(cx, cy + 7); g.lineTo(cx - 7, cy); g.closePath(); g.fill(); }
+      // marble veins
+      g.strokeStyle = 'rgba(160,175,240,.12)'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(x + 4, y + 10 + k * 3); g.bezierCurveTo(x + 20, y + 2 + k * 4, x + 40, y + 50 - k * 2, x + 60, y + 30 + k); g.stroke();
+    },
+  });
+  floorTex.repeat.set(1 / 16, 1 / 16);
   plinth(sc, OUTLINE, new THREE.MeshToonMaterial({ map: floorTex, gradientMap: GRAD }), '#2a1f4a');
   trim(sc, OUTLINE, 0.08, 0.14, BRASS_HI);
   trim(sc, OUTLINE, -1.7, 0.12, '#ff5a6e', 1.012);
@@ -71,6 +81,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   const carpet = edges.filter((e) => e.flag === 'carpet');
   ribbons(sc, nodes, carpet, { top: RED_C, border: BRASS, stud: '#ffe39a' });
   const chase = chaseLights(sc, nodes, carpet, 1.02, ['#ffd36b', '#fff3d0', '#ff5a6e']);
+  curbs(sc, nodes, carpet, 0.78, [BRASS_HI, BRASS], 0.75, 0.09);
 
   // ---------- free spots ----------
   const ZONES: [number, number, number][] = [[WHEEL.x, WHEEL.z, 9.2], [-21, -4, 5.4], [21.5, -3, 6.2], [-6.8, 9.6, 4], [6.6, 10.2, 4], [0, 21, 4.5]];
@@ -146,11 +157,10 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   hb.add(CYL, BRASS, 0, 0.36, 0, 0, 0, 0, 0.5, 0.14, 0.5);
   for (let k = 0; k < 4; k++) hb.add(BOX, BRASS_HI, 0, 0.42, 0, 0, (k * Math.PI) / 4, 0, 1.7, 0.06, 0.12);
   hb.add(TOR, BRASS_HI, 0, 0.24, 0, Math.PI / 2, 0, 0, 4.25, 4.25, 2.2);
-  bowl.add(ring, hb.mesh());
+  bowl.add(ring, hb.mesh(VC, false));
   sc.add(bowl);
   const ball = new THREE.Mesh(SPH, toon('#fffdf4'));
   ball.scale.setScalar(0.25);
-  ball.castShadow = true;
   sc.add(ball);
   // the jeton that hovers over the wheel while the ball rolls
   const jb = new Batch();
@@ -160,7 +170,6 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   const jetonMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, color: '#c8102e' });
   const jeton = new THREE.Mesh(jb.geometry(), jetonMat);
   jeton.visible = false;
-  jeton.castShadow = true;
   sc.add(jeton);
   // lamps at the two bridge gates (west dock entry and north dock entry): green open, red closed
   const gateLamps = new THREE.InstancedMesh(SPH_LO, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 2);
@@ -294,7 +303,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     cg.add(CONE, '#cfefff', Math.cos(a) * 1.6, -2.95, Math.sin(a) * 1.6, Math.PI, 0, 0, 0.1, 0.5, 0.1);
     if (k % 2 === 0) cg.add(CONE, '#cfefff', Math.cos(a) * 1.0, -3.65, Math.sin(a) * 1.0, Math.PI, 0, 0, 0.08, 0.45, 0.08);
   }
-  chand.add(cb.mesh(), cg.mesh(GLOW, false, false));
+  chand.add(cb.mesh(VC, false), cg.mesh(GLOW, false, false));
   sc.add(chand);
 
   // ---------- Lumen-Bar (south west) ----------
@@ -434,6 +443,51 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     beams.push(g);
   }
 
+  // ---------- details: ropes, planters, bistro tables, hotel balconies and flags (instanced) ----------
+  {
+    const ropes: Item[] = [], plant: Item[] = [], bistro: Item[] = [], balc: Item[] = [], flags: Item[] = [], awn: Item[] = [];
+    carpet.forEach((e, i) => {
+      if (i % 4) return;
+      const A = nodes[e.a], B = nodes[e.b], dx = B.x - A.x, dz = B.z - A.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+      for (const sd of [-1, 1]) {
+        const x = (A.x + B.x) / 2 + nx * sd * 1.55, z = (A.z + B.z) / 2 + nz * sd * 1.55;
+        if (!inOutline(OUTLINE, x, z, 0.8) || !kit.clearOfPath(x, z, 1.5, 1.2) || Math.hypot(x - W.x, z - W.z) < 7.6) continue;
+        ropes.push({ x, z, ry: Math.atan2(dx, dz) + Math.PI / 2, c: RED_C });
+      }
+    });
+    for (let k = 0; k < 900 && plant.length < 24; k++) {
+      const x = rand(-34, 34), z = rand(-23, 20.5);
+      if (!tryPlace(x, z, 1.8, 1.4, 2.0)) continue;
+      plant.push({ x, z, ry: rand(0, TAU), c: k % 2 ? CREAM : BRASS });
+    }
+    for (let k = 0; k < 6; k++) {
+      const a = Math.PI * 1.05 + k * 0.33, x = BAR.x + Math.cos(a) * 4.6, z = BAR.z + Math.sin(a) * 4.6 + 2.2;
+      if (tryPlace(x, z, 1.6, 1.2, 1.5)) bistro.push({ x, z, ry: a, c: ['#fff3d0', '#ff9ab0'][k % 2] });
+    }
+    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) balc.push({ x: sx * (12 + i * 3.6), y: 2.4 + j * 2.6, z: HZ + 3, sx: 2.4, c: BRASS_HI });
+    for (const [x, y] of [[-18, 16.3], [18, 16.3], [-6.5, 18.3], [6.5, 18.3], [-3.8, 24.3], [3.8, 24.3]] as const) flags.push({ x, y, z: HZ + 0.5, c: ['#c8102e', BRASS_HI, '#2b6cff'][Math.abs(Math.round(x)) % 3] });
+    for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) awn.push({ x: sx * (8 + i * 4.2), y: 2.0, z: HZ + 3.35, sx: 3.0, c: i ? RED_C : '#1f8a4c' });
+    instanced(sc, PROPS.rope(), ropes);
+    instanced(sc, PROPS.planter(), plant);
+    instanced(sc, PROPS.bistro(), bistro);
+    instanced(sc, PROPS.balcony(), balc, { cast: false });
+    instanced(sc, PROPS.awning(), awn);
+    instanced(sc, FLAG, flags);
+  }
+  // ---------- ambient life: guests strolling, gondolas on the pool ----------
+  const shore = foam(sc, OUTLINE, -1.2, '#ffe7a8', 1.4);
+  const circle = (cx: number, cz: number, r: number): P2[] => Array.from({ length: 28 }, (_, k) => [cx + Math.cos((k / 28) * TAU) * r, cz + Math.sin((k / 28) * TAU) * r] as P2);
+  const GUESTS = ['#16161c', '#c8102e', '#f3e6c4', '#2b6cff', '#ff9ab0', '#1f8a4c'];
+  loopers(sc, PERSON, circle(FO.x, FO.z, 5.0), 6, { speed: 0.6, colors: GUESTS, scale: 0.85, bob: 0.04 });
+  loopers(sc, PERSON, circle(BS.x, BS.z, 3.6), 6, { speed: 0.8, dir: -1, colors: GUESTS, scale: 0.85, bob: 0.05 });
+  {
+    const prom: P2[] = [];
+    for (let x = -24; x <= 24; x += 3) prom.push([x, 21.2]);
+    const back = prom.slice(1, -1).reverse().map(([x, z]) => [x, z - 0.6] as P2);
+    loopers(sc, PERSON, [...prom, ...back], 10, { speed: 0.8, colors: GUESTS, scale: 0.85, bob: 0.04 });
+  }
+  loopers(sc, BOAT, roundRect(-46, 46, -36, 31, 9, 6), 6, { y: -1.2, speed: 1.6, colors: ['#c8102e', '#16161c', '#f3e6c4', BRASS_HI], scale: 1.1 });
+
   sc.add(st.mesh(), gl.mesh(GLOW, false, false));
 
   // ---------- fireworks (Jackpot-Gala) ----------
@@ -563,6 +617,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
       flashT = Math.max(0, flashT - dt);
       chase.tick(dt, galaOn || flashT > 0 ? 1 : 0);
       waterTex.offset.set(t * 0.003, t * 0.004);
+      shore.tick(t);
       // fireworks
       if (galaOn) { fwNext -= dt; if (fwNext <= 0) { fwNext = rand(0.7, 1.3); burst(rand(-26, 26), rand(10, 17), rand(-26, 6)); } }
       if (fwLive > 0) {

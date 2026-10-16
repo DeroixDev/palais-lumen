@@ -8,14 +8,17 @@
 
 import type { BoardDecor, BoardKit } from '../../view3d/boardview';
 import {
-  BOX, Batch, CONE, CYL, CYL8, GLOW, GRAD, HEMI, SPH_LO, THREE, TOR, ctex, skyTex, toon,
+  BOX, Batch, CONE, CYL, CYL8, GLOW, GRAD, HEMI, SPH_LO, THREE, TOR, VC, ctex, skyTex, toon,
 } from '../../view3d/kit';
 import { sfx } from '../../sfx';
 import { E, TAU, lerp, rand, tween, wait } from '../../util';
 import { BULB, CYL6, LEAF, inOutline, plinth, ribbons, roundRect, signMesh, signTex, trim, type P2 } from '../bauteile';
+import { CAR, PERSON, PROPS, curbs, flock, groundTex, instanced, loopers, type Item } from '../details';
 
 const TENT = new THREE.CylinderGeometry(1.2, 1.2, 2.6, 3, 1).rotateX(-Math.PI / 2);
 const CONC = '#a3a6ab', CONC_D = '#6f737a', STEEL = '#4a5562', HAZ = '#ffc61a', DARK = '#23272e', RUST = '#b5562a', OLIVE = '#5f6b3a';
+
+const pickC = (a: string[]) => a[Math.floor(Math.random() * a.length)];
 
 export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; vault: number[]; oben: number; unten: number }): BoardDecor {
   const sc = kit.scene, nodes = kit.graph.nodes, edges = kit.graph.edges;
@@ -31,15 +34,16 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
 
   // ---------- compound plate (chamfered) and desert ----------
   const OUTLINE: P2[] = roundRect(-37, 37, -27, 22.5, 4, 1);
-  const floorTex = ctex(256, 256, (g) => {
-    g.fillStyle = '#9b9ea3'; g.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#a2a5aa' : '#979a9f'; g.fillRect(i * 64, j * 64, 64, 64); }
-    g.strokeStyle = 'rgba(60,64,70,.5)'; g.lineWidth = 2;
-    for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.stroke(); g.beginPath(); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke(); }
-    for (let k = 0; k < 7; k++) { g.fillStyle = 'rgba(50,50,55,.12)'; g.beginPath(); g.ellipse(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 14, 5 + Math.random() * 8, Math.random() * 3, 0, TAU); g.fill(); }
-    g.fillStyle = 'rgba(255,198,26,.55)'; g.fillRect(0, 126, 256, 4);
-  }, true);
-  floorTex.repeat.set(1 / 10, 1 / 10);
+  const floorTex = groundTex({
+    a: '#a2a5aa', b: '#979a9f', line: 'rgba(60,64,70,.5)', lineW: 2, vary: 0.12, speck: ['rgba(50,50,55,.25)', 'rgba(255,255,255,.25)'],
+    deco: (g, x, y, S, k) => {
+      if (k === 2 || k === 8) { g.fillStyle = 'rgba(40,40,45,.16)'; g.beginPath(); g.ellipse(x + S / 2, y + S / 2, 14 + k, 9, k, 0, TAU); g.fill(); }
+      else if (k === 5) { g.strokeStyle = 'rgba(40,42,48,.4)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 6, y + 12); g.lineTo(x + 24, y + 26); g.lineTo(x + 22, y + 40); g.lineTo(x + 44, y + 58); g.stroke(); }
+      else if (k === 10) { g.fillStyle = 'rgba(255,198,26,.55)'; g.fillRect(x + 6, y + S / 2 - 2, S - 12, 4); }
+      else if (k === 0) { g.fillStyle = 'rgba(70,72,78,.35)'; for (const [a, b] of [[10, 10], [S - 14, 10], [10, S - 14], [S - 14, S - 14]]) { g.beginPath(); g.arc(x + a + 2, y + b + 2, 2.2, 0, TAU); g.fill(); } }
+    },
+  });
+  floorTex.repeat.set(1 / 20, 1 / 20);
   plinth(sc, OUTLINE, new THREE.MeshToonMaterial({ map: floorTex, gradientMap: GRAD }), '#7c6a55');
   trim(sc, OUTLINE, 0.06, 0.12, HAZ);
   const sandTex = ctex(128, 128, (g) => {
@@ -57,6 +61,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   // ---------- walkways and the conveyor belt ----------
   const walk = edges.filter((e) => e.flag === 'walk'), band = edges.filter((e) => e.flag === 'band');
   ribbons(sc, nodes, walk, { top: '#565b63', border: HAZ, stud: '#ffffff' });
+  curbs(sc, nodes, walk, 0.92, [HAZ, DARK], 0.8, 0.11);
   const beltTex = ctex(64, 128, (g) => {
     g.fillStyle = '#2b2f36'; g.fillRect(0, 0, 64, 128);
     g.strokeStyle = '#3f454e'; g.lineWidth = 4;
@@ -184,7 +189,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   trb.add(BOX, HAZ, 0, 4.7, 0, 0, 0, 0, 0.6, 0.3, 0.6);
   trb.add(TOR, DARK, 0, 4.25, 0, 0, 0, 0, 0.3, 0.3, 3);
   trb.add(BOX, '#c99a5b', 0, 3.3, 0, 0, 0, 0, 1.2, 1.2, 1.2);
-  trolley.add(trb.mesh());
+  trolley.add(trb.mesh(VC, false));
   trolley.position.set(YD.x, 0, YD.z);
   sc.add(trolley);
 
@@ -204,7 +209,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   rb.add(CYL8, STEEL, 0, 0, 0.8, Math.PI / 2 - 0.5, 0, 0, 0.05, 1.6, 0.05);
   rb.add(SPH_LO, '#ff3d3d', 0, 0.5, 1.5, 0, 0, 0, 0.12);
   rb.add(BOX, STEEL, 0, -0.3, 0, 0, 0, 0, 0.6, 0.5, 0.6);
-  const radarM = rb.mesh();
+  const radarM = rb.mesh(VC, false);
   radarM.material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, side: THREE.DoubleSide });
   radar.add(radarM);
   radar.position.set(HQ.x, 4.3, HQ.z);
@@ -348,7 +353,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   cab2.add(BOX, '#8a3c18', 0, 0.86, 0, 0, 0, 0, 1.1, 0.06, 1.4);
   cab2.add(SPH_LO, '#ffd23f', 0, 0.9, 0, 0, 0, 0, 0.4, 0.22, 0.5);
   for (const sx of [-0.42, 0.42]) for (const sz of [-0.4, 0.4]) cab2.add(CYL8, DARK, sx, 0.2, sz, 0, 0, Math.PI / 2, 0.16, 0.12, 0.16);
-  cart.add(cab2.mesh());
+  cart.add(cab2.mesh(VC, false));
   cart.visible = cartTotal > 4;
   sc.add(cart);
 
@@ -476,6 +481,52 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   });
   cl.count = ci;
   sc.add(cl);
+  // ---------- details: cones, tires, sacks, drums, weeds (instanced) ----------
+  {
+    const cones: Item[] = [], tires: Item[] = [], sacks: Item[] = [], drums: Item[] = [], weeds: Item[] = [], sandWeeds: Item[] = [];
+    walk.forEach((e, i) => {
+      if (i % 3) return;
+      const A = nodes[e.a], B = nodes[e.b], dx = B.x - A.x, dz = B.z - A.z, l = Math.hypot(dx, dz) || 1, sd = i % 2 ? 1 : -1;
+      const x = (A.x + B.x) / 2 + (-dz / l) * sd * 1.5, z = (A.z + B.z) / 2 + (dx / l) * sd * 1.5;
+      if (tryPlace(x, z, 1.4, 1.15, 1.0)) cones.push({ x, z, ry: i, c: '#ff6a1a' });
+    });
+    for (let k = 0; k < 1500 && tires.length + sacks.length + drums.length < 34; k++) {
+      const x = rand(-34.5, 34.5), z = rand(-24.5, 20.5);
+      if (!tryPlace(x, z, 2.0, 1.5, 1.8)) continue;
+      const kind = k % 3;
+      if (kind === 0) tires.push({ x, z, ry: rand(0, TAU) });
+      else if (kind === 1) sacks.push({ x, z, ry: rand(0, TAU), c: pickC(['#c7b089', '#b39b74', '#8f8a6a']) });
+      else { drums.push({ x, z, c: pickC(['#c9442f', '#2f6fb5', '#e0a810', '#5f6b3a']) }); drums.push({ x: x + 0.8, z: z + 0.2, c: pickC(['#c9442f', '#2f6fb5', '#5f6b3a']) }); }
+    }
+    for (let k = 0; k < 900 && weeds.length < 60; k++) {
+      const x = rand(-35, 35), z = rand(-25, 21);
+      if (!free(x, z, 1.4, 0.9, 0.5)) continue;
+      weeds.push({ x, z, s: rand(0.7, 1.2), ry: rand(0, TAU), c: pickC(['#8a9a4a', '#6f8a3a', '#a3a35a']) });
+    }
+    for (let k = 0; k < 110; k++) {
+      const a = rand(0, TAU), r = rand(48, 110), x = Math.cos(a) * r, z = Math.sin(a) * r * 0.8;
+      sandWeeds.push({ x, y: -1.0, z, s: rand(1.2, 2.4), ry: rand(0, TAU), c: pickC(['#9a8a4a', '#7f8a3a', '#b8a060']) });
+    }
+    instanced(sc, PROPS.cone(), cones);
+    instanced(sc, PROPS.tires(), tires);
+    instanced(sc, PROPS.sacks(), sacks);
+    instanced(sc, PROPS.drum(), drums);
+    instanced(sc, PROPS.tuft(), weeds, { cast: false });
+    instanced(sc, PROPS.tuft(), sandWeeds, { cast: false });
+  }
+  // ---------- ambient life: a patrol jeep around the fence, workers, vultures ----------
+  loopers(sc, CAR, roundRect(-43, 43, -33, 29, 7, 6), 2, { y: -1.0, speed: 4.5, colors: [OLIVE, '#c2a37a'], scale: 1.6 });
+  {
+    const VEST = ['#ff6a1a', '#ffc61a', '#ff6a1a', '#7dff8a'];
+    const ring = (cx: number, cz: number, r: number): P2[] => Array.from({ length: 24 }, (_, k) => [cx + Math.cos((k / 24) * TAU) * r, cz + Math.sin((k / 24) * TAU) * r] as P2);
+    loopers(sc, PERSON, ring(HQ.x, HQ.z, 6.3), 4, { speed: 0.7, colors: VEST, scale: 0.85, bob: 0.05 });
+    loopers(sc, PERSON, ring(YD.x, YD.z, 6.6), 4, { speed: 0.9, dir: -1, colors: VEST, scale: 0.85, bob: 0.05 });
+    const front: P2[] = [];
+    for (let x = -26; x <= 26; x += 3) front.push([x, 21.0]);
+    loopers(sc, PERSON, [...front, ...front.slice(1, -1).reverse().map(([x, z]) => [x, z - 0.6] as P2)], 6, { speed: 0.9, colors: VEST, scale: 0.85, bob: 0.05 });
+  }
+  flock(sc, 5, 0, -4, 30, 20, '#2a2228');
+
   sc.add(st.mesh(), gl.mesh(GLOW, false, false));
 
   // ---------- Kistenregen: falling crates ----------

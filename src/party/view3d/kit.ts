@@ -8,7 +8,7 @@ import { TAU } from '../util';
 export { THREE };
 
 let renderer: THREE.WebGLRenderer | null = null;
-let maxAniso = 4;
+let maxAniso = 4, maxAnisoAll = 4;
 
 /** Creates the one renderer (antialias on). Throws when WebGL is missing. */
 export function createRenderer(canvas: HTMLCanvasElement) {
@@ -16,10 +16,13 @@ export function createRenderer(canvas: HTMLCanvasElement) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy() || 1);
+  maxAnisoAll = renderer.capabilities.getMaxAnisotropy() || 1;
+  maxAniso = Math.min(8, maxAnisoAll);
   return renderer;
 }
 export const getRenderer = () => renderer!;
+/** Anisotropy for big ground textures seen at a flat angle (up to 16). */
+export const groundAniso = () => Math.min(16, maxAnisoAll);
 
 // ---------- materials ----------
 export const GRAD = new THREE.DataTexture(new Uint8Array([105, 185, 255]), 3, 1, THREE.RedFormat);
@@ -196,6 +199,22 @@ export function focusShadow(L: Lights, focus: THREE.Vector3, half: number) {
   L.sun.target.position.set(fx, 0, fz);
   L.sun.position.set(fx + L.offset.x, L.offset.y, fz + L.offset.z);
   L.sun.target.updateMatrixWorld();
+}
+
+/**
+ * A fixed shadow frustum over the whole island (centre cx/cz, half width `half`): the board
+ * draws its shadow map once (baked) instead of every frame, so it must cover everything.
+ */
+export function fixShadow(L: Lights, cx: number, cz: number, half: number) {
+  const c = L.sun.shadow.camera;
+  c.left = -half; c.right = half; c.top = half; c.bottom = -half;
+  c.near = 1; c.far = L.offset.length() + half * 2;
+  c.updateProjectionMatrix();
+  L.half = half;
+  L.sun.target.position.set(cx, 0, cz);
+  L.sun.position.set(cx + L.offset.x, L.offset.y, cz + L.offset.z);
+  L.sun.target.updateMatrixWorld();
+  L.sun.updateMatrixWorld();
 }
 
 /** Releases a scene's GPU resources (geometry and non-shared materials/textures). */

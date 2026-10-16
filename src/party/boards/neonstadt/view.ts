@@ -9,6 +9,8 @@ import {
 } from '../../view3d/kit';
 import { sfx } from '../../sfx';
 import { E, TAU, clamp, lerp, pickR, rand, tween, wait } from '../../util';
+import { roundRect, type P2 } from '../bauteile';
+import { BOAT, PERSON, PROPS, flock, foam, groundTex, instanced, loopers, type Item } from '../details';
 
 const _c = new THREE.Color();
 
@@ -34,15 +36,15 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   pts.forEach(([x, z], i) => (i ? shape.lineTo(x, -z) : shape.moveTo(x, -z)));
   shape.closePath();
   const ig = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, bevelSegments: 2, curveSegments: 6 });
-  const tileTex = ctex(256, 256, (g) => {
-    g.fillStyle = '#9fe8c8'; g.fillRect(0, 0, 256, 256);
-    g.fillStyle = '#b5f0d6';
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2 === 0) g.fillRect(i * 64, j * 64, 64, 64);
-    g.strokeStyle = 'rgba(80,170,140,.35)'; g.lineWidth = 3;
-    for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, 256); g.stroke(); g.beginPath(); g.moveTo(0, i * 64); g.lineTo(256, i * 64); g.stroke(); }
-    for (let k = 0; k < 26; k++) { g.fillStyle = pickR(['#ffffff', '#ffd9ef', '#fff3a6']); g.beginPath(); g.arc(Math.random() * 256, Math.random() * 256, 3, 0, TAU); g.fill(); }
-  }, true);
-  tileTex.repeat.set(1 / 9, 1 / 9);
+  const tileTex = groundTex({
+    a: '#b5f0d6', b: '#9fe8c8', line: 'rgba(80,170,140,.4)', vary: 0.1, speck: ['#ffffff', '#ffd9ef', '#fff3a6'],
+    deco: (g, x, y, S, k) => {
+      if (k === 3) { g.fillStyle = 'rgba(70,160,120,.35)'; g.beginPath(); g.arc(x + S / 2, y + S / 2, 9, 0, TAU); g.fill(); g.strokeStyle = 'rgba(40,110,90,.5)'; g.lineWidth = 2; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x + S / 2 - 7, y + S / 2 + i * 4); g.lineTo(x + S / 2 + 7, y + S / 2 + i * 4); g.stroke(); } }
+      else if (k === 7) { for (let i = 0; i < 4; i++) { g.fillStyle = pickR(['#ff8fc8', '#fff3a6', '#ffffff']); g.beginPath(); g.arc(x + 14 + Math.random() * 36, y + 14 + Math.random() * 36, 3.2, 0, TAU); g.fill(); } }
+      else if (k === 9) { g.strokeStyle = 'rgba(60,130,100,.35)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 8, y + 20); g.lineTo(x + 26, y + 30); g.lineTo(x + 30, y + 48); g.stroke(); }
+    },
+  });
+  tileTex.repeat.set(1 / 18, 1 / 18);
   const island = new THREE.Mesh(ig, [new THREE.MeshToonMaterial({ map: tileTex, gradientMap: GRAD }), toon('#7a4ad8')]);
   island.rotation.x = -Math.PI / 2;
   island.position.y = -3.5;
@@ -84,6 +86,15 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const BCOL = ['#ffd0e8', '#c8f0ff', '#fff0b8', '#dccbff', '#c9ffd9', '#ffd9c2'];
   const ROOF = ['#ff4fb0', '#35d4ff', '#b8f02a', '#ffd23f', '#8a5bff'];
   const bMat = new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 0.85, gradientMap: GRAD });
+  // windows keep their size on every building: the UVs repeat with the instance's width/height
+  for (const t of [winTex, winEmi]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
+  bMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+#ifdef USE_INSTANCING
+  vec2 wrep = vec2(max(1.0, floor(length(instanceMatrix[0].xyz) / 2.4 + 0.5)), max(1.0, floor(length(instanceMatrix[1].xyz) / 4.6 + 0.5)));
+  vMapUv *= wrep; vEmissiveMapUv *= wrep;
+#endif`);
+  };
   const bM = new THREE.InstancedMesh(BGEO, bMat, blds.length);
   const bO = new THREE.InstancedMesh(BOUT, OUT, blds.length), rM = new THREE.InstancedMesh(BOX, toon('#ffffff'), blds.length);
   blds.forEach((b, i) => {
@@ -95,6 +106,29 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   bM.castShadow = rM.castShadow = true;
   bM.receiveShadow = rM.receiveShadow = true;
   sc.add(bM, bO, rM);
+
+  // --- façade detail: doors, awnings, balconies, rooftop clutter (instanced) ---
+  {
+    const doors: Item[] = [], awn: Item[] = [], balc: Item[] = [], ac: Item[] = [], tank: Item[] = [], ant: Item[] = [];
+    const AWN = ['#ff4fb0', '#35d4ff', '#ffd23f', '#b8f02a', '#ff9a5c', '#b46bff'];
+    blds.forEach((b, i) => {
+      const fz = b.z + b.d / 2;
+      doors.push({ x: b.x - b.w * 0.18, z: fz + 0.03, c: AWN[(i + 2) % AWN.length] });
+      if (b.h > 2.6) awn.push({ x: b.x + b.w * 0.12, y: 1.75, z: fz + 0.36, sx: b.w * 0.62, c: AWN[i % AWN.length] });
+      for (let y = 3.2; y < b.h - 0.8; y += 2.3) balc.push({ x: b.x, y, z: fz, sx: b.w * 0.72, c: i % 2 ? '#ffffff' : '#fff0f8' });
+      const r = (i * 37) % 7, top = b.h + 0.3;
+      if (r < 3) ac.push({ x: b.x + b.w * 0.18, y: top, z: b.z - b.d * 0.15, ry: r, c: '#eae6f6' });
+      if (r === 2 || r === 5) tank.push({ x: b.x - b.w * 0.2, y: top, z: b.z + b.d * 0.12, s: 0.8, c: pickR(['#ffd0e8', '#c8f0ff', '#fff0b8']) });
+      if (r === 4 || r === 6 || (b.h > 7 && r === 1)) ant.push({ x: b.x + b.w * 0.25, y: top, z: b.z + b.d * 0.2 });
+    });
+    instanced(sc, PROPS.door(), doors, { cast: false });
+    instanced(sc, PROPS.awning(), awn);
+    instanced(sc, PROPS.balcony(), balc, { cast: false });
+    instanced(sc, PROPS.roofAC(), ac);
+    instanced(sc, PROPS.roofTank(), tank);
+    instanced(sc, PROPS.antenna(), ant, { cast: false });
+  }
+  const nearBld = (x: number, z: number, m: number) => blds.some((b) => Math.abs(b.x - x) < b.w / 2 + m && Math.abs(b.z - z) < b.d / 2 + m);
 
   // --- static decor batch (trees, lamps, landmarks) ---
   const st = new Batch(), gl = new Batch();
@@ -180,13 +214,12 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   for (let k = 0; k < 24; k++) { const a = (k / 24) * TAU; wg.add(SPH_LO, k % 2 ? '#ffe680' : '#8ff3ff', Math.cos(a) * FW.R, Math.sin(a) * FW.R, 0.95, 0, 0, 0, 0.16); }
   const wheel = new THREE.Group();
   wheel.position.set(FW.x, FW.y, FW.z);
-  wheel.add(wb.mesh(), wg.mesh(GLOW, false, false));
+  wheel.add(wb.mesh(VC, false), wg.mesh(GLOW, false, false));
   sc.add(wheel);
   const gb = new Batch();
   gb.add(BOX, '#ffffff', 0, -0.45, 0, 0, 0, 0, 1, 0.8, 0.9); gb.add(BOX, '#1a0b33', 0, -0.35, 0.46, 0, 0, 0, 0.7, 0.35, 0.02); gb.add(CONE, '#ffffff', 0, 0.12, 0, 0, Math.PI / 4, 0, 0.8, 0.4, 0.8); gb.add(CYL8, '#2a1258', 0, 0.5, 0, 0, 0, 0, 0.05, 0.5, 0.05);
   const gondolas = new THREE.InstancedMesh(gb.geometry(), VC, 10);
   for (let k = 0; k < 10; k++) gondolas.setColorAt(k, _c.set(['#ff7ad0', '#ffd23f', '#35d4ff', '#b8f02a', '#ff9a5c'][k % 5]));
-  gondolas.castShadow = true;
   gondolas.frustumCulled = false;
   gondolas.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   sc.add(gondolas);
@@ -203,11 +236,10 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   tb.add(BOX, '#ffffff', 1.6, 0.35, 0, 0, 0, 0, 1.4, 0.12, 0.5);
   const turn = new THREE.Group();
   turn.position.set(PZ.x, 0.38, PZ.z);
-  turn.add(tb.mesh());
+  turn.add(tb.mesh(VC, false));
   const statue = new THREE.Mesh(STAR_GEO, VC_EMI);
   statue.scale.setScalar(1.5);
   statue.position.y = 2.6;
-  statue.castShadow = true;
   turn.add(statue);
   sc.add(turn);
   // the gate at the start of the Plaza-Abkürzung
@@ -231,7 +263,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const crownB = new Batch();
   for (let k = 0; k < 6; k++) { const a = (k / 6) * TAU; crownB.add(CONE, k % 2 ? '#ff4fb0' : '#ffd23f', Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1, 0, 0, 0, 0.25, 0.9, 0.25); }
   crownB.add(CYL, '#1a0b33', 0, -0.5, 0, 0, 0, 0, 1.3, 0.2, 1.3);
-  const crown = crownB.mesh();
+  const crown = crownB.mesh(VC, false);
   crown.position.set(NT.x, 10.4, NT.z);
   sc.add(crown);
   const neonSign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.6), new THREE.MeshBasicMaterial({
@@ -279,12 +311,63 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     const bb = new Batch();
     bb.add(SPH, '#ffffff', 0, 0, 0, 0, 0, 0, 1, 0.45, 2.1); bb.add(BOX, c, 0, 0.35, 0, 0, 0, 0, 1.6, 0.2, 3); bb.add(CYL8, '#2a1258', 0, 1.6, 0, 0, 0, 0, 0.07, 2.6, 0.07);
     bb.addM(new THREE.ConeGeometry(1.1, 2.2, 3).rotateY(Math.PI / 6), c, new THREE.Matrix4().compose(new THREE.Vector3(0, 1.8, -0.4), new THREE.Quaternion(), new THREE.Vector3(0.15, 1, 1)));
-    const m = bb.mesh();
+    const m = bb.mesh(VC, false);
     m.position.set(x, -1.1, z);
     m.rotation.y = i * 1.3;
     sc.add(m);
     boats.push(m);
   });
+  // --- street furniture along the paths and greenery on free spots (instanced) ---
+  {
+    const bench: Item[] = [], bed: Item[] = [], hyd: Item[] = [], sign: Item[] = [], bush: Item[] = [], tuft: Item[] = [];
+    const taken: P2[] = [];
+    const ok = (x: number, z: number, r: number) => !inCanal(x, z) && inIsland(x, z, 0.8) && !nearBld(x, z, 0.5) && taken.every(([a, b]) => Math.hypot(a - x, b - z) > r) && LANDMARKS.every(([lx, lz, rr]) => Math.hypot(lx - x, lz - z) > rr);
+    edges.forEach((e, i) => {
+      if (e.flag) return;
+      const A = nodes[e.a], B = nodes[e.b], dx = B.x - A.x, dz = B.z - A.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+      const side = i % 2 ? 1 : -1, mx = (A.x + B.x) / 2 + nx * side * 2.0, mz = (A.z + B.z) / 2 + nz * side * 2.0;
+      if (!ok(mx, mz, 1.6) || !kit.clearOfPath(mx, mz, 1.5, 1.05)) return;
+      taken.push([mx, mz]);
+      const face = Math.atan2(-nx * side, -nz * side), kind = i % 5;
+      if (kind === 0 || kind === 3) bench.push({ x: mx, z: mz, ry: face, c: pickR(['#ff7ad0', '#35d4ff', '#ffd23f', '#ffffff']) });
+      else if (kind === 1) bed.push({ x: mx, z: mz, ry: face, c: pickR(['#ff5fae', '#ffd23f', '#ff9a5c', '#b46bff']) });
+      else if (kind === 2) hyd.push({ x: mx, z: mz, c: pickR(['#ff3d6e', '#ffd23f']) });
+      else sign.push({ x: mx, z: mz, ry: face, c: pickR(['#35d4ff', '#ffd23f', '#ff4fb0']) });
+    });
+    for (let k = 0; k < 900 && bush.length < 38; k++) {
+      const x = rand(-35, 35), z = rand(-23.5, 21.5);
+      if (!ok(x, z, 1.2) || !kit.clearOfPath(x, z, 1.5, 1.0)) continue;
+      taken.push([x, z]);
+      bush.push({ x, z, s: rand(0.7, 1.15), ry: rand(0, TAU), c: pickR(['#3fd27a', '#2fc4a0', '#7be05a', '#5fd88a']) });
+    }
+    for (let k = 0; k < 900 && tuft.length < 90; k++) {
+      const x = rand(-35.5, 35.5), z = rand(-24, 22);
+      if (inCanal(x, z) || !inIsland(x, z, 0.4) || nearBld(x, z, 0.2) || !kit.clearOfPath(x, z, 1.4, 0.8)) continue;
+      tuft.push({ x, z, s: rand(0.8, 1.4), ry: rand(0, TAU), c: pickR(['#4fcf7a', '#6fdc6a', '#3fbf8a']) });
+    }
+    instanced(sc, PROPS.bench(), bench);
+    instanced(sc, PROPS.flowers(), bed);
+    instanced(sc, PROPS.hydrant(), hyd);
+    instanced(sc, PROPS.sign(), sign);
+    instanced(sc, PROPS.bush(), bush);
+    instanced(sc, PROPS.tuft(), tuft, { cast: false });
+  }
+
+  // --- ambient life: boats around the island, strollers on the promenade, gulls ---
+  const isle = roundRect(-37, 37, -25, 23, 8, 6);
+  const shore = foam(sc, isle, -1.2, '#ffffff', 2.2);
+  loopers(sc, BOAT, roundRect(-47, 47, -33, 31, 10, 6), 7, { y: -1.2, speed: 2.2, colors: ['#ff5fae', '#35d4ff', '#ffd23f', '#b8f02a', '#ff9a5c'], scale: 1.1 });
+  {
+    const walk: P2[] = [];
+    for (let x = -30; x <= 30; x += 3) walk.push([x, 20.7]);
+    const back = walk.slice(1, -1).reverse().map(([x, z]) => [x, z + 0.7] as P2);
+    loopers(sc, PERSON, [...walk, ...back], 12, { y: 0, speed: 0.9, colors: ['#ff4fb0', '#35d4ff', '#ffd23f', '#8a5bff', '#ff9a5c', '#ffffff'], scale: 0.85, bob: 0.06 });
+    const ring: P2[] = [];
+    for (let k = 0; k < 24; k++) { const a = (k / 24) * TAU; ring.push([1.5 + Math.cos(a) * 5.75, -8 + Math.sin(a) * 5.75]); }
+    loopers(sc, PERSON, ring, 7, { y: 0, speed: 0.7, dir: -1, colors: ['#b8f02a', '#ff7ad0', '#35d4ff', '#ffffff'], scale: 0.85, bob: 0.06 });
+  }
+  flock(sc, 9, 4, -4, 26, 17, '#ffffff');
+
   // clouds
   const cl = new THREE.InstancedMesh(SPH_LO, toon('#ffffff'), 30);
   let ci = 0;
@@ -364,6 +447,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
       beamG.rotation.y = t * 0.9;
       for (let i = 0; i < boats.length; i++) { const m = boats[i]; m.position.y = -1.1 + Math.sin(t * 1.6 + i) * 0.12; m.rotation.z = Math.sin(t * 1.2 + i * 2) * 0.06; }
       waterTex.offset.set(t * 0.004, t * 0.006);
+      shore.tick(t);
       if (Math.abs(night - nightT) > 0.001) setNight(night + (nightT - night) * Math.min(1, dt * 2));
     },
   };
