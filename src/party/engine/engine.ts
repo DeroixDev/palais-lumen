@@ -80,6 +80,7 @@ export class Game {
       toast: (t, c) => this.toast(t, c),
       addCoins: (p, d, t) => this.addCoins(p, d, t),
       moveStar: () => this.moveStar(),
+      ask: (p, a) => this.io.ask(p, a),
     };
   }
 
