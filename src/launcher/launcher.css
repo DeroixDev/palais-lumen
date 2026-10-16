@@ -195,7 +195,7 @@ svg { display: block; }
 
 /* ---------- game cards ---------- */
 .games { background: linear-gradient(180deg, var(--void), var(--night) 70%, var(--void)); }
-.game-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 2.2vw, 32px); }
+.game-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(18px, 2.2vw, 32px); }
 .game {
   --accent: var(--acid);
   position: relative; isolation: isolate; overflow: hidden;
@@ -209,6 +209,7 @@ svg { display: block; }
 .g-palais { --accent: var(--brass); }
 .g-cs { --accent: var(--orange); }
 .g-uno { --accent: var(--cyan); }
+.g-party { --accent: var(--pink); }
 .game::before { /* accent edge */
   content: ''; position: absolute; z-index: 3; left: 0; top: 0; bottom: 0; width: 6px; background: var(--accent);
 }
@@ -263,7 +264,7 @@ svg { display: block; }
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; width: auto; margin: 0;
   background: repeating-linear-gradient(-60deg, var(--acid) 0 14px, transparent 14px 24px); opacity: .7;
 }
-.soon-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 1.8vw, 26px); }
+.soon-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 1.8vw, 26px); }
 .teaser {
   --tint: var(--pink);
   position: relative; display: flex; flex-direction: column;

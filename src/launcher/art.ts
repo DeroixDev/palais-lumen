@@ -216,3 +216,46 @@ ${sparks}
 <path d="M0 344h640" stroke="#2fe6ff" stroke-width="1.5" opacity=".35"/>
 </svg>`;
 }
+
+/** Unser Party Spiel: a winding board of round spaces on violet, the star, dice block and our bean cast. */
+export function partyArt() {
+  const r = rng(71);
+  const SP = ['#2b9dff', '#ff3d6e', '#ffd23f', '#3fdc7a', '#b46bff', '#2b9dff', '#ff8a2e', '#2b9dff', '#ff7ad9'];
+  const pts: [number, number][] = [[40, 300], [96, 318], [154, 312], [204, 286], [236, 244], [282, 222], [336, 230], [388, 252], [440, 262], [492, 244], [530, 204], [540, 156], [512, 112], [462, 92], [408, 98]];
+  const path = 'M' + pts.map((p) => p.join(' ')).join('L');
+  const spaces = pts.map(([x, y], i) => `<g><ellipse cx="${x}" cy="${y + 5}" rx="22" ry="12" fill="#2a1258"/><ellipse cx="${x}" cy="${y}" rx="20" ry="11" fill="${SP[i % SP.length]}" stroke="#f7f2ff" stroke-width="2.5"/></g>`).join('');
+  const bean = (x: number, y: number, s: number, col: string, feat: string, acc: string) => {
+    const ears = feat === 'ears' ? `<path d="M-9 -38c-4-14 0-24 6-24 4 0 4 12 2 24M9 -38c4-14 0-24-6-24-4 0-4 12-2 24" fill="${col}" stroke="#1a0b33" stroke-width="3"/>` : '';
+    const cap = feat === 'cap' ? `<path d="M-20 -30a20 16 0 0 1 40 0z" fill="${acc}" stroke="#1a0b33" stroke-width="3"/><path d="M14 -31h16" stroke="${acc}" stroke-width="6" stroke-linecap="round"/>` : '';
+    const ant = feat === 'ant' ? `<path d="M0 -40v-14" stroke="#1a0b33" stroke-width="3"/><circle cx="0" cy="-56" r="5" fill="${acc}" stroke="#1a0b33" stroke-width="2.5"/>` : '';
+    const horns = feat === 'horns' ? `<path d="M-14 -34l-6-14 12 8M14 -34l6-14-12 8" fill="${acc}" stroke="#1a0b33" stroke-width="2.5" stroke-linejoin="round"/>` : '';
+    return `<g transform="translate(${x} ${y}) scale(${s})">${ears}<path d="M-22 0v-26a22 22 0 0 1 44 0v26c0 6-6 8-22 8s-22-2-22-8z" fill="${col}" stroke="#1a0b33" stroke-width="3.5"/>${cap}${ant}${horns}
+<circle cx="-8" cy="-22" r="6.5" fill="#fff" stroke="#1a0b33" stroke-width="2"/><circle cx="8" cy="-22" r="6.5" fill="#fff" stroke="#1a0b33" stroke-width="2"/><circle cx="-7" cy="-21" r="3" fill="#1a0b33"/><circle cx="9" cy="-21" r="3" fill="#1a0b33"/>
+<path d="M-6 -11q6 5 12 0" fill="none" stroke="#1a0b33" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="-15" cy="-13" rx="4" ry="2.5" fill="#ff7ac2" opacity=".7"/><ellipse cx="15" cy="-13" rx="4" ry="2.5" fill="#ff7ac2" opacity=".7"/></g>`;
+  };
+  const star = (x: number, y: number, R: number) => {
+    let d = '';
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? R * 0.48 : R; d += `${i ? 'L' : 'M'}${f(x + Math.cos(a) * rr)} ${f(y + Math.sin(a) * rr)}`; }
+    return `<path d="${d}z" fill="#ffe14a" stroke="#1a0b33" stroke-width="5" stroke-linejoin="round"/><circle cx="${f(x - R * 0.18)}" cy="${f(y)}" r="${f(R * 0.08)}" fill="#1a0b33"/><circle cx="${f(x + R * 0.18)}" cy="${f(y)}" r="${f(R * 0.08)}" fill="#1a0b33"/>`;
+  };
+  let sparks = '';
+  for (let i = 0; i < 22; i++) {
+    const x = 20 + r() * 600, y = 16 + r() * 200;
+    sparks += r() > 0.5 ? glint(x, y, 3 + r() * 6, r() > 0.5 ? '#dcff1f' : '#fff', 0.85) : `<circle cx="${f(x)}" cy="${f(y)}" r="${f(1 + r() * 1.5)}" fill="#2fe6ff" opacity="${f(0.4 + r() * 0.5)}"/>`;
+  }
+  return `<svg viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+<defs><radialGradient id="pa-bg" cx=".55" cy=".45" r=".8"><stop offset="0" stop-color="#5b2bd6"/><stop offset=".55" stop-color="#2a0670"/><stop offset="1" stop-color="#0b0614"/></radialGradient></defs>
+<rect width="640" height="360" fill="url(#pa-bg)"/>
+<path d="M0 300C120 250 200 330 320 300S520 240 640 280V360H0z" fill="#3a1690" opacity=".7"/>
+${sparks}
+<path d="${path}" fill="none" stroke="#fff1d6" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>
+${spaces}
+<g transform="translate(408 70)"><ellipse cx="0" cy="34" rx="34" ry="9" fill="#ffe14a" opacity=".35"/>${star(0, -6, 36)}</g>
+<g transform="rotate(-12 150 150)"><rect x="112" y="108" width="78" height="78" rx="14" fill="#ffe14a" stroke="#1a0b33" stroke-width="5"/><text x="151" y="166" text-anchor="middle" font-family="Archivo, Impact, sans-serif" font-style="italic" font-weight="900" font-size="54" fill="#1a0b33">?</text></g>
+${bean(214, 280, 1.15, '#b8f02a', 'cap', '#ff3d9a')}
+${bean(282, 214, 1, '#ff5fae', 'ears', '#ffe14a')}
+${bean(345, 222, 0.95, '#35d4ff', 'ant', '#ff3d9a')}
+${bean(494, 236, 1.05, '#ffc93c', 'horns', '#8a4bff')}
+<path d="M0 344h640" stroke="#ff3d9a" stroke-width="1.5" opacity=".35"/>
+</svg>`;
+}

@@ -1,7 +1,7 @@
 // "Unsere Spiele": the launcher. Static markup lives in index.html; this paints the key art,
 // reads a light save summary per game, and runs the glitter (one canvas, paused when unseen).
 
-import { csArt, palaisArt, teaserArt, unoArt } from './art';
+import { csArt, palaisArt, partyArt, teaserArt, unoArt } from './art';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
@@ -11,7 +11,7 @@ const ART: Record<string, () => string> = {
   palais: palaisArt,
   cs: csArt,
   uno: unoArt,
-  board: () => teaserArt('board'),
+  party: partyArt,
   race: () => teaserArt('race'),
   quiz: () => teaserArt('quiz'),
   poker: () => teaserArt('poker'),
@@ -77,6 +77,16 @@ function unoSummary(): string | null {
   return `${nf0.format(wins)} ${wins === 1 ? 'Sieg' : 'Siege'} · ${nf0.format(s.rounds)} ${s.rounds === 1 ? 'Runde' : 'Runden'}`;
 }
 
+function partySummary(): string | null {
+  const s = readJSON('partyunser.stats');
+  const save = readJSON('partyunser.save');
+  const st = (save?.data as { st?: { round?: unknown; rules?: { rounds?: unknown } } } | undefined)?.st;
+  if (st && num(st.round) && num(st.rules?.rounds)) return `Abend läuft · Runde ${nf0.format(st.round)} von ${nf0.format(st.rules.rounds)}`;
+  if (!s || !num(s.evenings) || s.evenings <= 0) return null;
+  const wins = num(s.wins) ? s.wins : 0;
+  return `${nf0.format(s.evenings)} ${s.evenings === 1 ? 'Abend' : 'Abende'} · ${nf0.format(wins)} ${wins === 1 ? 'Sieg' : 'Siege'}`;
+}
+
 function showSave(game: string, text: string | null) {
   const el = document.querySelector<HTMLElement>(`[data-save="${game}"]`);
   if (!el || !text) return;
@@ -87,6 +97,7 @@ try {
   showSave('palais', palaisSummary());
   showSave('cs', csSummary());
   showSave('uno', unoSummary());
+  showSave('party', partySummary());
 } catch {
   /* never let a save summary break the launcher */
 }
