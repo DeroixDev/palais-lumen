@@ -5,6 +5,7 @@ import { cardHTML, prepareCards, SPRITE } from './cards';
 import { DEFAULT_RULES, TARGETS, cardCount, type Action, type Card, type Rules } from './engine';
 import { cleanCode, inviteLink, makeTransport, MAX_SEATS, netText, UnoGuest, UnoHost, validCode, type LobbyInfo } from './net';
 import { BOT_NAMES, PLAYER_COLORS, cleanName, hasProfile, loadProfile, loadRules, loadStats, saveProfile, saveRules, saveStats, type Profile } from './profile';
+import { music } from './music';
 import { setMuted, sfx, unlock } from './sfx';
 import { Table, type TableView } from './table';
 import { TableUI } from './ui';
@@ -18,6 +19,9 @@ let profile: Profile = loadProfile();
 let stats = loadStats();
 let rules: Rules = loadRules(DEFAULT_RULES);
 setMuted(profile.mute);
+// browsers only allow sound after a gesture: the first tap anywhere starts it (and the music)
+addEventListener('pointerdown', unlock, { once: true, capture: true });
+addEventListener('keydown', unlock, { once: true, capture: true });
 
 let ui: TableUI | null = null;
 let table: Table | null = null;
@@ -71,6 +75,7 @@ const FAN: Card[] = [
 // ---------------- lobby ----------------
 
 function showLobby(opts: { code?: string; focusName?: boolean } = {}) {
+  music('lobby');
   teardown();
   document.title = 'Unser Uno Spiel';
   app.innerHTML = `${SPRITE}<div class="lobby">${header()}
@@ -109,6 +114,7 @@ function showLobby(opts: { code?: string; focusName?: boolean } = {}) {
       ${rulesHTML(rules, true)}
     </div>
   </section>
+  <p class="credits">Musik und Klang mit freien Aufnahmen: Wurlitzer EP200 von Greg Sullivan (CC BY 3.0), Trompete und Posaune aus nbrosowsky/tonejs-instruments (CC BY 3.0), Versilian Community Sample Library (CC0), D. Smolken Kontrabass (CC0), LinnDrum LM-2 (gemeinfrei).</p>
   </div>`;
   lobbyMsg = '';
   const nm = app.querySelector<HTMLInputElement>('#nm')!;
@@ -186,6 +192,7 @@ function onEvent(e: { k: string } & Record<string, unknown>, v: TableView) {
 function makeUI(send: (a: Action) => void, owner: boolean, online: boolean, ownerName: string, onLobby: () => void, onLeave: () => void) {
   app.innerHTML = '';
   document.title = 'Unser Uno Spiel';
+  music('table');
   ui = new TableUI(app, { send, owner, online, ownerName }, {
     muted: profile.mute,
     onMute: (m) => { profile.mute = m; saveProfile(profile); },
@@ -278,6 +285,7 @@ function noteRoom(t: string) {
 }
 
 function showRoom(l: LobbyInfo, isHost: boolean) {
+  music('lobby');
   teardown();
   document.title = `Raum ${l.code} · Unser Uno Spiel`;
   const link = inviteLink(l.code);

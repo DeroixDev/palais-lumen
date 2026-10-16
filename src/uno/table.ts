@@ -249,7 +249,7 @@ export class Table {
       if (!this.turnPlan || this.turnPlan.key !== key) {
         const last = m.events[m.events.length - 1];
         const fresh = m.events.slice(-5).some((e) => e.k === 'deal');
-        const base = fresh ? 1700 : last?.k === 'uno' ? 500 : 750 + Math.random() * 600;
+        const base = fresh ? 2600 : last?.k === 'uno' ? 900 : 1250 + Math.random() * 900;
         this.turnPlan = { key, at: now + base * sp };
       }
       let at = this.turnPlan.at;

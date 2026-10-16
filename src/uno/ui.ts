@@ -160,6 +160,8 @@ function flightPath(a: Pose, b: Pose, o: PathOpts): Sample[] {
 const tf = (s: Sample, x: number, y: number, r: number, flip: boolean) =>
   `${flip ? 'perspective(1100px) ' : ''}translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg)${flip ? ` rotateY(${s.ry.toFixed(1)}deg)` : ''} scale(${s.sx.toFixed(4)}, ${s.sy.toFixed(4)})`;
 
+/** Tempo of all table animations (1 = the original timings). */
+const PACE = 1.3;
 const fanTf = (f: Fan) => `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) rotate(${f.a.toFixed(2)}deg)`;
 
 // ---------------- the table ----------------
@@ -585,7 +587,8 @@ export class TableUI {
     if (!g || !n) return out;
     const W = g.hand.w;
     const cw = g.cw;
-    const minStep = cw * 0.36;
+    // narrow screens go to two rows sooner, so every card keeps a readable corner
+    const minStep = cw * (W < 560 ? 0.5 : 0.36);
     const perRow = Math.max(1, Math.floor((W - cw) / minStep) + 1);
     const rows = Math.ceil(n / perRow);
     const per = Math.ceil(n / rows);
@@ -594,7 +597,9 @@ export class TableUI {
       const row = Math.floor(i / per);
       const inRow = Math.min(per, n - row * per);
       const j = i - row * per;
-      const step = inRow > 1 ? Math.min(cw * 0.72, (W - cw) / (inRow - 1)) : 0;
+      // a single arc tilts its outer cards outwards, so keep a margin for their corners
+      const room = W - cw - (rows > 1 ? cw * 0.12 : cw * 0.9);
+      const step = inRow > 1 ? Math.min(cw * 0.72, room / (inRow - 1)) : 0;
       const mid = (inRow - 1) / 2;
       const off = j - mid;
       const ang = rows > 1 ? off * 1.2 : off * Math.min(4, 36 / Math.max(inRow, 1));
@@ -991,11 +996,12 @@ export class TableUI {
     const now = performance.now();
     // one timeline: continue after what is still playing, but never lag far behind the game
     let t = Math.max(now, this.cursor);
-    if (t > now + 700) t = now + 700;
+    if (t > now + 900) t = now + 900;
     // the very first view also has to build and paint the whole table: give that a moment before cards fly
     if (!prev) t = Math.max(t, now + 220);
     const motion = !reduced.matches;
-    const D = (ms: number) => (motion ? ms : 0);
+    // everything runs a touch slower than it was, so each move can be followed (Alex 2026-10-16)
+    const D = (ms: number) => (motion ? ms * PACE : 0);
     const n = v.seats.length;
     const deck = center(g.deck);
     const discC = center(g.disc);
@@ -1095,7 +1101,7 @@ export class TableUI {
           const step = D(e.n > 4 ? 80 : 110);
           if (e.p === v.me) {
             e.cards.forEach((c, k) => {
-              arrive.set(c.id, { from: 'deck', at: t + k * step, dur: 420 });
+              arrive.set(c.id, { from: 'deck', at: t + k * step, dur: 420 * PACE });
               sounds.push([t + k * step, () => sfx.draw()]);
             });
           } else {
@@ -1113,7 +1119,7 @@ export class TableUI {
             const who = e.p;
             const strong = e.n >= 4;
             const txt = `+${e.n}`;
-            this.at(t + D(260), () => { this.flash(who, txt); this.hit(who, strong); }, true);
+            this.at(t + D(260), () => { this.flash(who, txt); this.hit(who, strong); sfx.plus(strong); }, true);
           }
           t += step * shownN + D(180);
           break;
@@ -1148,7 +1154,7 @@ export class TableUI {
           fanAt(b, t + D(320), cnt[b]);
           if (partner >= 0) {
             for (const l of leaving) l.to = partner;
-            this.sortedHand().forEach((c, k) => { if (!this.slots.has(c.id)) arrive.set(c.id, { from: partner, at: t + D(200) + k * D(40), dur: 440 }); });
+            this.sortedHand().forEach((c, k) => { if (!this.slots.has(c.id)) arrive.set(c.id, { from: partner, at: t + D(200) + k * D(40), dur: 440 * PACE }); });
           }
           t += D(520);
           break;
@@ -1162,7 +1168,7 @@ export class TableUI {
           const fromSeat = (v.me - e.dir + n) % n;
           const toSeat = (v.me + e.dir + n) % n;
           for (const l of leaving) l.to = toSeat;
-          this.sortedHand().forEach((c, k) => { if (!this.slots.has(c.id)) arrive.set(c.id, { from: fromSeat, at: t + D(200) + k * D(40), dur: 440 }); });
+          this.sortedHand().forEach((c, k) => { if (!this.slots.has(c.id)) arrive.set(c.id, { from: fromSeat, at: t + D(200) + k * D(40), dur: 440 * PACE }); });
           t += D(520);
           break;
         }
@@ -1176,12 +1182,15 @@ export class TableUI {
           const fin = v.events.some((x) => x.k === 'match');
           const winner = e.winner;
           this.resultClock = v.clock ?? null;
-          this.at(t + D(650), () => {
+          // the last card lands, then a moment to see who went out, then the result
+          this.callout(won ? 'Gewonnen!' : 'Raus!', won ? 'Du hast keine Karten mehr' : `${v.seats[winner].name} hat keine Karten mehr`, 'round', t + D(500));
+          this.at(t + D(2300), () => {
             if (won || fin) {
               const c = this.seatCenter(winner);
               glitterBurst(c.x, c.y, fin);
               if (won) sfx.win();
             }
+            if (!won) sfx.lose();
             if (this.v?.result) this.openResult(this.v);
           });
           break;
@@ -1273,7 +1282,7 @@ export class TableUI {
       co.querySelector('.co-big')!.textContent = big;
       const subEl = co.querySelector<HTMLElement>('.co-sub')!;
       subEl.textContent = sub;
-      const dur = kind === 'turn' ? 1000 : 1250;
+      const dur = (kind === 'turn' ? 1000 : kind === 'round' ? 1700 : 1250) * PACE;
       if (reduced.matches) { this.at(performance.now() + 1100, () => { if (co.className === cls) co.className = 'callout'; }); return; }
       const bigEl = co.querySelector<HTMLElement>('.co-big')!;
       const band = co.querySelector<HTMLElement>('.co-band')!;
