@@ -61,8 +61,9 @@ svg { display: block; }
 .card.back { --cc: #3a0ca3; }
 .card.back.mini {
   --cw: var(--mcw, 28px);
-  position: absolute; left: 50%; top: 0; margin-left: calc(var(--mcw, 28px) / -2);
-  transform-origin: 50% 140%; box-shadow: 0 1px 0 rgba(11, 6, 20, .6), 0 2px 5px rgba(0, 0, 0, .35);
+  position: absolute; left: 50%; bottom: 0; margin-left: calc(var(--mcw, 28px) / -2);
+  transform-origin: 50% 130%; box-shadow: 0 1px 0 rgba(11, 6, 20, .6), 0 2px 4px rgba(0, 0, 0, .3);
+  transform: translateX(calc(var(--o, 0) * var(--st))) translateY(calc(var(--o2, 0) * var(--arcf, 0) * var(--mcw))) rotate(calc(var(--o, 0) * var(--ang, 0deg)));
   transition: transform .35s var(--spring-soft, ease-out);
 }
 
@@ -111,6 +112,10 @@ svg { display: block; }
 .b-mute .spk { fill: currentColor; }
 .b-mute .x, .b-mute.off .wav { display: none; }
 .b-mute.off .x { display: block; }
+.b-music { padding: 0; }
+.b-music .x { display: none; }
+.b-music.off .x { display: block; }
+.b-music.off { color: var(--dim); }
 
 .felt {
   position: relative; isolation: isolate; overflow: hidden;
@@ -135,7 +140,11 @@ svg { display: block; }
   transform: translate(-50%, -50%); color: var(--cur); pointer-events: none;
 }
 .ringpulse, .ringspin, .ring { width: 100%; height: 100%; }
+.ringspin { will-change: transform; }
 .ring .cw, .ring .ccw { transition: opacity .3s; }
+.ring-band { opacity: .34; transition: opacity .3s; }
+.ringwrap.free .ring-band { opacity: .12; }
+.ringwrap { transition: color .35s; }
 .ring .ccw, .ringwrap.ccw .ring .cw { opacity: 0; }
 .ringwrap.ccw .ring .ccw { opacity: 1; }
 .pointer {
@@ -156,7 +165,7 @@ svg { display: block; }
 }
 .turnlbl {
   --pc: var(--acid);
-  position: absolute; left: 50%; bottom: calc(100% + var(--cw) * .36); z-index: 3; margin: 0;
+  position: absolute; left: 50%; top: calc(100% + var(--cw) * .58); z-index: 3; margin: 0;
   display: flex; align-items: center; gap: 8px; padding: 7px 14px 6px; white-space: nowrap;
   background: var(--pc); color: var(--void); box-shadow: 4px 4px 0 var(--void), 0 0 26px rgba(0, 0, 0, .35);
   font: italic 900 clamp(1.1rem, 1.8vw, 1.75rem)/1 var(--display); font-stretch: 68%; text-transform: uppercase; letter-spacing: .01em;
@@ -179,7 +188,7 @@ svg { display: block; }
   box-shadow: 0 0 0 4px var(--acid), 0 0 calc(var(--cw) * .3) calc(var(--cw) * .06) rgba(220, 255, 31, .7);
   transition: opacity .25s;
 }
-.pile.draw.hint .halo { animation: glow 1s ease-in-out infinite alternate; }
+.tbl.hints .pile.draw.hint .halo { animation: glow 1s ease-in-out infinite alternate; }
 .draw-lbl {
   position: absolute; left: 50%; bottom: calc(var(--cw) * -.34); transform: translateX(-50%);
   white-space: nowrap; font: italic 900 calc(var(--cw) * .16)/1 var(--display); font-stretch: 70%; text-transform: uppercase; letter-spacing: .04em; color: var(--paper);
@@ -189,7 +198,7 @@ svg { display: block; }
   min-width: 30px; padding: 4px 6px; background: var(--cyan); color: var(--void); box-shadow: 2px 2px 0 var(--void);
   font: italic 900 .85rem/1 var(--display); font-stretch: 80%; text-align: center;
 }
-.pile.draw.hint .draw-lbl { color: var(--acid); }
+.tbl.hints .pile.draw.hint .draw-lbl { color: var(--acid); }
 .disc-cards { position: absolute; inset: 0; }
 .disc-cards .card { position: absolute; left: 0; top: 0; }
 .cur { position: absolute; left: 50%; top: 50%; width: calc(var(--cw) * 2.5); aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
@@ -209,7 +218,7 @@ svg { display: block; }
   font: italic 900 calc(var(--cw) * .15)/1 var(--display); font-stretch: 70%; text-transform: uppercase;
   opacity: 0; transition: opacity .2s;
 }
-.cur-lbl.show { opacity: 1; }
+.cur-lbl { display: none; }
 .pend {
   position: absolute; right: calc(var(--cw) * -.85); top: 50%; transform: translateY(-50%) rotate(-8deg) scale(.6);
   padding: 6px 10px; background: var(--red); color: #fff; box-shadow: 4px 4px 0 var(--void), 0 0 0 2px #fff;
@@ -255,7 +264,7 @@ svg { display: block; }
 /* opponents */
 .opps { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .opp {
-  --pc: var(--pink); --mcw: calc(var(--cw) * .36); --fs: calc(var(--mcw) * .4);
+  --pc: var(--pink); --mcw: calc(var(--cw) * .44);
   position: absolute;
 }
 .opp[data-pos="left"] { left: var(--gutter); top: 46%; transform: translateY(-50%); }
@@ -288,18 +297,26 @@ svg { display: block; }
 .o-txt { display: grid; line-height: 1.1; }
 .o-name { font: italic 900 1.25rem/1 var(--display); font-stretch: 68%; text-transform: uppercase; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .o-sub { font-size: .75rem; color: var(--muted); white-space: nowrap; }
-.o-fan { position: relative; width: calc(var(--mcw) * 4.6); height: calc(var(--mcw) * 1.6); }
+/* an opponent's hand: a fan of backs pointing at the table centre (rotated by seat) */
+.o-fan {
+  --fw: calc(var(--mcw) * 5.2); --fh: calc(var(--mcw) * 1.5 + 6px);
+  --st: min(calc(var(--mcw) * .5), calc((var(--fw) - var(--mcw) * 1.6) / max(1, var(--n, 1) - 1)));
+  position: absolute; width: var(--fw); height: var(--fh); pointer-events: none;
+}
+.opp[data-pos="top"] .o-fan { left: 50%; top: calc(100% + 10px); transform: translateX(-50%) rotate(180deg); }
+.opp[data-pos="left"] .o-fan { left: calc(100% + 12px + var(--fh) / 2 - var(--fw) / 2); top: calc(50% - var(--fh) / 2); transform: rotate(90deg); }
+.opp[data-pos="right"] .o-fan { right: calc(100% + 12px + var(--fh) / 2 - var(--fw) / 2); top: calc(50% - var(--fh) / 2); transform: rotate(-90deg); }
 .o-count {
-  position: absolute; right: 12px; bottom: 10px; font: italic 900 2rem/1 var(--display); font-stretch: 62%; color: var(--paper);
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: italic 900 2rem/1 var(--display); font-stretch: 62%; color: var(--paper);
   text-shadow: 2px 2px 0 var(--void);
 }
 .opp.uno .o-count { color: var(--acid); }
-.opp.uno .o-fan::after {
+.opp.uno .o-count::after {
   content: 'UNO'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-8deg);
   padding: 2px 8px; background: var(--acid); color: var(--void); box-shadow: 3px 3px 0 var(--pink);
   font: italic 900 1rem/1 var(--display); font-stretch: 70%;
 }
-.opp.open .o-fan::after { content: 'Kein UNO!'; background: var(--red); color: #fff; box-shadow: 3px 3px 0 var(--void); }
+.opp.open .o-count::after { content: 'Kein UNO!'; background: var(--red); color: #fff; box-shadow: 3px 3px 0 var(--void); }
 .o-flash {
   position: absolute; left: 50%; top: 40%; z-index: 4; padding: 6px 10px; white-space: nowrap; pointer-events: none;
   background: var(--paper); color: var(--void); box-shadow: 4px 4px 0 var(--pink);
@@ -381,17 +398,17 @@ svg { display: block; }
   box-shadow: 0 0 0 3px var(--acid), 0 0 calc(var(--cw) * .22) calc(var(--cw) * .05) rgba(220, 255, 31, .8);
   transition: opacity .25s;
 }
-.slot.can .glow { animation: glow 1.15s ease-in-out infinite alternate; }
-.slot.drawn .glow { box-shadow: 0 0 0 3px var(--cyan), 0 0 calc(var(--cw) * .22) calc(var(--cw) * .05) rgba(47, 230, 255, .8); }
+.tbl.hints .slot.can .glow { opacity: .9; }
+.slot.drawn .glow { opacity: 1; box-shadow: 0 0 0 3px var(--cyan), 0 0 calc(var(--cw) * .22) calc(var(--cw) * .05) rgba(47, 230, 255, .8); }
 @keyframes glow { from { opacity: .4; } to { opacity: 1; } }
 .slot .card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgba(11, 6, 20, .5); opacity: 0; transition: opacity .25s; pointer-events: none; }
-.slot.dim .card::after { opacity: 1; }
+
 .slot:focus-visible { outline: none; }
 .slot:focus-visible .card { outline: 3px solid var(--cyan); outline-offset: 3px; }
-.hand.mine .slot.can .lift { transform: translateY(-9%); }
+.tbl.hints .hand.mine .slot.can .lift { transform: translateY(-9%); }
 @media (hover: hover) {
   .slot:hover .lift { transform: translateY(-13%) scale(1.04); }
-  .slot.can:hover .lift { transform: translateY(-26%) scale(1.08); }
+  .tbl.hints .slot.can:hover .lift { transform: translateY(-26%) scale(1.08); }
 }
 .slot:focus-visible .lift { transform: translateY(-20%) scale(1.05); }
 
@@ -598,6 +615,15 @@ svg { display: block; }
 .tog-txt b { font: italic 900 1.2rem/1 var(--display); font-stretch: 70%; text-transform: uppercase; }
 .tog-txt small { color: var(--muted); font-size: .88rem; line-height: 1.35; }
 
+/* custom mode */
+.custom { display: grid; gap: 14px; padding: 14px 16px; background: var(--void); box-shadow: inset 0 0 0 1.5px var(--line); }
+.custom.on { box-shadow: inset 0 0 0 2px var(--pink), 4px 4px 0 var(--acid); }
+.cu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; }
+.cu-grid[hidden] { display: none; }
+.cu-row { display: grid; gap: 8px; align-content: start; }
+.cu-help { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+@media (max-width: 760px) { .cu-grid { grid-template-columns: 1fr; } }
+
 /* lobby footer */
 .credits { max-width: 1500px; margin: 28px auto 0; padding: 0 var(--gutter); color: var(--dim); font-size: .75rem; line-height: 1.5; }
 
@@ -651,11 +677,11 @@ svg { display: block; }
   .tinfo span { font-size: .68rem; }
   .ib { height: 34px; min-width: 34px; padding: 0 8px; font-size: .68rem; letter-spacing: .02em; }
   /* phones: opponents as a slim strip, the table a stadium below it, round info at its top edge */
-  .felt { --opph: 66px; container-type: size; }
+  .felt { --opph: 104px; container-type: size; }
   .opps { display: flex; justify-content: center; gap: 6px; padding: 8px 8px 0; height: auto; bottom: auto; }
-  .opp { position: relative; left: auto !important; right: auto !important; top: auto !important; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 150px; --mcw: 15px; --fs: 4.6px; }
+  .opp { position: relative; left: auto !important; right: auto !important; top: auto !important; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 150px; --mcw: 19px; }
   .o-in {
-    min-width: 0; height: var(--opph); padding: 7px 8px 6px 10px; gap: 3px; justify-items: start; align-content: start;
+    min-width: 0; height: 52px; padding: 7px 8px 6px 10px; gap: 3px; justify-items: start; align-content: start;
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   }
   .opp.turn .o-in { transform: scale(1.05); }
@@ -666,9 +692,9 @@ svg { display: block; }
   .o-name { font-size: .92rem; max-width: 100%; }
   .o-sub { font-size: .6rem; }
   .o-tag { display: none; }
-  .o-fan { width: 54px; height: 24px; margin-left: 2px; }
-  .o-count { font-size: 1.35rem; right: 8px; bottom: 5px; }
-  .opp.uno .o-fan::after { font-size: .7rem; }
+  .opp .o-fan, .opp[data-pos] .o-fan { --fw: min(28vw, 124px); left: 50%; right: auto; top: calc(100% + 6px); transform: translateX(-50%) rotate(180deg); }
+  .o-count { font-size: 1.35rem; right: 8px; }
+  .opp.uno .o-count::after { font-size: .7rem; }
   .o-flash { font-size: .95rem; }
   .felt-deco {
     top: calc(var(--opph) + 16px); bottom: 10px; left: 10px; right: 10px; width: auto; height: auto; transform: none;
@@ -679,7 +705,7 @@ svg { display: block; }
   .ptr { width: 26px; margin: -13px 0 0 -6px; }
   .cur { width: calc(var(--cw) * 1.9); }
   .cur-pulse { border-width: 4px; box-shadow: 0 0 16px 2px var(--cur), inset 0 0 14px 1px var(--cur); }
-  .turnlbl { font-size: 1rem; padding: 6px 10px 5px; bottom: calc(100% + var(--cw) * .32); }
+  .turnlbl { font-size: 1rem; padding: 6px 10px 5px; top: calc(100% + var(--cw) * .5); }
   .draw-n { min-width: 26px; padding: 3px 5px; font-size: .78rem; }
   .status { bottom: 20px; max-width: calc(100% - 64px); font-size: .86rem; }
   .tclock {
@@ -729,16 +755,16 @@ svg { display: block; }
   .ringwrap { width: min(40cqw, 96cqh); }
   .mid { --cw: clamp(40px, 27cqh, 76px); gap: calc(var(--cw) * .45); }
   .cur { width: calc(var(--cw) * 1.9); }
-  .turnlbl { font-size: .95rem; padding: 5px 10px 4px; bottom: calc(100% + var(--cw) * .2); }
+  .turnlbl { font-size: .95rem; padding: 5px 10px 4px; top: auto; bottom: calc(100% + var(--cw) * .2); }
   .draw-lbl { display: none; }
   .ptr { width: 24px; margin: -12px 0 0 -6px; }
   .opps {
-    left: max(10px, env(safe-area-inset-left)); right: auto; top: 0; bottom: 0; width: min(25%, 210px);
+    left: max(10px, env(safe-area-inset-left)); right: auto; top: 0; bottom: 0; width: min(18%, 150px);
     display: flex; flex-direction: column; justify-content: center; gap: 6px;
   }
-  .opp { position: relative; left: auto !important; right: auto !important; top: auto !important; transform: none !important; --mcw: 13px; --fs: 4px; }
+  .opp { position: relative; left: auto !important; right: auto !important; top: auto !important; transform: none !important; --mcw: 16px; }
   .o-in {
-    min-width: 0; padding: 5px 44px 5px 10px; gap: 2px; justify-items: start;
+    min-width: 0; padding: 5px 34px 5px 10px; gap: 2px; justify-items: start;
     clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   }
   .opp.turn .o-in { transform: translateX(6px) scale(1.04); }
@@ -749,9 +775,9 @@ svg { display: block; }
   .o-name { font-size: .9rem; max-width: 100%; }
   .o-sub { display: none; }
   .o-tag { display: none; }
-  .o-fan { position: absolute; right: 30px; top: 50%; width: 40px; height: 20px; margin-top: -10px; }
-  .opp.uno .o-fan::after { font-size: .65rem; }
-  .o-count { font-size: 1.3rem; right: 8px; bottom: auto; top: 50%; transform: translateY(-50%); }
+  .opp .o-fan, .opp[data-pos] .o-fan { --fw: 96px; left: calc(100% + 10px); right: auto; top: calc(50% - var(--fh) / 2); transform: none; }
+  .opp.uno .o-count::after { font-size: .65rem; }
+  .o-count { font-size: 1.3rem; right: 8px; }
   .o-flash { font-size: .9rem; }
   .tclock { right: max(10px, env(safe-area-inset-right)); top: 50%; bottom: auto; transform: translateY(-50%); width: 150px; padding: 8px 10px; gap: 3px; }
   .tc-v { font-size: 1.1rem; }
@@ -772,6 +798,16 @@ svg { display: block; }
   .b-uno:disabled { box-shadow: 0 0 0 2px var(--void), 0 0 0 4px rgba(247, 242, 255, .16); }
   .hand { grid-area: 3 / 1; width: min(100% - 2 * 150px, 900px); margin-top: 0; margin-bottom: max(2px, env(safe-area-inset-bottom)); }
 }
+/* Firefox repaints big blurred shadows and endless animations on the main thread: a lighter table there */
+.ff .o-spot, .ff .halo { animation: none !important; }
+.ff .opp.turn .o-spot { opacity: .85; transform: scale(1.08); }
+.ff .tbl.hints .pile.draw.hint .halo { opacity: 1; }
+.ff .ptr svg, .ff .b-catch, .ff .b-uno.hot, .ff .tw { animation: none !important; }
+.ff .o-spot { box-shadow: 0 0 0 3px var(--pc), 0 0 14px 4px var(--pc); }
+.ff .felt-deco { box-shadow: inset 0 0 0 3px #ff3d9a, inset 0 0 0 9px rgba(11, 6, 20, .55), inset 0 0 0 12px rgba(47, 230, 255, .7), 0 0 0 2px rgba(255, 61, 154, .5); }
+.ff .fl > .card { box-shadow: 0 3px 8px rgba(4, 0, 14, .45); }
+.ff .glow { box-shadow: 0 0 0 3px var(--acid), 0 0 10px 2px rgba(220, 255, 31, .7); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .ptr svg, .cur-pulse { animation: none; }

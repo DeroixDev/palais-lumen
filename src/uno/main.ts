@@ -2,7 +2,7 @@
 
 import { botMove } from './bot';
 import { cardHTML, prepareCards, SPRITE } from './cards';
-import { DEFAULT_RULES, TARGETS, cardCount, type Action, type Card, type Rules } from './engine';
+import { DEFAULT_RULES, HAND_SIZES, HINT_DELAYS, POWER_NAMES, TARGETS, cardCount, type Action, type Card, type Rules } from './engine';
 import { cleanCode, inviteLink, makeTransport, MAX_SEATS, netText, UnoGuest, UnoHost, validCode, type LobbyInfo } from './net';
 import { BOT_NAMES, PLAYER_COLORS, cleanName, hasProfile, loadProfile, loadRules, loadStats, saveProfile, saveRules, saveStats, type Profile } from './profile';
 import { music } from './music';
@@ -11,6 +11,8 @@ import { Table, type TableView } from './table';
 import { TableUI } from './ui';
 
 const app = document.getElementById('app')!;
+// Firefox gets a lighter table (see .ff in uno.css)
+if (/firefox/i.test(navigator.userAgent)) document.documentElement.classList.add('ff');
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const params = new URLSearchParams(location.search);
 const DEV = import.meta.env.DEV || params.has('dev');
@@ -51,12 +53,33 @@ function rulesHTML(r: Rules, editable: boolean) {
   return `<div class="rules">
     <div class="r-target"><span class="r-lbl">Gewonnen bei</span><div class="seg" role="radiogroup" aria-label="Punkte zum Sieg">${TARGETS.map((t) => `<button type="button" role="radio" class="seg-b${r.target === t ? ' on' : ''}" aria-checked="${r.target === t}" data-target="${t}"${dis}>${t}</button>`).join('')}</div><span class="r-unit">Punkten</span></div>
     <ul class="house">${HOUSE.map((h) => `<li><label class="tog"><input type="checkbox" data-rule="${h.key}"${r[h.key] ? ' checked' : ''}${dis}><span class="tog-ui" aria-hidden="true"></span><span class="tog-txt"><b>${h.name}</b><small>${h.text}</small></span></label></li>`).join('')}</ul>
+    <div class="custom${r.custom ? ' on' : ''}">
+      <label class="tog cu-main"><input type="checkbox" data-rule="custom"${r.custom ? ' checked' : ''}${dis}><span class="tog-ui" aria-hidden="true"></span><span class="tog-txt"><b>Custom-Modus</b><small>Eigene Einstellungen für mehr Chaos und Spaß.</small></span></label>
+      <div class="cu-grid"${r.custom ? '' : ' hidden'}>
+        ${seg('Startkarten', 'hand', HAND_SIZES.map((n) => [n, String(n)]), r.hand, dis)}
+        ${seg('Starke Karten', 'power', POWER_NAMES.map((n, i) => [i, n]), r.power, dis, 'Mehr +2, +4, Aussetzen, Richtungswechsel und Farbwahl im Stapel.')}
+        ${seg('Tipps nach', 'hint', HINT_DELAYS.map((n) => [n, n < 0 ? 'Nie' : n === 0 ? 'Sofort' : `${n} s`]), r.hint, dis, 'Wann passende Karten in deiner Hand aufleuchten.')}
+        <label class="tog"><input type="checkbox" data-rule="double"${r.double ? ' checked' : ''}${dis}><span class="tog-ui" aria-hidden="true"></span><span class="tog-txt"><b>Doppelte Strafe</b><small>+2 gibt 4 Karten, +4 gibt 8, vergessenes UNO kostet 4.</small></span></label>
+      </div>
+    </div>
   </div>`;
 }
 
-function wireRules(root: HTMLElement, get: () => Rules, set: (r: Rules) => void) {
+function seg(label: string, key: string, opts: [number, string][], cur: number, dis: string, help = '') {
+  return `<div class="cu-row"><span class="r-lbl">${label}</span><div class="seg" role="radiogroup" aria-label="${label}">${opts.map(([v, t]) => `<button type="button" role="radio" class="seg-b${cur === v ? ' on' : ''}" aria-checked="${cur === v}" data-num="${key}" data-v="${v}"${dis}>${t}</button>`).join('')}</div>${help ? `<small class="cu-help">${help}</small>` : ''}</div>`;
+}
+
+function wireRules(root: HTMLElement, get: () => Rules, set0: (r: Rules) => void) {
+  const set = (r: Rules) => {
+    set0(r);
+    root.querySelectorAll<HTMLButtonElement>('[data-num]').forEach((b) => { const on = (r as unknown as Record<string, number>)[b.dataset.num!] === Number(b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+    root.querySelector('.custom')?.classList.toggle('on', r.custom);
+    const g = root.querySelector<HTMLElement>('.cu-grid');
+    if (g) g.hidden = !r.custom;
+  };
   root.querySelectorAll<HTMLButtonElement>('[data-target]').forEach((b) => b.addEventListener('click', () => { set({ ...get(), target: Number(b.dataset.target) }); }));
   root.querySelectorAll<HTMLInputElement>('[data-rule]').forEach((i) => i.addEventListener('change', () => { set({ ...get(), [i.dataset.rule!]: i.checked }); }));
+  root.querySelectorAll<HTMLButtonElement>('[data-num]').forEach((b) => b.addEventListener('click', () => { set({ ...get(), [b.dataset.num!]: Number(b.dataset.v) }); }));
 }
 
 function statLine() {

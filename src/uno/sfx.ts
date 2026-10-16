@@ -23,6 +23,15 @@ export function setMuted(m: boolean) {
 }
 export const isMuted = () => muted;
 
+/** Music on/off on its own (kept per browser). */
+let musicOn = (() => { try { return localStorage.getItem('unounser.music') !== '0'; } catch { return true; } })();
+export const isMusicOn = () => musicOn;
+export function setMusicOn(on: boolean) {
+  musicOn = on;
+  try { localStorage.setItem('unounser.music', on ? '1' : '0'); } catch { /* private mode */ }
+  if (musicBus && ctx) musicBus.gain.setTargetAtTime(on ? 0.42 : 0, ctx.currentTime, 0.1);
+}
+
 /** A short generated room: enough air for the brass and the marimba without a reverb file. */
 function makeVerb(c: AudioContext) {
   const len = Math.floor(c.sampleRate * 1.6);
@@ -62,7 +71,7 @@ export function unlock() {
   fxBus.connect(master);
   fxBus.connect(verb);
   musicBus = ctx.createGain();
-  musicBus.gain.value = 0.42;
+  musicBus.gain.value = musicOn ? 0.42 : 0;
   musicBus.connect(master);
   const mv = ctx.createGain();
   mv.gain.value = 0.5;
@@ -98,7 +107,7 @@ export function loadFx() {
 
 /** Music gets quieter for a moment under a big effect. */
 function duck(t: number, depth = 0.5, hold = 0.5) {
-  if (!musicBus) return;
+  if (!musicBus || !musicOn) return;
   const g = musicBus.gain;
   g.cancelScheduledValues(t);
   g.setTargetAtTime(0.42 * depth, t, 0.03);

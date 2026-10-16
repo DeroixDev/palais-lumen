@@ -28,9 +28,29 @@ export interface Rules {
   sevenZero: boolean;
   /** Reinwerfen: an identical card may be thrown in out of turn. */
   jumpIn: boolean;
+  /** Custom-Modus: the settings below apply only while this is on. */
+  custom: boolean;
+  /** Cards each player gets at the start of a round (custom). */
+  hand: number;
+  /** More strong cards in the deck (custom): 0 normal, 1 more, 2 chaos. */
+  power: number;
+  /** Penalty cards doubled (+2 gives 4, +4 gives 8, forgotten UNO gives 4) (custom). */
+  double: boolean;
+  /** Seconds before playable cards light up (-1 never). A table setting, not part of the match. */
+  hint: number;
 }
 
-export const DEFAULT_RULES: Rules = { target: 500, stack: false, drawUntil: false, sevenZero: false, jumpIn: false };
+export const DEFAULT_RULES: Rules = { target: 500, stack: false, drawUntil: false, sevenZero: false, jumpIn: false, custom: false, hand: 7, power: 0, double: false, hint: 5 };
+export const HAND_SIZES = [3, 5, 7, 10, 15] as const;
+export const POWER_NAMES = ['Normal', 'Mehr', 'Chaos'] as const;
+export const HINT_DELAYS = [0, 5, 10, -1] as const;
+
+/** Start cards, strong-card level and penalty factor in effect (the custom ones only in custom mode). */
+export const handSize = (r: Rules) => (r.custom ? Math.max(1, Math.min(20, r.hand | 0)) : 7);
+export const powerLevel = (r: Rules) => (r.custom ? Math.max(0, Math.min(2, r.power | 0)) : 0);
+/** Seconds before hints show; 5 unless custom mode sets it. */
+export const hintDelay = (r: Rules) => (r.custom ? r.hint : 5);
+export const penaltyX = (r: Rules) => (r.custom && r.double ? 2 : 1);
 export const TARGETS = [200, 300, 500, 1000] as const;
 
 export interface Player {
@@ -106,16 +126,17 @@ export type Action =
 
 // ---------------- deck ----------------
 
-export function buildDeck(): Card[] {
+/** The 108-card deck; `power` adds strong cards (1: +1 of each action card per colour and +2 of each wild, 2: twice that). */
+export function buildDeck(power = 0): Card[] {
   const d: Card[] = [];
   let id = 0;
   for (const c of COLORS) {
     d.push({ id: id++, c, k: 'num', n: 0 });
     for (let n = 1; n <= 9; n++) for (let i = 0; i < 2; i++) d.push({ id: id++, c, k: 'num', n });
-    for (const k of ['skip', 'rev', 'd2'] as const) for (let i = 0; i < 2; i++) d.push({ id: id++, c, k });
+    for (const k of ['skip', 'rev', 'd2'] as const) for (let i = 0; i < 2 + power; i++) d.push({ id: id++, c, k });
   }
-  for (let i = 0; i < 4; i++) d.push({ id: id++, c: 'w', k: 'wild' });
-  for (let i = 0; i < 4; i++) d.push({ id: id++, c: 'w', k: 'd4' });
+  for (let i = 0; i < 4 + power * 2; i++) d.push({ id: id++, c: 'w', k: 'wild' });
+  for (let i = 0; i < 4 + power * 2; i++) d.push({ id: id++, c: 'w', k: 'd4' });
   return d;
 }
 
@@ -207,9 +228,10 @@ export function startRound(m: Match) {
   m.open = null;
   m.result = null;
   m.discard = [];
-  m.drawPile = shuffle(m, buildDeck());
+  m.drawPile = shuffle(m, buildDeck(powerLevel(m.rules)));
   for (const p of m.players) { p.hand = []; p.said = false; }
-  for (let i = 0; i < 7; i++) for (const p of m.players) p.hand.push(m.drawPile.pop()!);
+  const deal = Math.min(handSize(m.rules), Math.floor((m.drawPile.length - 10) / m.players.length));
+  for (let i = 0; i < deal; i++) for (const p of m.players) p.hand.push(m.drawPile.pop()!);
   emit(m, { k: 'deal', round: m.round, dealer: m.dealer });
   // A +4 can't start the round: back into the deck, shuffle, flip again.
   let top = m.drawPile.pop()!;
@@ -232,7 +254,7 @@ export function startRound(m: Match) {
     emit(m, { k: 'rev', dir: -1 });
     m.turn = m.players.length === 2 ? next(m, m.dealer, 2) : next(m, m.dealer);
   } else if (top.k === 'd2') {
-    giveCards(m, m.turn, 2, true);
+    giveCards(m, m.turn, 2 * penaltyX(m.rules), true);
     emit(m, { k: 'skip', p: m.turn });
     m.turn = next(m, m.turn);
   }
@@ -243,17 +265,15 @@ export function startRound(m: Match) {
 export const top = (m: Match) => m.discard[m.discard.length - 1];
 
 /** Whether `c` may go on the pile right now for the player on turn. */
-export function canPlay(m: Match, c: Card, hand: Card[]): boolean {
+export function canPlay(m: Match, c: Card, _hand: Card[]): boolean {
   const t = top(m);
   if (m.pending > 0) {
     // only with Stapeln: same kind of draw card
     return m.rules.stack && c.k === t.k && (c.k === 'd2' || c.k === 'd4');
   }
   if (c.k === 'wild') return true;
-  if (c.k === 'd4') {
-    // +4 only when no card of the colour to follow is in the hand (official rule, enforced instead of challenged)
-    return m.color === null || !hand.some((h) => h.c === m.color);
-  }
+  // +4 goes on any colour, like Farbwahl (Alex 2026-10-16; the official bluff/challenge is not played)
+  if (c.k === 'd4') return true;
   if (m.color === null) return true;
   if (c.c === m.color) return true;
   if (c.k === 'num') return t.k === 'num' && t.n === c.n;
@@ -363,7 +383,7 @@ export function act(m: Match, p: number, a: Action): ActResult {
       const t = a.target;
       m.open = null;
       emit(m, { k: 'caught', p: t, by: p });
-      giveCards(m, t, 2, true);
+      giveCards(m, t, 2 * penaltyX(m.rules), true);
       return OK;
     }
     case 'draw': {
@@ -445,7 +465,7 @@ function play(m: Match, p: number, a: Extract<Action, { t: 'play' }>): ActResult
     // A last +2/+4 still hits the next player (their cards count for the winner).
     if (card.k === 'd2' || card.k === 'd4') {
       const victim = next(m, p);
-      giveCards(m, victim, m.pending + (card.k === 'd2' ? 2 : 4), true);
+      giveCards(m, victim, m.pending + (card.k === 'd2' ? 2 : 4) * penaltyX(m.rules), true);
       m.pending = 0;
     }
     endRound(m, p);
@@ -468,7 +488,7 @@ function play(m: Match, p: number, a: Extract<Action, { t: 'play' }>): ActResult
       break;
     case 'd2':
     case 'd4': {
-      const add = card.k === 'd2' ? 2 : 4;
+      const add = (card.k === 'd2' ? 2 : 4) * penaltyX(m.rules);
       if (m.rules.stack) {
         m.pending += add;
         advance(m);

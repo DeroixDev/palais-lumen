@@ -16,10 +16,10 @@
 //   cards that land on the pile fly in a fixed layer and are swapped for the pile card.
 
 import { CARD_COLORS, SPRITE, backEl, cardEl, prepareCards } from './cards';
-import { COLOR_NAME, type Action, type Card, type Color, type GameEvent } from './engine';
+import { COLOR_NAME, hintDelay, type Action, type Card, type Color, type GameEvent } from './engine';
 import { glitterBurst } from './fx';
 import { PLAYER_COLORS } from './profile';
-import { setMuted, sfx, unlock } from './sfx';
+import { isMusicOn, setMuted, setMusicOn, sfx, unlock } from './sfx';
 import type { TableClock, TableView } from './table';
 
 export interface Client {
@@ -48,7 +48,9 @@ const sortKey = (c: Card) => ORDER[c.c] * 100 + (c.k === 'num' ? c.n! : KORD[c.k
 const COLOR_KEYS: Color[] = ['r', 'y', 'g', 'b'];
 const pcol = (i: number) => PLAYER_COLORS[i] ?? PLAYER_COLORS[0];
 const initial = (n: string) => esc([...n.trim()][0]?.toUpperCase() ?? '?');
+/** Most backs drawn per draw flight, and most cards shown in an opponent's hand. */
 const FAN_MAX = 8;
+const HAND_MAX = 30;
 
 function avatar(name: string, color: number, cls = '') {
   return `<span class="ava ${cls}" style="--pc:${pcol(color)}" aria-hidden="true">${initial(name)}</span>`;
@@ -208,13 +210,14 @@ export class TableUI {
   <a class="back" href="./index.html"><span aria-hidden="true">←</span> <span class="back-t">Alle Spiele</span></a>
   <div class="tmid"><h1 class="ttitle"><span class="tt1">Unser</span><span class="tt2">Uno</span><span class="tt3">Spiel</span></h1><div class="tinfo"><b class="t-round">Runde 1</b><span class="t-target"></span></div></div>
   <div class="tbtns">
+    <button class="ib b-music" type="button" aria-pressed="true" title="Musik an/aus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path class="x" d="M3 3l18 18"/></svg><span class="sr">Musik</span></button>
     <button class="ib b-mute" type="button" aria-pressed="false" title="Ton an/aus (M)"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9h4l5-4v14l-5-4H4z"/><path class="wav" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M16 9l6 6M22 9l-6 6"/></svg><span class="sr">Ton</span></button>
     <button class="ib b-leave" type="button">Verlassen</button>
   </div>
 </header>
 <div class="felt">
   <div class="felt-deco" aria-hidden="true"></div>
-  <div class="ringwrap" aria-hidden="true"><div class="ringpulse"><div class="ringspin"><svg class="ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" stroke-width="9" opacity=".14"/><circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="5 11" opacity=".9"/><g class="cw">${[0, 90, 180, 270].map((a) => `<path transform="rotate(${a} 100 100)" d="M92 2l17 8-17 8z" fill="currentColor"/>`).join('')}</g><g class="ccw">${[0, 90, 180, 270].map((a) => `<path transform="rotate(${a} 100 100)" d="M108 2l-17 8 17 8z" fill="currentColor"/>`).join('')}</g></svg></div></div>
+  <div class="ringwrap" aria-hidden="true"><div class="ringpulse"><div class="ringspin"><svg class="ring" viewBox="0 0 200 200"><circle class="ring-band" cx="100" cy="100" r="90" fill="none" stroke="currentColor" stroke-width="9"/><circle cx="100" cy="100" r="90" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="5 11" opacity=".9"/><g class="cw">${[0, 90, 180, 270].map((a) => `<path transform="rotate(${a} 100 100)" d="M92 2l17 8-17 8z" fill="currentColor"/>`).join('')}</g><g class="ccw">${[0, 90, 180, 270].map((a) => `<path transform="rotate(${a} 100 100)" d="M108 2l-17 8 17 8z" fill="currentColor"/>`).join('')}</g></svg></div></div>
     <div class="pointer"><div class="ptr"><svg viewBox="0 0 40 40"><path d="M2 6l36 14L2 34l9-14z"/></svg></div></div>
   </div>
   <div class="opps"></div>
@@ -251,6 +254,10 @@ export class TableUI {
     root.appendChild(this.el);
 
     this.q('.b-mute').addEventListener('click', () => this.toggleMute());
+    const mb = this.q('.b-music');
+    const syncMusic = () => { mb.classList.toggle('off', !isMusicOn()); mb.setAttribute('aria-pressed', String(isMusicOn())); };
+    syncMusic();
+    mb.addEventListener('click', () => { unlock(); setMusicOn(!isMusicOn()); syncMusic(); });
     this.q('.b-leave').addEventListener('click', () => this.openLeave());
     this.q('.pile.draw').addEventListener('click', () => this.draw());
     this.q('.b-pass').addEventListener('click', () => this.send({ t: 'pass' }));
@@ -732,7 +739,7 @@ export class TableUI {
         const s = this.slots.get(e.card.id);
         if (f && s) {
           const c = this.slotCenter(f);
-          const lift = (s.matches(':hover') && matchMedia('(hover: hover)').matches ? 0.26 : s.classList.contains('can') ? 0.09 : 0) * g.cw * 1.5;
+          const lift = (s.matches(':hover') && matchMedia('(hover: hover)').matches ? 0.26 : s.classList.contains('can') && this.el.classList.contains('hints') ? 0.09 : 0) * g.cw * 1.5;
           const a = (f.a * Math.PI) / 180;
           myPlays.set(e.card.id, { x: c.x + Math.sin(a) * lift, y: c.y - Math.cos(a) * lift, r: f.a, s: g.cw / g.disc.w });
         }
@@ -771,7 +778,7 @@ export class TableUI {
         el = document.createElement('div');
         el.className = 'opp';
         el.dataset.seat = String(i);
-        el.innerHTML = `<span class="o-spot" aria-hidden="true"></span><div class="o-in"><div class="o-head"><span class="o-ava"></span><span class="o-txt"><b class="o-name"></b><span class="o-sub"></span></span></div><div class="o-fan"></div><span class="o-count"></span><span class="o-tag">Am Zug</span><span class="o-flash"></span></div>`;
+        el.innerHTML = `<span class="o-spot" aria-hidden="true"></span><div class="o-in"><div class="o-head"><span class="o-ava"></span><span class="o-txt"><b class="o-name"></b><span class="o-sub"></span></span></div><span class="o-count"></span><span class="o-tag">Am Zug</span><span class="o-flash"></span></div><div class="o-fan" aria-hidden="true"></div>`;
         box.appendChild(el);
         this.opps.set(i, el);
         changed = true;
@@ -797,14 +804,20 @@ export class TableUI {
     count = Math.max(0, count);
     this.shown.set(i, count);
     const fan = el.querySelector<HTMLElement>('.o-fan')!;
-    const show = Math.min(count, FAN_MAX);
+    // their hand as they hold it, seen from across the table: every card a back, fanned like mine
+    // (spacing, tilt and arc come from CSS vars, so a resize needs no JS)
+    const show = Math.min(count, HAND_MAX);
     while (fan.childElementCount < show) fan.appendChild(backEl('mini'));
     while (fan.childElementCount > show) fan.lastElementChild!.remove();
+    const mid = (show - 1) / 2;
+    fan.style.setProperty('--n', String(Math.max(1, show)));
+    fan.style.setProperty('--ang', `${Math.min(7, 64 / Math.max(show, 1)).toFixed(2)}deg`);
+    fan.style.setProperty('--arcf', (0.22 / Math.max(1, mid * mid)).toFixed(4));
     [...fan.children].forEach((m, j) => {
-      const off = j - (show - 1) / 2;
-      const t = `translateX(calc(var(--fs) * ${off.toFixed(1)})) rotate(${(off * 7).toFixed(1)}deg)`;
+      const off = j - mid;
       const me = m as HTMLElement;
-      if (me.style.transform !== t) me.style.transform = t;
+      me.style.setProperty('--o', off.toFixed(1));
+      me.style.setProperty('--o2', (off * off - mid * mid).toFixed(2));
     });
     const ct = el.querySelector('.o-count')!;
     if (ct.textContent !== String(count)) ct.textContent = String(count);
@@ -843,16 +856,24 @@ export class TableUI {
     if (open !== null) ca.innerHTML = `Erwischt! <small>${esc(v.seats[open].name)} hat nicht UNO gesagt</small>`;
   }
 
-  /** Classes on my cards: playable glow, dimmed, the card just drawn. */
+  /** Playable cards only light up after a while on my turn (Alex: hints only after some thinking time). */
+  private hintTimer = 0;
+  private armHints(sec: number | null) {
+    clearTimeout(this.hintTimer);
+    this.el.classList.remove('hints');
+    if (sec === null || sec < 0) return;
+    if (sec === 0) { this.el.classList.add('hints'); return; }
+    this.hintTimer = window.setTimeout(() => { if (this.myTurn()) { this.el.classList.add('hints'); this.renderStatus(); } }, sec * 1000);
+  }
+
+  /** Classes on my cards: playable, the card just drawn (they only show once hints are on). */
   private markHand(v: TableView) {
-    const my = this.myTurn() || (v.rules.jumpIn && v.can.length > 0);
     const hand = this.sortedHand();
     hand.forEach((c, i) => {
       const s = this.slots.get(c.id);
       if (!s) return;
       const can = v.can.includes(c.id);
       s.classList.toggle('can', can);
-      s.classList.toggle('dim', my && !can);
       s.classList.toggle('drawn', v.drawnId === c.id);
       s.tabIndex = i === Math.min(this.focusIdx, hand.length - 1) ? 0 : -1;
       const label = `${cardLabel(c)}${can ? ', spielbar' : ''}`;
@@ -904,13 +925,14 @@ export class TableUI {
     // only on the two small subtrees that use it: a custom property on the table root would restyle everything
     this.q('.mid').style.setProperty('--cur', col);
     this.q('.ringwrap').style.setProperty('--cur', col);
-    const lbl = this.q('.cur-lbl');
-    lbl.textContent = c ? COLOR_NAME[c] : 'Freie Farbe';
-    lbl.classList.toggle('show', topWild || !c);
+    // the coloured ring around the piles is the one colour signal (no word, no extra glow)
+    this.q('.ringwrap').classList.toggle('free', !c);
+    void topWild;
   }
 
   private startSpin() {
-    if (reduced.matches) return;
+    // the slow ring spin costs Firefox a full repaint each frame: there the ring stands still
+    if (reduced.matches || document.documentElement.classList.contains('ff')) return;
     this.spin = this.q('.ringspin').animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 36000, iterations: Infinity });
   }
 
@@ -971,19 +993,28 @@ export class TableUI {
     if (mine && !this.wasMyTurn) {
       this.callout('Du bist dran', '', 'turn', performance.now());
       sfx.turn();
-    }
+      this.armHints(hintDelay(v.rules));
+    } else if (!mine && this.wasMyTurn) this.armHints(null);
     this.wasMyTurn = mine;
     this.turnShown = turn;
     this.markHand(v);
 
+    this.renderStatus();
+  }
+
+  private renderStatus() {
+    const v = this.v;
+    if (!v) return;
     const s = this.q('.status');
     const my = this.myTurn();
+    const hints = this.el.classList.contains('hints');
     let txt = '';
     if (v.phase === 'roundEnd' || v.phase === 'matchEnd') txt = v.result ? (v.result.winner === v.me ? 'Du hast keine Karten mehr!' : `${v.seats[v.result.winner].name} ist raus!`) : '';
     else if (my) {
-      if (v.pending > 0) txt = v.can.length ? `+${v.pending} kommt auf dich zu: drauflegen oder ziehen` : `Du ziehst ${v.pending} Karten`;
+      if (v.pending > 0) txt = `+${v.pending} kommt auf dich zu: drauflegen oder ziehen`;
       else if (v.phase === 'drawn') txt = 'Gezogene Karte spielen oder behalten?';
-      else txt = v.can.length ? 'Spiel eine leuchtende Karte' : 'Nichts passt: zieh eine Karte';
+      else if (!hints) txt = 'Leg eine Karte oder zieh eine';
+      else txt = v.can.length ? 'Tipp: die leuchtenden Karten passen' : 'Nichts passt: zieh eine Karte';
     }
     if (s.textContent !== txt) s.textContent = txt;
     s.classList.toggle('mine', my);
@@ -1058,7 +1089,7 @@ export class TableUI {
               } else {
                 cnt[p] = r + 1;
                 const c = r + 1;
-                this.flyLayer(() => backEl(), g.deck, { ...deck, r: 0, s: 1 }, { ...this.seatCenter(p), r: 12, s: 0.36 }, at, D(380), { arc: 0.12, fade: true, pop: 0.05 }, () => this.setFan(p, c));
+                this.flyLayer(() => backEl(), g.deck, { ...deck, r: 0, s: 1 }, { ...this.seatCenter(p), r: 0, s: 0.42 }, at, D(380), { arc: 0.12, fade: true, pop: 0.05 }, () => this.setFan(p, c));
               }
             }
           }
@@ -1092,7 +1123,6 @@ export class TableUI {
             this.flyLayer(() => cardEl(c), g.disc, { ...sc, r: -20, s: 0.4 }, to, t, D(520), { arc: 0.28, flip: true, squash: true, spin: 14, pop: 0.12 }, land);
           }
           if (e.jump) this.callout('Reingeworfen!', v.seats[e.p].name, 'jump', t);
-          if (e.color && c.c === 'w') { const who = v.seats[e.p].name; const ec = e.color; this.at(t + D(440), () => this.toast(`${who} wählt ${COLOR_NAME[ec]}`, ec), true); }
           t += D(e.p === v.me ? 320 : 400);
           break;
         }
@@ -1111,7 +1141,7 @@ export class TableUI {
               const at = t + k * step;
               const p = e.p;
               sounds.push([at, () => sfx.draw()]);
-              this.flyLayer(() => backEl(), g.deck, { ...deck, r: 0, s: 1 }, { ...this.seatCenter(p), r: 14, s: 0.36 }, at, D(380), { arc: 0.14, fade: true, pop: 0.06 }, () => this.setFan(p, c));
+              this.flyLayer(() => backEl(), g.deck, { ...deck, r: 0, s: 1 }, { ...this.seatCenter(p), r: 0, s: 0.42 }, at, D(380), { arc: 0.14, fade: true, pop: 0.06 }, () => this.setFan(p, c));
             }
             cnt[e.p] = base + e.n;
           }
