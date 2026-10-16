@@ -143,7 +143,7 @@
 @keyframes blink { 0%, 92%, 100% { transform: none; } 95% { transform: scaleY(.1); } }
 @keyframes stache { 0%, 100% { transform: none; } 50% { transform: rotate(2deg) scaleX(1.04); } }
 @keyframes talk { from { transform: scaleY(.4); } to { transform: scaleY(1.3); } }
-.shop .scn-bub { left: 22%; top: 3%; max-width: min(360px, 48%); }
+.shop .scn-bub { left: 40%; top: 4%; max-width: min(360px, 48%); }
 .shop-counter { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; z-index: 2; }
 .counter-top { position: absolute; left: -1%; right: -1%; top: 0; height: 22px; background: #e0a060; box-shadow: 0 0 0 3px var(--void), 0 6px 0 #a8622a; border-radius: 6px; }
 .counter-front { position: absolute; left: 1%; right: 1%; top: 25px; bottom: 0; background: repeating-linear-gradient(90deg, #8a3fd0 0 26px, #7a30c0 26px 52px); box-shadow: inset 0 0 0 3px var(--void); }
