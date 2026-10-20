@@ -1,30 +1,33 @@
-// Quality: render sharp (full device pixel ratio up to 2, MSAA, big shadow maps) and step down
-// automatically only when frames stay slow. Order of the steps (Auto): first the shadow map
-// size, then the effects (ambient life), and only at the very end the pixel ratio, never below
-// 1. Shadows are never switched off in Auto (that would recompile every shader: a visible
-// hitch). A step down needs two 2-second windows in a row whose MEDIAN frame time is above
-// 24 ms (single spikes don't count); a step up needs two good windows (about 4 s), and never to
-// a level that already failed twice. The player can also pick a fixed level.
+// Quality: render sharp (full device pixel ratio up to 2, MSAA, big shadow maps, bloom and the
+// colour grade) and step down automatically only when frames stay slow. Order of the steps
+// (Auto): first the bloom (the post passes that cost most), then the shadow map size, then the
+// effects (ambient life, air particles, the colour-grade pass), and only at the very end the
+// pixel ratio, never below 1. Shadows are never switched off in Auto (that would recompile every
+// shader: a visible hitch). A step down needs two 2-second windows in a row whose MEDIAN frame
+// time is above 24 ms (single spikes don't count); a step up needs two good windows (about 4 s),
+// and never to a level that already failed twice. The player can also pick a fixed level.
 
 import type { Quality } from '../types';
 import { allLights, getRenderer } from './kit';
 
-interface Level { dpr: number; shadow: number; fx: boolean; name: string }
+/** post: 2 = bloom + grade, 1 = grade only, 0 = straight to the screen. */
+interface Level { dpr: number; shadow: number; fx: boolean; post: 0 | 1 | 2; name: string }
 const dev = () => window.devicePixelRatio || 1;
 const LEVELS: (() => Level)[] = [
-  () => ({ dpr: Math.min(dev(), 2), shadow: 1, fx: true, name: 'hoch' }),
-  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: true, name: 'hoch-' }),
-  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: false, name: 'mittel' }),
-  () => ({ dpr: Math.min(dev(), 1.75), shadow: 0.5, fx: false, name: 'mittel-' }),
-  () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.25, fx: false, name: 'niedrig' }),
-  () => ({ dpr: Math.min(dev(), 1.25), shadow: 0.25, fx: false, name: 'niedrig-' }),
-  () => ({ dpr: 1, shadow: 0.25, fx: false, name: 'minimal' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 1, fx: true, post: 2, name: 'hoch' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 1, fx: true, post: 1, name: 'hoch-' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: true, post: 1, name: 'hoch--' }),
+  () => ({ dpr: Math.min(dev(), 2), shadow: 0.5, fx: false, post: 0, name: 'mittel' }),
+  () => ({ dpr: Math.min(dev(), 1.75), shadow: 0.5, fx: false, post: 0, name: 'mittel-' }),
+  () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.25, fx: false, post: 0, name: 'niedrig' }),
+  () => ({ dpr: Math.min(dev(), 1.25), shadow: 0.25, fx: false, post: 0, name: 'niedrig-' }),
+  () => ({ dpr: 1, shadow: 0.25, fx: false, post: 0, name: 'minimal' }),
 ];
 /** Fixed levels picked in the settings (Niedrig turns shadows off: one recompile, on purpose). */
 const FIXED: Record<Exclude<Quality, 'auto'>, () => Level> = {
   hoch: LEVELS[0],
-  mittel: () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.5, fx: true, name: 'mittel' }),
-  niedrig: () => ({ dpr: 1, shadow: 0, fx: false, name: 'niedrig' }),
+  mittel: () => ({ dpr: Math.min(dev(), 1.5), shadow: 0.5, fx: true, post: 1, name: 'mittel' }),
+  niedrig: () => ({ dpr: 1, shadow: 0, fx: false, post: 0, name: 'niedrig' }),
 };
 const WINDOW = 2;
 const SLOW = 0.024, FAST = 0.0185;
@@ -40,8 +43,10 @@ export const quality = {
   good: 0,
   changes: 0,
   last: '' as string,
-  /** Effects on (ambient life); boards read this. */
+  /** Effects on (ambient life, air particles); boards read this. */
   fx: true,
+  /** Post-processing: 2 bloom + grade, 1 grade only, 0 none. */
+  post: 2 as 0 | 1 | 2,
   /** Bumped whenever shadow maps were reallocated (baked shadow maps must be drawn again). */
   shadowEpoch: 0,
 
@@ -76,6 +81,7 @@ export const quality = {
       }
     }
     this.fx = L.fx;
+    this.post = L.post;
     this.last = L.name;
   },
 

@@ -5,6 +5,7 @@
 
 import type { BEdge, BNode } from './types';
 import { BOX, CYL8, FONT, THREE, ctex, markShared, toon } from '../view3d/kit';
+import { glow } from '../view3d/shaderfx';
 
 /** Low-poly shapes for small parts (bulbs, leaves): far fewer triangles than the kit spheres. */
 export const BULB = markShared0(new THREE.IcosahedronGeometry(1, 0));
@@ -59,7 +60,7 @@ export function plinth(sc: THREE.Scene, pts: P2[], top: THREE.Material, side: st
 /** A glowing trim tube along the outline. */
 export function trim(sc: THREE.Scene, pts: P2[], y: number, r: number, color: string, scale = 1) {
   const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x * scale, y, z * scale)), true, 'catmullrom', 0.1);
-  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 6, r, 6, true), new THREE.MeshBasicMaterial({ color }));
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 6, r, 6, true), glow(new THREE.MeshBasicMaterial({ color }), 0.7));
   sc.add(m);
   return m;
 }
@@ -92,7 +93,7 @@ export function chaseLights(sc: THREE.Scene, nodes: BNode[], edges: BEdge[], off
     const nx = -dz / l, nz = dx / l, mx = (A.x + B.x) / 2, mz = (A.z + B.z) / 2;
     pos.push([mx + nx * off, mz + nz * off], [mx - nx * off, mz - nz * off]);
   }
-  const mat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+  const mat = glow(new THREE.MeshBasicMaterial({ color: '#ffffff' }));
   const im = new THREE.InstancedMesh(BULB, mat, pos.length);
   const dummy = new THREE.Object3D();
   pos.forEach(([x, z], i) => { dummy.position.set(x, y, z); dummy.scale.setScalar(size); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
@@ -161,7 +162,7 @@ export function signTex(text: string, o: { w?: number; h?: number; bg?: string; 
 
 /** A flat textured plane (sign) facing +z, placed and turned. */
 export function signMesh(tex: THREE.Texture, w: number, h: number, x: number, y: number, z: number, yaw = 0) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glow(new THREE.MeshBasicMaterial({ map: tex }), 0.6));
   m.position.set(x, y, z);
   m.rotation.y = yaw;
   return m;

@@ -1,28 +1,50 @@
 // Neonstadt in 3D: island with neon rim and canal, pastel houses (instanced), trees and lamps
 // (one merged mesh), Riesenrad with upright gondolas, plaza with the Drehbühne, Neonturm,
 // Leuchtturm with its beam, harbour with rocking boats, the start sign and the drawbridge.
+// Mood: a colourful afternoon that sinks into a pink sunset and tips into a neon night, with
+// harbour fog over the water, light cones under the lamps and chimney smoke over the roofs.
 
 import type { BEdge } from '../types';
 import type { BoardDecor, BoardKit } from '../../view3d/boardview';
 import {
-  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, OUT, SPH, SPH_LO, STAR_GEO, THREE, TOR, VC, VC_EMI, ctex, skyTex, toon,
+  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, OUT, SPH, SPH_LO, STAR_GEO, THREE, TOR, VC, VC_EMI, ctex, toon,
 } from '../../view3d/kit';
+import type { Mood } from '../../view3d/atmo';
+import { aoAdd, coneMap, type AirArea } from '../../view3d/fx3d';
+import { glow, glowEmi } from '../../view3d/shaderfx';
 import { sfx } from '../../sfx';
 import { E, TAU, clamp, lerp, pickR, rand, tween, wait } from '../../util';
 import { roundRect, type P2 } from '../bauteile';
-import { BOAT, PERSON, PROPS, flock, foam, groundTex, instanced, loopers, type Item } from '../details';
+import { BOAT, PERSON, PROPS, flock, groundTex, instanced, loopers, type Item } from '../details';
 
 const _c = new THREE.Color();
 
 /** The canal on the west side (no spaces there, the bridges cross it). */
 export const inCanal = (x: number, z: number) => x < -6 && Math.abs(z) < 2.9;
 
+const sm = (a: number, b: number, x: number) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+/** Afternoon (bright and colourful), sunset (pink and orange), neon night (violet, harbour fog). */
+const MOOD: Mood = {
+  keys: [
+    { hemi: '#fff3fb', ground: '#6b4ad0', hemiI: 1.55, sun: '#fff0d8', sunI: 2.3, sunPos: [-28, 55, 30], fog: '#f2a3d0', fogNear: 70, fogFar: 270,
+      haze: '#ffd6ee', hazeD: 0.18, hazeTop: 1.4, zen: '#8fd0ff', hor: '#c8f0ff', shal: '#5ae6f8', deep: '#2a9ee0',
+      glow: 0, bloom: 0.35, exposure: 1.02, contrast: 1.1, sat: 1.16, lift: '#0c0620', gain: '#fffaf0', vignette: 0.24 },
+    { hemi: '#ffc8dc', ground: '#6a4aa8', hemiI: 1.3, sun: '#ffa070', sunI: 2.1, sunPos: [-62, 26, 16], fog: '#ee8aa6', fogNear: 80, fogFar: 290,
+      haze: '#ffae98', hazeD: 0.34, hazeTop: 2.2, zen: '#8a74e0', hor: '#ffb48e', shal: '#c88ac8', deep: '#5a4ab8',
+      glow: 0.45, bloom: 0.65, exposure: 1.0, contrast: 1.08, sat: 1.14, lift: '#0c0018', gain: '#fff6ee', vignette: 0.3 },
+    { hemi: '#8072d8', ground: '#180a3e', hemiI: 0.85, sun: '#aebcff', sunI: 0.75, sunPos: [26, 60, 24], fog: '#26105a', fogNear: 85, fogFar: 290,
+      haze: '#5c3cae', hazeD: 0.5, hazeTop: 2.8, zen: '#1c1454', hor: '#40308a', shal: '#2a3ca6', deep: '#0c144a',
+      glow: 1, bloom: 1.15, exposure: 1.05, contrast: 1.08, sat: 1.16, lift: '#0a0424', gain: '#eef0ff', vignette: 0.38 },
+  ],
+  ao: [0.45, 1.0],
+  air: (L) => [sm(0.25, 0.9, L.glow) * 1.1, 0.35 * (1 - L.night), 0.85, 0.9],
+};
+
 export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst: number }): BoardDecor {
   const sc = kit.scene, nodes = kit.graph.nodes, edges = kit.graph.edges;
-  const sky = skyTex(['#5a2bd6', '#c24fd6', '#ff7ab8', '#ffc38a']);
-  const skyNight = skyTex(['#0b0630', '#2a0d6e', '#5b2bd6', '#8a3fb0']);
-  sc.background = sky;
   sc.fog = new THREE.Fog('#f2a3d0', 110, 320);
+  kit.atmo.setMood(MOOD);
+  const air: AirArea[] = [];
   const dummy = new THREE.Object3D();
 
   // --- island (one extruded shape with the canal inlet) ---
@@ -50,22 +72,18 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   island.position.y = -3.5;
   island.receiveShadow = true;
   sc.add(island);
-  const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0.06, z)), true, 'catmullrom', 0.1), 420, 0.2, 6, true), new THREE.MeshBasicMaterial({ color: '#ff4fb0' }));
-  const rim2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x * 1.012, -1.6, z * 1.015)), true, 'catmullrom', 0.1), 420, 0.14, 5, true), new THREE.MeshBasicMaterial({ color: '#35e6ff' }));
+  const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0.06, z)), true, 'catmullrom', 0.1), 420, 0.2, 6, true), glow(new THREE.MeshBasicMaterial({ color: '#ff4fb0' })));
+  const rim2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x * 1.012, -1.6, z * 1.015)), true, 'catmullrom', 0.1), 420, 0.14, 5, true), glow(new THREE.MeshBasicMaterial({ color: '#35e6ff' }), 0.6));
   sc.add(rim, rim2);
 
-  // --- water ---
-  const waterTex = ctex(128, 128, (g) => {
-    g.fillStyle = '#3cc8ef'; g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3; g.lineCap = 'round';
-    for (let k = 0; k < 7; k++) { const x = Math.random() * 128, y = Math.random() * 128; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 5, x + 16, y); g.stroke(); }
-  }, true);
-  waterTex.repeat.set(70, 70);
-  const waterMat = new THREE.MeshBasicMaterial({ map: waterTex });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), waterMat);
-  water.rotation.x = -Math.PI / 2;
-  water.position.y = -1.25;
-  sc.add(water);
+  // --- water (waves, glitter, shoreline foam, the lights mirrored at night) ---
+  kit.atmo.water({
+    y: -1.25, shore: { c: [0, -1], b: [37.6, 24.6], r: 8.6 }, cut: { c: [-21.5, 0], b: [16.4, 2.0] }, rim: '#ff4fb0',
+    lights: [
+      { p: [-33, 9.2, -20.5], c: '#fff3a6', k: 50 }, { p: [-22, 10.6, -9], c: '#fff0b0', k: 40 }, { p: [-22, 5, -9], c: '#ff4fb0', k: 45 },
+      { p: [22, 7.8, -3], c: '#ffe680', k: 16 }, { p: [22, 3, -3], c: '#8ff3ff', k: 16 }, { p: [0, 3.5, 14], c: '#ffb84a', k: 22 }, { p: [-40, 1.6, 9], c: '#ffd9a0', k: 60 },
+    ],
+  });
 
   // --- free spots ---
   const LANDMARKS: [number, number, number][] = [[22, -3, 8], [1.5, -8, 6], [-22, -9, 3.6], [-33, -20.5, 3.4], [0, 13.6, 3.6]];
@@ -75,6 +93,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   // --- buildings (instanced) ---
   const winTex = ctex(64, 128, (g) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#c9c0e6'; for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) g.fillRect(5 + i * 15, 6 + j * 15, 9, 10); });
   const winEmi = ctex(64, 128, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128); for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) if (Math.random() < 0.45) { g.fillStyle = pickR(['#ffe680', '#8ff3ff', '#ffb3e0']); g.fillRect(5 + i * 15, 6 + j * 15, 9, 10); } });
+  const st0 = new Batch();
   const BGEO = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), BOUT = new THREE.BoxGeometry(1.07, 1.02, 1.07).translate(0, 0.5, 0);
   const blds: { x: number; z: number; w: number; d: number; h: number }[] = [];
   for (let x = -33; x <= 33; x += 4.3) for (let z = -22; z <= 20; z += 4.3) {
@@ -85,7 +104,8 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   }
   const BCOL = ['#ffd0e8', '#c8f0ff', '#fff0b8', '#dccbff', '#c9ffd9', '#ffd9c2'];
   const ROOF = ['#ff4fb0', '#35d4ff', '#b8f02a', '#ffd23f', '#8a5bff'];
-  const bMat = new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 0.85, gradientMap: GRAD });
+  const bMat = glowEmi(new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 0.85, gradientMap: GRAD }), 1.1);
+  kit.atmo.emissive(bMat, 0.6, 1.75);
   // windows keep their size on every building: the UVs repeat with the instance's width/height
   for (const t of [winTex, winEmi]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
   bMat.onBeforeCompile = (sh) => {
@@ -104,6 +124,13 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     rM.setMatrixAt(i, dummy.matrix); rM.setColorAt(i, _c.set(ROOF[i % ROOF.length]));
   });
   bM.castShadow = rM.castShadow = true;
+  for (const b of blds) aoAdd(sc, b.x, b.z, b.w + 1.6, b.d + 1.6, 0, 0.75);
+  // chimneys with smoke on a few roofs
+  blds.filter((b, i) => b.h > 4 && i % 5 === 1).slice(0, 5).forEach((b) => {
+    const cx = b.x - b.w * 0.25, cz = b.z - b.d * 0.2;
+    st0.add(BOX, '#b46b5a', cx, b.h + 0.75, cz, 0, 0, 0, 0.5, 1.2, 0.5); st0.add(BOX, '#2a1258', cx, b.h + 1.38, cz, 0, 0, 0, 0.62, 0.1, 0.62);
+    air.push({ kind: 'smoke', x: cx, z: cz, r: 0.1, n: 9, y0: b.h + 1.5, size: 1.3 });
+  });
   bM.receiveShadow = rM.receiveShadow = true;
   sc.add(bM, bO, rM);
 
@@ -131,7 +158,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const nearBld = (x: number, z: number, m: number) => blds.some((b) => Math.abs(b.x - x) < b.w / 2 + m && Math.abs(b.z - z) < b.d / 2 + m);
 
   // --- static decor batch (trees, lamps, landmarks) ---
-  const st = new Batch(), gl = new Batch();
+  const st = st0, gl = new Batch();
   let trees = 0;
   for (let k = 0; k < 400 && trees < 46; k++) {
     const x = rand(-34, 34), z = rand(-23, 21);
@@ -140,8 +167,11 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     st.add(CYL8, '#8a4e2e', x, 0.5 * s, z, 0, 0, 0, 0.16 * s, 1 * s, 0.16 * s);
     st.add(SPH_LO, col, x, 1.45 * s, z, 0, 0, 0, 0.8 * s, 0.7 * s, 0.8 * s);
     st.add(SPH_LO, col, x + 0.3 * s, 1.95 * s, z - 0.1, 0, 0, 0, 0.5 * s);
+    aoAdd(sc, x, z, 2.3 * s, 2.3 * s, 0, 0.55);
+    if (trees % 3 === 0) air.push({ kind: 'firefly', x, z, r: 2.2, n: 3, y0: 0.8, y1: 2.8 });
     trees++;
   }
+  const lampPts: [number, number, number][] = [];
   nodes.forEach((n, i) => {
     if (i % 3) return;
     const nx = nodes[n.next[0]];
@@ -151,11 +181,12 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     if (!inIsland(x, z, 0.6) || inCanal(x, z)) return;
     st.add(CYL8, '#2a1258', x, 1.2, z, 0, 0, 0, 0.08, 2.4, 0.08); st.add(CYL8, '#2a1258', x, 0.1, z, 0, 0, 0, 0.22, 0.2, 0.22);
     gl.add(SPH_LO, i % 2 ? '#ff7ad0' : '#7af0ff', x, 2.5, z, 0, 0, 0, 0.26);
+    lampPts.push([x, 2.35, z]);
   });
   // start sign
   st.add(BOX, '#2a1258', -3.2, 1.6, 13.8, 0, 0, 0, 0.25, 3.2, 0.25); st.add(BOX, '#2a1258', 3.2, 1.6, 13.8, 0, 0, 0, 0.25, 3.2, 0.25);
   ([['#ff4fb0', -2.6], ['#ffd23f', -3.4], ['#35d4ff', 2.8], ['#b8f02a', 3.6]] as const).forEach(([c, x]) => { st.beam([x > 0 ? 3.2 : -3.2, 3.2, 13.8], [x, 4.6, 13.6], 0.02, '#ffffff'); st.add(SPH, c, x, 4.9, 13.6, 0, 0, 0, 0.38, 0.46, 0.38); });
-  const startSign = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 1.7), new THREE.MeshBasicMaterial({
+  const startSign = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 1.7), glow(new THREE.MeshBasicMaterial({
     map: ctex(512, 132, (g) => {
       g.fillStyle = '#1a0b33'; g.fillRect(0, 0, 512, 132);
       const gr = g.createLinearGradient(0, 0, 512, 0);
@@ -163,7 +194,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
       g.strokeStyle = gr; g.lineWidth = 10; g.strokeRect(6, 6, 500, 120);
       g.font = `italic 900 92px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = gr; g.fillText('★ START ★', 256, 72);
     }),
-  }));
+  }), 0.7));
   startSign.position.set(0, 2.6, 13.95);
   sc.add(startSign);
 
@@ -196,7 +227,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     sc.add(g);
     leaves.push({ g, s });
   }
-  const lampMat = new THREE.MeshBasicMaterial({ color: '#7dff8a' });
+  const lampMat = glow(new THREE.MeshBasicMaterial({ color: '#7dff8a' }));
   const bridgeLamp = new THREE.Mesh(SPH_LO, lampMat);
   bridgeLamp.scale.setScalar(0.32);
   bridgeLamp.position.set(drawX + 1.6, 3.2, 2.9);
@@ -207,7 +238,8 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   // Riesenrad
   const FW = { x: 22, y: 7.8, z: -3, R: 5.4 };
   for (const sz of [-1.1, 1.1]) { st.beam([FW.x - 3.4, 0, FW.z + sz * 1.4], [FW.x, FW.y, FW.z + sz], 0.22, '#ffffff'); st.beam([FW.x + 3.4, 0, FW.z + sz * 1.4], [FW.x, FW.y, FW.z + sz], 0.22, '#ffffff'); }
-  st.add(CYL, '#ff4fb0', FW.x, 0.15, FW.z, 0, 0, 0, 4.4, 0.3, 2.8); st.add(BOX, '#ffd23f', FW.x + 2.6, 0.9, FW.z + 1.6, 0, 0, 0, 1.2, 1.4, 1);
+  st.add(CYL, '#ff4fb0', FW.x, 0.15, FW.z, 0, 0, 0, 4.4, 0.3, 2.8);
+  aoAdd(sc, FW.x, FW.z, 10, 6.5, 0, 0.6); st.add(BOX, '#ffd23f', FW.x + 2.6, 0.9, FW.z + 1.6, 0, 0, 0, 1.2, 1.4, 1);
   const wb = new Batch(), wg = new Batch();
   for (const sz of [-0.75, 0.75]) { wb.add(TOR, '#ff4fb0', 0, 0, sz, 0, 0, 0, FW.R, FW.R, 2); for (let k = 0; k < 12; k++) { const a = (k / 12) * TAU; wb.beam([0, 0, sz], [Math.cos(a) * FW.R, Math.sin(a) * FW.R, sz], 0.06, '#ffffff'); } }
   wb.add(CYL, '#ffd23f', 0, 0, 0, Math.PI / 2, 0, 0, 0.6, 1.9, 0.6);
@@ -228,6 +260,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const PZ = { x: 1.5, z: -8 };
   st.add(CYL, '#8e6be0', PZ.x, 0.08, PZ.z, 0, 0, 0, 5.1, 0.16, 5.1); st.add(CYL, '#e6dcff', PZ.x, 0.14, PZ.z, 0, 0, 0, 4.8, 0.16, 4.8);
   for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; gl.add(SPH_LO, k % 2 ? '#ff7ad0' : '#ffe680', PZ.x + Math.cos(a) * 4.5, 0.35, PZ.z + Math.sin(a) * 4.5, 0, 0, 0, 0.2); }
+  air.push({ kind: 'confetti', x: PZ.x, z: PZ.z, r: 6.5, n: 46, y0: 0.2, y1: 6.5 });
   const tb = new Batch(), TT = ['#ff5fae', '#ffd23f', '#35d4ff', '#b8f02a'];
   for (let k = 0; k < 8; k++) tb.addM(new THREE.CylinderGeometry(3.5, 3.5, 0.3, 6, 1, false, (k * TAU) / 8, TAU / 8), TT[k % 4], new THREE.Matrix4());
   tb.add(CYL, '#ffffff', 0, 0.5, 0, 0, 0, 0, 0.9, 0.8, 0.9); tb.add(CYL, '#1a0b33', 0, 0.95, 0, 0, 0, 0, 1.05, 0.12, 1.05);
@@ -257,6 +290,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   // Neonturm with sign + spinning crown
   const NT = { x: -22, z: -9 };
   st.add(BOX, '#5b2bd6', NT.x, 0.5, NT.z, 0, 0, 0, 4, 1, 4);
+  aoAdd(sc, NT.x, NT.z, 6, 6, 0, 0.7);
   st.addM(new THREE.CylinderGeometry(0.9, 1.5, 9, 16), '#dccbff', new THREE.Matrix4().makeTranslation(NT.x, 5.5, NT.z));
   for (let k = 0; k < 4; k++) gl.add(TOR, k % 2 ? '#35e6ff' : '#ff4fb0', NT.x, 2.5 + k * 2, NT.z, Math.PI / 2, 0, 0, 1.45 - k * 0.13, 1.45 - k * 0.13, 3);
   gl.add(SPH, '#fff3a6', NT.x, 10.6, NT.z, 0, 0, 0, 0.55);
@@ -266,26 +300,29 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const crown = crownB.mesh(VC, false);
   crown.position.set(NT.x, 10.4, NT.z);
   sc.add(crown);
-  const neonSign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.6), new THREE.MeshBasicMaterial({
+  const neonSign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.6), glow(new THREE.MeshBasicMaterial({
     transparent: true,
     map: ctex(512, 160, (g) => {
       g.fillStyle = 'rgba(26,11,51,.92)'; g.fillRect(0, 0, 512, 160);
       g.strokeStyle = '#ff4fb0'; g.lineWidth = 10; g.strokeRect(8, 8, 496, 144);
       g.font = `italic 900 112px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = '#35e6ff'; g.shadowBlur = 18; g.fillStyle = '#c8fbff'; g.fillText('NEON', 256, 88);
     }),
-  }));
+  }), 0.9));
   neonSign.position.set(NT.x, 6.6, NT.z + 1.45);
   sc.add(neonSign);
 
   // Leuchtturm + beam
   const LH = { x: -33, z: -20.5 };
   for (let k = 0; k < 5; k++) st.add(CYL, k % 2 ? '#ffffff' : '#ff3d6e', LH.x, 0.8 + k * 1.6, LH.z, 0, 0, 0, 1.3 - k * 0.1, 1.6, 1.3 - k * 0.1);
+  aoAdd(sc, LH.x, LH.z, 3.8, 3.8, 0, 0.6);
   st.add(CYL, '#1a0b33', LH.x, 8.5, LH.z, 0, 0, 0, 1.25, 0.25, 1.25); st.add(CONE, '#ff3d6e', LH.x, 10.4, LH.z, 0, 0, 0, 1.1, 1.2, 1.1);
   gl.add(CYL, '#fff3a6', LH.x, 9.2, LH.z, 0, 0, 0, 0.75, 1.2, 0.75);
   const beamG = new THREE.Group();
   beamG.position.set(LH.x, 9.2, LH.z);
   const beam = new THREE.Mesh(new THREE.ConeGeometry(2.2, 16, 16, 1, true).translate(0, -8, 0), new THREE.MeshBasicMaterial({ color: '#fff3a6', transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   beam.rotation.z = Math.PI / 2;
+  (beam.material as THREE.MeshBasicMaterial).map = coneMap();
+  kit.atmo.beam(beam.material as THREE.MeshBasicMaterial, 0.2, 0.45);
   beamG.add(beam);
   sc.add(beamG);
 
@@ -303,8 +340,9 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     kb.add(CYL8, '#2a1258', -1.1, 1.3, 0.9, 0, 0, 0, 0.06, 1.6, 0.06); kb.add(CYL8, '#2a1258', 1.1, 1.3, 0.9, 0, 0, 0, 0.06, 1.6, 0.06);
     st.addM(kb.geometry(), '#ffffff', m);
   }
-  // harbour + boats
+  // harbour + boats (two lanterns on the pier)
   st.add(BOX, '#c79a6a', -40, -0.6, 9, 0, 0, 0, 7, 0.25, 1.6);
+  for (const x of [-42.8, -37.2]) { st.add(CYL8, '#2a1258', x, 0.3, 9.6, 0, 0, 0, 0.07, 1.6, 0.07); gl.add(SPH_LO, '#ffd9a0', x, 1.2, 9.6, 0, 0, 0, 0.22); }
   for (let k = 0; k < 4; k++) st.add(CYL8, '#8a4e2e', -43 + k * 2, -1, 9.8, 0, 0, 0, 0.15, 1.4, 0.15);
   const boats: THREE.Mesh[] = [];
   ([[-42, 12, '#ff5fae'], [-44, -8, '#35d4ff'], [12, 28, '#ffd23f'], [41, -6, '#b8f02a']] as const).forEach(([x, z, c], i) => {
@@ -354,8 +392,6 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   }
 
   // --- ambient life: boats around the island, strollers on the promenade, gulls ---
-  const isle = roundRect(-37, 37, -25, 23, 8, 6);
-  const shore = foam(sc, isle, -1.2, '#ffffff', 2.2);
   loopers(sc, BOAT, roundRect(-47, 47, -33, 31, 10, 6), 7, { y: -1.2, speed: 2.2, colors: ['#ff5fae', '#35d4ff', '#ffd23f', '#b8f02a', '#ff9a5c'], scale: 1.1 });
   {
     const walk: P2[] = [];
@@ -377,21 +413,16 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   cl.count = ci;
   sc.add(cl);
   sc.add(st.mesh(), gl.mesh(GLOW, false, false));
+  kit.atmo.lampLights(lampPts, '#ffd0ec', { r: 1.7 });
+  kit.atmo.lampLights([[-42.8, 1.1, 9.6], [-37.2, 1.1, 9.6]], '#ffd9a0', { r: 1.4, ground: -1.2 });
+  air.push({ kind: 'dust', x: 0, z: 0, r: 30, n: 70, y0: 0.4, y1: 4 });
+  kit.atmo.air(air);
 
   // ---------- state ----------
-  let bridge = 0, plaza = 0, plazaT = 0, night = 0, nightT = 0;
+  let bridge = 0, plaza = 0, plazaT = 0;
   const setBridge = (v: number) => { bridge = v; for (const L of leaves) L.g.rotation.x = L.s * v * 1.12; };
   const setPlaza = (open: boolean) => { plazaT = open ? 0 : Math.PI / 2; };
   const setGate = (open: boolean) => { gate.rotation.z = open ? Math.PI / 2.3 : 0; };
-  const setNight = (k: number) => {
-    night = k;
-    kit.lights.hemi.intensity = lerp(1.55, 0.55, k);
-    kit.lights.sun.intensity = lerp(2.3, 0.6, k);
-    bMat.emissiveIntensity = lerp(0.85, 1.6, k);
-    sc.background = k > 0.5 ? skyNight : sky;
-    (sc.fog as THREE.Fog).color.set(k > 0.5 ? '#3a1a7a' : '#f2a3d0');
-    waterMat.color.setScalar(lerp(1, 0.45, k));
-  };
 
   return {
     overview: { x: 0, z: -1.5, w: 76, d: 50 },
@@ -402,8 +433,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
       setPlaza(open);
       plaza = plazaT;
       setGate(open);
-      nightT = bs.night ? 1 : 0;
-      setNight(nightT);
+      kit.atmo.setForceNight(!!bs.night, true);
     },
     async play(name, data) {
       if (name === 'bridge') {
@@ -426,9 +456,8 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
         await wait(900);
         kit.follow();
       } else if (name === 'night') {
-        const on = !!data?.on;
-        nightT = on ? 1 : 0;
-        await wait(800);
+        kit.atmo.setForceNight(!!data?.on);
+        await wait(1400);
       }
     },
     update(dt, t) {
@@ -446,9 +475,6 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
       crown.rotation.y = -t * 0.8;
       beamG.rotation.y = t * 0.9;
       for (let i = 0; i < boats.length; i++) { const m = boats[i]; m.position.y = -1.1 + Math.sin(t * 1.6 + i) * 0.12; m.rotation.z = Math.sin(t * 1.2 + i * 2) * 0.06; }
-      waterTex.offset.set(t * 0.004, t * 0.006);
-      shore.tick(t);
-      if (Math.abs(night - nightT) > 0.001) setNight(night + (nightT - night) * Math.min(1, dt * 2));
     },
   };
 }

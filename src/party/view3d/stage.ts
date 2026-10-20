@@ -5,10 +5,13 @@
 // 144 Hz screens) and may bake its shadow map (drawn only when the view says something that
 // casts a shadow moved). Every scene is compiled once, all parts visible, when it is first
 // shown, so no shader is compiled in the middle of play.
+// A view may ask for post-processing (bloom, colour grade, vignette: view3d/post.ts); the
+// quality governor decides how much of it runs.
 
 import { MAXDT, tickTweens } from '../util';
 import { THREE, createRenderer, getRenderer } from './kit';
 import { quality, onPixelRatio } from './quality';
+import { Post, type PostParams } from './post';
 
 export interface View {
   scene: THREE.Scene;
@@ -20,6 +23,8 @@ export interface View {
   shadowNeeded?(): boolean;
   /** Extra objects to compile with the scene (materials that are swapped in later). */
   warm?(): THREE.Object3D[];
+  /** Post-processing settings for this frame (null: draw straight to the screen). */
+  post?(): PostParams | null;
 }
 
 let canvas: HTMLCanvasElement;
@@ -32,6 +37,7 @@ let T = 0, last = 0, lastRaw = 0, raf = 0, skip = 0;
 let vsync = 1000 / 60;
 const cams = new Set<THREE.PerspectiveCamera>();
 const warmed = new WeakSet<THREE.Scene>();
+let post: Post | null = null;
 
 export const perf = { fps: 0, frames: 0, acc: 0, samples: [] as number[], calls: 0, tris: 0, vsync: 0, shadowDraws: 0 };
 
@@ -66,6 +72,7 @@ function warm(v: View) {
   const hidden: THREE.Object3D[] = [];
   v.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
   try { r.compile(v.scene, v.cam); } catch { /* compile is only a warm-up */ }
+  if (v.post) { post ??= new Post(r); try { post.warm(r); } catch { /* warm-up only */ } }
   for (const o of hidden) o.visible = false;
   for (const o of extra) v.scene.remove(o);
 }
@@ -162,9 +169,23 @@ function frame(now: number) {
     r.shadowMap.autoUpdate = false;
     if (active.shadowNeeded()) { r.shadowMap.needsUpdate = true; perf.shadowDraws++; }
   } else r.shadowMap.autoUpdate = true;
-  r.render(active.scene, active.cam);
-  perf.calls = r.info.render.calls;
-  perf.tris = r.info.render.triangles;
+  renderView(active);
+}
+
+/** Draws a view: through the post chain when it asks for one and the quality allows it. */
+export function renderView(v: View) {
+  const r = getRenderer();
+  const p = quality.post > 0 ? v.post?.() ?? null : null;
+  if (p) {
+    post ??= new Post(r);
+    post.render(r, v.scene, v.cam, p, quality.post > 1);
+    perf.calls = post.calls;
+    perf.tris = post.tris;
+  } else {
+    r.render(v.scene, v.cam);
+    perf.calls = r.info.render.calls;
+    perf.tris = r.info.render.triangles;
+  }
 }
 
 export const stopStage = () => cancelAnimationFrame(raf);

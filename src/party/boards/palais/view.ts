@@ -5,20 +5,43 @@
 // swinging chandelier, the bar, the Wintergarten, card tables, slot machines, searchlights,
 // lamps, palms, a vintage car and fireworks for the Jackpot-Gala.
 // Static parts are merged (Batch) or instanced; the animated parts are a handful of meshes.
+// Mood: a bright afternoon, a golden hour with long shadows, then the gala night: the hotel
+// windows, chandelier, lamps and searchlights glow, the pool mirrors them.
 
 import type { BEdge } from '../types';
 import type { BoardDecor, BoardKit } from '../../view3d/boardview';
 import {
-  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, HEMI, SPH, SPH_LO, THREE, TOR, VC, ctex, skyTex, toon,
+  BOX, Batch, CONE, CYL, CYL8, FONT, GLOW, GRAD, HEMI, SPH, SPH_LO, THREE, TOR, VC, ctex, toon,
 } from '../../view3d/kit';
+import type { Mood } from '../../view3d/atmo';
+import { aoAdd, coneMap, type AirArea } from '../../view3d/fx3d';
+import { glow, glowEmi } from '../../view3d/shaderfx';
 import { sfx } from '../../sfx';
 import { floatText } from '../../view3d/stage';
 import { E, TAU, lerp, rand, tween, wait } from '../../util';
-import { BULB, LEAF, chaseLights, inOutline, plinth, ribbons, roundRect, signMesh, signTex, starField, trim, type P2 } from '../bauteile';
+import { BULB, LEAF, chaseLights, inOutline, plinth, ribbons, roundRect, signMesh, signTex, trim, type P2 } from '../bauteile';
 import { POCKETS, RED, WHEEL } from './data';
-import { BOAT, PERSON, PROPS, curbs, foam, groundTex, instanced, loopers, type Item } from '../details';
+import { BOAT, PERSON, PROPS, curbs, groundTex, instanced, loopers, type Item } from '../details';
 
 const BRASS = '#d9a94a', BRASS_HI = '#f2cf74', NAVY = '#1b2552', NAVY_D = '#10173a', RED_C = '#a3203a', CREAM = '#f3e6c4', MAHO = '#4a2216';
+
+const sm = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+/** Afternoon (warm and clear), golden hour (deep gold, long shadows), gala night (navy, lit). */
+const MOOD: Mood = {
+  keys: [
+    { hemi: '#fff4e4', ground: '#5a4a72', hemiI: 1.5, sun: '#ffe6c0', sunI: 2.3, sunPos: [-30, 55, 28], fog: '#cdb8c8', fogNear: 70, fogFar: 280,
+      haze: '#f0dcc8', hazeD: 0.14, hazeTop: 1.2, zen: '#7ab0f0', hor: '#d8e6ff', shal: '#3f8ed0', deep: '#173f8a',
+      glow: 0.12, bloom: 0.35, exposure: 1.02, contrast: 1.08, sat: 1.1, lift: '#0a0818', gain: '#fffaf0', vignette: 0.24 },
+    { hemi: '#ffd9a8', ground: '#4a3060', hemiI: 1.3, sun: '#ffb45c', sunI: 2.4, sunPos: [-58, 22, 24], fog: '#e8a070', fogNear: 75, fogFar: 285,
+      haze: '#ffc080', hazeD: 0.3, hazeTop: 2.0, zen: '#6a68c0', hor: '#ffc88a', shal: '#8a6aa8', deep: '#2a2a78',
+      glow: 0.5, bloom: 0.7, exposure: 1.0, contrast: 1.1, sat: 1.14, lift: '#100818', gain: '#fff2dc', vignette: 0.3 },
+    { hemi: '#c8d0ff', ground: '#2e2250', hemiI: 1.05, sun: '#c0ccff', sunI: 1.0, sunPos: [24, 58, 26], fog: '#141a44', fogNear: 85, fogFar: 300,
+      haze: '#2c3478', hazeD: 0.38, hazeTop: 2.2, zen: '#0e1440', hor: '#2a3070', shal: '#1a2a70', deep: '#070c30',
+      glow: 1, bloom: 1.1, exposure: 1.05, contrast: 1.08, sat: 1.12, lift: '#0a0a24', gain: '#f4f0ff', vignette: 0.36 },
+  ],
+  ao: [0.45, 1.0],
+  air: (L) => [sm(0.3, 0.9, L.glow) * 0.9, 0.25 + 0.6 * sm(0.3, 1.2, L.tod) * (1 - L.night), 0.7, 0.55 + 0.45 * L.night],
+};
 
 /** A pennant on a pole (tinted flag). */
 const FLAG = (() => {
@@ -31,13 +54,9 @@ const FLAG = (() => {
 
 export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): BoardDecor {
   const sc = kit.scene, nodes = kit.graph.nodes, edges = kit.graph.edges;
-  sc.background = skyTex(['#060a22', '#121a4a', '#262c72', '#4c3a88']);
   sc.fog = new THREE.Fog('#151b46', 120, 330);
-  kit.lights.hemi.color.set('#d8deff');
-  kit.lights.hemi.groundColor.set('#3a2a5a');
-  kit.lights.hemi.intensity = 1.35;
-  kit.lights.sun.color.set('#ffe2b4');
-  kit.lights.sun.intensity = 2.0;
+  kit.atmo.setMood(MOOD);
+  const air: AirArea[] = [];
   const dummy = new THREE.Object3D();
   const _c = new THREE.Color();
 
@@ -60,22 +79,14 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   trim(sc, OUTLINE, 0.08, 0.14, BRASS_HI);
   trim(sc, OUTLINE, -1.7, 0.12, '#ff5a6e', 1.012);
 
-  // ---------- the pool around (dark water with golden glints) ----------
-  const waterTex = ctex(128, 128, (g) => {
-    g.fillStyle = '#0c1642'; g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = 'rgba(242,207,116,.45)'; g.lineWidth = 2; g.lineCap = 'round';
-    for (let k = 0; k < 6; k++) { const x = Math.random() * 128, y = Math.random() * 128; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10, y); g.stroke(); }
-  }, true);
-  waterTex.repeat.set(70, 70);
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshBasicMaterial({ map: waterTex }));
-  water.rotation.x = -Math.PI / 2;
-  water.position.y = -1.25;
-  sc.add(water);
-  starField(sc, 420, 260);
-  const moon = new THREE.Mesh(SPH_LO, new THREE.MeshBasicMaterial({ color: '#fff1c4', fog: false }));
-  moon.scale.setScalar(9);
-  moon.position.set(-110, 95, -230);
-  sc.add(moon);
+  // ---------- the pool around (waves, glitter, foam; the gala lights mirror in it) ----------
+  kit.atmo.water({
+    y: -1.25, shore: { c: [0, -1.25], b: [37.6, 24.35], r: 5.2 }, rim: '#ff5a6e',
+    lights: [
+      { p: [0, 9, -27], c: '#ffd88a', k: 10 }, { p: [0, 30, -30], c: '#ffd36b', k: 30 }, { p: [-33.2, 3, -20.2], c: '#fff3c8', k: 40 }, { p: [33.2, 3, -20.2], c: '#fff3c8', k: 40 },
+      { p: [-3.9, 2.4, 21.2], c: '#ffd36b', k: 40 }, { p: [3.9, 2.4, 21.2], c: '#ffd36b', k: 40 }, { p: [21.5, 7, -3], c: '#fff6dc', k: 22 }, { p: [-6.8, 3.3, 8.6], c: '#ff9ab0', k: 30 },
+    ],
+  });
 
   // ---------- own carpets and chase lights ----------
   const carpet = edges.filter((e) => e.flag === 'carpet');
@@ -172,7 +183,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   jeton.visible = false;
   sc.add(jeton);
   // lamps at the two bridge gates (west dock entry and north dock entry): green open, red closed
-  const gateLamps = new THREE.InstancedMesh(SPH_LO, new THREE.MeshBasicMaterial({ color: '#ffffff' }), 2);
+  const gateLamps = new THREE.InstancedMesh(SPH_LO, glow(new THREE.MeshBasicMaterial({ color: '#ffffff' })), 2);
   const gatePos: [number, number][] = [];
   for (const e of [ids.we, ids.ns]) {
     const A = nodes[e.a], dx = A.x - W.x, dz = A.z - W.z, l = Math.hypot(dx, dz);
@@ -196,7 +207,8 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   st.add(BOX, BRASS, 0, 0.12, HZ + 5.4, 0, 0, 0, 52, 0.24, 0.3);
   const winTex = ctex(64, 128, (g) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#8f8fb8'; for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) g.fillRect(6 + i * 20, 8 + j * 20, 12, 13); });
   const winEmi = ctex(64, 128, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128); for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) if (Math.random() < 0.62) { g.fillStyle = Math.random() < 0.8 ? '#ffd88a' : '#fff3d0'; g.fillRect(6 + i * 20, 8 + j * 20, 12, 13); } });
-  const hotelMat = new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 1.0, gradientMap: GRAD });
+  const hotelMat = glowEmi(new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 1.0, gradientMap: GRAD }), 1.2);
+  kit.atmo.emissive(hotelMat, 0.5, 1.35);
   const mods: { x: number; y: number; z: number; w: number; h: number; d: number; c: string }[] = [];
   const block = (cx: number, cz: number, w: number, d: number, y0: number, h: number, c: string) => {
     const nx = Math.max(1, Math.round(w / 3.6)), ny = Math.max(1, Math.round(h / 6));
@@ -213,6 +225,12 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   mods.forEach((m, i) => { dummy.position.set(m.x, m.y, m.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(m.w, m.h, m.d); dummy.updateMatrix(); hotel.setMatrixAt(i, dummy.matrix); hotel.setColorAt(i, _c.set(m.c)); });
   hotel.castShadow = true;
   sc.add(hotel);
+  aoAdd(sc, 0, HZ + 0.6, 50, 10.5, 0, 0.8);
+  // chimneys on the wing roofs
+  for (const sx of [-1, 1]) {
+    st.add(BOX, '#6a5a8a', sx * 20, 17.0, HZ - 2, 0, 0, 0, 0.8, 2.0, 0.8); st.add(BOX, BRASS, sx * 20, 18.05, HZ - 2, 0, 0, 0, 1.0, 0.14, 1.0);
+    air.push({ kind: 'smoke', x: sx * 20, z: HZ - 2, r: 0.1, n: 10, y0: 18.2, size: 1.6 });
+  }
   // cornices, fins, crown and spire
   ([[0, 10, 44.6, 6.6], [-18, 16, 8.6, 7.6], [18, 16, 8.6, 7.6], [0, 18, 14.6, 7.6], [0, 24, 9.6, 6.6], [0, 29, 5.6, 5.6]] as const).forEach(([x, y, w, d], i) => {
     st.add(BOX, i % 2 ? BRASS_HI : BRASS, x, y + 0.15, HZ - (i > 0 ? 0.5 + (i > 3 ? (i - 3) * 0.5 : 0) : 0), 0, 0, 0, w, 0.3, d);
@@ -258,6 +276,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   // ---------- fountain (west court) ----------
   const FO = { x: -21, z: -4 };
   st.add(CYL, '#e6dcc8', FO.x, 0.3, FO.z, 0, 0, 0, 4.3, 0.6, 4.3);
+  aoAdd(sc, FO.x, FO.z, 10.5, 10.5, 0, 0.6);
   st.add(CYL, '#2f5fc4', FO.x, 0.5, FO.z, 0, 0, 0, 3.9, 0.3, 3.9);
   st.add(TOR, BRASS_HI, FO.x, 0.62, FO.z, Math.PI / 2, 0, 0, 4.25, 4.25, 2);
   st.add(CYL, '#e6dcc8', FO.x, 1.2, FO.z, 0, 0, 0, 0.6, 1.6, 0.6);
@@ -278,6 +297,9 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   // ---------- Ballsaal pavilion with the chandelier (east court) ----------
   const BS = { x: 21.5, z: -3 };
   st.add(CYL, NAVY_D, BS.x, 0.06, BS.z, 0, 0, 0, 5.2, 0.12, 5.2);
+  aoAdd(sc, BS.x, BS.z, 12, 12, 0, 0.45);
+  kit.atmo.lampLights([[BS.x, 6.4, BS.z]], '#fff0c8', { r: 3.6, pool: 5.2, ground: 0.2, base: 0.9 });
+  air.push({ kind: 'confetti', x: BS.x, z: BS.z, r: 6, n: 40, y0: 0.2, y1: 7 });
   for (let k = 0; k < 16; k++) st.addM(new THREE.CylinderGeometry(4.8, 4.8, 0.06, 2, 1, false, (k * TAU) / 16, TAU / 16), k % 2 ? CREAM : '#1e1e2a', new THREE.Matrix4().makeTranslation(BS.x, 0.14, BS.z));
   st.add(TOR, BRASS_HI, BS.x, 0.16, BS.z, Math.PI / 2, 0, 0, 5.0, 5.0, 2);
   for (let k = 0; k < 8; k++) {
@@ -316,6 +338,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     st.add(CYL8, BRASS, sx, 0.4, sz, 0, 0, 0, 0.06, 0.8, 0.06); st.add(CYL, RED_C, sx, 0.85, sz, 0, 0, 0, 0.32, 0.12, 0.32);
   }
   st.add(BOX, MAHO, BAR.x, 1.4, BAR.z - 1.3, 0, 0, 0, 4.6, 2.8, 0.5);
+  aoAdd(sc, BAR.x, BAR.z, 8, 7, 0, 0.55);
   for (let r = 0; r < 2; r++) for (let k = 0; k < 9; k++) {
     gl.add(CYL8, ['#7dff8a', '#ffd36b', '#ff5a6e', '#9fe3ff'][(k + r) % 4], BAR.x - 2 + k * 0.5, 1.15 + r * 0.9, BAR.z - 1.0, 0, 0, 0, 0.1, 0.5, 0.1);
   }
@@ -327,6 +350,8 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   // ---------- Wintergarten (south east): glass dome on a brass frame, palms inside ----------
   const WG = { x: 6.6, z: 10.2 };
   st.add(CYL8, CREAM, WG.x, 0.12, WG.z, 0, Math.PI / 8, 0, 3.6, 0.24, 3.6);
+  aoAdd(sc, WG.x, WG.z, 9, 9, 0, 0.5);
+  air.push({ kind: 'firefly', x: WG.x, z: WG.z, r: 2.6, n: 7, y0: 0.8, y1: 3.4 });
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * TAU, x = WG.x + Math.cos(a) * 3.3, z = WG.z + Math.sin(a) * 3.3;
     st.add(CYL8, BRASS, x, 1.3, z, 0, 0, 0, 0.09, 2.6, 0.09);
@@ -354,6 +379,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   for (const s of [-1, 1]) { st.add(BOX, BRASS, s * 3.9, 1.1, 21.2, 0, 0, 0, 0.3, 2.2, 0.3); gl.add(SPH, '#ffd36b', s * 3.9, 2.4, 21.2, 0, 0, 0, 0.3); }
   const startSign = signMesh(signTex('★ START ★', { w: 512, h: 120, fg: '#ffe7a8', frame: BRASS_HI, glow: '#ffb84a', bulbs: '#fff3d0', size: 74 }), 7.4, 1.75, 0, 1.45, 21.3);
   sc.add(startSign);
+  air.push({ kind: 'confetti', x: 0, z: 18.5, r: 5, n: 26, y0: 0.2, y1: 5 });
 
   // ---------- card tables, slot machines, a vintage car ----------
   const placed: [number, number][] = [];
@@ -367,6 +393,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     if (!tryPlace(x, z, 3.2, 2.6, 4)) continue;
     const yaw = (tables * 0.7) % TAU;
     st.add(CYL, '#1f7a52', x, 0.92, z, 0, yaw, 0, 1.5, 0.12, 0.95);
+    aoAdd(sc, x, z, 5, 4, yaw, 0.5);
     st.add(CYL, MAHO, x, 0.84, z, 0, yaw, 0, 1.65, 0.12, 1.08);
     st.add(CYL8, BRASS, x, 0.42, z, 0, 0, 0, 0.18, 0.84, 0.18);
     for (let k = 0; k < 4; k++) {
@@ -381,6 +408,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     const x = -31 + k * 1.7, z = 20.1;
     if (!free(x, z, 2.2, 1.6, 0.8)) continue;
     st.add(BOX, k % 2 ? '#3a488c' : RED_C, x, 1.0, z, 0, 0, 0, 1.3, 2.0, 0.9);
+    aoAdd(sc, x, z, 2.1, 1.7, 0, 0.6);
     st.add(BOX, BRASS_HI, x, 2.1, z, 0, 0, 0, 1.4, 0.2, 1.0);
     gl.add(BOX, '#fff3d0', x, 1.35, z + 0.46, 0, 0, 0, 0.95, 0.55, 0.02);
     for (let r = 0; r < 3; r++) gl.add(BOX, ['#ff5a6e', '#ffd36b', '#7dff8a'][(r + k) % 3], x - 0.3 + r * 0.3, 1.35, z + 0.475, 0, 0, 0, 0.2, 0.3, 0.02);
@@ -390,6 +418,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   const CAR = { x: 27.5, z: 19.6 };
   if (free(CAR.x, CAR.z, 3, 2.2, 0.5)) {
     st.add(BOX, '#13183a', CAR.x, 0.75, CAR.z, 0, 0, 0, 5.2, 0.7, 1.9);
+    aoAdd(sc, CAR.x, CAR.z, 6.6, 3.0, 0, 0.7);
     st.add(BOX, '#13183a', CAR.x - 0.4, 1.4, CAR.z, 0, 0, 0, 2.4, 0.7, 1.7);
     st.add(BOX, '#9fd3ff', CAR.x - 0.4, 1.42, CAR.z, 0, 0, 0, 2.2, 0.5, 1.75);
     st.add(BOX, BRASS_HI, CAR.x + 2.62, 0.75, CAR.z, 0, 0, 0, 0.1, 0.55, 1.2);
@@ -398,6 +427,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   }
 
   // ---------- lamps along the carpets ----------
+  const lampPts: [number, number, number][] = [];
   nodes.forEach((n, i) => {
     if (i % 3 || !n.next.length) return;
     const nx = nodes[n.next[0]];
@@ -408,6 +438,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     st.add(CYL8, BRASS, x, 1.3, z, 0, 0, 0, 0.07, 2.4, 0.07);
     st.add(CONE, BRASS_HI, x, 2.5, z, Math.PI, 0, 0, 0.3, 0.25, 0.3);
     gl.add(SPH_LO, i % 2 ? '#ffd36b' : '#fff3d0', x, 2.85, z, 0, 0, 0, 0.28, 0.36, 0.28);
+    lampPts.push([x, 2.7, z]);
     st.add(CONE, BRASS_HI, x, 3.3, z, 0, 0, 0, 0.18, 0.4, 0.18);
   });
 
@@ -416,8 +447,10 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   for (let k = 0; k < 700 && greens < 44; k++) {
     const x = rand(-34, 34), z = rand(-23, 21);
     if (!tryPlace(x, z, 2.2, 1.7, 2.6)) continue;
+    aoAdd(sc, x, z, 2.2, 2.2, 0, 0.55);
     if (greens % 3 === 2) palm(x, z, rand(0.75, 0.95));
     else {
+      if (greens % 4 === 1) air.push({ kind: 'firefly', x, z, r: 1.8, n: 2, y0: 1, y1: 3 });
       st.add(CYL8, BRASS, x, 0.3, z, 0, 0, 0, 0.45, 0.6, 0.45);
       st.add(CONE, greens % 2 ? '#2fa36a' : '#24875a', x, 1.5, z, 0, 0, 0, 0.6, 1.9, 0.6);
       gl.add(BULB, '#ffd36b', x, 2.5, z, 0, 0, 0, 0.1);
@@ -427,7 +460,8 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
 
   // ---------- searchlights at the back corners ----------
   const beams: THREE.Group[] = [];
-  const beamMat = new THREE.MeshBasicMaterial({ color: '#fff3c8', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const beamMat = new THREE.MeshBasicMaterial({ color: '#fff3c8', map: coneMap(), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  kit.atmo.beam(beamMat, 0.15, 0.3);
   const beamGeo = new THREE.ConeGeometry(3.2, 46, 14, 1, true).translate(0, -23, 0);
   for (const [x, z] of [[-33.2, -20.2], [33.2, -20.2]] as const) {
     st.add(CYL, NAVY_D, x, 0.3, z, 0, 0, 0, 1.2, 0.6, 1.2);
@@ -475,7 +509,6 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     instanced(sc, FLAG, flags);
   }
   // ---------- ambient life: guests strolling, gondolas on the pool ----------
-  const shore = foam(sc, OUTLINE, -1.2, '#ffe7a8', 1.4);
   const circle = (cx: number, cz: number, r: number): P2[] => Array.from({ length: 28 }, (_, k) => [cx + Math.cos((k / 28) * TAU) * r, cz + Math.sin((k / 28) * TAU) * r] as P2);
   const GUESTS = ['#16161c', '#c8102e', '#f3e6c4', '#2b6cff', '#ff9ab0', '#1f8a4c'];
   loopers(sc, PERSON, circle(FO.x, FO.z, 5.0), 6, { speed: 0.6, colors: GUESTS, scale: 0.85, bob: 0.04 });
@@ -489,10 +522,14 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   loopers(sc, BOAT, roundRect(-46, 46, -36, 31, 9, 6), 6, { y: -1.2, speed: 1.6, colors: ['#c8102e', '#16161c', '#f3e6c4', BRASS_HI], scale: 1.1 });
 
   sc.add(st.mesh(), gl.mesh(GLOW, false, false));
+  kit.atmo.lampLights(lampPts, '#ffe0a0', { r: 1.6 });
+  kit.atmo.lampLights([[-3.9, 2.3, 21.2], [3.9, 2.3, 21.2]], '#ffc860', { r: 1.5 });
+  air.push({ kind: 'dust', x: 0, z: -2, r: 30, n: 80, y0: 0.4, y1: 5 });
+  kit.atmo.air(air);
 
   // ---------- fireworks (Jackpot-Gala) ----------
   const FW_N = 96;
-  const fw = new THREE.InstancedMesh(BULB, new THREE.MeshBasicMaterial({ color: '#ffffff' }), FW_N);
+  const fw = new THREE.InstancedMesh(BULB, glow(new THREE.MeshBasicMaterial({ color: '#ffffff' })), FW_N);
   fw.visible = false;
   fw.frustumCulled = false;
   fw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -616,8 +653,6 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
       for (let i = 0; i < beams.length; i++) beams[i].rotation.y = Math.sin(t * 0.35 + i * 2.1) * 1.1 + (i ? -0.5 : 0.5);
       flashT = Math.max(0, flashT - dt);
       chase.tick(dt, galaOn || flashT > 0 ? 1 : 0);
-      waterTex.offset.set(t * 0.003, t * 0.004);
-      shore.tick(t);
       // fireworks
       if (galaOn) { fwNext -= dt; if (fwNext <= 0) { fwNext = rand(0.7, 1.3); burst(rand(-26, 26), rand(10, 17), rand(-26, 6)); } }
       if (fwLive > 0) {
