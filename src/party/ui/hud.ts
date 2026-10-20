@@ -15,6 +15,7 @@ import { LEGEND, SP } from '../spaces';
 import type { Seat } from '../types';
 import { SPEED, TEST, clamp, esc, reduced, sleep } from '../util';
 import type { BoardView } from '../view3d/boardview';
+import type { WeatherKind } from '../view3d/atmo';
 import { THREE } from '../view3d/kit';
 import { VH, VW, addLabel, removeLabel, type Label } from '../view3d/stage';
 import { charSVG, coinSVG, starSVG } from './avatars';
@@ -96,6 +97,23 @@ function relRounds(text: string, round: number) {
   return text.replace(/\bin Runde (\d+)/g, (_, n) => rel(Number(n))).replace(/\bRunde (\d+)/g, (_, n) => rel(Number(n)));
 }
 
+/** Weather / time-of-day icons (sticker look: dark outline, flat colours). */
+function wxSVG(kind: WeatherKind, daytime: string) {
+  const O = 'stroke="#0b0614" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  const cloud = (fill: string, y = 0) => `<path d="M12 ${30 + y} a8 8 0 0 1 2-15.6 a11 11 0 0 1 21-2.4 a8 8 0 0 1 3 15.6 z" fill="${fill}" ${O}/>`;
+  const sky = daytime === 'Nacht'
+    ? `<path d="M30 6 a14 14 0 1 0 12 22 a11 11 0 0 1 -12 -22 z" fill="#ffe14a" ${O}/>`
+    : daytime === 'Abendrot'
+      ? `<path d="M8 30 a16 16 0 0 1 32 0 z" fill="#ff8a3d" ${O}/><path d="M4 34 h40 M10 40 h28" ${O} fill="none"/>`
+      : `<circle cx="24" cy="22" r="10" fill="#ffe14a" ${O}/><path d="M24 4v4M24 36v4M6 22h4M38 22h4M11 9l3 3M34 32l3 3M11 35l3-3M34 12l3-3" ${O} fill="none"/>`;
+  let body = sky;
+  if (kind === 'rain') body = `${cloud('#c9d4ff', 2)}<path d="M15 37 l-3 7 M24 37 l-3 7 M33 37 l-3 7" stroke="#2fe6ff" stroke-width="3.4" stroke-linecap="round"/>`;
+  else if (kind === 'fog') body = `${cloud('#b9add3', -2)}<path d="M6 34 q6-4 12 0 t12 0 t12 0 M10 42 q6-4 12 0 t12 0" stroke="#f7f2ff" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
+  else if (kind === 'snow') body = `<g stroke="#0b0614" stroke-width="7" stroke-linecap="round"><path d="M24 5v38M8 14l32 20M8 34l32-20"/></g><g stroke="#f7f2ff" stroke-width="3.6" stroke-linecap="round"><path d="M24 5v38M8 14l32 20M8 34l32-20"/></g><circle cx="24" cy="24" r="4.5" fill="#2fe6ff" ${O}/>`;
+  else if (kind === 'stars') body = `<path d="M4 40 L22 22" stroke="#ff5fae" stroke-width="5" stroke-linecap="round" opacity=".9"/><path d="M8 42 L20 30" stroke="#ffe14a" stroke-width="3" stroke-linecap="round"/><path d="M31 6 l3.6 7.6 8.2.9 -6.1 5.6 1.7 8.1 -7.4 -4.2 -7.4 4.2 1.7 -8.1 -6.1 -5.6 8.2 -.9z" fill="#ffe14a" ${O}/>`;
+  return `<svg viewBox="0 0 48 48" aria-hidden="true">${body}</svg>`;
+}
+
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 
 export class Hud {
@@ -124,6 +142,9 @@ export class Hud {
   private gpLast = { l: false, r: false, u: false, d: false, a: false, b: false, x: false, y: false };
   /** Shown round (banner) and info line titles per index (to show only what changed). */
   private shownRound = 0;
+  /** Weather and time of day the badge shows (the announcement only plays for a change). */
+  private wxShown: { kind: WeatherKind; daytime: string } | null = null;
+  private wxTok = 0;
   private shownFinale = false;
   private infoSeen: string[] = [];
   private signT = 0;
@@ -158,6 +179,7 @@ export class Hud {
       <div class="htop">
         <a class="hb back" href="./index.html" aria-label="Alle Spiele">${BACK_SVG}</a>
         <div class="rbanner" id="rbanner" role="status"><span class="rb-k" id="rbSub">Runde</span><b id="rbTxt">Runde 1/10</b></div>
+        <span class="rb-wx" id="rbWx" role="img" aria-label="Wetter"><i></i><small></small></span>
         <button class="hb" type="button" id="viewBtn" aria-pressed="false" aria-label="Karte">${MAPI_SVG}</button>
         <button class="hb" type="button" id="infoBtn" aria-pressed="false" aria-label="Brett-Info">${INFO_SVG}</button>
         <button class="hb ib gear" type="button" data-act="settings" aria-label="Einstellungen">${GEAR_SVG}</button>
@@ -180,6 +202,7 @@ export class Hud {
         <div class="mp-hint"><b>Karte</b><span id="mpTxt">Ziehen zum Verschieben</span></div>
         <button class="btn go mp-back" type="button" id="mapBack">Zurück</button>
       </div>
+      <div class="wxcard" id="wxCard" hidden role="status"><i class="wx-ico"></i><span class="wx-txt"><small class="wx-k"></small><b class="wx-t"></b><em class="wx-s"></em></span></div>
       <div class="parade" id="parade" hidden aria-hidden="true"><span class="pr-k">Reihenfolge</span><div class="pr-row"></div></div>
       <div class="hfx" id="hfx"></div>`;
     const r = this.root;
@@ -422,6 +445,62 @@ export class Hud {
     this.shownRound = st.round;
     this.shownFinale = fin;
     if (drop && changed && !this.h.hurry) void animate(this.rb, [{ transform: 'translateY(-160%) rotate(-8deg)', opacity: 0 }, { transform: 'translateY(12%) rotate(2deg)', opacity: 1, offset: 0.6 }, { transform: 'none', opacity: 1 }], 720, { easing: 'cubic-bezier(.3,1.35,.45,1)' });
+  }
+
+  /**
+   * The weather badge next to the round banner follows the board's sky (time of day + weather,
+   * the same for every friend online: it comes from the state). announce: a short card when
+   * something changed since the last round (rain, fog, shooting stars, snow, sunset, night).
+   */
+  weather(announce: boolean) {
+    const w = this.h.view.weather;
+    const prev = this.wxShown;
+    this.wxShown = { kind: w.kind, daytime: w.daytime };
+    const badge = $h(this.root, '#rbWx');
+    const label = w.kind === 'clear' ? w.daytime : `${w.daytime} · ${w.name}`;
+    if (badge.dataset.k !== w.kind + w.daytime) {
+      badge.dataset.k = w.kind + w.daytime;
+      $h(badge, 'i').innerHTML = wxSVG(w.kind, w.daytime);
+      $h(badge, 'small').textContent = w.kind === 'clear' ? w.daytime : w.name;
+      badge.setAttribute('aria-label', `Wetter: ${label}`);
+      badge.title = label;
+      if (announce && prev) void animate(badge, [{ transform: 'scale(.3) rotate(-30deg)', opacity: 0 }, { transform: 'scale(1.25) rotate(6deg)', opacity: 1, offset: 0.6 }, { transform: 'none', opacity: 1 }], 600, { easing: 'cubic-bezier(.3,1.45,.45,1)' });
+    }
+    if (!announce || !prev || this.h.hurry) return;
+    const wChanged = prev.kind !== w.kind, dChanged = prev.daytime !== w.daytime;
+    if (!wChanged && !dChanged) return;
+    const DAY: Record<string, [string, string]> = {
+      Nachmittag: ['Ein neuer Tag', 'Die Sonne ist zurück.'],
+      Abendrot: ['Die Sonne geht unter', 'Abendrot über dem Brett.'],
+      Nacht: ['Die Nacht bricht an', 'Die Lichter gehen an.'],
+    };
+    const WX: Record<WeatherKind, [string, string]> = {
+      rain: ['Regen zieht auf', 'Schirme raus! Die Würfel bleiben trocken.'],
+      fog: ['Nebelbank', 'Dichter Nebel zieht übers Brett.'],
+      stars: ['Sternschnuppen-Nacht', 'Schnell was wünschen!'],
+      snow: ['Es schneit!', 'Dicke Flocken über dem Brett.'],
+      clear: ['Es klart auf', 'Der Himmel ist wieder frei.'],
+    };
+    const [t, sub] = wChanged ? WX[w.kind] : DAY[w.daytime] ?? DAY.Abendrot;
+    const s2 = wChanged && dChanged ? `${(DAY[w.daytime] ?? DAY.Abendrot)[0]}. ${sub}` : sub;
+    void this.wxCard(w.kind, w.daytime, `Runde ${this.st.round} · ${w.daytime}`, t, s2);
+  }
+
+  private async wxCard(kind: WeatherKind, daytime: string, k: string, t: string, sub: string) {
+    const c = $h(this.root, '#wxCard'), tok = ++this.wxTok;
+    c.dataset.kind = kind === 'clear' ? (daytime === 'Nacht' ? 'night' : daytime === 'Abendrot' ? 'dusk' : 'day') : kind;
+    $h(c, '.wx-ico').innerHTML = wxSVG(kind, daytime);
+    $h(c, '.wx-k').textContent = k;
+    $h(c, '.wx-t').textContent = t;
+    $h(c, '.wx-s').textContent = sub;
+    c.getAnimations().forEach((a) => a.cancel());
+    c.hidden = false;
+    if (kind === 'stars') sfx.star(); else sfx.whoosh();
+    await animate(c, [{ transform: 'translate(-50%, -40px) rotate(-7deg) scale(.6)', opacity: 0 }, { transform: 'translate(-50%, 4px) rotate(-1deg) scale(1.04)', opacity: 1, offset: 0.65 }, { transform: 'translate(-50%, 0) rotate(-2deg)', opacity: 1 }], 520, { easing: 'cubic-bezier(.3,1.35,.45,1)', fill: 'forwards' });
+    await sleep(ms(2300));
+    if (tok !== this.wxTok) return;
+    await animate(c, [{ transform: 'translate(-50%, 0) rotate(-2deg)', opacity: 1 }, { transform: 'translate(-50%, -24px) rotate(-4deg) scale(.92)', opacity: 0 }], 360, { fill: 'forwards' });
+    if (tok === this.wxTok) c.hidden = true;
   }
 
   /** The figures parade past in turn order. */

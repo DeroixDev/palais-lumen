@@ -22,6 +22,7 @@ import { E, TAU, lerp, rand, tween, wait } from '../../util';
 import { BULB, LEAF, chaseLights, inOutline, plinth, ribbons, roundRect, signMesh, signTex, trim, type P2 } from '../bauteile';
 import { POCKETS, RED, WHEEL } from './data';
 import { BOAT, PERSON, PROPS, curbs, groundTex, instanced, loopers, type Item } from '../details';
+import { palaisZubehoer } from './zubehoer';
 
 const BRASS = '#d9a94a', BRASS_HI = '#f2cf74', NAVY = '#1b2552', NAVY_D = '#10173a', RED_C = '#a3203a', CREAM = '#f3e6c4', MAHO = '#4a2216';
 
@@ -41,6 +42,8 @@ const MOOD: Mood = {
   ],
   ao: [0.45, 1.0],
   air: (L) => [sm(0.3, 0.9, L.glow) * 0.9, 0.25 + 0.6 * sm(0.3, 1.2, L.tod) * (1 - L.night), 0.7, 0.55 + 0.45 * L.night],
+  // the terrace is wide and the sunset already glows orange: a lighter fog bank keeps it readable
+  fogK: 0.5,
 };
 
 /** A pennant on a pole (tinted flag). */
@@ -205,8 +208,28 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   const HZ = -31;
   st.add(BOX, NAVY_D, 0, -1.2, HZ + 0.5, 0, 0, 0, 52, 2.6, 10);
   st.add(BOX, BRASS, 0, 0.12, HZ + 5.4, 0, 0, 0, 52, 0.24, 0.3);
-  const winTex = ctex(64, 128, (g) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#8f8fb8'; for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) g.fillRect(6 + i * 20, 8 + j * 20, 12, 13); });
-  const winEmi = ctex(64, 128, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128); for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) if (Math.random() < 0.62) { g.fillStyle = Math.random() < 0.8 ? '#ffd88a' : '#fff3d0'; g.fillRect(6 + i * 20, 8 + j * 20, 12, 13); } });
+  // façade module: pilasters at the edges, a cornice band, framed windows with sills and keystones
+  const winTex = ctex(64, 128, (g) => {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128);
+    g.fillStyle = '#e4e0f4'; g.fillRect(0, 0, 3, 128); g.fillRect(61, 0, 3, 128); g.fillRect(0, 0, 64, 3);
+    g.fillStyle = '#c8c4dc'; for (let j = 0; j < 6; j++) g.fillRect(0, 4 + j * 20, 64, 1);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) {
+      const x = 6 + i * 20, y = 8 + j * 20;
+      g.fillStyle = '#f4f0ff'; g.fillRect(x - 2, y - 2, 16, 17);
+      g.fillStyle = '#8f8fb8'; g.fillRect(x, y, 12, 13);
+      g.fillStyle = '#6a6a90'; g.fillRect(x + 5.5, y, 1, 13); g.fillRect(x, y + 6, 12, 1);
+      g.fillStyle = '#fffaf0'; g.fillRect(x - 3, y + 14, 18, 2); g.fillRect(x + 4, y - 3, 4, 2);
+    }
+  });
+  const winEmi = ctex(64, 128, (g) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 6; j++) if (Math.random() < 0.62) {
+      const x = 6 + i * 20, y = 8 + j * 20;
+      g.fillStyle = Math.random() < 0.8 ? '#ffd88a' : '#fff3d0'; g.fillRect(x, y, 12, 13);
+      g.fillStyle = '#7a5a30'; g.fillRect(x + 5.5, y, 1, 13); g.fillRect(x, y + 6, 12, 1);
+      if (Math.random() < 0.4) { g.fillStyle = '#c8803a'; g.fillRect(x, y, 3, 13); g.fillRect(x + 9, y, 3, 13); }
+    }
+  });
   const hotelMat = glowEmi(new THREE.MeshToonMaterial({ map: winTex, emissiveMap: winEmi, emissive: '#ffffff', emissiveIntensity: 1.0, gradientMap: GRAD }), 1.2);
   kit.atmo.emissive(hotelMat, 0.5, 1.35);
   const mods: { x: number; y: number; z: number; w: number; h: number; d: number; c: string }[] = [];
@@ -230,6 +253,23 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
   for (const sx of [-1, 1]) {
     st.add(BOX, '#6a5a8a', sx * 20, 17.0, HZ - 2, 0, 0, 0, 0.8, 2.0, 0.8); st.add(BOX, BRASS, sx * 20, 18.05, HZ - 2, 0, 0, 0, 1.0, 0.14, 1.0);
     air.push({ kind: 'smoke', x: sx * 20, z: HZ - 2, r: 0.1, n: 10, y0: 18.2, size: 1.6 });
+  }
+  // gilded trims: corner strips on every block, string courses between the floors, roof finials
+  ([[0, 44, 0, 10, 0], [-18, 8, 10, 6, 0], [18, 8, 10, 6, 0], [0, 14, 10, 8, 0], [0, 9, 18, 6, -1], [0, 5, 24, 5, -2]] as const).forEach(([cx, w, y0, h, dz]) => {
+    const fz = HZ + 3 + dz + 0.06;
+    for (const s2 of [-1, 1]) st.add(BOX, BRASS_HI, cx + s2 * (w / 2 - 0.1), y0 + h / 2, fz, 0, 0, 0, 0.22, h, 0.14);
+    for (let k = 1; k < Math.round(h / 2.5); k++) st.add(BOX, BRASS, cx, y0 + (h * k) / Math.round(h / 2.5), fz, 0, 0, 0, w - 0.3, 0.09, 0.1);
+    for (const s2 of [-1, 1]) {
+      st.add(BOX, BRASS, cx + s2 * (w / 2 - 0.35), y0 + h + 0.42, fz - 0.4, 0, 0, 0, 0.36, 0.24, 0.36);
+      st.add(SPH_LO, BRASS_HI, cx + s2 * (w / 2 - 0.35), y0 + h + 0.72, fz - 0.4, 0, 0, 0, 0.2, 0.3, 0.2);
+      st.add(CONE, BRASS_HI, cx + s2 * (w / 2 - 0.35), y0 + h + 1.08, fz - 0.4, 0, 0, 0, 0.08, 0.36, 0.08);
+    }
+  });
+  // window boxes with flowers under the first floor
+  for (const x of [-9.2, -5.6, 5.6, 9.2]) {
+    const k = Math.round(x);
+    st.add(BOX, MAHO, x, 4.85, HZ + 3.18, 0, 0, 0, 2.2, 0.22, 0.3);
+    for (let q = 0; q < 5; q++) st.add(BULB, ['#ff7ab8', '#fff3f8', '#e8304a'][(q + k + 9) % 3], x - 0.8 + q * 0.4, 5.02, HZ + 3.2, 0, 0, 0, 0.11);
   }
   // cornices, fins, crown and spire
   ([[0, 10, 44.6, 6.6], [-18, 16, 8.6, 7.6], [18, 16, 8.6, 7.6], [0, 18, 14.6, 7.6], [0, 24, 9.6, 6.6], [0, 29, 5.6, 5.6]] as const).forEach(([x, y, w, d], i) => {
@@ -389,6 +429,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     return true;
   };
   let tables = 0;
+  const tablePos: { x: number; z: number; yaw: number }[] = [];
   for (const [x, z] of [[-24, 6], [-17.5, 6.5], [-27, -12], [-15, -12.5], [-26.5, 1], [24.5, 7], [18, 7.5], [27, -12], [-3, -21.5], [4, -21.8], [-24.5, 17.5], [26, 17.3]] as const) {
     if (!tryPlace(x, z, 3.2, 2.6, 4)) continue;
     const yaw = (tables * 0.7) % TAU;
@@ -400,7 +441,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
       const a = yaw + (k / 4) * TAU + 0.4, cx = x + Math.cos(a) * 1.75, cz = z - Math.sin(a) * 1.15;
       st.add(BOX, RED_C, cx, 0.55, cz, 0, a, 0, 0.55, 0.12, 0.55); st.add(BOX, RED_C, cx + Math.cos(a) * 0.25, 0.85, cz - Math.sin(a) * 0.25, 0, a, 0, 0.1, 0.55, 0.55);
     }
-    for (let k = 0; k < 3; k++) st.add(CYL, ['#c8102e', '#16161c', '#2b6cff'][k], x - 0.5 + k * 0.5, 1.05 + (k % 2) * 0.1, z + 0.2, 0, 0, 0, 0.18, 0.1 + (k % 2) * 0.2, 0.18);
+    tablePos.push({ x, z, yaw });
     tables++;
   }
   // slot machines along the front left
@@ -414,17 +455,8 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
     for (let r = 0; r < 3; r++) gl.add(BOX, ['#ff5a6e', '#ffd36b', '#7dff8a'][(r + k) % 3], x - 0.3 + r * 0.3, 1.35, z + 0.475, 0, 0, 0, 0.2, 0.3, 0.02);
     st.add(CYL8, BRASS, x + 0.75, 1.3, z, 0, 0, 0, 0.05, 0.8, 0.05); gl.add(BULB, '#ff5a6e', x + 0.75, 1.75, z, 0, 0, 0, 0.12);
   }
-  // vintage car at the front right
-  const CAR = { x: 27.5, z: 19.6 };
-  if (free(CAR.x, CAR.z, 3, 2.2, 0.5)) {
-    st.add(BOX, '#13183a', CAR.x, 0.75, CAR.z, 0, 0, 0, 5.2, 0.7, 1.9);
-    aoAdd(sc, CAR.x, CAR.z, 6.6, 3.0, 0, 0.7);
-    st.add(BOX, '#13183a', CAR.x - 0.4, 1.4, CAR.z, 0, 0, 0, 2.4, 0.7, 1.7);
-    st.add(BOX, '#9fd3ff', CAR.x - 0.4, 1.42, CAR.z, 0, 0, 0, 2.2, 0.5, 1.75);
-    st.add(BOX, BRASS_HI, CAR.x + 2.62, 0.75, CAR.z, 0, 0, 0, 0.1, 0.55, 1.2);
-    for (const sx of [-1.7, 1.7]) for (const sz of [-0.95, 0.95]) st.add(CYL, '#0a0a12', CAR.x + sx, 0.45, CAR.z + sz, Math.PI / 2, 0, 0, 0.45, 0.3, 0.45);
-    for (const sz of [-0.6, 0.6]) gl.add(BULB, '#fff3d0', CAR.x + 2.66, 0.85, CAR.z + sz, 0, 0, 0, 0.16);
-  }
+  // ---------- accessories: hotel entrance, champagne tower, urns, statues, card tables, water play ----------
+  const acc = palaisZubehoer(kit, { HZ, FO, BS, BAR, tables: tablePos, tryPlace, free });
 
   // ---------- lamps along the carpets ----------
   const lampPts: [number, number, number][] = [];
@@ -499,8 +531,11 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
       if (tryPlace(x, z, 1.6, 1.2, 1.5)) bistro.push({ x, z, ry: a, c: ['#fff3d0', '#ff9ab0'][k % 2] });
     }
     for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) balc.push({ x: sx * (12 + i * 3.6), y: 2.4 + j * 2.6, z: HZ + 3, sx: 2.4, c: BRASS_HI });
+    for (const sx of [-1, 1]) for (let j = 0; j < 2; j++) { balc.push({ x: sx * 18, y: 11.4 + j * 2.6, z: HZ + 3, sx: 5.4, c: BRASS_HI }); balc.push({ x: sx * 4.6, y: 11.6 + j * 2.6, z: HZ + 3, sx: 3.2, c: BRASS }); }
+    for (let j = 0; j < 2; j++) balc.push({ x: 0, y: 19.6 + j * 2.4, z: HZ + 2, sx: 6.6, c: BRASS_HI });
+    balc.push({ x: 0, y: 25.6, z: HZ + 1, sx: 3.6, c: BRASS_HI });
     for (const [x, y] of [[-18, 16.3], [18, 16.3], [-6.5, 18.3], [6.5, 18.3], [-3.8, 24.3], [3.8, 24.3]] as const) flags.push({ x, y, z: HZ + 0.5, c: ['#c8102e', BRASS_HI, '#2b6cff'][Math.abs(Math.round(x)) % 3] });
-    for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) awn.push({ x: sx * (8 + i * 4.2), y: 2.0, z: HZ + 3.35, sx: 3.0, c: i ? RED_C : '#1f8a4c' });
+    for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) awn.push({ x: sx * (5.6 + i * 3.6), y: 2.0, z: HZ + 3.35, sx: i > 1 ? 2.4 : 3.0, c: i % 2 ? RED_C : '#1f8a4c' });
     instanced(sc, PROPS.rope(), ropes);
     instanced(sc, PROPS.planter(), plant);
     instanced(sc, PROPS.bistro(), bistro);
@@ -653,6 +688,7 @@ export function palaisDecor(kit: BoardKit, ids: { we: BEdge; ns: BEdge }): Board
       for (let i = 0; i < beams.length; i++) beams[i].rotation.y = Math.sin(t * 0.35 + i * 2.1) * 1.1 + (i ? -0.5 : 0.5);
       flashT = Math.max(0, flashT - dt);
       chase.tick(dt, galaOn || flashT > 0 ? 1 : 0);
+      acc.update(dt, t, galaOn);
       // fireworks
       if (galaOn) { fwNext -= dt; if (fwNext <= 0) { fwNext = rand(0.7, 1.3); burst(rand(-26, 26), rand(10, 17), rand(-26, 6)); } }
       if (fwLive > 0) {

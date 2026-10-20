@@ -14,6 +14,7 @@ import { BoardView } from '../view3d/boardview';
 import { hopFig } from '../view3d/figures';
 import { floatText } from '../view3d/stage';
 import { Hud } from './hud';
+import { menu3d } from './menu3d';
 import { Scenes } from './scenes';
 
 export type BonusList = { id: BonusId; winners: number[] }[];
@@ -54,7 +55,8 @@ export class Presenter {
 
   constructor(public seats: Seat[], public me: number, boardId: string) {
     this.board = getBoard(boardId);
-    this.view = new BoardView(this.board);
+    // the menu's backdrop is this board already: take it (built and compiled)
+    this.view = menu3d.take(this.board.id) ?? new BoardView(this.board);
     this.view.setSeats(seats);
     this.scn = new Scenes(this);
     this.hud = new Hud(this);
@@ -123,6 +125,7 @@ export class Presenter {
     this.hud.update(false);
     this.hud.boardNews('round', false, true);
     this.hud.refreshStar();
+    this.hud.weather(false);
   }
 
   // ---------------- events ----------------
@@ -145,6 +148,8 @@ export class Presenter {
         this.hud.setRound(true);
         this.hud.update();
         if (!H && ev.round === st.rules.rounds) await banner('Letzte Runde!', 'var(--red)');
+        // weather and time of day: a short announcement while the parade runs (mood only)
+        this.hud.weather(true);
         await this.hud.paradeRun();
         this.hud.boardNews('round', ev.round === 1);
         break;

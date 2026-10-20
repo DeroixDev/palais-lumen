@@ -18,25 +18,25 @@ const tbar = (info: string) => `
 
 export function buildShell(root: HTMLElement) {
   root.innerHTML = `
-<div class="screen" id="scrTitle">
+<div class="screen mscr" id="scrTitle">
   ${tbar('')}
-  <main class="s-main">
-    <section class="hero">
+  <main class="t-main">
+    <section class="t-hero">
       <h2 class="hero-title"><span class="h1">Unser</span><span class="h2">Party</span><span class="h3">Spiel</span></h2>
-      <div class="cast" id="cast"></div>
-      <p class="hero-sub">Brettspiel-Abend mit Würfeln, Sternen und Minispielen. Allein gegen Bots oder online mit bis zu drei Freunden.</p>
-      <div class="menu" id="menu"></div>
-      <p class="menu-note" id="menuNote"></p>
+      <p class="t-tag">Brettspiel-Abend mit Würfeln, Sternen und Minispielen. Allein gegen Bots oder online mit bis zu drei Freunden.</p>
     </section>
+    <div class="cast3d" id="cast" aria-hidden="true"></div>
+    <nav class="t-menu" id="menu" aria-label="Hauptmenü"></nav>
+    <p class="menu-note" id="menuNote"></p>
   </main>
 </div>
 
-<div class="screen" id="scrLobby" hidden>
+<div class="screen mscr" id="scrLobby" hidden>
   ${tbar('<div class="tinfo"><b id="lobbyKind">Neuer Abend</b><span>Vorbereitung</span></div>')}
-  <main class="s-main" id="lobby"></main>
+  <main class="lb" id="lobby"></main>
 </div>
 
-<div class="app" id="app" hidden>
+<div class="app" id="app">
   <main class="main">
     <section class="stage" id="stage" aria-label="Spielbrett">
       <canvas id="gl" aria-hidden="true"></canvas>
@@ -107,9 +107,9 @@ export function buildShell(root: HTMLElement) {
     <div class="fourth" id="fourth"></div>
     <div class="statbox" id="statbox" hidden></div>
     <div class="pod-actions">
-      <button class="btn ghost" type="button" id="podStats">Statistik</button>
-      <button class="btn ghost" type="button" id="podTitleBtn">Zum Titel</button>
-      <button class="btn go" type="button" id="podAgain">Nochmal!</button>
+      <button class="mbtn ghost" type="button" id="podStats">Statistik</button>
+      <button class="mbtn ghost" type="button" id="podTitleBtn" data-back>Zum Titel</button>
+      <button class="mbtn go" type="button" id="podAgain">Nochmal!</button>
     </div>
   </section>
 </div>

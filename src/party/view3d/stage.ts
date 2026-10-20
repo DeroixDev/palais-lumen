@@ -25,6 +25,10 @@ export interface View {
   warm?(): THREE.Object3D[];
   /** Post-processing settings for this frame (null: draw straight to the screen). */
   post?(): PostParams | null;
+  /** Menu backdrops: cap the pixel ratio (the quality governor does not judge these frames). */
+  dprCap?: number;
+  /** Drawn after the view itself (e.g. a small extra scene into a part of the screen). */
+  afterRender?(): void;
 }
 
 let canvas: HTMLCanvasElement;
@@ -55,6 +59,7 @@ export function initStage(stageEl: HTMLElement, canvasEl: HTMLCanvasElement, lab
 }
 
 export function setView(v: View | null) {
+  if (active?.dprCap && !v?.dprCap) quality.apply();
   active = v;
   if (v) { cams.add(v.cam); fit(v.cam); warm(v); }
   skip = 0;
@@ -156,7 +161,7 @@ function frame(now: number) {
     perf.frames = 0;
     perf.acc = 0;
   }
-  quality.tick(dt);
+  if (!active?.dprCap) quality.tick(dt);
   if (dt > MAXDT) dt = MAXDT;
   if (dt < 0) dt = 0;
   T += dt;
@@ -169,7 +174,15 @@ function frame(now: number) {
     r.shadowMap.autoUpdate = false;
     if (active.shadowNeeded()) { r.shadowMap.needsUpdate = true; perf.shadowDraws++; }
   } else r.shadowMap.autoUpdate = true;
+  if (active.dprCap) capDpr(active.dprCap);
   renderView(active);
+  active.afterRender?.();
+}
+
+/** A menu backdrop renders at a lower pixel ratio (never above what the quality allows). */
+function capDpr(cap: number) {
+  const r = getRenderer(), want = Math.min(quality.current().dpr, cap);
+  if (Math.abs(r.getPixelRatio() - want) > 0.001) { r.setPixelRatio(want); resize(); }
 }
 
 /** Draws a view: through the post chain when it asks for one and the quality allows it. */
