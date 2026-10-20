@@ -80,6 +80,8 @@ export interface Mood {
   ao?: [number, number];
   /** Air particles: amounts (firefly, dust, smoke, confetti) for the current atmosphere. */
   air?: (L: AtmoLive) => [number, number, number, number];
+  /** How thick the fog bank gets on this board (1 = full; lower keeps a wide board readable). */
+  fogK?: number;
 }
 
 /** The current atmosphere (read by the decor and the effects every frame). */
@@ -221,7 +223,7 @@ export class Atmo {
       this.wT[w] += clamp(to - this.wT[w], -dt * 0.33, dt * 0.33);
     }
     A.alarm += clamp(this.alarm - A.alarm, -dt * 2.5, dt * 4);
-    const R = this.wT.rain, F = this.wT.fog, S = this.wT.snow;
+    const R = this.wT.rain, F = this.wT.fog * (M.fogK ?? 1), S = this.wT.snow;
     A.rain = R; A.fog = F; A.snow = S; A.stars = this.wT.stars;
     // blend the keys
     const tod = clamp(A.tod, 0, 2), i = tod < 1 ? 0 : 1, f = tod - i, ka = M.keys[i], kb = M.keys[i + 1], K = this.now;

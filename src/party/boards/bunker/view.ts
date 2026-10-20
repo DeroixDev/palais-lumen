@@ -20,6 +20,7 @@ import { sfx } from '../../sfx';
 import { E, TAU, lerp, rand, tween, wait } from '../../util';
 import { BULB, CYL6, LEAF, inOutline, plinth, ribbons, roundRect, signMesh, signTex, trim, type P2 } from '../bauteile';
 import { CAR, PERSON, PROPS, curbs, flock, groundTex, instanced, loopers, type Item } from '../details';
+import { bunkerZubehoer } from './zubehoer';
 
 const TENT = new THREE.CylinderGeometry(1.2, 1.2, 2.6, 3, 1).rotateX(-Math.PI / 2);
 const CONC = '#a3a6ab', CONC_D = '#6f737a', STEEL = '#4a5562', HAZ = '#ffc61a', DARK = '#23272e', RUST = '#b5562a', OLIVE = '#5f6b3a';
@@ -385,6 +386,27 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   cart.add(cab2.mesh(VC, false));
   cart.visible = cartTotal > 4;
   sc.add(cart);
+  // a second wagon with crates is coupled behind the cart
+  const wagon = new THREE.Group();
+  const wb = new Batch();
+  wb.add(BOX, '#6a7078', 0, 0.42, 0, 0, 0, 0, 1.0, 0.16, 1.4);
+  for (const s of [-1, 1]) { wb.add(BOX, RUST, s * 0.48, 0.6, 0, 0, 0, 0, 0.05, 0.25, 1.4); wb.add(BOX, RUST, 0, 0.6, s * 0.68, 0, 0, 0, 1.0, 0.25, 0.05); }
+  wb.add(BOX, '#c99a5b', -0.18, 0.82, -0.3, 0, 0.1, 0, 0.6, 0.6, 0.6);
+  wb.add(BOX, '#7f8c4f', 0.2, 0.75, 0.35, 0, -0.2, 0, 0.5, 0.46, 0.5);
+  wb.add(BOX, '#d8ab6a', -0.1, 1.38, -0.28, 0, 0.5, 0, 0.42, 0.42, 0.42);
+  for (const sx of [-0.42, 0.42]) for (const sz of [-0.45, 0.45]) wb.add(CYL8, DARK, sx, 0.2, sz, 0, 0, Math.PI / 2, 0.16, 0.12, 0.16);
+  wb.add(BOX, DARK, 0, 0.32, 0.9, 0, 0, 0, 0.08, 0.06, 0.5);
+  wagon.add(wb.mesh(VC, false));
+  wagon.visible = cartTotal > 6;
+  sc.add(wagon);
+  const railAt = (s: number, g: THREE.Group) => {
+    let i = 1;
+    while (i < cartLen.length - 1 && cartLen[i] < s) i++;
+    const k = (s - cartLen[i - 1]) / (cartLen[i] - cartLen[i - 1] || 1);
+    const [ax, az] = cartPts[i - 1], [bx, bz] = cartPts[i];
+    g.position.set(lerp(ax, bx, k), 0, lerp(az, bz, k));
+    g.rotation.y = Math.atan2(bx - ax, bz - az);
+  };
 
   // ---------- water tower, floodlights, barrels, start gate ----------
   const WT = { x: 33, z: -22.5 };
@@ -474,11 +496,15 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   }
   function k3(y: number) { return y % 4 ? '#c9442f' : '#ffffff'; }
 
+  // ---------- accessories: wire, sandbag nests, camo nets, lockers, benches, signs, lamps, forklifts ----------
+  const VBOX = { x0: vx0, x1: vx1, z0: vz0, z1: vz1 };
+  const acc = bunkerZubehoer(kit, { free, tryPlace, placed, outline: OUTLINE, air, WH, EH, HQ, vault: VBOX, crateCol: CRATE_COL });
+
   // crate stacks, barrels, pallets, forklifts and tents on free spots
   const BARREL_COL = ['#c9442f', '#2f6fb5', '#e0a810', '#5f6b3a'];
   const barrels: { x: number; z: number; c: string; tip: boolean }[] = [];
   let props = 0;
-  for (let k = 0; k < 1200 && props < 58; k++) {
+  for (let k = 0; k < 1200 && props < 48; k++) {
     const x = rand(-34.5, 34.5), z = rand(-24.5, 20.5);
     if (!tryPlace(x, z, 2.3, 1.8, 2.6)) continue;
     const kind = props % 6;
@@ -540,7 +566,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
       const x = (A.x + B.x) / 2 + (-dz / l) * sd * 1.5, z = (A.z + B.z) / 2 + (dx / l) * sd * 1.5;
       if (tryPlace(x, z, 1.4, 1.15, 1.0)) cones.push({ x, z, ry: i, c: '#ff6a1a' });
     });
-    for (let k = 0; k < 1500 && tires.length + sacks.length + drums.length < 34; k++) {
+    for (let k = 0; k < 1500 && tires.length + sacks.length + drums.length < 28; k++) {
       const x = rand(-34.5, 34.5), z = rand(-24.5, 20.5);
       if (!tryPlace(x, z, 2.0, 1.5, 1.8)) continue;
       const kind = k % 3;
@@ -681,14 +707,11 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
       }
       beacons.instanceMatrix.needsUpdate = true;
       if (cart.visible) {
-        const s = (Math.sin(t * 0.35) * 0.5 + 0.5) * cartTotal;
-        let i = 1;
-        while (i < cartLen.length - 1 && cartLen[i] < s) i++;
-        const k = (s - cartLen[i - 1]) / (cartLen[i] - cartLen[i - 1] || 1);
-        const [ax, az] = cartPts[i - 1], [bx, bz] = cartPts[i];
-        cart.position.set(lerp(ax, bx, k), 0, lerp(az, bz, k));
-        cart.rotation.y = Math.atan2(bx - ax, bz - az);
+        const lead = wagon.visible ? 1.75 : 0, s = lead + (Math.sin(t * 0.35) * 0.5 + 0.5) * (cartTotal - lead);
+        railAt(s, cart);
+        if (wagon.visible) railAt(s - lead, wagon);
       }
+      acc.update(dt, t);
       if (rainLive) {
         let moving = false;
         for (let i = 0; i < RAIN_N; i++) {
