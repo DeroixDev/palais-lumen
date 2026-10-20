@@ -18,12 +18,14 @@ import { E, TAU, clamp, lerp, rand, reduced, tween, wait } from '../util';
 import { faceCam, hopFig, makeFigure, squashLand, updateFigure, type Fig } from './figures';
 import {
   BOX, Batch, COIN_GEO, COIN_MAT, CONE, CYL8, FONT, GLOW, GRAD, OUT, SPH, SPH_LO, STAR_EX, STAR_GEO, THREE, VC, VC_EMI,
-  addLights, ctex, fixShadow, toon, type Lights,
+  addLights, ctex, fixShadow, getRenderer, toon, type Lights,
 } from './kit';
 import { quality } from './quality';
 import { Atmo } from './atmo';
 import type { PostParams } from './post';
 import { curbs, tickLife } from '../boards/details';
+import { pathMarks, sharedDetail, spaceProps } from '../boards/feinkram';
+import { lifeCheer, lifeConfigOf, lifeHop, lifeStar, tickLeben } from '../boards/leben';
 import { VH, VW, addLabel, clearLabels, removeLabel, type Label, type View } from './stage';
 
 export const SPACE_Y = 0.54;
@@ -53,11 +55,14 @@ export interface BoardDecor {
 
 // ---------- space textures ----------
 const texCache = new Map<string, THREE.Texture>();
-function spaceTex(key: SpaceType) {
-  const hit = texCache.get(key);
+/** The space's top: `base` is the coloured disc with its bevel rings, `icon` the symbol alone
+ *  (transparent, ICON_PX wide) that the top's shader animates on the disc. */
+const ICON_PX = 112;
+function spaceTex(key: SpaceType, part: 'base' | 'icon') {
+  const hit = texCache.get(key + part);
   if (hit) return hit;
   const t = SP[key], D = '#1a0b33';
-  const tex = ctex(128, 128, (g) => {
+  const tex = part === 'icon' ? ctex(ICON_PX, ICON_PX, (g) => { g.translate(ICON_PX / 2, ICON_PX / 2); drawIcon(g, t.icon, D); }, false, 4) : ctex(128, 128, (g) => {
     g.fillStyle = t.c;
     g.fillRect(0, 0, 128, 128);
     if (key === 'G') ['#ff3d9a', '#ffe14a', '#2fe6ff', '#b8f02a'].forEach((c, i) => { g.strokeStyle = c; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 58 - i * 7, 0, TAU); g.stroke(); });
@@ -77,7 +82,18 @@ function spaceTex(key: SpaceType) {
     g.lineWidth = 1.5;
     g.strokeStyle = 'rgba(0,0,0,.25)';
     g.beginPath(); g.arc(64, 64, 50, 0, TAU); g.stroke();
-    g.translate(64, 64);
+    // a soft sunken bowl under the icon and a few sparkles on the glaze
+    const bowl = g.createRadialGradient(64, 70, 10, 64, 64, 48);
+    bowl.addColorStop(0, 'rgba(0,0,0,0)'); bowl.addColorStop(0.8, 'rgba(0,0,0,0)'); bowl.addColorStop(1, 'rgba(0,0,0,.14)');
+    g.fillStyle = bowl; g.beginPath(); g.arc(64, 64, 49, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.8)';
+    for (const [x, y, r] of [[36, 30, 2.4], [44, 24, 1.3], [90, 96, 1.6]] as const) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  }, false, 4);
+  texCache.set(key + part, tex);
+  return tex;
+}
+function drawIcon(g: CanvasRenderingContext2D, icon: string, D: string) {
+  {
     g.lineJoin = 'round';
     g.lineWidth = 6;
     g.strokeStyle = D;
@@ -89,7 +105,7 @@ function spaceTex(key: SpaceType) {
     };
     const poly = (pts: [number, number][]) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke(); g.fill(); };
     const a = 12, b = 34;
-    switch (t.icon) {
+    switch (icon) {
       case 'plus': poly([[-a, -b], [a, -b], [a, -a], [b, -a], [b, a], [a, a], [a, b], [-a, b], [-a, a], [-b, a], [-b, -a], [-a, -a]]); break;
       case 'minus': poly([[-b, -a], [b, -a], [b, a], [-b, a]]); break;
       case 'bang': txt('!', 96, D, null, 6); break;
@@ -125,9 +141,46 @@ function spaceTex(key: SpaceType) {
         poly([[-24, -14], [-34, 2], [-12, 0]]);
         break;
     }
-  }, false, 4);
-  texCache.set(key, tex);
-  return tex;
+  }
+}
+
+/** The top face draws the disc texture and, over it, the icon from its own texture: the icon
+ *  breathes and wobbles (Brett-Feld: turns) with a phase per space from its position. One pass,
+ *  no extra geometry, no CPU per frame. */
+const ICON_T = { value: 0 };
+function topMat(key: SpaceType) {
+  const m = new THREE.MeshToonMaterial({ map: spaceTex(key, 'base'), gradientMap: GRAD });
+  const icon = { value: spaceTex(key, 'icon') };
+  // spin (Brett-Feld turns), wobble amplitude
+  const anim = { value: new THREE.Vector2(key === 'X' ? 1 : 0, key === 'L' || key === 'E' ? 0.2 : 0.09) };
+  m.onBeforeCompile = (s) => {
+    s.uniforms.uIconT = ICON_T;
+    s.uniforms.uIcon = icon;
+    s.uniforms.uIconA = anim;
+    // the icon's uv is an affine map of the disc's uv, so it is computed per vertex (exact)
+    s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nuniform float uIconT;\nuniform vec2 uIconA;\nvarying vec2 vIconUv;').replace('#include <uv_vertex>', `#include <uv_vertex>
+	{
+		#ifdef USE_INSTANCING
+		float ph = instanceMatrix[3].x * 0.37 + instanceMatrix[3].z * 0.23;
+		#else
+		float ph = 0.0;
+		#endif
+		float a = uIconA.x > 0.5 ? uIconT * 0.9 + ph : sin( uIconT * 1.7 + ph ) * uIconA.y;
+		float k = 1.0 + 0.06 * sin( uIconT * 2.4 + ph * 1.3 );
+		vIconUv = mat2( cos( a ), sin( a ), - sin( a ), cos( a ) ) * ( uv - 0.5 ) / k * ${(128 / ICON_PX).toFixed(4)} + 0.5;
+	}`);
+    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uIcon;\nvarying vec2 vIconUv;').replace('#include <map_fragment>', `#ifdef USE_MAP
+	vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+	// the icon only covers the middle of the disc: outside it no second texture fetch
+	if ( abs( vIconUv.x - 0.5 ) < 0.5 && abs( vIconUv.y - 0.5 ) < 0.5 ) {
+		vec4 ic = texture2D( uIcon, vIconUv );
+		sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, ic.rgb, smoothstep( 0.3, 0.7, ic.a ) );
+	}
+	diffuseColor *= sampledDiffuseColor;
+#endif`);
+  };
+  m.customProgramCacheKey = () => 'spaceTop';
+  return m;
 }
 
 // ---------- dice ----------
@@ -169,8 +222,43 @@ function buddyGeo(kind: BuddyId) {
   return b.geometry();
 }
 
-const RIM_GEO = new THREE.TorusGeometry(1.1, 0.075, 3, 32);
+/** The rim (in its own XY plane; the instance turns it flat) with vertex colours: a glossy
+ *  highlight on its upper side towards the sun (world −x, +z = local angle 225°). */
+const RIM_GEO = (() => {
+  const g = new THREE.TorusGeometry(1.1, 0.075, 3, 32), p = g.attributes.position, n = g.attributes.normal, c: number[] = [];
+  for (let i = 0; i < p.count; i++) {
+    let d = Math.abs(Math.atan2(p.getY(i), p.getX(i)) - (-3 * Math.PI) / 4);
+    if (d > Math.PI) d = TAU - d;
+    const k = clamp(1 - d / 0.75, 0, 1) * clamp(n.getZ(i) * 1.6, 0, 1);
+    const v = 1 + 1.5 * k * k;
+    c.push(v, v, v);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+  return g;
+})();
 const WHITE = new THREE.Color('#ffffff');
+
+/** Sets alpha to 1 for everything drawn so far, without touching the colour (the shared shader
+ *  patch writes the bloom mask into alpha; post.ts makes it opaque again, a direct draw does not). */
+let alphaFix: { scene: THREE.Scene; cam: THREE.OrthographicCamera } | null = null;
+export function opaqueAlpha() {
+  if (!alphaFix) {
+    const scene = new THREE.Scene(), m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+      vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }',
+      depthTest: false, depthWrite: false, transparent: true,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.ZeroFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.ZeroFactor,
+    }));
+    m.frustumCulled = false;
+    scene.add(m);
+    alphaFix = { scene, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+  }
+  const R = getRenderer(), ac = R.autoClear;
+  R.autoClear = false;
+  R.render(alphaFix.scene, alphaFix.cam);
+  R.autoClear = ac;
+}
 let blobT: THREE.Texture | null = null;
 function blobTex() {
   return (blobT ??= ctex(64, 64, (g) => {
@@ -249,8 +337,8 @@ export class BoardView implements View {
 
     // spaces: one instanced mesh per type (+ one for the dark bases)
     const dummy = this.dummy;
-    const BASE_GEO = new THREE.CylinderGeometry(1.26, 1.36, 0.3, 40);
-    const TOP_GEO = new THREE.CylinderGeometry(1.08, 1.08, 0.3, 40);
+    const BASE_GEO = new THREE.CylinderGeometry(1.26, 1.36, 0.3, 32);
+    const TOP_GEO = new THREE.CylinderGeometry(1.08, 1.08, 0.3, 32);
     const base = new THREE.InstancedMesh(BASE_GEO, toon('#2a1258'), nodes.length);
     nodes.forEach((n, i) => { dummy.position.set(n.x, 0.15, n.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); base.setMatrixAt(i, dummy.matrix); });
     base.receiveShadow = true;
@@ -259,14 +347,15 @@ export class BoardView implements View {
     for (const key of Object.keys(SP) as SpaceType[]) {
       const list = nodes.filter((n) => n.type === key);
       if (!list.length) continue;
-      const sideM = toon(SP[key].d), topM = new THREE.MeshToonMaterial({ map: spaceTex(key), gradientMap: GRAD });
+      const sideM = toon(SP[key].d), topM = topMat(key);
       const im = new THREE.InstancedMesh(TOP_GEO, [sideM, topM, sideM], list.length);
-      list.forEach((n, i) => { dummy.position.set(n.x, 0.39, n.z); dummy.rotation.set(0, Math.PI / 2, 0); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
+      list.forEach((n, i) => { dummy.position.set(n.x, 0.39, n.z); dummy.rotation.set(0, Math.PI / 2, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
       im.receiveShadow = true;
       sc.add(im);
     }
-    // bevel rims: a rounded lip around every space (one instanced mesh, tinted per type)
-    const rim = new THREE.InstancedMesh(RIM_GEO, toon('#ffffff'), nodes.length);
+    // bevel rims: a rounded lip around every space (one instanced mesh, tinted per type) with a
+    // glossy highlight where the sun catches it (brighter vertex colours, see RIM_GEO)
+    const rim = new THREE.InstancedMesh(RIM_GEO, toon('#ffffff', { vertexColors: true }), nodes.length);
     const _col = new THREE.Color();
     nodes.forEach((n, i) => {
       dummy.position.set(n.x, 0.535, n.z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); rim.setMatrixAt(i, dummy.matrix);
@@ -274,6 +363,9 @@ export class BoardView implements View {
     });
     rim.receiveShadow = true;
     sc.add(rim);
+    // stalls at the shops, rings at the duels
+    const props = spaceProps(new Batch(), nodes, edges, SPACE_Y);
+    if (props.n) sc.add(props.mesh());
     // path ribbons (bridges are drawn by the decor)
     const roadEdges = edges.filter((e) => !e.flag);
     const road = new THREE.InstancedMesh(BOX, toon('#fff1d6'), roadEdges.length);
@@ -288,6 +380,9 @@ export class BoardView implements View {
     road.receiveShadow = roadB.receiveShadow = true;
     sc.add(road, roadB, dots);
     if (roadEdges.length) curbs(sc, nodes, roadEdges, 0.95, ['#ffffff', '#ff7ad0', '#ffffff', '#35d4ff']);
+    if (roadEdges.length && lifeConfigOf(sc).marks) pathMarks(sc, nodes, roadEdges, { y: 0.1, color: '#ffffff', arrow: '#ff7ad0' });
+    // last: litter, pigeons, coins, spectators; flushes the flat detail batch (markings, litter)
+    sharedDetail(sc, this.g, kit.clearOfPath);
 
     // star
     const starMesh = new THREE.Mesh(STAR_GEO, VC_EMI);
@@ -382,8 +477,11 @@ export class BoardView implements View {
   /** The current weather (UI hook; 'party:weather' fires on window when it changes). */
   get weather() { return this.atmo.info; }
   post(): PostParams | null { return this.atmo.post(); }
+  /** Without the post pass (quality "Niedrig") the board is drawn straight to the canvas, where
+   *  the bloom mask (alpha 0 on opaque surfaces) would let the page shine through. */
+  afterRender() { if (quality.post === 0 || !this.atmo.post()) opaqueAlpha(); }
 
-  placeStar(node: number) { const n = this.g.nodes[node]; this.star.position.set(n.x, 0, n.z); this.starSpin.position.set(0, 2.7, 0); }
+  placeStar(node: number) { const n = this.g.nodes[node]; this.star.position.set(n.x, 0, n.z); this.starSpin.position.set(0, 2.7, 0); lifeStar(this.scene, n.x, n.z); }
 
   setBuddy(kind: BuddyId | null, owner: number | null, at: number | null) {
     if (kind && kind !== this.buddyKind) { this.buddy.geometry = buddyGeo(kind); }
@@ -427,6 +525,7 @@ export class BoardView implements View {
     for (let s = 1; s <= sub; s++) {
       const target = s === sub ? this.nodePos(to, p) : new THREE.Vector3(lerp(A.x, B.x, s / sub), 0.62, lerp(A.z, B.z, s / sub));
       await hopFig(f, target, 0.27, s === sub ? 0.95 : 0.7);
+      lifeHop(this.scene, target.x, target.z);
     }
     for (const q of others) void hopFig(this.figs[q], this.nodePos(this.nodeOf[q], q), 0.2, 0.3);
     void stepIdx;
@@ -497,6 +596,7 @@ export class BoardView implements View {
       this.starSpin.scale.setScalar(1 - k * 0.6);
     }, E.inOut);
     this.sparkBurst(to, 12);
+    lifeCheer(this.scene, from.x, from.z);
     void squashLand(f, 0.3);
     this.starSpin.position.set(0, 2.7, 0);
     this.starSpin.scale.setScalar(1);
@@ -619,6 +719,8 @@ export class BoardView implements View {
   update(dt: number, t: number) {
     this.decor.update(dt, t);
     tickLife(this.scene, dt, t);
+    tickLeben(this.scene, dt, t, this.cam.position.y);
+    ICON_T.value = t;
     this.starSpin.rotation.y = t * 1.6;
     if (this.halo.visible) { this.starSpin.position.y = 2.7 + Math.sin(t * 2.4) * 0.22; (this.halo.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(t * 3) * 0.15; }
     for (const f of this.figs) updateFigure(f, dt, t);

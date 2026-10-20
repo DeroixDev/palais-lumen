@@ -46,3 +46,22 @@ Gimmick-Ereignis ab (awaited), `overview` ist der Ausschnitt für die Übersicht
 Für 60 fps: statische Deko mit `Batch` zu wenigen Meshes zusammenfassen, Gebäude/Bäume als
 `InstancedMesh`, Materialien aus `kit.ts` (`toon()` ist gecacht), keine Allokationen in
 `update`. Nur eigene Grafik, alle Texte deutsch.
+
+## Kleinkram und Leben (für alle Bretter)
+
+Die Brettansicht baut nach `decor` für jedes Brett: leicht erhöhte Felder mit Glanzkante und
+animiertem Symbol, einen Stand an jedem Laden, einen Ring an jedem Duell, Markierungen auf
+normalen Wegen, Laub, Konfetti und Pfützen am Wegrand, Tauben (fliegen auf, wenn eine Figur
+vorbeihüpft), Münzen am Boden (hüpfen hoch) und Zuschauer am Stern (jubeln beim Sternkauf).
+
+- `leben.lifeConfig(kit.scene, { … })` stellt das pro Brett ein (z. B. `pigeons: 0` drinnen,
+  eigene Laub- und Konfettifarben), `leben.setSpotFilter(kit.scene, (x, z) => …)` sagt, wo
+  Tauben, Münzen und Zuschauer stehen dürfen (nicht in Gebäuden, nicht im Wasser).
+- Helfer zum Selbstbauen: `leben.ts` (`wobbly` Büsche, `lanterns` Laternen, die beim
+  Vorbeigehen angehen, `convoy` Fahrzeuge mit Tunnel, `pigeons`, `groundCoins`, `GEO.shopper`
+  Passanten mit Tüten, `nearOnly` für Kleinkram, der in der Übersicht verschwindet) und
+  `feinkram.ts` (`pavingDeco` Fugen/Moos/Flecken für `groundTex`, `woodTex`, `roofTex`,
+  `facadeTex` Fenster mit Rahmen, Atlas-Schilder/Plakate/Graffiti als ein Mesh, `bake` statt
+  `instanced` für statischen Kleinkram in einem Batch, Lichterketten, Wäscheleinen).
+- Alles Bewegte schläft mit der Effekt-Stufe der Qualität (`quality.fx`), wirft keinen
+  Schatten und legt pro Frame nichts an.
