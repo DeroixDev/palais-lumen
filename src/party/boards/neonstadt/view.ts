@@ -16,6 +16,9 @@ import { sfx } from '../../sfx';
 import { E, TAU, clamp, lerp, pickR, rand, tween, wait } from '../../util';
 import { roundRect, type P2 } from '../bauteile';
 import { BOAT, PERSON, PROPS, flock, groundTex, instanced, loopers, type Item } from '../details';
+import { facadeTex, pavingDeco } from '../feinkram';
+import { GEO, lanterns, lifeConfig, setSpotFilter, wobbly } from '../leben';
+import { ROAD, neonKleinkram, onStreet, type Bld } from './kleinkram';
 
 const _c = new THREE.Color();
 
@@ -60,11 +63,11 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const ig = new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: true, bevelThickness: 0.5, bevelSize: 0.5, bevelSegments: 2, curveSegments: 6 });
   const tileTex = groundTex({
     a: '#b5f0d6', b: '#9fe8c8', line: 'rgba(80,170,140,.4)', vary: 0.1, speck: ['#ffffff', '#ffd9ef', '#fff3a6'],
-    deco: (g, x, y, S, k) => {
+    deco: pavingDeco({ sub: 'grid', joint: 'rgba(60,140,115,.28)', moss: 0.4, mossC: 'rgba(60,160,90,.5)', stain: 0.35, stainC: 'rgba(40,60,90,.12)', extra: (g, x, y, S, k) => {
       if (k === 3) { g.fillStyle = 'rgba(70,160,120,.35)'; g.beginPath(); g.arc(x + S / 2, y + S / 2, 9, 0, TAU); g.fill(); g.strokeStyle = 'rgba(40,110,90,.5)'; g.lineWidth = 2; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x + S / 2 - 7, y + S / 2 + i * 4); g.lineTo(x + S / 2 + 7, y + S / 2 + i * 4); g.stroke(); } }
       else if (k === 7) { for (let i = 0; i < 4; i++) { g.fillStyle = pickR(['#ff8fc8', '#fff3a6', '#ffffff']); g.beginPath(); g.arc(x + 14 + Math.random() * 36, y + 14 + Math.random() * 36, 3.2, 0, TAU); g.fill(); } }
       else if (k === 9) { g.strokeStyle = 'rgba(60,130,100,.35)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 8, y + 20); g.lineTo(x + 26, y + 30); g.lineTo(x + 30, y + 48); g.stroke(); }
-    },
+    } }),
   });
   tileTex.repeat.set(1 / 18, 1 / 18);
   const island = new THREE.Mesh(ig, [new THREE.MeshToonMaterial({ map: tileTex, gradientMap: GRAD }), toon('#7a4ad8')]);
@@ -88,19 +91,20 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   // --- free spots ---
   const LANDMARKS: [number, number, number][] = [[22, -3, 8], [1.5, -8, 6], [-22, -9, 3.6], [-33, -20.5, 3.4], [0, 13.6, 3.6]];
   const inIsland = (x: number, z: number, m: number) => x > -36 + m && x < 36 - m && z > -24 + m && z < 22 - m && !(x < -5 + m && Math.abs(z) < 2.4 + m) && !(Math.abs(x) > 28 && Math.abs(z) > 16 && Math.hypot(Math.abs(x) - 29, z > 0 ? z - 15 : -z - 17) > 8 - m);
-  const free = (x: number, z: number, rN: number, rE: number, m = 1.5) => inIsland(x, z, m) && kit.clearOfPath(x, z, rN, rE) && LANDMARKS.every(([lx, lz, r]) => Math.hypot(lx - x, lz - z) > r);
+  const free = (x: number, z: number, rN: number, rE: number, m = 1.5) => inIsland(x, z, m) && !onStreet(x, z, m * 0.5) && kit.clearOfPath(x, z, rN, rE) && LANDMARKS.every(([lx, lz, r]) => Math.hypot(lx - x, lz - z) > r);
 
   // --- buildings (instanced) ---
-  const winTex = ctex(64, 128, (g) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#c9c0e6'; for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) g.fillRect(5 + i * 15, 6 + j * 15, 9, 10); });
-  const winEmi = ctex(64, 128, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128); for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) if (Math.random() < 0.45) { g.fillStyle = pickR(['#ffe680', '#8ff3ff', '#ffb3e0']); g.fillRect(5 + i * 15, 6 + j * 15, 9, 10); } });
+  // façades: framed windows with sills, bars, curtains and flower boxes (feinkram.facadeTex)
+  const { map: winTex, emi: winEmi } = facadeTex({ cols: 4, rows: 8, lit: 0.45, litColors: ['#ffe680', '#8ff3ff', '#ffb3e0', '#ffd08a'] });
   const st0 = new Batch();
   const BGEO = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), BOUT = new THREE.BoxGeometry(1.07, 1.02, 1.07).translate(0, 0.5, 0);
-  const blds: { x: number; z: number; w: number; d: number; h: number }[] = [];
+  const blds: Bld[] = [];
   for (let x = -33; x <= 33; x += 4.3) for (let z = -22; z <= 20; z += 4.3) {
     const px = x + rand(-0.8, 0.8), pz = z + rand(-0.8, 0.8);
     if (!free(px, pz, 3.6, 2.8, 2)) continue;
-    const front = clamp((pz + 22) / 42, 0, 1);
-    blds.push({ x: px, z: pz, w: rand(2.2, 3.3), d: rand(2.2, 3.3), h: lerp(rand(5, 10), rand(1.8, 3.4), front) });
+    const front = clamp((pz + 22) / 42, 0, 1), d = rand(2.2, 3.3);
+    if (onStreet(px, pz + d / 2, 0.3)) continue;
+    blds.push({ x: px, z: pz, w: rand(2.2, 3.3), d, h: lerp(rand(5, 10), rand(1.8, 3.4), front) });
   }
   const BCOL = ['#ffd0e8', '#c8f0ff', '#fff0b8', '#dccbff', '#c9ffd9', '#ffd9c2'];
   const ROOF = ['#ff4fb0', '#35d4ff', '#b8f02a', '#ffd23f', '#8a5bff'];
@@ -118,6 +122,10 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   const bM = new THREE.InstancedMesh(BGEO, bMat, blds.length);
   const bO = new THREE.InstancedMesh(BOUT, OUT, blds.length), rM = new THREE.InstancedMesh(BOX, toon('#ffffff'), blds.length);
   blds.forEach((b, i) => {
+    // low houses get a tiled gable roof, some tall flat roofs a garden with fairy lights
+    b.roof = ROOF[i % ROOF.length];
+    b.gable = b.h < 3.6 && i % 3 !== 1;
+    b.garden = !b.gable && b.h > 4.2 && (i * 37) % 7 === 3;
     dummy.position.set(b.x, 0, b.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(b.w, b.h, b.d); dummy.updateMatrix();
     bM.setMatrixAt(i, dummy.matrix); bO.setMatrixAt(i, dummy.matrix); bM.setColorAt(i, _c.set(BCOL[i % BCOL.length]));
     dummy.position.set(b.x, b.h + 0.15, b.z); dummy.scale.set(b.w + 0.35, 0.3, b.d + 0.35); dummy.updateMatrix();
@@ -126,7 +134,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   bM.castShadow = rM.castShadow = true;
   for (const b of blds) aoAdd(sc, b.x, b.z, b.w + 1.6, b.d + 1.6, 0, 0.75);
   // chimneys with smoke on a few roofs
-  blds.filter((b, i) => b.h > 4 && i % 5 === 1).slice(0, 5).forEach((b) => {
+  blds.filter((b, i) => b.h > 4 && i % 5 === 1 && !b.garden).slice(0, 5).forEach((b) => {
     const cx = b.x - b.w * 0.25, cz = b.z - b.d * 0.2;
     st0.add(BOX, '#b46b5a', cx, b.h + 0.75, cz, 0, 0, 0, 0.5, 1.2, 0.5); st0.add(BOX, '#2a1258', cx, b.h + 1.38, cz, 0, 0, 0, 0.62, 0.1, 0.62);
     air.push({ kind: 'smoke', x: cx, z: cz, r: 0.1, n: 9, y0: b.h + 1.5, size: 1.3 });
@@ -144,6 +152,7 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
       if (b.h > 2.6) awn.push({ x: b.x + b.w * 0.12, y: 1.75, z: fz + 0.36, sx: b.w * 0.62, c: AWN[i % AWN.length] });
       for (let y = 3.2; y < b.h - 0.8; y += 2.3) balc.push({ x: b.x, y, z: fz, sx: b.w * 0.72, c: i % 2 ? '#ffffff' : '#fff0f8' });
       const r = (i * 37) % 7, top = b.h + 0.3;
+      if (b.gable || b.garden) return;
       if (r < 3) ac.push({ x: b.x + b.w * 0.18, y: top, z: b.z - b.d * 0.15, ry: r, c: '#eae6f6' });
       if (r === 2 || r === 5) tank.push({ x: b.x - b.w * 0.2, y: top, z: b.z + b.d * 0.12, s: 0.8, c: pickR(['#ffd0e8', '#c8f0ff', '#fff0b8']) });
       if (r === 4 || r === 6 || (b.h > 7 && r === 1)) ant.push({ x: b.x + b.w * 0.25, y: top, z: b.z + b.d * 0.2 });
@@ -180,9 +189,10 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     const x = n.x + ox, z = n.z + oz;
     if (!inIsland(x, z, 0.6) || inCanal(x, z)) return;
     st.add(CYL8, '#2a1258', x, 1.2, z, 0, 0, 0, 0.08, 2.4, 0.08); st.add(CYL8, '#2a1258', x, 0.1, z, 0, 0, 0, 0.22, 0.2, 0.22);
-    gl.add(SPH_LO, i % 2 ? '#ff7ad0' : '#7af0ff', x, 2.5, z, 0, 0, 0, 0.26);
+    st.add(CYL8, '#2a1258', x, 2.86, z, 0, 0, 0, 0.1, 0.1, 0.1);
     lampPts.push([x, 2.35, z]);
   });
+  lanterns(sc, lampPts.map(([x, , z]) => [x, 2.55, z] as [number, number, number]), ['#ff7ad0', '#7af0ff'], () => kit.atmo.live.glow, { size: 0.26 });
   // start sign
   st.add(BOX, '#2a1258', -3.2, 1.6, 13.8, 0, 0, 0, 0.25, 3.2, 0.25); st.add(BOX, '#2a1258', 3.2, 1.6, 13.8, 0, 0, 0, 0.25, 3.2, 0.25);
   ([['#ff4fb0', -2.6], ['#ffd23f', -3.4], ['#35d4ff', 2.8], ['#b8f02a', 3.6]] as const).forEach(([c, x]) => { st.beam([x > 0 ? 3.2 : -3.2, 3.2, 13.8], [x, 4.6, 13.6], 0.02, '#ffffff'); st.add(SPH, c, x, 4.9, 13.6, 0, 0, 0, 0.38, 0.46, 0.38); });
@@ -326,20 +336,6 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   beamG.add(beam);
   sc.add(beamG);
 
-  // a kiosk next to every shop
-  for (const n of nodes.filter((x) => x.type === 'S')) {
-    const nx = nodes[n.next[0]];
-    const dx = nx.x - n.x, dz = nx.z - n.z, l = Math.hypot(dx, dz) || 1;
-    let kx = n.x + (dz / l) * 2.6, kz = n.z - (dx / l) * 2.6;
-    if (!inIsland(kx, kz, 1) || inCanal(kx, kz)) { kx = n.x - (dz / l) * 2.6; kz = n.z + (dx / l) * 2.6; }
-    const yaw = Math.atan2(n.x - kx, n.z - kz);
-    const m = new THREE.Matrix4().compose(new THREE.Vector3(kx, 0, kz), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(1, 1, 1));
-    const kb = new Batch();
-    kb.add(BOX, '#ffffff', 0, 0.6, 0, 0, 0, 0, 2.4, 1.2, 1.4); kb.add(BOX, '#b46bff', 0, 0.6, 0.72, 0, 0, 0, 2.2, 0.9, 0.05);
-    for (let k = 0; k < 6; k++) kb.add(BOX, k % 2 ? '#ffffff' : '#b46bff', -1.25 + k * 0.5, 2.1, 0.35, -0.35, 0, 0, 0.5, 0.1, 1.7);
-    kb.add(CYL8, '#2a1258', -1.1, 1.3, 0.9, 0, 0, 0, 0.06, 1.6, 0.06); kb.add(CYL8, '#2a1258', 1.1, 1.3, 0.9, 0, 0, 0, 0.06, 1.6, 0.06);
-    st.addM(kb.geometry(), '#ffffff', m);
-  }
   // harbour + boats (two lanterns on the pier)
   st.add(BOX, '#c79a6a', -40, -0.6, 9, 0, 0, 0, 7, 0.25, 1.6);
   for (const x of [-42.8, -37.2]) { st.add(CYL8, '#2a1258', x, 0.3, 9.6, 0, 0, 0, 0.07, 1.6, 0.07); gl.add(SPH_LO, '#ffd9a0', x, 1.2, 9.6, 0, 0, 0, 0.22); }
@@ -356,10 +352,18 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     boats.push(m);
   });
   // --- street furniture along the paths and greenery on free spots (instanced) ---
+  const taken: P2[] = [];
+  const ok = (x: number, z: number, r: number) => !inCanal(x, z) && inIsland(x, z, 0.8) && !onStreet(x, z, 0.2) && !nearBld(x, z, 0.5) && taken.every(([a, b]) => Math.hypot(a - x, b - z) > r) && LANDMARKS.every(([lx, lz, rr]) => Math.hypot(lx - x, lz - z) > rr);
+  // spectators, pigeons and coins (leben.ts) keep off the buildings, the water and the road
+  setSpotFilter(sc, (x, z) => !inCanal(x, z) && inIsland(x, z, 0.6) && !onStreet(x, z, 0.3) && !nearBld(x, z, 0.4) && LANDMARKS.every(([lx, lz, rr]) => Math.hypot(lx - x, lz - z) > rr * 0.8));
+  lifeConfig(sc, { pigeons: 10, coins: 20, litterPer: 5, puddleC: '#a8d8ff' });
+  // the city's small things: houses, road and traffic, snack stand, kiosks, arcade, harbour
+  neonKleinkram({
+    kit, st, gl, air, blds, inIsland,
+    claim: (x, z, r, rN = 1.5, rE = 1.05) => { if (!ok(x, z, r) || !kit.clearOfPath(x, z, rN, rE)) return false; taken.push([x, z]); return true; },
+  });
   {
     const bench: Item[] = [], bed: Item[] = [], hyd: Item[] = [], sign: Item[] = [], bush: Item[] = [], tuft: Item[] = [];
-    const taken: P2[] = [];
-    const ok = (x: number, z: number, r: number) => !inCanal(x, z) && inIsland(x, z, 0.8) && !nearBld(x, z, 0.5) && taken.every(([a, b]) => Math.hypot(a - x, b - z) > r) && LANDMARKS.every(([lx, lz, rr]) => Math.hypot(lx - x, lz - z) > rr);
     edges.forEach((e, i) => {
       if (e.flag) return;
       const A = nodes[e.a], B = nodes[e.b], dx = B.x - A.x, dz = B.z - A.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
@@ -380,14 +384,14 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
     }
     for (let k = 0; k < 900 && tuft.length < 90; k++) {
       const x = rand(-35.5, 35.5), z = rand(-24, 22);
-      if (inCanal(x, z) || !inIsland(x, z, 0.4) || nearBld(x, z, 0.2) || !kit.clearOfPath(x, z, 1.4, 0.8)) continue;
+      if (inCanal(x, z) || !inIsland(x, z, 0.4) || onStreet(x, z, 0.1) || nearBld(x, z, 0.2) || !kit.clearOfPath(x, z, 1.4, 0.8)) continue;
       tuft.push({ x, z, s: rand(0.8, 1.4), ry: rand(0, TAU), c: pickR(['#4fcf7a', '#6fdc6a', '#3fbf8a']) });
     }
     instanced(sc, PROPS.bench(), bench);
     instanced(sc, PROPS.flowers(), bed);
     instanced(sc, PROPS.hydrant(), hyd);
     instanced(sc, PROPS.sign(), sign);
-    instanced(sc, PROPS.bush(), bush);
+    wobbly(sc, PROPS.bush(), bush);
     instanced(sc, PROPS.tuft(), tuft, { cast: false });
   }
 
@@ -395,9 +399,10 @@ export function neonDecor(kit: BoardKit, ids: { draw: BEdge; j4: number; dFirst:
   loopers(sc, BOAT, roundRect(-47, 47, -33, 31, 10, 6), 7, { y: -1.2, speed: 2.2, colors: ['#ff5fae', '#35d4ff', '#ffd23f', '#b8f02a', '#ff9a5c'], scale: 1.1 });
   {
     const walk: P2[] = [];
-    for (let x = -30; x <= 30; x += 3) walk.push([x, 20.7]);
-    const back = walk.slice(1, -1).reverse().map(([x, z]) => [x, z + 0.7] as P2);
-    loopers(sc, PERSON, [...walk, ...back], 12, { y: 0, speed: 0.9, colors: ['#ff4fb0', '#35d4ff', '#ffd23f', '#8a5bff', '#ff9a5c', '#ffffff'], scale: 0.85, bob: 0.06 });
+    for (let x = -28.5; x <= 28.5; x += 3) walk.push([x, ROAD.walk - 0.22]);
+    const back = walk.slice(1, -1).reverse().map(([x, z]) => [x, z + 0.48] as P2);
+    // passers-by with shopping bags on the sidewalk along the road
+    loopers(sc, GEO.shopper(), [...walk, ...back], 12, { y: 0.1, speed: 0.85, colors: ['#ff4fb0', '#35d4ff', '#ffd23f', '#8a5bff', '#ff9a5c', '#ffffff'], scale: 0.85, bob: 0.05 });
     const ring: P2[] = [];
     for (let k = 0; k < 24; k++) { const a = (k / 24) * TAU; ring.push([1.5 + Math.cos(a) * 5.75, -8 + Math.sin(a) * 5.75]); }
     loopers(sc, PERSON, ring, 7, { y: 0, speed: 0.7, dir: -1, colors: ['#b8f02a', '#ff7ad0', '#35d4ff', '#ffffff'], scale: 0.85, bob: 0.06 });

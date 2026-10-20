@@ -1,7 +1,8 @@
 // Quality: render sharp (full device pixel ratio up to 2, MSAA, big shadow maps, bloom and the
 // colour grade) and step down automatically only when frames stay slow. Order of the steps
 // (Auto): first the bloom (the post passes that cost most), then the shadow map size, then the
-// effects (ambient life, air particles, the colour-grade pass), and only at the very end the
+// effects (ambient life, air particles, the colour-grade pass; the life of boards/leben.ts too:
+// traffic, pigeons, spectators, coins, buoys, gulls), and only at the very end the
 // pixel ratio, never below 1. Shadows are never switched off in Auto (that would recompile every
 // shader: a visible hitch). A step down needs two 2-second windows in a row whose MEDIAN frame
 // time is above 24 ms (single spikes don't count); a step up needs two good windows (about 4 s),
@@ -43,7 +44,7 @@ export const quality = {
   good: 0,
   changes: 0,
   last: '' as string,
-  /** Effects on (ambient life, air particles); boards read this. */
+  /** Effects on (ambient life, traffic, pigeons, spectators, air particles); boards read this. */
   fx: true,
   /** Post-processing: 2 bloom + grade, 1 grade only, 0 none. */
   post: 2 as 0 | 1 | 2,
