@@ -9,7 +9,8 @@ import { $, $$, E, TAU, esc, rand, reduced, tween, wait } from '../util';
 import { makeFigure, squashLand, updateFigure, type Fig } from '../view3d/figures';
 import { BOX, Batch, CONE, CYL, FONT, GLOW, GRAD, OUT, SPH_LO, THREE, TOR_THIN, VC_EMI, addLights, ctex, skyTex, toon } from '../view3d/kit';
 import { VH, VW, addLabel, clearLabels, getView, resize, setView, type Label, type View } from '../view3d/stage';
-import { starSVG } from './avatars';
+import { charSVG, coinSVG, starSVG } from './avatars';
+import { fixAlpha } from './menu3d';
 import type { BonusList } from './presenter';
 
 const _c = new THREE.Color();
@@ -75,6 +76,9 @@ class Podium implements View {
     });
   }
 
+  /** Drawn straight to the screen: make it opaque (see menu3d.fixAlpha). */
+  afterRender() { fixAlpha(); }
+
   update(dt: number, t: number) {
     const a = VW / VH, dist = a < 1 ? 15 + (1 - a) * 16 : 14;
     this.cam.position.set(Math.sin(t * 0.15) * 1.2, 5 + (a < 1 ? 2 : 0), dist + 1.5);
@@ -137,7 +141,16 @@ export async function openPodium(o: PodiumOpts): Promise<'again' | 'title'> {
   const result = new Promise<'again' | 'title'>((res) => {
     $('#podAgain').onclick = () => { alive = false; res('again'); };
     $('#podTitleBtn').onclick = () => { alive = false; res('title'); };
-    $('#podStats').onclick = () => { sb.hidden = !sb.hidden; sfx.pop(); if (!sb.hidden) sb.scrollIntoView({ block: 'nearest' }); };
+    const sBtn = $('#podStats');
+    sBtn.textContent = 'Statistik';
+    sBtn.setAttribute('aria-expanded', 'false');
+    sBtn.onclick = () => {
+      sb.hidden = !sb.hidden;
+      sBtn.textContent = sb.hidden ? 'Statistik' : 'Statistik zu';
+      sBtn.setAttribute('aria-expanded', String(!sb.hidden));
+      sfx.pop();
+      if (!sb.hidden) sb.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    };
   });
   void (async () => {
     sfx.whoosh();
@@ -193,10 +206,17 @@ export async function openPodium(o: PodiumOpts): Promise<'again' | 'title'> {
 
 function statsTable(o: PodiumOpts) {
   const { st, seats, order } = o;
-  const cols: [string, (i: number) => number][] = [
-    ['Sterne', (i) => st.players[i].stars], ['Münzen', (i) => st.players[i].coins], ['Minispiel-Siege', (i) => st.players[i].stats.mgWins],
-    ['Münzen gesammelt', (i) => st.players[i].stats.coinsGot], ['Felder', (i) => st.players[i].stats.steps], ['Sterne gekauft', (i) => st.players[i].stats.starsBought],
-    ['Duelle gewonnen', (i) => st.players[i].stats.duelsWon], ['Laden', (i) => st.players[i].stats.spent], ['Ereignisse', (i) => st.players[i].stats.events], ['Minusfelder', (i) => st.players[i].stats.minus],
+  // [title, value, highlight the best]
+  const cols: [string, (i: number) => number, boolean][] = [
+    ['Minispiel-Siege', (i) => st.players[i].stats.mgWins, true], ['Münzen gesammelt', (i) => st.players[i].stats.coinsGot, true],
+    ['Felder gelaufen', (i) => st.players[i].stats.steps, true], ['Sterne gekauft', (i) => st.players[i].stats.starsBought, true],
+    ['Duelle gewonnen', (i) => st.players[i].stats.duelsWon, true], ['Im Laden', (i) => st.players[i].stats.spent, true],
+    ['Ereignisse', (i) => st.players[i].stats.events, true], ['Minusfelder', (i) => st.players[i].stats.minus, false],
   ];
-  return `<table><thead><tr><th>Platz</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${order.map((i, n) => `<tr><td><b style="color:${seats[i].color}">${n + 1}. ${esc(seats[i].name)}</b>${i === o.me ? ' (du)' : ''}</td>${cols.map(([, f]) => `<td>${f(i)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const best = cols.map(([, f, hi]) => (hi ? Math.max(...order.map(f)) : Infinity));
+  return `<h3 class="st-h">Statistik des Abends</h3><div class="stgrid">${order.map((i, n) => `<article class="stcard" style="--pc:${seats[i].color};--i:${n}">
+      <header><em>${n + 1}.</em><span class="r-ava">${charSVG(seats[i], true)}</span><span class="st-who"><b>${esc(seats[i].name)}</b>${i === o.me ? '<small>du</small>' : ''}</span>
+      <span class="st-big"><span>${starSVG()}${st.players[i].stars}</span><span>${coinSVG}${st.players[i].coins}</span></span></header>
+      <dl>${cols.map(([h, f], k) => { const v = f(i); return `<div${v > 0 && v === best[k] ? ' class="best"' : ''}><dt>${h}</dt><dd>${v}</dd></div>`; }).join('')}</dl>
+    </article>`).join('')}</div>`;
 }
