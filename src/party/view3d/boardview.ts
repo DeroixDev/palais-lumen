@@ -192,7 +192,7 @@ export class BoardView implements View {
   nodeOf: number[] = [];
   turn = 0;
   mode: 'board' | 'hidden' = 'board';
-  view = { mode: 'follow' as 'follow' | 'point' | 'overview', user: false, pt: new THREE.Vector3(), tgt: new THREE.Vector3(), pos: new THREE.Vector3(0, 90, 60), wide: 1 };
+  view = { mode: 'follow' as 'follow' | 'point' | 'overview', user: false, pt: new THREE.Vector3(), tgt: new THREE.Vector3(), pos: new THREE.Vector3(0, 90, 60), wide: 1, /** Overview map: free pan offset (world units) and zoom factor, set by the HUD. */ pan: new THREE.Vector3(), zoom: 1 };
   private star = new THREE.Group();
   private starSpin = new THREE.Group();
   private halo: THREE.Mesh;
@@ -669,8 +669,8 @@ export class BoardView implements View {
     const V = this.view, aspect = VW / VH, ov = this.decor.overview;
     let dist: number, elev = 0.9, az = -0.16;
     if (V.user || V.mode === 'overview' || !f) {
-      _t1.set(ov.x, 0, ov.z);
-      dist = clamp(Math.max((ov.w * 0.56) / (0.364 * aspect), (ov.d * 0.6) / 0.364), 62, 170);
+      _t1.set(ov.x + V.pan.x, 0, ov.z + V.pan.z);
+      dist = clamp(Math.max((ov.w * 0.56) / (0.364 * aspect), (ov.d * 0.6) / 0.364), 62, 170) * V.zoom;
       elev = 1.0;
       az = 0;
     } else if (V.mode === 'point') {
