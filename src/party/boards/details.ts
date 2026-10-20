@@ -4,10 +4,12 @@
 // The board's shadow map is baked once, so static props may cast shadows for free; everything
 // that moves all the time here does NOT cast. Nothing allocates per frame, and the ambient life
 // sleeps (hidden, no updates) when the quality governor turns the effects off.
+// Props standing on the ground get a soft contact shadow underneath (view3d/fx3d aoAdd).
 
 import type { BEdge, BNode } from './types';
 import { Batch, BOX, CONE, CYL8, THREE, ctex, groundAniso, toon } from '../view3d/kit';
 import { quality } from '../view3d/quality';
+import { aoAdd } from '../view3d/fx3d';
 import { TAU } from '../util';
 import { BULB, CYL6, LEAF, type P2 } from './bauteile';
 
@@ -16,8 +18,21 @@ const _c = new THREE.Color();
 
 export interface Item { x: number; z: number; y?: number; ry?: number; s?: number; sx?: number; sy?: number; sz?: number; c?: string }
 
-/** Many copies of one (vertex-coloured, white-based) part: one draw call, tinted per instance. */
-export function instanced(sc: THREE.Scene, geo: THREE.BufferGeometry, items: Item[], o: { mat?: THREE.Material; cast?: boolean; recv?: boolean } = {}) {
+const boxes = new WeakMap<THREE.BufferGeometry, THREE.Box3>();
+/** Many copies of one (vertex-coloured, white-based) part: one draw call, tinted per instance.
+ *  Shadow-casting props on the ground also get a contact shadow (`ao`: its strength, 0 = none). */
+export function instanced(sc: THREE.Scene, geo: THREE.BufferGeometry, items: Item[], o: { mat?: THREE.Material; cast?: boolean; recv?: boolean; ao?: number } = {}) {
+  const ao = o.ao ?? ((o.cast ?? true) ? 0.55 : 0);
+  if (ao > 0) {
+    let bb = boxes.get(geo);
+    if (!bb) { geo.computeBoundingBox(); bb = geo.boundingBox!.clone(); boxes.set(geo, bb); }
+    const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2, bw = bb.max.x - bb.min.x, bd = bb.max.z - bb.min.z;
+    for (const it of items) {
+      if ((it.y ?? 0) > 0.25) continue;
+      const s = it.s ?? 1, ry = it.ry ?? 0, ox = cx * s * (it.sx ?? 1), oz = cz * s * (it.sz ?? 1);
+      aoAdd(sc, it.x + ox * Math.cos(ry) + oz * Math.sin(ry), it.z - ox * Math.sin(ry) + oz * Math.cos(ry), bw * s * (it.sx ?? 1) * 1.3 + 0.4, bd * s * (it.sz ?? 1) * 1.3 + 0.4, ry, ao);
+    }
+  }
   const im = new THREE.InstancedMesh(geo, o.mat ?? VCT, Math.max(1, items.length));
   items.forEach((it, i) => {
     const s = it.s ?? 1;

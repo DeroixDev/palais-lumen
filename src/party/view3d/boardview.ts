@@ -6,6 +6,8 @@
 // only when something that casts a shadow moved (a gimmick turning, the lift, falling crates).
 // Things that move all the time (figures, star, dice, wheels, boats …) don't cast; the figures
 // get soft blob shadows instead. The board renders at most 60 frames a second.
+// The atmosphere (time of day, weather, water, haze, particles, colour grade: atmo.ts) follows
+// the game state through track(st) and asks the stage for the post-processing.
 
 import type { BoardDef, BoardGraph, BNode, SpaceType } from '../boards/types';
 import type { GameState } from '../engine/state';
@@ -19,6 +21,8 @@ import {
   addLights, ctex, fixShadow, toon, type Lights,
 } from './kit';
 import { quality } from './quality';
+import { Atmo } from './atmo';
+import type { PostParams } from './post';
 import { curbs, tickLife } from '../boards/details';
 import { VH, VW, addLabel, clearLabels, removeLabel, type Label, type View } from './stage';
 
@@ -29,6 +33,8 @@ export interface BoardKit {
   scene: THREE.Scene;
   graph: BoardGraph;
   lights: Lights;
+  /** Time of day, weather, water, particles and the colour grade (the decor sets its mood). */
+  atmo: Atmo;
   /** True when (x, z) keeps rN from every space and rE from every path. */
   clearOfPath(x: number, z: number, rN: number, rE: number): boolean;
   /** Point the camera at a spot for a moment (gimmicks). */
@@ -184,6 +190,7 @@ export class BoardView implements View {
   scene = new THREE.Scene();
   cam = new THREE.PerspectiveCamera(40, 1, 0.5, 600);
   lights: Lights;
+  atmo: Atmo;
   decor: BoardDecor;
   g: BoardGraph;
   figs: Fig[] = [];
@@ -226,8 +233,9 @@ export class BoardView implements View {
       const t = clamp(((px - A.x) * dx + (pz - A.z) * dz) / (l2 || 1), 0, 1);
       return Math.hypot(px - (A.x + dx * t), pz - (A.z + dz * t));
     };
+    this.atmo = new Atmo(sc, this.lights, this.g);
     const kit: BoardKit = {
-      scene: sc, graph: this.g, lights: this.lights,
+      scene: sc, graph: this.g, lights: this.lights, atmo: this.atmo,
       clearOfPath: (x, z, rN, rE) => nodes.every((n) => Math.hypot(n.x - x, n.z - z) > rN) && edges.every((e) => segDist(x, z, nodes[e.a], nodes[e.b]) > rE),
       look: (x, z) => { this.view.mode = 'point'; this.view.pt.set(x, 0, z); },
       follow: () => { this.view.mode = 'follow'; },
@@ -236,6 +244,7 @@ export class BoardView implements View {
     {
       const ov = this.decor.overview;
       fixShadow(this.lights, ov.x, ov.z, Math.hypot(ov.w, ov.d) * 0.5 + 9);
+      this.atmo.finish(ov);
     }
 
     // spaces: one instanced mesh per type (+ one for the dark bases)
@@ -365,7 +374,14 @@ export class BoardView implements View {
     this.setTraps(st.traps);
     this.turn = st.turn < st.players.length ? st.turn : 0;
     this.decor.apply(st.bs);
+    this.atmo.track(st, true);
   }
+
+  /** Follows the state's round (time of day) and weather; called for every event. */
+  track(st: GameState) { this.atmo.track(st); }
+  /** The current weather (UI hook; 'party:weather' fires on window when it changes). */
+  get weather() { return this.atmo.info; }
+  post(): PostParams | null { return this.atmo.post(); }
 
   placeStar(node: number) { const n = this.g.nodes[node]; this.star.position.set(n.x, 0, n.z); this.starSpin.position.set(0, 2.7, 0); }
 
@@ -578,7 +594,7 @@ export class BoardView implements View {
       this.scene.updateMatrixWorld();
       this.scene.traverse((o) => { if (o.castShadow) this.casters.push({ o, m: new Float64Array(o.matrixWorld.elements), vis: false, ver: -1 }); });
     }
-    let dirty = this.shadowEpoch !== quality.shadowEpoch;
+    let dirty = this.shadowEpoch !== quality.shadowEpoch || this.atmo.takeShadowDirty();
     this.shadowEpoch = quality.shadowEpoch;
     this.scene.updateMatrixWorld();
     for (const c of this.casters) {
@@ -663,6 +679,7 @@ export class BoardView implements View {
     });
     this.blobs.instanceMatrix.needsUpdate = true;
     this.camera(dt, f);
+    this.atmo.update(dt, t, this.cam, this.view.tgt);
   }
 
   private camera(dt: number, f: Fig | undefined) {

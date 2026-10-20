@@ -89,6 +89,7 @@ export class HostSession {
     const st = this.game.st;
     this.net?.broadcast({ k: 'ev', ev, st: clone(st) } satisfies GameMsg);
     // a broken animation must never stop the evening
+    this.pres.view.track(st);
     try { await this.pres.play(ev, st); } catch (e) { console.error(e); this.pres.sync(st); }
   }
 
@@ -197,7 +198,7 @@ export class GuestSession {
         const { ev, st } = m;
         this.st = st;
         if (ev.k === 'end') { this.push(async () => { await this.pres!.play(ev, st); await this.podium(st, ev.order); }); break; }
-        this.push(() => this.pres!.play(ev, st));
+        this.push(() => { this.pres!.view.track(st); return this.pres!.play(ev, st); });
         break;
       }
       case 'watch': if (m.p !== this.me) this.push(async () => { this.pres!.watch(m.p, m.a); }); break;

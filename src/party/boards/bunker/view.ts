@@ -5,11 +5,17 @@
 // the Schienenweg, a water tower, floodlights, barrels, sandbags and lots of crates, warning
 // beacons, and the Kistenregen crates for the Brettfest.
 // Static parts are merged (Batch) or instanced; the animated parts are a handful of meshes.
+// Mood: a hot, dusty desert afternoon, an orange dusk with dust haze in the trenches, and a cold
+// night with floodlights and sweeping searchlights in the haze; red alarm light while the vault
+// door moves.
 
 import type { BoardDecor, BoardKit } from '../../view3d/boardview';
 import {
-  BOX, Batch, CONE, CYL, CYL8, GLOW, GRAD, HEMI, SPH_LO, THREE, TOR, VC, ctex, skyTex, toon,
+  BOX, Batch, CONE, CYL, CYL8, GLOW, GRAD, HEMI, SPH_LO, THREE, TOR, VC, ctex, toon,
 } from '../../view3d/kit';
+import type { Mood } from '../../view3d/atmo';
+import { aoAdd, coneMap, type AirArea } from '../../view3d/fx3d';
+import { glowEmi } from '../../view3d/shaderfx';
 import { sfx } from '../../sfx';
 import { E, TAU, lerp, rand, tween, wait } from '../../util';
 import { BULB, CYL6, LEAF, inOutline, plinth, ribbons, roundRect, signMesh, signTex, trim, type P2 } from '../bauteile';
@@ -20,15 +26,30 @@ const CONC = '#a3a6ab', CONC_D = '#6f737a', STEEL = '#4a5562', HAZ = '#ffc61a', 
 
 const pickC = (a: string[]) => a[Math.floor(Math.random() * a.length)];
 
+/** Desert afternoon (hot, dusty), dusk (orange dust in the trenches), night (cold, floodlit). */
+const MOOD: Mood = {
+  keys: [
+    { hemi: '#fff1dc', ground: '#6a5a4a', hemiI: 1.45, sun: '#ffdcae', sunI: 2.3, sunPos: [-30, 54, 30], fog: '#e8c39a', fogNear: 80, fogFar: 300,
+      haze: '#f2d2a4', hazeD: 0.32, hazeTop: 1.0, zen: '#6f9fd0', hor: '#f1c08a', shal: '#c8a070', deep: '#8a6a48',
+      glow: 0, bloom: 0.3, exposure: 1.02, contrast: 1.1, sat: 1.08, lift: '#120c08', gain: '#fff6e8', vignette: 0.26 },
+    { hemi: '#ffc49a', ground: '#5a3a48', hemiI: 1.25, sun: '#ff9550', sunI: 2.25, sunPos: [-60, 24, 18], fog: '#e08a62', fogNear: 75, fogFar: 285,
+      haze: '#f3a46e', hazeD: 0.48, hazeTop: 1.7, zen: '#6a5aa8', hor: '#ffa86e', shal: '#c88060', deep: '#6a4048',
+      glow: 0.45, bloom: 0.65, exposure: 1.0, contrast: 1.1, sat: 1.12, lift: '#140812', gain: '#fff0e0', vignette: 0.32 },
+    { hemi: '#8090c8', ground: '#1c1a30', hemiI: 0.95, sun: '#aebcff', sunI: 0.8, sunPos: [26, 58, 24], fog: '#151a30', fogNear: 80, fogFar: 285,
+      haze: '#3c4462', hazeD: 0.55, hazeTop: 1.9, zen: '#10163a', hor: '#2a3058', shal: '#2a3050', deep: '#0c1028',
+      glow: 1, bloom: 1.1, exposure: 1.05, contrast: 1.08, sat: 1.06, lift: '#080a1c', gain: '#eef2ff', vignette: 0.38 },
+  ],
+  ao: [0.5, 1.0],
+  air: (L) => [0, 0.75 - 0.35 * L.night, 0.85, 0],
+};
+const ALARM_C = new THREE.Color('#ff3a2a');
+const SAND_DAY = new THREE.Color('#ffffff'), SAND_DUSK = new THREE.Color('#f2b896'), SAND_NIGHT = new THREE.Color('#3e4466');
+
 export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; vault: number[]; oben: number; unten: number }): BoardDecor {
   const sc = kit.scene, nodes = kit.graph.nodes, edges = kit.graph.edges;
-  sc.background = skyTex(['#33609e', '#6f9fd0', '#f1c08a', '#f59358']);
-  sc.fog = new THREE.Fog('#e8bf92', 120, 330);
-  kit.lights.hemi.color.set('#fff1dc');
-  kit.lights.hemi.groundColor.set('#6a5a4a');
-  kit.lights.hemi.intensity = 1.45;
-  kit.lights.sun.color.set('#ffd9a8');
-  kit.lights.sun.intensity = 2.25;
+  sc.fog = new THREE.Fog('#e8c39a', 80, 300);
+  kit.atmo.setMood(MOOD);
+  const air: AirArea[] = [];
   const dummy = new THREE.Object3D();
   const _c = new THREE.Color();
 
@@ -57,6 +78,8 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   sand.rotation.x = -Math.PI / 2;
   sand.position.y = -1.0;
   sc.add(sand);
+  // the sand is unlit: it follows the time of day by hand
+  kit.atmo.on((L) => { (sand.material as THREE.MeshBasicMaterial).color.copy(SAND_DAY).lerp(SAND_DUSK, Math.min(1, L.tod)).lerp(SAND_NIGHT, L.night); });
 
   // ---------- walkways and the conveyor belt ----------
   const walk = edges.filter((e) => e.flag === 'walk'), band = edges.filter((e) => e.flag === 'band');
@@ -149,6 +172,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   const wallMat = new THREE.MeshToonMaterial({ map: corrTex, gradientMap: GRAD });
   const walls: { x: number; y: number; z: number; w: number; h: number; d: number; c: string }[] = [];
   walls.push({ x: WH.x, y: 0, z: WH.z, w: WH.w, h: WH.h, d: WH.d, c: '#8fa3b5' });
+  aoAdd(sc, WH.x, WH.z, WH.w + 1.6, WH.d + 1.6, 0, 0.75);
   for (let k = 0; k <= 10; k++) {
     const a = Math.PI * (k / 10);
     st.add(BOX, k % 2 ? '#7d93a6' : '#9db1c2', WH.x + Math.cos(a) * (WH.w / 2), WH.h + Math.sin(a) * 2.2, WH.z, 0, 0, a + Math.PI / 2, 0.15, 1.42, WH.d + 0.4);
@@ -164,6 +188,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   // ---------- east loading yard: hall, containers, gantry crane ----------
   const EH = { x: 21, z: -6.5, w: 7, d: 8, h: 4.2 };
   walls.push({ x: EH.x, y: 0, z: EH.z, w: EH.w, h: EH.h, d: EH.d, c: '#c2a37a' });
+  aoAdd(sc, EH.x, EH.z, EH.w + 1.6, EH.d + 1.6, 0, 0.75);
   st.add(BOX, '#7d6448', EH.x, EH.h + 0.15, EH.z, 0, 0, 0.12, EH.w + 0.6, 0.3, EH.d + 0.6);
   st.add(BOX, '#2e3540', EH.x, 1.5, EH.z + EH.d / 2 + 0.02, 0, 0, 0, 3.8, 3, 0.08);
   for (let k = 0; k < 6; k++) st.add(BOX, k % 2 ? HAZ : DARK, EH.x - 1.75 + k * 0.7, 3.15, EH.z + EH.d / 2 + 0.06, 0, 0, 0, 0.7, 0.3, 0.06);
@@ -196,6 +221,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   // ---------- command bunker with the radar dish ----------
   const HQ = { x: -4, z: 3.5 };
   st.add(HEMI, CONC, HQ.x, 0, HQ.z, 0, 0, 0, 4.4, 2.8, 4.4);
+  aoAdd(sc, HQ.x, HQ.z + 0.7, 10.4, 11.6, 0, 0.7);
   st.add(BOX, CONC_D, HQ.x, 0.9, HQ.z + 3.6, 0, 0, 0, 3.0, 1.8, 2.0);
   st.add(BOX, '#2e3540', HQ.x, 0.8, HQ.z + 4.62, 0, 0, 0, 1.6, 1.5, 0.06);
   for (let k = 0; k < 5; k++) st.add(BOX, k % 2 ? HAZ : DARK, HQ.x - 1.2 + k * 0.6, 1.7, HQ.z + 4.64, 0, 0, 0, 0.6, 0.18, 0.04);
@@ -239,6 +265,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   st.add(BOX, STEEL, T.x, TH + 0.2, T.z, 0, 0, 0, 3.0, 0.4, 3.0);
   st.add(CYL, DARK, T.x, TH + 0.8, T.z, Math.PI / 2, 0, 0, 0.6, 0.6, 0.6);
   st.add(BOX, CONC_D, T.x, 0.1, T.z, 0, 0, 0, 3.2, 0.2, 3.2);
+  aoAdd(sc, T.x, T.z, 4.2, 4.2, 0, 0.5);
   const cab = new THREE.Group();
   const cb = new Batch();
   cb.add(BOX, '#3c4652', 0, 0.9, 0, 0, 0, 0, 2.0, 1.8, 2.0);
@@ -318,7 +345,9 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   const BEACONS: [number, number, number][] = [[DX - DR - 0.6, 4.25, DZ], [DX + DR + 0.6, 4.25, DZ], [T.x, TH + 1.35, T.z], [-3.8, 1.25, 21.2], [3.8, 1.25, 21.2]];
   for (const [x, y, z] of BEACONS) { st.add(CYL8, DARK, x, y - 0.15, z, 0, 0, 0, 0.22, 0.2, 0.22); gl.add(SPH_LO, '#ff8a2e', x, y + 0.12, z, 0, 0, 0, 0.18, 0.24, 0.18); }
   const beaconGeo = new THREE.ConeGeometry(0.5, 2.2, 10, 1, true).rotateZ(Math.PI / 2).translate(1.1, 0, 0);
-  const beacons = new THREE.InstancedMesh(beaconGeo, new THREE.MeshBasicMaterial({ color: '#ff9a3d', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), BEACONS.length);
+  const beaconMat = new THREE.MeshBasicMaterial({ color: '#ff9a3d', map: coneMap(), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  kit.atmo.beam(beaconMat, 0.3, 0.7);
+  const beacons = new THREE.InstancedMesh(beaconGeo, beaconMat, BEACONS.length);
   beacons.frustumCulled = false;
   beacons.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   sc.add(beacons);
@@ -364,9 +393,22 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
     st.add(CYL, '#b9c0c8', WT.x, 8.4, WT.z, 0, 0, 0, 2.0, 2.8, 2.0);
     st.add(CONE, '#9aa2ab', WT.x, 10.3, WT.z, 0, 0, 0, 2.2, 1.0, 2.2);
     st.add(TOR, HAZ, WT.x, 7.2, WT.z, Math.PI / 2, 0, 0, 2.05, 2.05, 1.5);
+    aoAdd(sc, WT.x, WT.z, 5.2, 5.2, 0, 0.4);
   }
+  const floodPts: [number, number, number][] = [];
+  const searchMat = new THREE.MeshBasicMaterial({ color: '#fff3c8', map: coneMap(), transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  kit.atmo.beam(searchMat, 0.15, 0.12);
+  const searchGeo = new THREE.ConeGeometry(3.4, 30, 14, 1, true).translate(0, -15, 0);
+  const search: { g: THREE.Group; yaw: number }[] = [];
   for (const [x, z] of [[-34, -24], [-34.5, 19.5], [34.5, 19.5]] as const) {
     if (!inOutline(OUTLINE, x, z, 0.4)) continue;
+    floodPts.push([x, 7.9, z + (z > 0 ? -0.6 : 0.6)]);
+    const g = new THREE.Group(), b = new THREE.Mesh(searchGeo, searchMat);
+    g.position.set(x, 8.3, z);
+    b.rotation.x = -1.22;
+    g.add(b);
+    sc.add(g);
+    search.push({ g, yaw: Math.atan2(-x, -2.5 - z) });
     st.add(CYL8, STEEL, x, 4, z, 0, 0, 0, 0.14, 8, 0.14);
     st.add(BOX, DARK, x, 8.1, z, 0, 0, 0, 1.8, 0.2, 0.3);
     for (const s of [-0.55, 0.55]) gl.add(BOX, '#fff3c8', x + s, 8.0, z + (z > 0 ? -0.2 : 0.2), -0.5 * Math.sign(z), 0, 0, 0.5, 0.36, 0.1);
@@ -392,6 +434,8 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
       for (const sx of [-0.9, 0.9]) st.add(BOX, STEEL, x + sx, 0.3, GY.z - 0.6, 0, 0, 0, 0.2, 0.6, 1.2);
       st.add(BOX, HAZ, x, 1.0, GY.z - 0.6, 0, 0, 0, 0.3, 1.56, 1.56);
     }
+    aoAdd(sc, GY.x + 0.1, GY.z + 0.3, 8.0, 5.0, 0, 0.55);
+    air.push({ kind: 'smoke', x: GY.x - 0.9, z: GY.z + 1.2, r: 0.1, n: 9, y0: 2.1, size: 1.3 });
     st.add(BOX, OLIVE, GY.x, 0.6, GY.z + 1.4, 0, 0, 0, 2.6, 1.2, 1.3);
     st.add(BOX, DARK, GY.x + 0.7, 1.25, GY.z + 1.4, 0, 0, 0, 0.5, 0.1, 0.9);
     st.add(CYL8, DARK, GY.x - 0.9, 1.6, GY.z + 1.2, 0, 0, 0, 0.1, 1.0, 0.1);
@@ -403,6 +447,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
     const tx = EH.x + 0.2, tz = EH.z + EH.d / 2 + 3.4;
     if (kit.clearOfPath(tx, tz, 3.0, 2.2)) {
       st.add(BOX, '#d6d9dd', tx, 1.5, tz, 0, Math.PI / 2, 0, 2.3, 2.4, 5.4);
+      aoAdd(sc, tx + 0.9, tz, 9.6, 3.0, 0, 0.6);
       st.add(BOX, DARK, tx, 0.35, tz, 0, Math.PI / 2, 0, 2.0, 0.3, 5.4);
       st.add(BOX, '#c9442f', tx + 3.5, 1.1, tz, 0, Math.PI / 2, 0, 2.2, 1.8, 1.6);
       st.add(BOX, '#9ff3ff', tx + 4.32, 1.45, tz, 0, Math.PI / 2, 0, 1.8, 0.7, 0.04);
@@ -444,11 +489,13 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
       [px, pz] = at(0, -0.3); st.add(BOX, DARK, px, 1.4, pz, 0, yaw, 0, 1.0, 0.08, 1.0);
       for (const lx of [-0.45, 0.45]) { [px, pz] = at(lx, -0.7); st.add(BOX, DARK, px, 1.0, pz, 0, yaw, 0, 0.06, 1.0, 0.06); [px, pz] = at(lx, 0.25); st.add(BOX, DARK, px, 1.0, pz, 0, yaw, 0, 0.06, 1.0, 0.06); }
       [px, pz] = at(0, 1.0); st.add(BOX, STEEL, px, 1.2, pz, 0, yaw, 0, 0.9, 2.2, 0.12);
+      aoAdd(sc, x, z + 0.0, 1.9, 2.8, yaw, 0.5);
       for (const lx of [-0.3, 0.3]) { [px, pz] = at(lx, 1.5); st.add(BOX, STEEL, px, 0.12, pz, 0, yaw, 0, 0.14, 0.06, 1.0); }
       for (const lx of [-0.6, 0.6]) for (const lz of [-0.5, 0.5]) { [px, pz] = at(lx, lz); st.add(CYL8, '#16181c', px, 0.25, pz, 0, yaw, Math.PI / 2, 0.25, 0.2, 0.25); }
     } else if (kind === 5) {
       const yaw = rand(0, Math.PI);
       st.addM(TENT, OLIVE, new THREE.Matrix4().makeRotationY(yaw).setPosition(x, 0.6, z));
+      aoAdd(sc, x, z, 3.0, 3.4, yaw, 0.5);
       st.add(BOX, '#3a4224', x + Math.sin(yaw) * 1.31, 0.45, z + Math.cos(yaw) * 1.31, 0, yaw, 0, 0.7, 0.9, 0.04);
     } else if (kind === 0 || kind === 2) stack(x, z, 1 + (props % 4), rand(1.0, 1.35));
     else if (kind === 1) { for (let b = 0; b < 3; b++) barrels.push({ x: x + (b % 2) * 0.75 - 0.35, z: z + (b > 1 ? 0.7 : 0), c: BARREL_COL[(props + b) % 4], tip: b === 2 && props % 3 === 0 }); }
@@ -459,7 +506,9 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   crates.forEach((c, i) => { dummy.position.set(c.x, c.y + c.s / 2, c.z); dummy.rotation.set(0, c.r, 0); dummy.scale.setScalar(c.s); dummy.updateMatrix(); crateIM.setMatrixAt(i, dummy.matrix); crateIM.setColorAt(i, _c.set(c.c)); });
   crateIM.castShadow = crateIM.receiveShadow = true;
   sc.add(crateIM);
+  for (const c of crates) if (c.y === 0) aoAdd(sc, c.x, c.z, c.s * 1.5, c.s * 1.5, c.r, 0.5);
   for (const b of barrels) {
+    aoAdd(sc, b.x, b.z, 1.15, 1.15, 0, 0.4);
     if (b.tip) st.add(CYL8, b.c, b.x, 0.4, b.z, Math.PI / 2, 0.6, 0, 0.38, 1.1, 0.38);
     else { st.add(CYL8, b.c, b.x, 0.55, b.z, 0, 0, 0, 0.38, 1.1, 0.38); for (const y of [0.3, 0.8]) st.add(CYL8, DARK, b.x, y, b.z, 0, 0, 0, 0.4, 0.06, 0.4); st.add(CYL6, '#e6e8ea', b.x, 1.11, b.z, 0, 0, 0, 0.12, 0.02, 0.12); }
   }
@@ -472,6 +521,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   conts.forEach((c, i) => { dummy.position.set(c.x, c.y, c.z); dummy.rotation.set(0, c.yaw, 0); dummy.scale.set(2.3, 2.6, 5.6); dummy.updateMatrix(); contIM.setMatrixAt(i, dummy.matrix); contIM.setColorAt(i, _c.set(c.c)); });
   contIM.castShadow = true;
   sc.add(contIM);
+  for (const c of conts) if (c.y === 0) aoAdd(sc, c.x, c.z, 3.0, 6.3, c.yaw, 0.7);
 
   // a few dusty clouds
   const cl = new THREE.InstancedMesh(SPH_LO, toon('#fff1e0'), 24);
@@ -528,10 +578,15 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   flock(sc, 5, 0, -4, 30, 20, '#2a2228');
 
   sc.add(st.mesh(), gl.mesh(GLOW, false, false));
+  // floodlight pools, dust over the yard and in the trenches
+  kit.atmo.lampLights(floodPts, '#fff3c8', { r: 3.6, pool: 7, base: 0.9 });
+  air.push({ kind: 'dust', x: 0, z: -2, r: 34, n: 110, y0: 0.3, y1: 5 });
+  air.push({ kind: 'dust', x: 0, z: -2, r: 52, n: 60, y0: -0.9, y1: 1.5 });
+  kit.atmo.air(air);
 
   // ---------- Kistenregen: falling crates ----------
   const RAIN_N = 18;
-  const rain = new THREE.InstancedMesh(BOX, new THREE.MeshToonMaterial({ map: crateTex, gradientMap: GRAD, emissive: '#5a2400' }), RAIN_N);
+  const rain = new THREE.InstancedMesh(BOX, glowEmi(new THREE.MeshToonMaterial({ map: crateTex, gradientMap: GRAD, emissive: '#5a2400' }), 1.2), RAIN_N);
   rain.frustumCulled = false;
   rain.castShadow = true;
   rain.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -560,6 +615,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
   return {
     overview: { x: 0, z: -2.5, w: 78, d: 54 },
     apply(bs) {
+      kit.atmo.alarm = 0;
       setDoor(bs.vault ? 1 : 0);
       cabY = cabFor(bs.lift);
       cab.position.y = cabY;
@@ -570,6 +626,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
         const open = !!data?.open;
         kit.look(DX, DZ + 2);
         beaconBoost = 1;
+        kit.atmo.alarm = 1;
         await wait(600);
         sfx.creak();
         const from = doorA;
@@ -577,6 +634,7 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
         sfx.bonk();
         await wait(600);
         beaconBoost = 0;
+        kit.atmo.alarm = 0;
         kit.follow();
       } else if (name === 'lift') {
         kit.look(T.x, T.z);
@@ -608,6 +666,9 @@ export function bunkerDecor(kit: BoardKit, ids: { jv: number; vFirst: number; va
     update(dt, t) {
       beltTex.offset.y = (beltTex.offset.y + dt * beltSpeed) % 1;
       radar.rotation.y = t * 0.9;
+      const al = kit.atmo.live.alarm;
+      for (let i = 0; i < search.length; i++) search[i].g.rotation.y = search[i].yaw + Math.sin(t * (0.35 + al * 1.2) + i * 2.1) * 0.62;
+      searchMat.color.set('#fff3c8').lerp(ALARM_C, al);
       crane = Math.sin(t * 0.22);
       trolley.position.x = YD.x + crane * 4;
       for (let i = 0; i < BEACONS.length; i++) {

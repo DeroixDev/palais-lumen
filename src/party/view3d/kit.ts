@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { TAU } from '../util';
+import { glow, glowEmi } from './shaderfx';
 
 export { THREE };
 
@@ -38,8 +39,9 @@ export function toon(color: string, o: THREE.MeshToonMaterialParameters = {}) {
   return m;
 }
 export const VC = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD });
-export const VC_EMI = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, emissive: '#4a3200' });
-export const GLOW = new THREE.MeshBasicMaterial({ vertexColors: true });
+export const VC_EMI = glowEmi(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, emissive: '#4a3200' }), 1.5);
+/** Lamps, bulbs and neon (unlit; glows under the bloom). */
+export const GLOW = glow(new THREE.MeshBasicMaterial({ vertexColors: true }));
 export const OUT = new THREE.MeshBasicMaterial({ color: '#1a0b33', side: THREE.BackSide });
 export const COIN_MAT = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRAD, emissive: '#3a2a00' });
 
