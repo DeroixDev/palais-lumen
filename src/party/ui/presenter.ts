@@ -1,20 +1,19 @@
-// The board show: plays the engine's events on the 3D board and the side panels, and asks this
-// browser's player for decisions (dice + items, junction arrows, shop, star, duel, Bande …).
+// The board show: plays the engine's events on the 3D board and the in-game HUD (./hud: player
+// cards, round banner, turn menu, star pointer), and asks this browser's player for decisions
+// (dice + items, junction arrows, shop, star, duel, Bande …).
 // It is the same for solo, host and friends: it only reads the GameState it is given.
 
 import { getBoard } from '../boards';
 import type { BoardDef } from '../boards/types';
 import type { Answer, Ask, GameEvent, GameState } from '../engine/state';
-import { BONUS, BUDDIES, FINALE_RULES, ITEMS, STAR_PRICE, type BonusId, type ItemId } from '../engine/tables';
-import { ranking } from '../engine/state';
+import { BONUS, BUDDIES, FINALE_RULES, ITEMS, type BonusId, type ItemId } from '../engine/tables';
 import { sfx } from '../sfx';
-import { LEGEND, SP } from '../spaces';
 import type { Seat } from '../types';
 import { $, E, SPEED, esc, reduced, wait } from '../util';
 import { BoardView } from '../view3d/boardview';
 import { hopFig } from '../view3d/figures';
 import { floatText } from '../view3d/stage';
-import { charSVG, coinSVG, starSVG } from './avatars';
+import { Hud } from './hud';
 import { Scenes } from './scenes';
 
 export type BonusList = { id: BonusId; winners: number[] }[];
@@ -37,8 +36,6 @@ export async function banner(text: string, col = 'var(--acid)') {
   await b.animate([{ transform: 'rotate(-6deg) translateX(-110%)', opacity: 1 }, { transform: 'rotate(-6deg) translateX(-2%)', opacity: 1, offset: 0.22 }, { transform: 'rotate(-6deg) translateX(2%)', opacity: 1, offset: 0.74 }, { transform: 'rotate(-6deg) translateX(110%)', opacity: 1 }], { duration: 1250 * Math.max(SPEED, 0.3), easing: 'cubic-bezier(.2,.9,.25,1)' }).finished;
 }
 
-const kindText = (s: Seat, me: boolean) => (me ? 'Du' : s.kind === 'bot' ? `Bot · ${s.bot}` : s.away ? 'weg · Bot spielt' : 'Online');
-
 export class Presenter {
   board: BoardDef;
   view: BoardView;
@@ -46,20 +43,21 @@ export class Presenter {
   /** A friend whose show is behind skips the animations. */
   hurry = false;
   bonus: BonusList = [];
-  private rows: HTMLElement[] = [];
   private pathDone: ((to: number) => void) | null = null;
   private pathOpts: { to: number; ok: boolean }[] = [];
-  private rollDone: (() => void) | null = null;
   private watching = false;
   private keyFn: ((e: KeyboardEvent) => void) | null = null;
   /** Full-screen scenes for shop, star, duel and the other spaces (see ./scenes). */
   scn: Scenes;
+  /** Player cards, round banner, turn menu, map, star pointer, board signs. */
+  hud: Hud;
 
   constructor(public seats: Seat[], public me: number, boardId: string) {
     this.board = getBoard(boardId);
     this.view = new BoardView(this.board);
     this.view.setSeats(seats);
     this.scn = new Scenes(this);
+    this.hud = new Hud(this);
     const canvas = $<HTMLCanvasElement>('#gl');
     const onMove = (e: PointerEvent) => {
       if (!this.pathDone) return;
@@ -76,21 +74,16 @@ export class Presenter {
     canvas.addEventListener('click', onClick);
     this.keyFn = (e) => this.onKey(e);
     addEventListener('keydown', this.keyFn);
-    $('#viewBtn').onclick = () => { this.setUser(!this.view.view.user); sfx.pop(); };
-    $('#rollBtn').onclick = () => this.rollDone?.();
-    $('#boardName').textContent = this.board.name;
-    $('#tBoard').textContent = `Brett: ${this.board.name}`;
-    $('#legend').innerHTML = LEGEND.map((k) => `<li><i style="--sc:${SP[k].c}"></i>${k === 'X' ? esc(this.board.xName) : SP[k].short}</li>`).join('') + `<li><i style="--sc:#ffe14a"></i>Stern: ${STAR_PRICE}</li>`;
-    this.buildRank();
   }
 
   dispose() {
     if (this.keyFn) removeEventListener('keydown', this.keyFn);
     this.scn.dispose();
+    this.hud.dispose();
     this.view.dispose();
   }
 
-  private setUser(on: boolean) { this.view.view.user = on; $('#viewBtn').setAttribute('aria-pressed', String(on)); }
+  private setUser(on: boolean) { this.hud.setMap(on); }
 
   private onKey(e: KeyboardEvent) {
     if (e.target instanceof HTMLInputElement || document.body.classList.contains('in-mg') || document.body.classList.contains('in-pod')) return;
@@ -102,90 +95,22 @@ export class Presenter {
       else if (e.code === 'ArrowRight') pick = [...order].reverse().find((o) => o.ok)?.to ?? null;
       else if (/^Digit[1-3]$/.test(e.code)) { const o = order[Number(e.code[5]) - 1]; if (o?.ok) pick = o.to; }
       if (pick !== null && ok.length) { e.preventDefault(); this.pathDone(pick); }
-      return;
     }
-    if (e.code === 'KeyO' || e.code === 'KeyM') { this.setUser(!this.view.view.user); return; }
-    if (e.code === 'Space' && !e.repeat && this.rollDone && !(e.target instanceof HTMLButtonElement) && $('#ask').hidden) { e.preventDefault(); this.rollDone(); }
+    // the turn menu, the item bar and the map keys live in the HUD
   }
 
   name(p: number) { return this.seats[p].name; }
   private wait(ms: number) { return this.hurry ? Promise.resolve() : wait(ms); }
 
-  // ---------------- panels ----------------
-  private buildRank() {
-    const box = $('#rank');
-    box.innerHTML = '';
-    this.rows = this.seats.map((s, i) => {
-      const li = document.createElement('li');
-      li.className = 'row';
-      li.style.setProperty('--pc', s.color);
-      li.innerHTML = `<span class="r-n">${i + 1}</span><span class="r-ava">${charSVG(s, true)}</span><span class="r-txt"><span class="r-name">${esc(s.name)}<span class="r-tag">am Zug</span><span class="r-badges"></span></span><span class="r-sub"></span></span><span class="r-vals"><span class="val s">${starSVG()}<b>0</b></span><span class="val c">${coinSVG}<b>0</b></span></span>`;
-      box.appendChild(li);
-      return li;
-    });
-  }
-
-  renderRank(animate = true) {
-    const st = this.st;
-    if (!st) return;
-    const before = this.rows.map((r) => r.getBoundingClientRect().top);
-    const order = ranking(st);
-    const box = $('#rank');
-    order.forEach((p, n) => {
-      const row = this.rows[p], P = st.players[p], s = this.seats[p];
-      row.dataset.rank = String(n + 1);
-      (row.querySelector('.r-n') as HTMLElement).textContent = String(n + 1);
-      box.appendChild(row);
-      const [sv, cv] = row.querySelectorAll<HTMLElement>('.r-vals b');
-      if (sv.textContent !== String(P.stars)) { sv.textContent = String(P.stars); bump(sv); }
-      if (cv.textContent !== String(P.coins)) { cv.textContent = String(P.coins); bump(cv); }
-      row.classList.toggle('turn', st.turn === p && st.phase === 'play');
-      const bits = [kindText(this.seats[p], p === this.me)];
-      if (P.items.length) bits.push(P.items.map((i) => ITEMS[i].name).join(', '));
-      if (st.buddy?.owner === p) bits.push(`Kumpel ${BUDDIES[st.buddy.kind].name} (${st.buddy.left})`);
-      (row.querySelector('.r-sub') as HTMLElement).textContent = bits.join(' · ');
-      const badges: string[] = [];
-      if (P.bande) badges.push(`<span class="badge">Bande ${esc(this.seats[P.bande.with].name)}</span>`);
-      if (P.rival) badges.push(`<span class="badge riv">Rivale ${esc(this.seats[P.rival.target].name)}</span>`);
-      if (st.buddy?.owner === p) badges.push('<span class="badge bud">Kumpel</span>');
-      (row.querySelector('.r-badges') as HTMLElement).innerHTML = badges.join('');
-      void s;
-    });
-    if (!animate || reduced || this.hurry) return;
-    this.rows.forEach((r, i) => {
-      const dy = before[i] - r.getBoundingClientRect().top;
-      if (Math.abs(dy) > 1) r.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.2,.9,.25,1)' });
-    });
-  }
-
-  renderRound() {
-    const st = this.st, R = st.rules.rounds;
-    $('#dialN').innerHTML = `${st.round}<small>von ${R}</small>`;
-    $('#dialVal').setAttribute('stroke-dashoffset', String(263.9 * (1 - st.round / R)));
-    $('#tRound').textContent = `Runde ${st.round} / ${R}`;
-    const left = R - st.round;
-    $('#roundLeft').textContent = left > 0 ? `Noch ${left} Runde${left > 1 ? 'n' : ''}` : 'Letzte Runde!';
-    $('#starChip').textContent = `Stern kostet ${st.finaleRule === 'cheapStar' ? 15 : STAR_PRICE} Münzen`;
-    this.renderInfo();
-  }
-
-  renderInfo() {
-    const st = this.st;
-    const lines = this.board.info(st.bs, st.round, st.rules.rounds);
-    const sn = this.board.graph.nodes[st.star];
-    lines.splice(1, 0, { color: '#ffe14a', title: `Stern ${sn ? this.board.where(sn) : ''}.`, text: 'Zieht nach jedem Kauf um.' });
-    lines.push(st.finale
-      ? { color: '#ff4fb0', title: 'Finale läuft:', text: `Plus und Minus zählen doppelt.${st.finaleRule ? ` Regel: ${FINALE_RULES[st.finaleRule].name}.` : ''}` }
-      : { color: '#ff4fb0', title: `Finale ab Runde ${Math.max(1, st.rules.rounds - 2)}:`, text: 'Plus- und Minusfelder zählen doppelt.' });
-    if (st.buddy && st.buddy.owner === null && st.buddy.at !== null) lines.push({ color: BUDDIES[st.buddy.kind].color, title: `Kumpel ${BUDDIES[st.buddy.kind].name} wartet.`, text: `${BUDDIES[st.buddy.kind].text} Lande auf einem Kumpel-Feld.` });
-    $('#boardInfo').innerHTML = lines.map((l) => `<li><i style="--ic:${l.color}"></i><span><b>${esc(l.title)}</b> ${esc(l.text)}</span></li>`).join('');
-  }
+  // ---------------- HUD ----------------
+  /** Player cards follow the state (only what changed); animate: count, fly, swap. */
+  renderRank(animate = true) { if (this.st) { this.hud.update(animate); this.hud.setRound(animate); } }
+  renderRound() { if (this.st) this.hud.setRound(false); }
 
   setTurn(p: number) {
-    const lbl = $('#turnLbl');
-    lbl.style.setProperty('--pc', this.seats[p].color);
-    lbl.classList.toggle('me', p === this.me);
-    $('#turnTxt').textContent = p === this.me ? 'Du bist dran!' : `${this.name(p)} ist dran`;
+    void p;
+    this.hud.update();
+    this.hud.refreshStar();
   }
 
   /** Everything from the state without animation (start, resume, a friend catching up). */
@@ -194,9 +119,10 @@ export class Presenter {
     this.view.apply(st);
     this.view.hideCounter();
     this.view.diceHide();
-    this.renderRound();
-    this.renderRank(false);
-    if (st.phase === 'play') this.setTurn(Math.min(st.turn, st.players.length - 1));
+    this.hud.setRound(false);
+    this.hud.update(false);
+    this.hud.boardNews('round', false, true);
+    this.hud.refreshStar();
   }
 
   // ---------------- events ----------------
@@ -204,22 +130,28 @@ export class Presenter {
     this.st = st;
     this.clearWatch();
     if (await this.scn.event(ev, st)) { this.quiet(ev, st); return; }
+    await this.show(ev, st);
+    this.hud.setRound(true);
+  }
+
+  private async show(ev: GameEvent, st: GameState) {
     const V = this.view, H = this.hurry;
     switch (ev.k) {
       case 'sync': this.sync(st); break;
       case 'banner': if (!H) await banner(ev.text, ev.color); break;
       case 'toast': toast(ev.text, ev.color); await this.wait(1400); break;
       case 'round':
-        this.renderRound();
-        $('#turnLbl').classList.remove('me');
-        $('#turnTxt').textContent = `Runde ${ev.round}`;
-        if (!H) await banner(ev.round === st.rules.rounds ? 'Letzte Runde!' : `Runde ${ev.round}`, ev.round === st.rules.rounds ? 'var(--yellow)' : 'var(--acid)');
+        // the banner drops in, the last round gets the big band too, then the turn-order parade
+        this.hud.setRound(true);
+        this.hud.update();
+        if (!H && ev.round === st.rules.rounds) await banner('Letzte Runde!', 'var(--red)');
+        await this.hud.paradeRun();
+        this.hud.boardNews('round', ev.round === 1);
         break;
       case 'turn':
         V.turn = ev.p;
         V.view.mode = 'follow';
         this.setTurn(ev.p);
-        this.renderRank();
         await this.wait(350);
         break;
       case 'item': sfx.pop(); toast(`${this.name(ev.p)} setzt ${ITEMS[ev.item].name} ein.`, '#ffe14a'); this.renderRank(); await this.wait(900); break;
@@ -237,6 +169,7 @@ export class Presenter {
         if (H) { V.teleport(ev.p, ev.to); V.figs[ev.p].root.position.copy(V.nodePos(ev.to, ev.p)); }
         else { sfx.hop(ev.left); await V.hop(ev.p, ev.from, ev.to, 0); }
         if (ev.left > 0) V.showCounter(ev.p, ev.left); else V.hideCounter();
+        this.hud.refreshStar();
         break;
       case 'blocked': V.hideCounter(); sfx.bonk(); toast(`${this.name(ev.p)}: ${ev.text}`, 'var(--pink)'); await this.wait(1100); break;
       case 'coins': {
@@ -260,7 +193,7 @@ export class Presenter {
         this.renderRank();
         await this.wait(700);
         break;
-      case 'starMove': if (!H) await V.starMove(ev.to); else V.placeStar(ev.to); this.renderInfo(); break;
+      case 'starMove': if (!H) await V.starMove(ev.to); else V.placeStar(ev.to); this.hud.refreshStar(); break;
       case 'starMiss': toast(`Der Stern kostet ${ev.price} Münzen. ${this.name(ev.p)} hat zu wenig.`, 'var(--pink)'); await this.wait(1200); break;
       case 'land': V.hideCounter(); sfx.land(); await this.wait(250); break;
       case 'buddy': {
@@ -271,7 +204,6 @@ export class Presenter {
         else if (ev.what === 'leave') toast(`${b.name} verabschiedet sich von ${this.name(ev.p!)}.`, b.color);
         else toast(`${b.name} wechselt zu ${this.name(ev.p!)}.`, b.color);
         this.renderRank();
-        this.renderInfo();
         await this.wait(1300);
         break;
       }
@@ -281,6 +213,7 @@ export class Presenter {
         V.teleport(ev.b, st.players[ev.b].node);
         if (H) V.apply(st);
         else await Promise.all([hopFig(V.figs[ev.a], V.nodePos(st.players[ev.a].node, ev.a), 0.6, 4), hopFig(V.figs[ev.b], V.nodePos(st.players[ev.b].node, ev.b), 0.6, 4)]);
+        this.hud.refreshStar();
         break;
       }
       case 'wheel': await this.wheel(ev.options, ev.pick); break;
@@ -303,7 +236,7 @@ export class Presenter {
       }
       case 'gimmick':
         if (!H) await V.decor.play(ev.name, ev.data); else V.decor.apply(st.bs);
-        this.renderInfo();
+        this.hud.boardNews('gimmick');
         break;
       case 'mgAnnounce':
         V.hideCounter();
@@ -321,12 +254,12 @@ export class Presenter {
     const V = this.view;
     if (ev.k === 'land') { V.hideCounter(); sfx.land(); }
     else if (ev.k === 'buddy') V.setBuddy(st.buddy?.kind ?? null, st.buddy?.owner ?? null, st.buddy?.at ?? null);
-    else if (ev.k === 'gimmick') V.decor.apply(st.bs);
+    else if (ev.k === 'gimmick') { V.decor.apply(st.bs); this.hud.boardNews('gimmick'); }
     else if (ev.k === 'trap') V.setTraps(st.traps);
     else if (ev.k === 'bonus') this.bonus = ev.list;
     else if (ev.k === 'roll') V.hideCounter();
+    if (ev.k === 'starMove' || ev.k === 'swap' || ev.k === 'hop') this.hud.refreshStar();
     this.renderRank();
-    this.renderInfo();
   }
 
   private async wheel(options: string[], pick: number) {
@@ -378,7 +311,7 @@ export class Presenter {
     const inScene = this.scn.ask(p, a);
     if (inScene) return inScene;
     switch (a.q) {
-      case 'roll': return this.askRoll(p, a.items);
+      case 'roll': return this.hud.turnMenu(p, a.items);
       case 'joker': {
         const n = await this.choose('Würfel-Joker', 'Welche Zahl soll es sein?', [1, 2, 3, 4, 5, 6].map((v) => ({ label: String(v), value: v })));
         return { n };
@@ -447,46 +380,12 @@ export class Presenter {
     });
   }
 
-  private askRoll(p: number, items: ItemId[]): Promise<Answer> {
-    return new Promise((res) => {
-      let sel: ItemId | null = null;
-      const dock = $('#dock'), itms = $('#itms'), rb = $<HTMLButtonElement>('#rollBtn');
-      const count = () => (sel === 'dw' ? 2 : sel === 'tw' ? 3 : 1);
-      const show = () => this.view.diceShow(p, count(), sel === 'hw' ? 'half' : 'w6');
-      const paint = () => {
-        itms.innerHTML = '';
-        for (const i of items) {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'itm';
-          b.setAttribute('aria-pressed', String(sel === i));
-          b.textContent = sel === i ? `${ITEMS[i].name} aktiv` : ITEMS[i].name;
-          b.title = ITEMS[i].text;
-          b.onclick = () => { sel = sel === i ? null : i; sfx.pop(); paint(); show(); };
-          itms.appendChild(b);
-        }
-        $('#rollSub').textContent = sel && !['dw', 'tw', 'hw', 'joker'].includes(sel) ? `${ITEMS[sel].name} einsetzen, dann würfeln` : document.body.classList.contains('coarse') ? 'Tippen zum Schlagen' : 'Leertaste oder Klick';
-      };
-      paint();
-      show();
-      dock.hidden = false;
-      rb.disabled = false;
-      rb.classList.add('ready');
-      rb.focus({ preventScroll: true });
-      this.rollDone = () => {
-        this.rollDone = null;
-        dock.hidden = true;
-        rb.classList.remove('ready');
-        itms.innerHTML = '';
-        res({ use: sel });
-      };
-    });
-  }
-
   private askPath(node: number, options: { to: number; name: string; len: number; blocked: string | null; key: boolean }[]): Promise<number> {
     return new Promise((res) => {
       const V = this.view;
-      V.showArrows(node, options);
+      // the distance to the star through each way, on the arrows and the buttons
+      const dist = options.map((o) => this.hud.distVia(o.to));
+      V.showArrows(node, options.map((o, i) => ({ ...o, name: dist[i] !== null ? `${o.name} · ★ ${dist[i]}` : o.name })));
       this.pathOpts = options.map((o) => ({ to: o.to, ok: !o.blocked || o.key }));
       const ch = $('#choice');
       ch.innerHTML = '';
@@ -495,7 +394,8 @@ export class Presenter {
         const b = document.createElement('button');
         b.type = 'button';
         b.disabled = !!o.blocked && !o.key;
-        b.innerHTML = `${esc(o.name)}<small>${o.blocked ? (o.key ? 'gesperrt · Schlüssel öffnet' : esc(o.blocked)) : `${o.len} Felder`} · ${i + 1}</small>`;
+        const d = dist[options.indexOf(o)];
+        b.innerHTML = `${esc(o.name)}<small>${o.blocked ? (o.key ? 'gesperrt · Schlüssel öffnet' : esc(o.blocked)) : `${o.len} Felder`}${d !== null ? ` · Stern in ${d}` : ''} · ${i + 1}</small>`;
         b.onmouseenter = () => V.hoverArrow(o.to);
         b.onmouseleave = () => V.hoverArrow(-1);
         b.onclick = () => this.pathDone?.(o.to);
@@ -507,10 +407,12 @@ export class Presenter {
       ch.appendChild(hint);
       ch.hidden = false;
       $('#stage').classList.add('choosing');
+      this.hud.choosing = true;
       this.pathDone = (to) => {
         this.pathDone = null;
         ch.hidden = true;
         $('#stage').classList.remove('choosing');
+        this.hud.choosing = false;
         $<HTMLCanvasElement>('#gl').style.cursor = '';
         V.hideArrows();
         sfx.pop();
@@ -524,17 +426,12 @@ export class Presenter {
     this.scn.cancel();
     $('#ask').hidden = true;
     $('#choice').hidden = true;
-    $('#dock').hidden = true;
+    this.hud.cancel();
     this.pathDone = null;
-    this.rollDone = null;
     this.view.hideArrows();
     $('#stage').classList.remove('choosing');
+    this.hud.choosing = false;
   }
-}
-
-function bump(el: HTMLElement) {
-  if (reduced) return;
-  el.parentElement?.animate([{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.3,1.45,.45,1)' });
 }
 
 export const bonusText = (id: BonusId) => BONUS[id];

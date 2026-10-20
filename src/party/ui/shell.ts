@@ -1,4 +1,5 @@
-// The page skeleton: title screen, lobby, the game screen (stage + side panels) and the overlays
+// The page skeleton: title screen, lobby, the game screen (full-screen stage, the HUD is built by
+// ./hud) and the overlays
 // (minigame card, results, podium, settings). Built once at start; the modules fill the parts.
 
 import { backSVG, gearSVG, titleHTML } from './avatars';
@@ -36,27 +37,18 @@ export function buildShell(root: HTMLElement) {
 </div>
 
 <div class="app" id="app" hidden>
-  ${tbar('<div class="tinfo"><b id="tRound">Runde 1 / 10</b><span id="tBoard">Brett: Neonstadt</span></div>')}
   <main class="main">
     <section class="stage" id="stage" aria-label="Spielbrett">
       <canvas id="gl" aria-hidden="true"></canvas>
       <div class="labels" id="labels"></div>
       <div class="bhud">
-        <p class="turnlbl" id="turnLbl"><i class="tl-dot"></i><span id="turnTxt">Gleich geht’s los</span></p>
-        <button class="viewbtn" id="viewBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/></svg><span>Übersicht</span></button>
+        <div class="hud" id="hud"></div>
         <div class="banner" aria-hidden="true"><div class="banner-band" id="bannerBand"></div></div>
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
         <div class="wheel" id="wheel" hidden><small>Glücksrad</small><span id="wheelTxt"></span></div>
         <div class="choice" id="choice" hidden></div>
         <div class="ask" id="ask" role="dialog" aria-labelledby="askT" hidden><b id="askT"></b><span id="askS"></span><div id="askB"></div></div>
         <div class="watch" id="watch" hidden></div>
-        <div class="dock" id="dock" hidden>
-          <button class="roll" id="rollBtn" type="button">
-            <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="9" fill="#ffe14a" stroke="#0b0614" stroke-width="3.5"/><text x="24" y="34" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="900" font-style="italic" font-size="28" fill="#0b0614">?</text></svg>
-            <span><b>Würfeln</b><small id="rollSub">Leertaste oder Tippen</small></span>
-          </button>
-          <div class="itms" id="itms"></div>
-        </div>
       </div>
       <div class="mghud" id="mgHud">
         <div class="mg-top"><div class="mg-name" id="mgName">Minispiel</div><div class="timer" id="mgTimer">30</div></div>
@@ -72,25 +64,6 @@ export function buildShell(root: HTMLElement) {
       <div class="net-note" id="netNote" hidden></div>
       <div class="nogl" id="nogl" hidden><p>Dein Browser kann hier kein WebGL anzeigen. Unser Party Spiel braucht 3D.</p></div>
     </section>
-
-    <aside class="side" aria-label="Spielstand">
-      <section class="pnl">
-        <h2>Runde</h2>
-        <div class="round">
-          <div class="dial"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="42"/><circle class="val" id="dialVal" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="263.9"/></svg><div class="dial-n" id="dialN">1<small>von 10</small></div></div>
-          <div class="round-txt"><b id="roundLeft">Noch 9 Runden</b><span>Nach jeder Runde: ein Minispiel für alle.</span><span class="chip y" id="starChip">Stern kostet 20 Münzen</span></div>
-        </div>
-      </section>
-      <section class="pnl pk">
-        <h2>Rangliste</h2>
-        <ol class="rank" id="rank"></ol>
-      </section>
-      <section class="pnl">
-        <h2 id="boardName">Neonstadt</h2>
-        <ul class="info" id="boardInfo"></ul>
-        <ul class="legend" id="legend"></ul>
-      </section>
-    </aside>
   </main>
 </div>
 
