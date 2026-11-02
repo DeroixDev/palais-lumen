@@ -3,6 +3,7 @@
 // the browsers to each other. PeerJS is loaded on demand, so single player never touches WebRTC.
 
 import type { DataConnection, Peer as PeerType, PeerOptions } from 'peerjs';
+import { iceServers } from './netconfig';
 import { NetError, type HostEndpoint, type Link, type Transport } from './transport';
 
 /** Where the broker runs. */
@@ -16,7 +17,7 @@ export interface Broker {
 export const DEFAULT_BROKER: Broker = { host: '0.peerjs.com', port: 443, secure: true, path: '/' };
 const STORE_KEY = 'nachtfalter.mp.peer';
 /** Peer ids on the shared broker: the room code behind a prefix of the house. */
-const PREFIX = 'palais-lumen-';
+export const PREFIX = 'palais-lumen-';
 const CONNECT_MS = 20000;
 
 /** "localhost:9000", "peer.example.org", "https://peer.example.org:443/myapp" → Broker. */
@@ -78,14 +79,6 @@ export function saveBroker(text: string): boolean {
   }
   return true;
 }
-
-const localIceOnly = () => {
-  try {
-    return new URLSearchParams(location.search).get('ice') === 'local';
-  } catch {
-    return false;
-  }
-};
 
 /** Whether this browser can do WebRTC data channels at all (blocked in some sandboxes). */
 export function webrtcAvailable() {
@@ -157,6 +150,201 @@ async function loadPeer() {
   }
 }
 
+export function peerOptions(b: Broker = currentBroker()): PeerOptions {
+  // STUN (Google, Cloudflare) plus the PeerJS TURN; ?ice=local: none (tests on one machine).
+  return { host: b.host, port: b.port, secure: b.secure, path: b.path, debug: 0, config: { iceServers: iceServers() } };
+}
+
+/** PeerJS error types that mean "the broker is the problem", not the room or the network path. */
+const kindOf = (type: string | undefined): NetError['kind'] => {
+  switch (type) {
+    case 'peer-unavailable':
+      return 'notFound';
+    case 'browser-incompatible':
+      return 'unsupported';
+    case 'unavailable-id':
+      return 'taken';
+    case 'webrtc':
+      return 'unreachable';
+    default:
+      // server-error, socket-error, socket-closed, network, disconnected, ssl-unavailable, …
+      return 'broker';
+  }
+};
+
+const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000, 30000];
+
+/**
+ * The host's door on the PeerJS broker. It keeps itself registered: when the broker connection
+ * drops (or never came up), it asks again with backoff, and the friends already at the table
+ * keep their direct connections the whole time. `first` settles with the first registration
+ * (or the first failure, while the retries go on in the background).
+ */
+export class PeerHost {
+  readonly first: Promise<void>;
+  private peer: PeerType | null = null;
+  private closed = false;
+  private tries = 0;
+  private timer = 0;
+  private settle: ((e?: NetError) => void) | null = null;
+  /** True while registered with the broker (new friends can find the code there). */
+  registered = false;
+
+  constructor(
+    private id: string,
+    private options: PeerOptions,
+    private onLink: (l: Link) => void,
+  ) {
+    this.first = new Promise<void>((res, rej) => {
+      this.settle = (e) => {
+        this.settle = null;
+        if (e) rej(e);
+        else res();
+      };
+    });
+    this.first.catch(() => undefined);
+    addEventListener('online', this.onOnline);
+    void this.start();
+  }
+
+  private onOnline = () => {
+    if (this.closed || this.registered) return;
+    this.tries = 0;
+    this.retrySoon(200);
+  };
+
+  private async start() {
+    let Peer: Awaited<ReturnType<typeof loadPeer>>;
+    try {
+      Peer = await loadPeer();
+    } catch (e) {
+      this.stop(e as NetError);
+      return;
+    }
+    if (this.closed) return;
+    const peer = new Peer(this.id, this.options);
+    this.peer = peer;
+    peer.on('open', () => {
+      this.registered = true;
+      this.tries = 0;
+      this.settle?.();
+    });
+    peer.on('connection', (conn) => {
+      conn.once('open', () => this.onLink(new PeerLink(conn)));
+    });
+    peer.on('error', (e: { type?: string }) => {
+      const kind = kindOf(e?.type);
+      if (kind === 'taken' || kind === 'unsupported') {
+        // someone else holds the code on this broker (or WebRTC is missing): stop for good
+        if (this.settle || kind === 'unsupported') this.stop(new NetError(kind));
+        else this.stop();
+      } else if (kind === 'broker') {
+        this.settle?.(new NetError('broker'));
+      }
+    });
+    // The broker connection dropped (or never came up): open links keep working, and we ask
+    // the broker back with growing pauses so new friends can find the code again.
+    peer.on('disconnected', () => {
+      this.registered = false;
+      this.retrySoon();
+    });
+    peer.on('close', () => {
+      this.registered = false;
+      if (this.peer === peer) this.peer = null;
+      this.retrySoon();
+    });
+  }
+
+  private retrySoon(ms?: number) {
+    if (this.closed) return;
+    clearTimeout(this.timer);
+    const wait = ms ?? BACKOFF_MS[Math.min(this.tries, BACKOFF_MS.length - 1)] * (0.8 + Math.random() * 0.4);
+    this.tries++;
+    this.timer = window.setTimeout(() => {
+      if (this.closed || this.registered) return;
+      const p = this.peer;
+      if (!p || p.destroyed) {
+        // a destroyed peer can't come back; a new one under the same id can
+        this.peer = null;
+        void this.start();
+      } else if (p.disconnected) {
+        try {
+          p.reconnect();
+        } catch {
+          this.retrySoon();
+        }
+      }
+    }, wait);
+  }
+
+  /** Stops registering with the broker; links that are already open stay open. */
+  private stop(e?: NetError) {
+    this.settle?.(e ?? new NetError('broker'));
+    this.closed = true;
+    clearTimeout(this.timer);
+    removeEventListener('online', this.onOnline);
+    const p = this.peer;
+    if (p && !p.destroyed && !p.disconnected) p.disconnect();
+  }
+
+  close() {
+    this.stop(new NetError('closed'));
+    const p = this.peer;
+    this.peer = null;
+    setTimeout(() => p?.destroy(), 300);
+  }
+}
+
+export interface PeerJoin {
+  promise: Promise<Link>;
+  cancel(): void;
+}
+
+/**
+ * Connects to the host's PeerJS id. Fails with 'broker' when the broker doesn't answer within
+ * `brokerMs`, 'notFound' when it doesn't know the id, 'unreachable' when the broker knows it but
+ * no data channel opens within `connectMs`.
+ */
+export function peerJoin(id: string, options: PeerOptions, brokerMs: number, connectMs: number): PeerJoin {
+  let peer: PeerType | null = null;
+  let done = false;
+  let timer = 0;
+  let cancelFn: () => void = () => undefined;
+  const promise = new Promise<Link>((resolve, reject) => {
+    const fail = (e: NetError) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      peer?.destroy();
+      reject(e);
+    };
+    cancelFn = () => fail(new NetError('closed'));
+    timer = window.setTimeout(() => fail(new NetError('broker')), brokerMs);
+    loadPeer().then((Peer) => {
+      if (done) return;
+      const p = new Peer(options);
+      peer = p;
+      p.on('error', (e: { type?: string }) => fail(new NetError(kindOf(e?.type))));
+      p.once('open', () => {
+        if (done) return;
+        clearTimeout(timer);
+        timer = window.setTimeout(() => fail(new NetError('unreachable')), connectMs);
+        const conn = p.connect(id, { reliable: true, serialization: 'binary' });
+        conn.once('open', () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(new PeerLink(conn, p));
+        });
+        conn.once('error', () => fail(new NetError('unreachable')));
+      });
+    }, fail);
+  });
+  promise.catch(() => undefined);
+  return { promise, cancel: () => cancelFn() };
+}
+
+/** PeerJS only (the robust transport in ./robust.ts adds the second path on top of this). */
 export class PeerTransport implements Transport {
   /** `prefix` keeps each game's room codes apart on the shared broker (the casino uses the default). */
   constructor(
@@ -164,75 +352,22 @@ export class PeerTransport implements Transport {
     private prefix: string = PREFIX,
   ) {}
 
-  private options(): PeerOptions {
-    const b = this.broker;
-    const o: PeerOptions = { host: b.host, port: b.port, secure: b.secure, path: b.path, debug: 0 };
-    // ?ice=local: no STUN/TURN servers, for tests on one machine or a LAN without internet.
-    if (localIceOnly()) o.config = { iceServers: [] };
-    return o;
-  }
-
   async host(code: string): Promise<HostEndpoint> {
-    const Peer = await loadPeer();
-    const peer = new Peer(this.prefix + code, this.options());
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new NetError('timeout')), CONNECT_MS);
-      peer.once('open', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      peer.once('error', (e: { type?: string }) => {
-        clearTimeout(timer);
-        peer.destroy();
-        reject(new NetError(e?.type === 'unavailable-id' ? 'taken' : e?.type === 'browser-incompatible' ? 'unsupported' : 'network'));
-      });
-    });
     const fns: ((l: Link) => void)[] = [];
-    peer.on('connection', (conn) => {
-      conn.once('open', () => {
-        const link = new PeerLink(conn);
-        for (const f of fns) f(link);
-      });
-    });
-    // The broker connection can drop on a flaky network; open links keep working, and we ask
-    // the broker back so new friends can still find the code.
-    peer.on('disconnected', () => {
-      setTimeout(() => !peer.destroyed && peer.disconnected && peer.reconnect(), 1500);
-    });
-    peer.on('error', () => undefined);
-    return {
-      code,
-      onLink: (fn) => fns.push(fn),
-      close: () => {
-        setTimeout(() => peer.destroy(), 300);
-      },
-    };
+    const ph = new PeerHost(this.prefix + code, peerOptions(this.broker), (l) => fns.forEach((f) => f(l)));
+    const timer = setTimeout(() => ph.close(), CONNECT_MS);
+    try {
+      await ph.first;
+    } catch (e) {
+      ph.close();
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    return { code, onLink: (fn) => fns.push(fn), close: () => ph.close() };
   }
 
-  async join(code: string): Promise<Link> {
-    const Peer = await loadPeer();
-    const peer = new Peer(this.options());
-    return new Promise<Link>((resolve, reject) => {
-      let done = false;
-      const fail = (e: NetError) => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        peer.destroy();
-        reject(e);
-      };
-      const timer = setTimeout(() => fail(new NetError('timeout')), CONNECT_MS);
-      peer.on('error', (e: { type?: string }) => fail(new NetError(e?.type === 'peer-unavailable' ? 'notFound' : e?.type === 'browser-incompatible' ? 'unsupported' : 'network')));
-      peer.once('open', () => {
-        const conn = peer.connect(this.prefix + code, { reliable: true, serialization: 'binary' });
-        conn.once('open', () => {
-          if (done) return;
-          done = true;
-          clearTimeout(timer);
-          resolve(new PeerLink(conn, peer));
-        });
-        conn.once('error', () => fail(new NetError('network')));
-      });
-    });
+  join(code: string): Promise<Link> {
+    return peerJoin(this.prefix + code, peerOptions(this.broker), CONNECT_MS, CONNECT_MS).promise;
   }
 }

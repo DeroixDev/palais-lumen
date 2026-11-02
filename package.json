@@ -16,10 +16,12 @@
     "peerjs": "^1.5.5",
     "pixi-filters": "^6.0.5",
     "pixi.js": "^8.6.6",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "trystero": "^0.26.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.1",
+    "peer": "^1.0.2",
     "playwright": "^1.49.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"

@@ -5,7 +5,7 @@
 import { sfx } from '../core/audio';
 import { net, cleanCode, joinLink, validCode } from '../net/session';
 import { brokerText, currentBroker, saveBroker, DEFAULT_BROKER, webrtcAvailable } from '../net/peer';
-import { NetError, netErrorText } from '../net/transport';
+import { NetError, netErrorText, onNetStatus } from '../net/transport';
 import { EMOTES, LINES } from '../net/protocol';
 
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
@@ -119,9 +119,17 @@ export function showJoinCard(h: JoinHost, code = '') {
     status.classList.remove('err');
     status.textContent = `Verbinde mit der Gruppe ${c} …`;
     wrap.classList.add('busy');
+    // "Verbindet … (Weg 2)" while the second path takes over
+    const unStatus = onNetStatus((text) => {
+      if (busy) status.textContent = `${text.replace(/^Verbindet …/, `Verbinde mit der Gruppe ${c} …`)}`;
+    });
     h.join(c, nameIn.value.trim()).then(
-      () => h.closeModal(),
+      () => {
+        unStatus();
+        h.closeModal();
+      },
       (e) => {
+        unStatus();
         busy = false;
         wrap.classList.remove('busy');
         status.textContent = netErrorText(e);

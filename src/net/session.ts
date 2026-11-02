@@ -16,7 +16,8 @@ import { catchLamp } from '../core/album';
 import { acceptQuest } from '../core/quests';
 import { GameState, type EveningResult, type PlayerProfile, type RoundReport, type SaveData } from '../core/state';
 import { actor, asActor } from './actor';
-import { PeerTransport, customBroker, currentBroker, brokerText } from './peer';
+import { PREFIX, customBroker, currentBroker, brokerText } from './peer';
+import { RobustTransport } from './robust';
 import { MAX_PLAYERS, PROTOCOL, isEmote, type Op, type Pose, type TeamLine, type ToGuest, type ToHost } from './protocol';
 import { NetError, type HostEndpoint, type Link, type Transport } from './transport';
 
@@ -119,6 +120,12 @@ export function joinLink(code: string) {
   u.hash = '';
   u.searchParams.set('join', code);
   if (customBroker()) u.searchParams.set('peer', brokerText(currentBroker()));
+  // test settings (local relays, local ICE) travel along too
+  const q = new URLSearchParams(location.search);
+  for (const k of ['nostr', 'ice']) {
+    const v = q.get(k);
+    if (v) u.searchParams.set(k, v);
+  }
   return u.toString();
 }
 
@@ -127,7 +134,7 @@ class Net {
   code = '';
   hooks: Partial<NetHooks> = {};
   private state!: GameState;
-  private transportFactory: () => Transport = () => new PeerTransport();
+  private transportFactory: () => Transport = () => new RobustTransport(PREFIX);
   /** Ids at the table right now (host included). */
   private onlineIds = new Set<string>();
   private poses: Record<string, Pose> = {};
@@ -207,7 +214,7 @@ class Net {
         if (!(e instanceof NetError && e.kind === 'taken')) throw e;
       }
     }
-    if (!this.endpoint) throw lastErr ?? new NetError('network');
+    if (!this.endpoint) throw lastErr ?? new NetError('broker');
     this.role = 'host';
     this.onlineIds = new Set([state.selfId]);
     this.endpoint.onLink((link) => this.seat(link));
