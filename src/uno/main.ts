@@ -44,7 +44,7 @@ const HOUSE: { key: keyof Omit<Rules, 'target'>; name: string; text: string }[] 
 function header() {
   return `<header class="lbar">
     <a class="back" href="./index.html"><span aria-hidden="true">←</span> Alle Spiele</a>
-    <span class="lbrand" aria-hidden="true">Unser<b>Uno</b>Spiel</span>
+    <span class="lbrand" aria-hidden="true">Unser <b>Uno</b> Spiel</span>
   </header>`;
 }
 
@@ -103,10 +103,9 @@ function showLobby(opts: { code?: string; focusName?: boolean } = {}) {
   document.title = 'Unser Uno Spiel';
   app.innerHTML = `${SPRITE}<div class="lobby">${header()}
   <section class="l-hero">
-    <div class="l-glints" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<svg class="tw" style="--x:${(i * 71) % 100}%;--y:${(i * 37) % 100}%;--d:${(i % 7) * 0.45}s;--s:${0.5 + (i % 4) * 0.25}"><use href="#u-glint"/></svg>`).join('')}</div>
     <div class="l-copy">
       <p class="kick"><span class="tag">Kartenspiel</span><span>2 bis 4 am Tisch</span></p>
-      <h1 class="l-title"><span class="lt1">Unser</span><span class="lt2">Uno</span><span class="lt3">Spiel</span></h1>
+      <h1 class="l-title"><span class="lt1">Unser</span> <span class="lt2">Uno</span> <span class="lt3">Spiel</span></h1><span class="brandbar" aria-hidden="true"><i class="bb-r"></i><i class="bb-y"></i><i class="bb-g"></i><i class="bb-b"></i></span>
       <p class="l-sub">Karten raus, Farbe ansagen, UNO rufen. Gegen Bots oder mit deinen Leuten über einen Link.</p>
     </div>
     <div class="l-fan" aria-hidden="true">${FAN.map((c, i) => cardHTML(c, ` style="--i:${i - 2}"`)).join('')}</div>
@@ -316,7 +315,7 @@ function showRoom(l: LobbyInfo, isHost: boolean) {
   const slots = Array.from({ length: MAX_SEATS }, (_, i) => seats[i] ?? null);
   app.innerHTML = `${SPRITE}<div class="lobby room">${header()}
   <section class="r-head">
-    <h2 class="r-brand" aria-label="Unser Uno Spiel"><span>Unser</span><b>Uno</b><span>Spiel</span></h2>
+    <h2 class="r-brand" aria-label="Unser Uno Spiel"><span>Unser</span> <b>Uno</b> <span>Spiel</span></h2>
     <p class="kick"><span class="tag">${isHost ? 'Dein Raum' : 'Raum'}</span><span>${isHost ? 'Teil den Link mit deinen Leuten' : `Gastgeber: ${esc(l.seats[0]?.name ?? '')}`}</span></p>
     <h1 class="r-code" aria-label="Raumcode ${l.code.split('').join(' ')}">${l.code}</h1>
     <div class="r-link"><input readonly value="${esc(link)}" aria-label="Einladungslink"><button class="btn-line copy" type="button">Link kopieren</button></div>
@@ -376,6 +375,7 @@ function devStep(v: TableView) {
   const t = table ?? host?.table;
   if (!t) return;
   setTimeout(() => {
+    if (!devAuto) return;
     const m = t.m;
     if (m.phase === 'roundEnd') t.act(0, { t: 'next' });
     else if ((m.phase === 'play' || m.phase === 'drawn') && m.turn === 0) t.act(0, botMove(m, 0));

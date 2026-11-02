@@ -1,6 +1,7 @@
 // Name, colour and stats, kept in this browser. The launcher reads `unounser.save` too.
 
-export const PLAYER_COLORS = ['#ff3d9a', '#dcff1f', '#2fe6ff', '#ff8a1f', '#b38cff', '#ffe14a', '#5dffb0', '#ff5a5a'] as const;
+/** Player colours (avatars): softer than the card colours, so a seat never looks like a card colour. */
+export const PLAYER_COLORS = ['#e889a8', '#b9cf5a', '#6cc4d8', '#e8a15c', '#a895ee', '#d8c27a', '#72c9a4', '#d98a7e'] as const;
 
 export interface Profile {
   id: string;

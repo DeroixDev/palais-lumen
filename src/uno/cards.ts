@@ -1,22 +1,38 @@
 // Our own card design, painted once per card type into a canvas and used as a background image.
 // A card on screen is then one plain element with one image: cheap to create, cheap to paint,
-// and every card of a type shares the same decoded bitmap. Saturated colour body, a slanted white
-// oval with the big chunky number or symbol, small indices in two corners, a glossy sheen.
+// and every card of a type shares the same decoded bitmap.
+//
+// The look ("ruhiger Tisch"): flat and crisp. A white rim, one solid colour, a white disc with the
+// big upright number or symbol, indices in two corners. Every colour also has its own shape in the
+// corners (Rot Kreis, Gelb Dreieck, Grün Quadrat, Blau Raute), so the colour never depends on
+// seeing it. No gradients, no gloss, no outlines. Painted at the device pixel ratio.
 // Before the images are ready (first frames, or the web font still loading) a card shows its flat
 // colour; once the font has arrived every image is painted again and swapped in by one stylesheet.
 
 import type { Card, Color } from './engine';
 
-export const CARD_COLORS: Record<Color, string> = { r: '#ff2e4d', y: '#ffd21a', g: '#19e07a', b: '#1f8bff' };
-const LIGHT: Record<Color, string> = { r: '#ff7088', y: '#ffeb6b', g: '#7dffbc', b: '#6fc0ff' };
-const DEEP: Record<Color, string> = { r: '#c8002a', y: '#f59a00', g: '#00a554', b: '#0052cc' };
-const INK = '#160726';
+/** The four card colours (also the colour state on the table). */
+export const CARD_COLORS: Record<Color, string> = { r: '#e5383b', y: '#f2b705', g: '#1f9d5f', b: '#2b6fe0' };
+/** Number/symbol colour on the white disc (a shade darker, for contrast). */
+const DISC_INK: Record<Color, string> = { r: '#cc2a2e', y: '#a06c00', g: '#16804c', b: '#1f58c2' };
+/** Text on the colour itself. */
+export const ON_COLOR: Record<Color, string> = { r: '#ffffff', y: '#16181d', g: '#ffffff', b: '#ffffff' };
+const WILD_BODY = '#1d2027';
+const BACK_BODY = '#20242c';
 
-/** The symbol sprite (lobby glints only now; the cards draw their own symbols). */
-export const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-<defs>
-  <symbol id="u-glint" viewBox="0 0 40 40"><path d="M20 0l4 16 16 4-16 4-4 16-4-16L0 20l16-4z" fill="currentColor"/></symbol>
-</defs></svg>`;
+/** Shape of each colour, as an SVG path in a 0..24 box (UI) and drawn the same on the cards. */
+export const SHAPE_NAME: Record<Color, string> = { r: 'Kreis', y: 'Dreieck', g: 'Quadrat', b: 'Raute' };
+const SVG_SHAPE: Record<Color, string> = {
+  r: '<circle cx="12" cy="12" r="8.5"/>',
+  y: '<path d="M12 3.2 21.4 19.8H2.6z"/>',
+  g: '<rect x="4.2" y="4.2" width="15.6" height="15.6"/>',
+  b: '<path d="M12 2.4 21.6 12 12 21.6 2.4 12z"/>',
+};
+
+/** Symbols used by the UI (colour state, colour picker): <svg><use href="#sym-r"/></svg>. */
+export const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>${(['r', 'y', 'g', 'b'] as const).map((c) => `<symbol id="sym-${c}" viewBox="0 0 24 24">${SVG_SHAPE[c]}</symbol>`).join('')}<symbol id="sym-w" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></symbol></defs></svg>`;
+
+export const symSVG = (c: Color | 'w', cls = '') => `<svg class="sym ${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#sym-${c}"/></svg>`;
 
 /** Class key of a card face, e.g. r7, bskip, wd4. */
 export const faceKey = (c: Card) => `${c.c}${c.k === 'num' ? c.n : c.k}`;
@@ -41,11 +57,14 @@ export function backEl(extra = ''): HTMLElement {
 // ---------------- painting ----------------
 
 type G = CanvasRenderingContext2D;
-const FONT = (px: number) => `italic 900 extra-condensed ${px}px Archivo, "Arial Narrow", Impact, sans-serif`;
+const FONT = (px: number) => `800 ${px}px Archivo, "Helvetica Neue", Arial, sans-serif`;
 
-function font(g: G, px: number) {
+function text(g: G, t: string, x: number, y: number, px: number, fill: string) {
   g.font = FONT(px);
-  try { (g as G & { fontStretch?: string }).fontStretch = 'extra-condensed'; } catch { /* older browsers */ }
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = fill;
+  g.fillText(t, x, y);
 }
 
 function rr(g: G, x: number, y: number, w: number, h: number, r: number) {
@@ -58,240 +77,161 @@ function rr(g: G, x: number, y: number, w: number, h: number, r: number) {
   g.closePath();
 }
 
-/** Text with a dark outline and a hard drop shadow (sticker look). */
-function bold(g: G, text: string, x: number, y: number, px: number, fill: string, outline = 0.085, shadow = 0.05) {
-  font(g, px);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineJoin = 'round';
-  g.lineWidth = px * outline * 2;
-  g.strokeStyle = INK;
-  g.fillStyle = INK;
-  const s = px * shadow;
-  g.strokeText(text, x + s, y + s);
-  g.fillText(text, x + s, y + s);
-  g.strokeText(text, x, y);
-  g.fillStyle = fill;
-  g.fillText(text, x, y);
-}
-
-function oval(g: G) {
+/** The colour's shape, centred on (x, y), s = its box size. */
+function shape(g: G, c: Color, x: number, y: number, s: number, fill: string) {
+  const h = s / 2;
   g.beginPath();
-  g.ellipse(0, 0, 33, 57, 0, 0, Math.PI * 2);
+  if (c === 'r') g.arc(x, y, h * 0.72, 0, Math.PI * 2);
+  else if (c === 'y') { g.moveTo(x, y - h * 0.78); g.lineTo(x + h * 0.8, y + h * 0.62); g.lineTo(x - h * 0.8, y + h * 0.62); g.closePath(); }
+  else if (c === 'g') g.rect(x - h * 0.64, y - h * 0.64, h * 1.28, h * 1.28);
+  else { g.moveTo(x, y - h * 0.82); g.lineTo(x + h * 0.82, y); g.lineTo(x, y + h * 0.82); g.lineTo(x - h * 0.82, y); g.closePath(); }
+  g.fillStyle = fill;
+  g.fill();
 }
 
-/** The four-colour oval of the wild cards: pinwheel segments, slightly swirled. */
-function wildOval(g: G, scale = 1) {
-  g.save();
-  g.scale(scale, scale);
-  oval(g);
-  g.save();
-  g.clip();
-  const cols = [CARD_COLORS.r, CARD_COLORS.b, CARD_COLORS.g, CARD_COLORS.y];
-  for (let i = 0; i < 4; i++) {
-    const a0 = -Math.PI / 2 + (i * Math.PI) / 2;
-    const a1 = a0 + Math.PI / 2;
-    g.beginPath();
-    g.moveTo(0, 0);
-    // swirl: the edges bend a little
-    g.quadraticCurveTo(Math.cos(a0 + 0.5) * 30, Math.sin(a0 + 0.5) * 30, Math.cos(a0) * 80, Math.sin(a0) * 80);
-    g.lineTo(Math.cos((a0 + a1) / 2) * 110, Math.sin((a0 + a1) / 2) * 110);
-    g.lineTo(Math.cos(a1) * 80, Math.sin(a1) * 80);
-    g.quadraticCurveTo(Math.cos(a1 + 0.5) * 30, Math.sin(a1 + 0.5) * 30, 0, 0);
-    g.closePath();
-    g.fillStyle = cols[i];
-    g.fill();
-  }
-  // gloss on the oval
-  const sh = g.createLinearGradient(-30, -55, 20, 10);
-  sh.addColorStop(0, 'rgba(255,255,255,.45)');
-  sh.addColorStop(0.5, 'rgba(255,255,255,.08)');
-  sh.addColorStop(0.51, 'rgba(255,255,255,0)');
-  g.fillStyle = sh;
-  g.fillRect(-40, -60, 80, 120);
-  g.restore();
-  oval(g);
-  g.lineWidth = 3.2 / Math.max(scale, 0.4);
-  g.strokeStyle = '#fff';
-  g.stroke();
-  g.restore();
-}
-
-function skipIcon(g: G, r: number, col: string, outline: boolean) {
+function skipIcon(g: G, r: number, col: string, lw: number) {
   g.lineCap = 'butt';
-  const path = () => {
-    g.beginPath();
-    g.arc(0, 0, r, 0, Math.PI * 2);
-    g.moveTo(-r * 0.7, r * 0.7);
-    g.lineTo(r * 0.7, -r * 0.7);
-  };
-  if (outline) {
-    g.save();
-    g.translate(r * 0.08, r * 0.08);
-    path(); g.lineWidth = r * 0.62; g.strokeStyle = INK; g.stroke();
-    g.restore();
-    path(); g.lineWidth = r * 0.62; g.strokeStyle = INK; g.stroke();
-  }
-  path(); g.lineWidth = r * 0.36; g.strokeStyle = col; g.stroke();
+  g.beginPath();
+  g.arc(0, 0, r, 0, Math.PI * 2);
+  g.moveTo(-r * 0.7, r * 0.7);
+  g.lineTo(r * 0.7, -r * 0.7);
+  g.lineWidth = lw;
+  g.strokeStyle = col;
+  g.stroke();
 }
 
-function revIcon(g: G, s: number, col: string, outline: boolean) {
-  // two fat straight arrows, side by side, pointing opposite ways along the diagonal
+function revIcon(g: G, s: number, col: string) {
+  // two arrows on the diagonal, pointing opposite ways
   const arrow = () => {
     g.beginPath();
-    g.moveTo(-0.6 * s, -0.1 * s);
-    g.lineTo(0.14 * s, -0.1 * s);
-    g.lineTo(0.14 * s, -0.29 * s);
-    g.lineTo(0.6 * s, 0);
-    g.lineTo(0.14 * s, 0.29 * s);
-    g.lineTo(0.14 * s, 0.1 * s);
-    g.lineTo(-0.6 * s, 0.1 * s);
+    g.moveTo(-0.55 * s, -0.1 * s);
+    g.lineTo(0.12 * s, -0.1 * s);
+    g.lineTo(0.12 * s, -0.3 * s);
+    g.lineTo(0.55 * s, 0);
+    g.lineTo(0.12 * s, 0.3 * s);
+    g.lineTo(0.12 * s, 0.1 * s);
+    g.lineTo(-0.55 * s, 0.1 * s);
     g.closePath();
+    g.fillStyle = col;
+    g.fill();
   };
   g.save();
-  g.rotate(-0.95);
-  g.lineJoin = 'round';
-  for (const rot of [0, Math.PI]) {
-    g.save();
-    g.rotate(rot);
-    g.translate(0.1 * s, -0.33 * s);
-    if (outline) {
-      g.save(); g.rotate(-rot); g.translate(s * 0.05, s * 0.05); g.rotate(rot); arrow(); g.lineWidth = s * 0.16; g.strokeStyle = INK; g.stroke(); g.fillStyle = INK; g.fill(); g.restore();
-      arrow(); g.lineWidth = s * 0.16; g.strokeStyle = INK; g.stroke();
-    }
-    arrow(); g.fillStyle = col; g.fill();
-    g.restore();
-  }
+  g.rotate(-Math.PI / 4);
+  g.save(); g.translate(0.06 * s, -0.22 * s); arrow(); g.restore();
+  g.save(); g.rotate(Math.PI); g.translate(0.06 * s, -0.22 * s); arrow(); g.restore();
   g.restore();
+}
+
+/** The four-colour disc of the wild cards: flat quarters, each with its shape. */
+function wildDisc(g: G, x: number, y: number, r: number, shapes: boolean) {
+  const order: Color[] = ['r', 'y', 'g', 'b'];
+  order.forEach((c, i) => {
+    const a0 = -Math.PI + (i * Math.PI) / 2;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.arc(x, y, r, a0, a0 + Math.PI / 2);
+    g.closePath();
+    g.fillStyle = CARD_COLORS[c];
+    g.fill();
+    if (shapes) {
+      const am = a0 + Math.PI / 4;
+      shape(g, c, x + Math.cos(am) * r * 0.55, y + Math.sin(am) * r * 0.55, r * 0.34, ON_COLOR[c]);
+    }
+  });
+  // thin white cross and rim keep the quarters crisp
+  g.strokeStyle = '#fff';
+  g.lineWidth = r * 0.06;
+  g.beginPath();
+  g.moveTo(x - r, y); g.lineTo(x + r, y);
+  g.moveTo(x, y - r); g.lineTo(x, y + r);
+  g.stroke();
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.lineWidth = r * 0.08;
+  g.stroke();
 }
 
 function corner(g: G, c: Card, x: number, y: number, rot: number) {
+  const col = c.c === 'w' ? null : c.c;
+  const ink = col ? ON_COLOR[col] : '#fff';
   g.save();
   g.translate(x, y);
   g.rotate(rot);
-  if (c.k === 'num') bold(g, String(c.n), 0, 0, 24, '#fff', 0.1, 0.06);
-  else if (c.k === 'd2') bold(g, '+2', 0, 0, 21, '#fff', 0.1, 0.06);
-  else if (c.k === 'd4') bold(g, '+4', 0, 0, 21, '#fff', 0.1, 0.06);
-  else if (c.k === 'skip') skipIcon(g, 6.5, '#fff', true);
-  else if (c.k === 'rev') revIcon(g, 14, '#fff', true);
-  else { g.rotate(0.5); wildOval(g, 0.17); }
-  if (c.k === 'num' && (c.n === 6 || c.n === 9)) { g.fillStyle = '#fff'; g.strokeStyle = INK; g.lineWidth = 1.6; rr(g, -5, 10, 10, 2.6, 1); g.stroke(); g.fill(); }
+  if (c.k === 'num') text(g, String(c.n), 0, 0, 21, ink);
+  else if (c.k === 'd2') text(g, '+2', 0, 0, 17, ink);
+  else if (c.k === 'd4') text(g, '+4', 0, 0, 17, ink);
+  else if (c.k === 'skip') skipIcon(g, 6, ink, 2.6);
+  else if (c.k === 'rev') revIcon(g, 15, ink);
+  else wildDisc(g, 0, 0, 7.5, false);
+  if (c.k === 'num' && (c.n === 6 || c.n === 9)) { g.fillStyle = ink; g.fillRect(-4.5, 10, 9, 1.8); }
+  // the colour's shape under the index (wild cards: the four-colour disc says it all)
+  if (col) shape(g, col, 0, 20, 9, ink);
+  else if (c.k === 'd4') wildDisc(g, 0, 19, 5.5, false);
   g.restore();
 }
 
-function body(g: G, top: string, mid: string, bot: string) {
-  rr(g, 0, 0, 100, 150, 9);
+function body(g: G, fill: string) {
+  rr(g, 0, 0, 100, 150, 8);
   g.fillStyle = '#fff';
   g.fill();
-  rr(g, 4.6, 4.6, 90.8, 140.8, 6);
-  g.save();
-  g.clip();
-  const lg = g.createLinearGradient(10, 0, 90, 150);
-  lg.addColorStop(0, top);
-  lg.addColorStop(0.45, mid);
-  lg.addColorStop(1, bot);
-  g.fillStyle = lg;
-  g.fillRect(0, 0, 100, 150);
-  // fine slashes
-  g.strokeStyle = 'rgba(255,255,255,.07)';
-  g.lineWidth = 3;
-  for (let i = -150; i < 150; i += 11) { g.beginPath(); g.moveTo(i, 150); g.lineTo(i + 100, 0); g.stroke(); }
-  const rg = g.createRadialGradient(28, 22, 0, 28, 22, 80);
-  rg.addColorStop(0, 'rgba(255,255,255,.28)');
-  rg.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = rg;
-  g.fillRect(0, 0, 100, 150);
-}
-
-function gloss(g: G) {
-  // diagonal sheen across the upper left, then the clip from body() ends
-  const sh = g.createLinearGradient(0, 0, 62, 70);
-  sh.addColorStop(0, 'rgba(255,255,255,.3)');
-  sh.addColorStop(0.55, 'rgba(255,255,255,.05)');
-  sh.addColorStop(0.56, 'rgba(255,255,255,0)');
-  g.fillStyle = sh;
-  g.fillRect(0, 0, 100, 150);
-  g.restore();
-  rr(g, 4.6, 4.6, 90.8, 140.8, 6);
-  g.lineWidth = 0.8;
-  g.strokeStyle = 'rgba(22,7,38,.35)';
-  g.stroke();
+  rr(g, 4, 4, 92, 142, 5);
+  g.fillStyle = fill;
+  g.fill();
 }
 
 function paintFace(g: G, c: Card) {
-  const k = c.c === 'w' ? null : c.c;
-  const wild = !k;
-  if (!k) body(g, '#2a1a40', '#120a1f', '#05030a');
-  else body(g, LIGHT[k], CARD_COLORS[k], DEEP[k]);
-  g.save();
-  g.translate(50, 75);
-  g.rotate(0.5);
-  if (wild) wildOval(g);
-  else {
-    oval(g);
+  const col = c.c === 'w' ? null : c.c;
+  body(g, col ? CARD_COLORS[col] : WILD_BODY);
+  const cx = 50, cy = 75;
+  if (col) {
+    g.beginPath();
+    g.arc(cx, cy, 31, 0, Math.PI * 2);
     g.fillStyle = '#fff';
-    g.shadowColor = 'rgba(22,7,38,.35)';
-    g.shadowOffsetX = 2;
-    g.shadowOffsetY = 3;
     g.fill();
-    g.shadowColor = 'transparent';
+    const ink = DISC_INK[col];
+    g.save();
+    g.translate(cx, cy);
+    switch (c.k) {
+      case 'num':
+        text(g, String(c.n), 0, 2, 50, ink);
+        if (c.n === 6 || c.n === 9) g.fillRect(-9, 22, 18, 3.4);
+        break;
+      case 'd2': text(g, '+2', -1, 2, 38, ink); break;
+      case 'skip': skipIcon(g, 17, ink, 6.5); break;
+      case 'rev': revIcon(g, 40, ink); break;
+      default: break;
+    }
+    g.restore();
+  } else {
+    wildDisc(g, cx, cy, 31, c.k === 'wild');
+    if (c.k === 'd4') {
+      g.beginPath();
+      g.arc(cx, cy, 18, 0, Math.PI * 2);
+      g.fillStyle = WILD_BODY;
+      g.fill();
+      text(g, '+4', cx - 0.5, cy + 1.5, 24, '#fff');
+    }
   }
-  g.restore();
-  g.save();
-  g.translate(50, 77);
-  const col = k ? CARD_COLORS[k] : '#fff';
-  switch (c.k) {
-    case 'num':
-      bold(g, String(c.n), 0, 0, 86, col, 0.075, 0.05);
-      if (c.n === 6 || c.n === 9) { g.fillStyle = col; g.strokeStyle = INK; g.lineWidth = 3; rr(g, -12, 35, 24, 5, 2); g.stroke(); g.fill(); }
-      break;
-    case 'd2': bold(g, '+2', -1, 0, 66, col, 0.08, 0.05); break;
-    case 'd4': bold(g, '+4', -1, 0, 64, '#fff', 0.09, 0.06); break;
-    case 'skip': skipIcon(g, 21, col, true); break;
-    case 'rev': revIcon(g, 40, col, true); break;
-    case 'wild': break;
-  }
-  g.restore();
-  gloss(g);
-  corner(g, c, 15, 18, 0);
-  corner(g, c, 85, 132, Math.PI);
+  corner(g, c, 15, 16, 0);
+  corner(g, c, 85, 134, Math.PI);
 }
 
 function paintBack(g: G) {
-  body(g, '#4a12c9', '#26066e', '#10022e');
+  body(g, BACK_BODY);
+  rr(g, 11, 11, 78, 128, 4);
+  g.strokeStyle = 'rgba(255,255,255,.16)';
+  g.lineWidth = 1.5;
+  g.stroke();
+  // four small tiles turned into a diamond, one per colour
   g.save();
   g.translate(50, 75);
-  g.rotate(0.5);
-  oval(g);
-  const og = g.createLinearGradient(-30, -55, 30, 55);
-  og.addColorStop(0, '#ff5fb0');
-  og.addColorStop(0.5, '#ff3d9a');
-  og.addColorStop(1, '#ff2e4d');
-  g.fillStyle = og;
-  g.fill();
-  g.lineWidth = 6;
-  g.strokeStyle = INK;
-  g.stroke();
-  oval(g);
-  g.lineWidth = 2.4;
-  g.strokeStyle = '#2fe6ff';
-  g.stroke();
+  g.rotate(Math.PI / 4);
+  const s = 13, gap = 2.4;
+  ([['r', -1, -1], ['y', 1, -1], ['b', -1, 1], ['g', 1, 1]] as const).forEach(([k, sx, sy]) => {
+    g.fillStyle = CARD_COLORS[k];
+    g.fillRect(sx < 0 ? -s - gap / 2 : gap / 2, sy < 0 ? -s - gap / 2 : gap / 2, s, s);
+  });
   g.restore();
-  g.save();
-  g.translate(50, 75);
-  g.rotate(-0.38);
-  bold(g, 'UNSER', 0, -21, 17, '#fff', 0.12, 0.06);
-  bold(g, 'UNO', 0, 6, 48, '#dcff1f', 0.09, 0.07);
-  g.restore();
-  g.fillStyle = '#ffe14a';
-  for (const [x, y, s] of [[22, 26, 5], [78, 122, 4]] as const) {
-    g.beginPath();
-    g.moveTo(x, y - s); g.lineTo(x + s * 0.25, y - s * 0.25); g.lineTo(x + s, y); g.lineTo(x + s * 0.25, y + s * 0.25);
-    g.lineTo(x, y + s); g.lineTo(x - s * 0.25, y + s * 0.25); g.lineTo(x - s, y); g.lineTo(x - s * 0.25, y - s * 0.25);
-    g.closePath();
-    g.fill();
-  }
-  gloss(g);
 }
 
 // ---------------- the image cache ----------------
@@ -313,8 +253,9 @@ let gen = 0;
 
 function paintAll() {
   const my = ++gen;
-  // big enough for the largest card on screen (lobby fan ~150 css px) at the device's pixel ratio
-  const W = Math.round(Math.min(300, Math.max(160, 150 * Math.min(devicePixelRatio || 1, 2))));
+  // the largest card on screen (lobby fan, pile) is about 130 css px: paint it at the device's pixel ratio
+  const dpr = Math.min(devicePixelRatio || 1, 2.5);
+  const W = Math.round(Math.min(320, Math.max(160, 130 * dpr)));
   const H = Math.round(W * 1.5);
   const jobs: { sel: string; paint: (g: G) => void }[] = [
     { sel: '.card.back', paint: paintBack },

@@ -185,38 +185,27 @@ export const sfx = {
     burst(at + 0.05, 0.28, 1200, 0.6, 0.24, 'bandpass', 2.4);
     burst(at + 0.32, 0.06, 240, 0.8, 0.35, 'lowpass');
   },
-  /** UNO!: a brass stab with a glockenspiel sparkle on top. */
+  /** UNO!: two soft mallet notes and one muted horn note (no fanfare). */
   uno() {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    duck(t, 0.35, 0.7);
-    const brass = S('trumpet', 72, t, { vel: 0.8, dur: 0.16, rel: 0.12 });
-    if (brass) {
-      S('trumpet', 76, t + 0.005, { vel: 0.72, dur: 0.16, rel: 0.12, pan: -0.15 });
-      S('trumpet', 79, t + 0.13, { vel: 0.85, dur: 0.38, rel: 0.25, pan: 0.15 });
-      S('trumpet', 84, t + 0.135, { vel: 0.8, dur: 0.38, rel: 0.25 });
-      S('trombone', 60, t + 0.13, { vel: 0.7, dur: 0.38, rel: 0.25 });
-      S('glock', 96, t + 0.14, { vel: 0.5 });
-      S('glock', 91, t + 0.2, { vel: 0.35 });
-      H('claps', 'clap', t + 0.13, { vel: 0.7 });
+    if (S('xylo', 79, t, { vel: 0.5 })) {
+      S('xylo', 84, t + 0.1, { vel: 0.55 });
+      S('trumpet', 72, t + 0.1, { vel: 0.35, dur: 0.18, rel: 0.15 });
     } else {
-      tone(t, 784, 0.16, 0.22, 'square');
-      tone(t + 0.1, 1175, 0.32, 0.22, 'square');
-      tone(t + 0.1, 1568, 0.32, 0.08, 'sine');
+      tone(t, 784, 0.12, 0.1, 'sine');
+      tone(t + 0.1, 1047, 0.2, 0.1, 'sine');
     }
   },
-  /** Caught without UNO: the sad trombone, two wobbling steps down. */
+  /** Caught without UNO: two low trombone steps down, short. */
   caught() {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    duck(t, 0.3, 1);
-    if (S('trombone', 55, t, { vel: 0.75, dur: 0.24, rel: 0.06, glide: -1 })) {
-      S('trombone', 53, t + 0.28, { vel: 0.72, dur: 0.24, rel: 0.06, glide: -1 });
-      S('trombone', 51, t + 0.56, { vel: 0.7, dur: 0.24, rel: 0.06, glide: -1 });
-      S('trombone', 50, t + 0.84, { vel: 0.75, dur: 0.75, rel: 0.3, glide: -1.5 });
+    if (S('trombone', 53, t, { vel: 0.5, dur: 0.2, rel: 0.08, glide: -1 })) {
+      S('trombone', 50, t + 0.24, { vel: 0.5, dur: 0.35, rel: 0.2, glide: -1 });
     } else {
-      tone(t, 330, 0.18, 0.2, 'sawtooth', 0.6);
-      tone(t + 0.14, 247, 0.26, 0.2, 'sawtooth', 0.6);
+      tone(t, 330, 0.16, 0.12, 'triangle', 0.7);
+      tone(t + 0.16, 247, 0.24, 0.12, 'triangle', 0.7);
     }
   },
   /** My turn: two soft mallet notes. */
@@ -233,24 +222,22 @@ export const sfx = {
     if (H('woodblock', 'w', t, { vel: 0.9 })) { H('woodblock', 'w', t + 0.11, { vel: 0.6, cents: -300 }); S('xylo', 64, t + 0.11, { vel: 0.4 }); }
     else tone(t, 520, 0.12, 0.12, 'square', 0.5);
   },
-  /** Richtungswechsel: a mallet run up and back down. */
+  /** Richtungswechsel: three mallet notes, up and back. */
   rev() {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    const run = [72, 76, 79, 84, 79, 76, 72];
-    if (S('xylo', run[0], t, { vel: 0.5 })) run.slice(1).forEach((m, i) => S('xylo', m, t + (i + 1) * 0.055, { vel: 0.45 + (i < 3 ? i * 0.06 : 0), pan: i < 3 ? 0.3 : -0.3 }));
-    else tone(t, 400, 0.22, 0.12, 'triangle', 2);
-    burst(t, 0.36, 700, 0.7, 0.12, 'bandpass', 3);
+    const run = [72, 79, 72];
+    if (S('xylo', run[0], t, { vel: 0.4 })) run.slice(1).forEach((m, i) => S('xylo', m, t + (i + 1) * 0.08, { vel: 0.38 }));
+    else tone(t, 400, 0.18, 0.08, 'triangle', 1.5);
   },
-  /** +2 / +4 lands on someone: drum hit, +4 adds a low brass blare. */
+  /** +2 / +4 lands on someone: a soft drum hit (two for +4), no blare. */
   plus(strong = false) {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    if (H('tom', 'hit', t, { vel: strong ? 0.95 : 0.75 })) {
-      H('tom', 'hit', t + 0.12, { vel: strong ? 0.85 : 0.6, cents: -200 });
-      if (strong) { S('trombone', 41, t + 0.02, { vel: 0.8, dur: 0.4, rel: 0.2 }); S('trombone', 47, t + 0.02, { vel: 0.7, dur: 0.4, rel: 0.2 }); duck(t, 0.5, 0.5); }
+    if (H('tom', 'hit', t, { vel: strong ? 0.7 : 0.55 })) {
+      if (strong) H('tom', 'hit', t + 0.12, { vel: 0.5, cents: -200 });
     } else {
-      tone(t, strong ? 110 : 160, 0.25, 0.25, 'sine', 0.5);
+      tone(t, strong ? 120 : 160, 0.2, 0.16, 'sine', 0.6);
     }
   },
   nope() {
@@ -258,32 +245,26 @@ export const sfx = {
     const t = ctx!.currentTime;
     if (!H('woodblock', 'w', t, { vel: 0.5, cents: -700, lp: 1400 })) tone(t, 140, 0.12, 0.15, 'square');
   },
-  /** I went out: brass fanfare, claps and sparkles. */
+  /** I went out: a short, warm three-note phrase (no fanfare, no claps). */
   win() {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    duck(t, 0.15, 2.2);
-    if (S('trumpet', 72, t, { vel: 0.75, dur: 0.12 })) {
-      [[72, 0], [76, 0.12], [79, 0.24]].forEach(([m, d]) => S('trumpet', m, t + d, { vel: 0.75, dur: 0.11, rel: 0.08 }));
-      S('trumpet', 84, t + 0.38, { vel: 0.9, dur: 1, rel: 0.5 });
-      S('trumpet', 79, t + 0.38, { vel: 0.75, dur: 1, rel: 0.5, pan: -0.2 });
-      S('trombone', 60, t + 0.38, { vel: 0.75, dur: 1, rel: 0.5, pan: 0.2 });
-      S('trombone', 48, t + 0.38, { vel: 0.7, dur: 1, rel: 0.5 });
-      for (let i = 0; i < 6; i++) H('claps', 'clap', t + 0.38 + i * 0.26, { vel: 0.55, pan: r(-0.5, 0.5) });
-      [96, 91, 98, 93, 100].forEach((m, i) => S('glock', m, t + 0.5 + i * 0.09, { vel: 0.35, pan: r(-0.6, 0.6) }));
+    duck(t, 0.6, 0.9);
+    const line = [72, 76, 79];
+    if (S('xylo', line[0], t, { vel: 0.5 })) {
+      line.slice(1).forEach((m, i) => S('xylo', m, t + (i + 1) * 0.12, { vel: 0.5 }));
+      S('glock', 84, t + 0.36, { vel: 0.25 });
     } else {
-      [523, 659, 784, 1047, 1319].forEach((f, i) => tone(t + i * 0.09, f, 0.5, 0.15, 'triangle'));
+      line.forEach((m, i) => tone(t + i * 0.12, 440 * Math.pow(2, (m - 69) / 12), 0.3, 0.08, 'triangle'));
     }
-    for (let i = 0; i < 6; i++) tone(t + 0.6 + i * 0.07, 2000 + Math.random() * 2000, 0.15, 0.03, 'sine');
   },
   /** Someone else went out: a short falling mallet line. */
   lose() {
     if (!ok()) return;
     const t = ctx!.currentTime;
-    duck(t, 0.4, 1.2);
-    const line = [79, 76, 72, 67];
-    if (S('xylo', line[0], t, { vel: 0.55 })) line.slice(1).forEach((m, i) => S('xylo', m, t + (i + 1) * 0.13, { vel: 0.5 }));
-    else line.forEach((m, i) => tone(t + i * 0.13, 440 * Math.pow(2, (m - 69) / 12), 0.2, 0.08));
-    S('trombone', 43, t + 0.52, { vel: 0.55, dur: 0.6, rel: 0.3, glide: -1 });
+    duck(t, 0.6, 0.8);
+    const line = [76, 72, 67];
+    if (S('xylo', line[0], t, { vel: 0.45 })) line.slice(1).forEach((m, i) => S('xylo', m, t + (i + 1) * 0.13, { vel: 0.4 }));
+    else line.forEach((m, i) => tone(t + i * 0.13, 440 * Math.pow(2, (m - 69) / 12), 0.2, 0.07));
   },
 };
