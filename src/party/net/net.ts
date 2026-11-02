@@ -3,9 +3,12 @@
 // back events, state and minigame snapshots. Transport: PeerJS (id prefix `unser-party-`), or
 // with ?net=local a BroadcastChannel between tabs of one browser (tests).
 
-import { PeerTransport } from '../../net/peer';
-import { NetError, type HostEndpoint, type Link, type Transport } from '../../net/transport';
+import { LINK_PARAMS } from '../../net/netconfig';
+import { RobustTransport } from '../../net/robust';
+import { NetError, connectErrorText, type HostEndpoint, type Link, type Transport } from '../../net/transport';
 import { BOT_NAMES, COLORS, FEATS, type BotLevel, type Feat, type Rules, type Seat } from '../types';
+
+export { onNetStatus } from '../../net/transport';
 
 export const PARTY_PROTOCOL = 1;
 export const MAX_SEATS = 4;
@@ -46,22 +49,20 @@ export function inviteLink(code: string) {
   u.hash = '';
   u.searchParams.set('join', code);
   const q = new URLSearchParams(location.search);
-  for (const k of ['net', 'peer', 'ice']) { const v = q.get(k); if (v) u.searchParams.set(k, v); }
+  for (const k of LINK_PARAMS) { const v = q.get(k); if (v) u.searchParams.set(k, v); }
   return u.toString();
 }
 
 export class RunningError extends Error {}
 export function netText(e: unknown): string {
   if (e instanceof RunningError) return 'In diesem Raum läuft schon ein Abend. Wartet bis zum nächsten.';
-  const kind = e instanceof NetError ? e.kind : 'network';
+  const kind = e instanceof NetError ? e.kind : 'broker';
   switch (kind) {
     case 'unsupported': return 'Hier geht Online-Spielen leider nicht: Diese Umgebung erlaubt keine direkten Verbindungen.';
-    case 'notFound': return 'Unter diesem Code ist gerade kein Raum offen. Stimmt der Code?';
-    case 'timeout': return 'Die Verbindung kam nicht zustande. Versucht es gleich noch einmal.';
     case 'full': return 'Der Raum ist schon voll: Mehr als vier gehen nicht.';
     case 'version': return 'Ihr habt verschiedene Versionen geladen. Ladet beide die Seite neu.';
     case 'closed': return 'Der Gastgeber hat den Raum geschlossen.';
-    default: return 'Der Vermittlungsdienst ist gerade nicht erreichbar. Prüf die Internetverbindung.';
+    default: return connectErrorText(kind) ?? connectErrorText('broker')!;
   }
 }
 
@@ -131,7 +132,7 @@ export class LocalTransport implements Transport {
 
 export function makeTransport(): Transport {
   try { if (new URLSearchParams(location.search).get('net') === 'local') return new LocalTransport(); } catch { /* default */ }
-  return new PeerTransport(undefined, PEER_PREFIX);
+  return new RobustTransport(PEER_PREFIX);
 }
 
 // ---------------- host ----------------
@@ -162,7 +163,7 @@ export class PartyHost {
       try { return new PartyHost(await transport.host(randomCode()), me, rules); }
       catch (e) { if (!(e instanceof NetError && e.kind === 'taken')) throw e; }
     }
-    throw new NetError('network');
+    throw new NetError('broker');
   }
 
   info(you: number): LobbyInfo { return { code: this.code, seats: this.seats.map((s) => ({ ...s })), rules: structuredClone(this.rules), you, started: this.started }; }

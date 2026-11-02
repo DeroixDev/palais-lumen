@@ -10,7 +10,7 @@ import { ranking } from './engine/state';
 import { MINIGAMES } from './minigames';
 import { minigamePhase, runFreeMinigame } from './minigames/flow';
 import type { MgPlayer } from './minigames/types';
-import { MAX_SEATS, PartyGuest, PartyHost, cleanCode, inviteLink, makeTransport, netText, validCode, type LobbyInfo } from './net/net';
+import { MAX_SEATS, PartyGuest, PartyHost, cleanCode, inviteLink, makeTransport, netText, onNetStatus, validCode, type LobbyInfo } from './net/net';
 import type { Presenter } from './ui/presenter';
 import { GuestSession, HostSession, type FullState, type GameMsg, type SessionEnd } from './session';
 import { setVolumes, sfx, startMusic, unlock } from './sfx';
@@ -217,7 +217,7 @@ function renderTitle() {
 // ---------------- lobby ----------------
 type Lobby =
   | { kind: 'solo' }
-  | { kind: 'online'; err?: string; busy?: boolean }
+  | { kind: 'online'; err?: string; busy?: boolean; status?: string }
   | { kind: 'host'; host: PartyHost; note?: string }
   | { kind: 'guest'; guest: PartyGuest; info: LobbyInfo | null; session: GuestSession }
   | { kind: 'practice' };
@@ -321,6 +321,7 @@ function paneHTML(t: string): string {
       <button class="mbtn go wide" type="button" data-l="host"${L.busy ? ' disabled' : ''}><span class="mi-ic">${IC.online}</span><span><b>Raum öffnen</b><small>Du bist Gastgeber</small></span></button>
       <div class="or"><span>oder</span></div>
       <div class="join"><label class="fld"><span>Code von einem Freund</span><input type="text" id="lCode" maxlength="40" placeholder="z. B. KXMPR" autocomplete="off" autocapitalize="characters"></label><button class="mbtn" type="button" data-l="join"${L.busy ? ' disabled' : ''}>Beitreten</button></div>
+      ${L.busy && L.status ? `<p class="lead" role="status" id="lStatus">${esc(L.status)}</p>` : ''}
       <p class="err" role="alert">${esc(L.err ?? '')}</p>`;
   }
   if (L.kind === 'host') {
@@ -581,8 +582,16 @@ async function startHost(host: PartyHost) {
 async function join(raw: string) {
   const code = cleanCode(raw);
   if (!validCode(code)) { lobby = { kind: 'online', err: 'Der Code hat 5 Buchstaben, z. B. KXMPR.' }; openLobby(lobby); return; }
-  lobby = { kind: 'online', busy: true };
+  const busyL: Lobby = { kind: 'online', busy: true, status: 'Verbindet …' };
+  lobby = busyL;
   openLobby(lobby);
+  // progress of the connection ("Verbindet … (Weg 2)" while the second path takes over)
+  const unStatus = onNetStatus((text) => {
+    if (lobby !== busyL || busyL.kind !== 'online') return;
+    busyL.status = text;
+    const el = document.getElementById('lStatus');
+    if (el) el.textContent = text;
+  });
   try {
     const guest = await PartyGuest.join(makeTransport(), code, { id: netId(), name: profile.name, feat: profile.feat, color: profile.color });
     const sess = new GuestSession(guest);
@@ -623,6 +632,8 @@ async function join(raw: string) {
   } catch (e) {
     lobby = { kind: 'online', err: netText(e) };
     openLobby(lobby);
+  } finally {
+    unStatus();
   }
 }
 
